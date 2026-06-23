@@ -1,0 +1,142 @@
+<div class="ddv-page">
+
+  <!-- Top bar -->
+  <div class="ddv-topbar">
+    <button class="ddv-back fa fa-arrow-left" (click)="goBack()"></button>
+    <h2>Devices</h2>
+    <div class="ddv-topbar-right">
+      <input class="ddv-search" [(ngModel)]="search" placeholder="Search devices..."/>
+      <select class="ddv-select" [(ngModel)]="filterType">
+        <option value="">All Types</option>
+        <option *ngFor="let t of TYPES" [value]="t">{{ t }}</option>
+      </select>
+      <select class="ddv-select" [(ngModel)]="filterStatus">
+        <option value="">All Status</option>
+        <option *ngFor="let s of STATUSES" [value]="s">{{ s }}</option>
+      </select>
+      <button class="ddv-btn-add" (click)="showAdd = !showAdd">
+        <span class="fa fa-plus"></span> Add Device
+      </button>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="ddv-kpi-row">
+    <div class="ddv-kpi"><span class="ddv-kpi-val">{{ kpiInstalled }}</span><span class="ddv-kpi-lbl">Installed</span></div>
+    <div class="ddv-kpi"><span class="ddv-kpi-val">{{ kpiInProgress }}</span><span class="ddv-kpi-lbl">In Progress</span></div>
+    <div class="ddv-kpi"><span class="ddv-kpi-val">{{ kpiPending }}</span><span class="ddv-kpi-lbl">Pending</span></div>
+    <div class="ddv-kpi ddv-kpi-green"><span class="ddv-kpi-val">{{ kpiCommissioned }}</span><span class="ddv-kpi-lbl">Commissioned</span></div>
+    <div class="ddv-kpi ddv-kpi-total"><span class="ddv-kpi-val">{{ devices.length }}</span><span class="ddv-kpi-lbl">Total</span></div>
+  </div>
+
+  <!-- Add device form -->
+  <div class="ddv-add-form" *ngIf="showAdd">
+    <h4>Add Device to Deployment</h4>
+    <div class="ddv-add-grid">
+      <div class="ddv-form-group">
+        <label>Device Name</label>
+        <input class="ddv-input" [(ngModel)]="newDevice.device_name" placeholder="e.g. APF-2"/>
+      </div>
+      <div class="ddv-form-group">
+        <label>Type</label>
+        <select class="ddv-input" [(ngModel)]="newDevice.device_type">
+          <option *ngFor="let t of TYPES" [value]="t">{{ t }}</option>
+        </select>
+      </div>
+      <div class="ddv-form-group">
+        <label>Location</label>
+        <input class="ddv-input" [(ngModel)]="newDevice.location" placeholder="e.g. Panel B"/>
+      </div>
+      <div class="ddv-form-group">
+        <label>Breaker Req.</label>
+        <input class="ddv-input" [(ngModel)]="newDevice.breaker_req" placeholder="e.g. 300A / 3P"/>
+      </div>
+      <div class="ddv-form-group">
+        <label>CTs Required</label>
+        <input class="ddv-input" type="number" [(ngModel)]="newDevice.ct_req" placeholder="3"/>
+      </div>
+    </div>
+    <div class="ddv-add-actions">
+      <button class="ddv-btn-primary" (click)="addDevice()" [disabled]="saving || !newDevice.device_name">
+        {{ saving ? 'Saving...' : 'Add Device' }}
+      </button>
+      <button class="ddv-btn-ghost" (click)="showAdd = false">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Two-panel layout -->
+  <div class="ddv-split">
+
+    <!-- Left: device list -->
+    <div class="ddv-list-panel">
+      <div class="ddv-loading" *ngIf="loading"><span class="fa fa-spinner fa-spin"></span></div>
+      <div class="ddv-empty" *ngIf="!loading && filtered.length === 0">No devices match filters.</div>
+      <div class="ddv-device-row"
+           *ngFor="let d of filtered"
+           [class.ddv-selected]="selected && selected.id === d.id"
+           (click)="select(d)">
+        <div class="ddv-row-left">
+          <div class="ddv-row-type-badge">{{ d.device_type || 'APF' }}</div>
+          <div>
+            <div class="ddv-row-name">{{ d.device_name || d.planned_label || ('Device #' + d.id) }}</div>
+            <div class="ddv-row-loc">{{ d.location || '—' }}</div>
+          </div>
+        </div>
+        <span class="ddv-row-status" [ngClass]="statusClass(d.status)">{{ d.status }}</span>
+      </div>
+    </div>
+
+    <!-- Right: device detail panel -->
+    <div class="ddv-detail-panel" *ngIf="selected">
+      <div class="ddv-detail-header">
+        <h3>{{ selected.device_name || selected.planned_label }}</h3>
+        <button class="ddv-btn-delete fa fa-trash" (click)="deleteDevice(selected)"></button>
+      </div>
+
+      <div class="ddv-detail-grid">
+        <div class="ddv-detail-item"><span class="ddv-detail-lbl">Type</span><span class="ddv-detail-val">{{ selected.device_type || '—' }}</span></div>
+        <div class="ddv-detail-item"><span class="ddv-detail-lbl">Location</span><span class="ddv-detail-val">{{ selected.location || '—' }}</span></div>
+        <div class="ddv-detail-item"><span class="ddv-detail-lbl">Breaker</span><span class="ddv-detail-val">{{ selected.breaker_req || '—' }}</span></div>
+        <div class="ddv-detail-item"><span class="ddv-detail-lbl">CTs Required</span><span class="ddv-detail-val">{{ selected.ct_req || '—' }}</span></div>
+        <div class="ddv-detail-item"><span class="ddv-detail-lbl">Serial (Expected)</span><span class="ddv-detail-val">{{ selected.expected_serial || '—' }}</span></div>
+        <div class="ddv-detail-item"><span class="ddv-detail-lbl">Serial (Installed)</span><span class="ddv-detail-val">{{ selected.installed_serial || '—' }}</span></div>
+        <div class="ddv-detail-item"><span class="ddv-detail-lbl">Firmware</span><span class="ddv-detail-val">{{ selected.firmware_version || '—' }}</span></div>
+        <div class="ddv-detail-item"><span class="ddv-detail-lbl">Status</span><span class="ddv-detail-val ddv-status-val" [ngClass]="statusClass(selected.status)">{{ selected.status }}</span></div>
+      </div>
+
+      <!-- Workflow checklist -->
+      <div class="ddv-workflow">
+        <div class="ddv-workflow-title">Installation Workflow</div>
+        <div class="ddv-workflow-steps">
+          <div class="ddv-step" *ngFor="let step of WORKFLOW; let i = index"
+               [class.ddv-step-done]="workflowStep(selected) >= i"
+               [class.ddv-step-current]="workflowStep(selected) === i - 1">
+            <div class="ddv-step-dot">
+              <span class="fa" [class.fa-check]="workflowStep(selected) >= i" [class.fa-circle-o]="workflowStep(selected) < i"></span>
+            </div>
+            <span class="ddv-step-label">{{ step }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Actions -->
+      <div class="ddv-detail-actions">
+        <button class="ddv-btn-primary" *ngIf="nextStep(selected)" (click)="advanceStatus(selected)">
+          <span class="fa fa-arrow-right"></span> Mark as {{ nextStep(selected) }}
+        </button>
+        <button class="ddv-btn-secondary" (click)="goIssues()">
+          <span class="fa fa-flag"></span> Log Issue
+        </button>
+        <button class="ddv-btn-secondary" (click)="goCommissioning()">
+          <span class="fa fa-bolt"></span> Commission
+        </button>
+      </div>
+    </div>
+
+    <div class="ddv-detail-empty" *ngIf="!selected">
+      <span class="fa fa-hand-o-left"></span>
+      <p>Select a device to view details and workflow</p>
+    </div>
+
+  </div>
+</div>

@@ -1,0 +1,58 @@
+<div class="dclo-page">
+  <div class="dclo-topbar">
+    <button class="dclo-back fa fa-arrow-left" (click)="goBack()"></button>
+    <h2>Closeout Package</h2>
+    <div class="dclo-progress-chip">{{ complete }} / {{ total }} Complete</div>
+  </div>
+
+  <div class="dclo-progress-bar-wrap"><div class="dclo-progress-bar" [style.width.%]="progressPct" [class.bar-ready]="progressPct === 100"></div></div>
+
+  <div class="dclo-approved-banner" *ngIf="approved">
+    <span class="fa fa-check-circle"></span>
+    Deployment Released to Operations Successfully!
+  </div>
+
+  <div class="dclo-main">
+    <div class="dclo-req-list">
+      <div class="dclo-loading" *ngIf="loading"><span class="fa fa-spinner fa-spin"></span></div>
+      <div class="dclo-empty" *ngIf="!loading && requirements.length === 0">
+        No closeout requirements defined.
+        <p class="dclo-empty-hint">Closeout requirements are auto-generated when devices are commissioned.</p>
+      </div>
+      <div class="dclo-req-row" *ngFor="let r of requirements" (click)="toggleRequirement(r)" [class.dclo-complete]="r.status === 'Complete'">
+        <div class="dclo-req-check"><span class="fa" [class.fa-check-square]="r.status === 'Complete'" [class.fa-square-o]="r.status !== 'Complete'"></span></div>
+        <div class="dclo-req-info">
+          <div class="dclo-req-name">{{ r.requirement_name }}</div>
+          <span class="dclo-req-cat" [ngClass]="catClass(r.category)">{{ r.category }}</span>
+        </div>
+        <span class="dclo-req-status" [class.sts-complete]="r.status === 'Complete'" [class.sts-pending]="r.status !== 'Complete'">{{ r.status }}</span>
+      </div>
+    </div>
+
+    <div class="dclo-sidebar">
+      <div class="dclo-validate-card">
+        <h4><span class="fa fa-check-circle"></span> Closeout Validation</h4>
+        <p>Run validation to check all requirements before releasing to operations.</p>
+        <button class="dclo-btn-validate" (click)="validate()" [disabled]="validating">
+          <span class="fa" [class.fa-search]="!validating" [class.fa-spinner]="validating" [class.fa-spin]="validating"></span>
+          {{ validating ? 'Validating...' : 'Run Validation' }}
+        </button>
+
+        <div class="dclo-validation-result" *ngIf="validation">
+          <div class="dclo-val-ok" *ngIf="validation.can_close">
+            <span class="fa fa-check-circle"></span> All checks passed — ready to approve!
+          </div>
+          <div class="dclo-val-fail" *ngIf="!validation.can_close">
+            <div class="dclo-val-msg">{{ validation.message }}</div>
+            <div class="dclo-blocker" *ngFor="let b of validation.blockers">
+              <span class="fa fa-times-circle"></span> {{ b.type }} <span *ngIf="b.count > 0">({{ b.count }})</span>
+            </div>
+          </div>
+          <button class="dclo-btn-approve" *ngIf="validation.can_close" (click)="approve()" [disabled]="approving">
+            <span class="fa fa-rocket"></span> {{ approving ? 'Approving...' : 'Release to Operations' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

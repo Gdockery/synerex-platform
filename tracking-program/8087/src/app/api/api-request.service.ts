@@ -30,6 +30,10 @@ export class ApiRequestService {
     return this.handleRequest(this.http.post(url, body, params));
   }
 
+  public patch(url, body = null, params = {}): Observable<any> {
+    return this.handleRequest(this.http.patch(url, body, params));
+  }
+
   public delete(url, params = {}): Observable<any> {
     return this.handleRequest(this.http.delete(url, params));
   }

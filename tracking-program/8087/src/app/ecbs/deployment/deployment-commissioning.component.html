@@ -1,0 +1,61 @@
+<div class="dcom-page">
+  <div class="dcom-topbar">
+    <button class="dcom-back fa fa-arrow-left" (click)="goBack()"></button>
+    <h2>Commissioning</h2>
+    <div class="dcom-progress-summary">{{ devicesDone }} / {{ devices.length }} Commissioned</div>
+  </div>
+
+  <div class="dcom-split">
+    <div class="dcom-list-panel">
+      <div class="dcom-loading" *ngIf="loading"><span class="fa fa-spinner fa-spin"></span></div>
+      <div class="dcom-empty" *ngIf="!loading && devices.length === 0">No devices in this deployment.</div>
+      <div class="dcom-device-row" *ngFor="let d of devices"
+           [class.dcom-selected]="selected && selected.id === d.id"
+           (click)="select(d)">
+        <div class="dcom-row-left">
+          <div class="dcom-row-type">{{ d.device_type || 'APF' }}</div>
+          <div>
+            <div class="dcom-row-name">{{ d.device_name || d.planned_label || ('Device #' + d.id) }}</div>
+            <div class="dcom-row-loc">{{ d.location || '—' }}</div>
+          </div>
+        </div>
+        <span class="dcom-row-status" [ngClass]="statusClass(d)">
+          {{ commRecords[d.id] ? commRecords[d.id].status : 'Not Started' }}
+        </span>
+      </div>
+    </div>
+
+    <div class="dcom-detail-panel" *ngIf="selected && selectedComm">
+      <div class="dcom-detail-header">
+        <h3>{{ selected.device_name || selected.planned_label }}</h3>
+        <div class="dcom-check-progress">{{ checkedCount() }} / {{ CHECKS.length }} checks</div>
+      </div>
+
+      <div class="dcom-progress-bar-wrap">
+        <div class="dcom-progress-bar" [style.width.%]="checkedCount() / CHECKS.length * 100"></div>
+      </div>
+
+      <div class="dcom-checklist">
+        <div class="dcom-check-row" *ngFor="let c of CHECKS" (click)="toggleCheck(c.key)" [class.dcom-checked]="selectedComm[c.key]">
+          <div class="dcom-check-box">
+            <span class="fa" [class.fa-check-square]="selectedComm[c.key]" [class.fa-square-o]="!selectedComm[c.key]"></span>
+          </div>
+          <span class="dcom-check-label">{{ c.label }}</span>
+        </div>
+      </div>
+
+      <div class="dcom-commissioned-banner" *ngIf="selectedComm.status === 'Commissioned'">
+        <span class="fa fa-check-circle"></span>
+        Device Commissioned Successfully
+      </div>
+      <div class="dcom-ready-hint" *ngIf="allChecked() && selectedComm.status !== 'Commissioned'">
+        All checks complete — commissioning will be saved automatically.
+      </div>
+    </div>
+
+    <div class="dcom-detail-empty" *ngIf="!selected">
+      <span class="fa fa-bolt"></span>
+      <p>Select a device to start commissioning workflow</p>
+    </div>
+  </div>
+</div>

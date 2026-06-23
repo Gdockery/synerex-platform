@@ -23,7 +23,15 @@ import { PaymentsComponent }            from './payments/payments.component';
 import { RatesTariffsComponent }        from './rates-tariffs/rates-tariffs.component';
 import { ProfitabilityComponent }       from './profitability/profitability.component';
 import { UBillTrackerComponent }        from './ubill-tracker/ubill-tracker.component';
-import { UBillForecastComponent }       from './ubill-forecast/ubill-forecast.component';
+import { UBillForecastComponent }             from './ubill-forecast/ubill-forecast.component';
+import { DeploymentListComponent }           from './deployment/deployment-list.component';
+import { DeploymentActiveComponent }         from './deployment/deployment-active.component';
+import { DeploymentDevicesComponent }        from './deployment/deployment-devices.component';
+import { DeploymentIssuesComponent }         from './deployment/deployment-issues.component';
+import { DeploymentCommissioningComponent }  from './deployment/deployment-commissioning.component';
+import { DeploymentCloseoutComponent }       from './deployment/deployment-closeout.component';
+import { DeploymentPhotosComponent }         from './deployment/deployment-photos.component';
+import { DeploymentMaterialsComponent }      from './deployment/deployment-materials.component';
 
 const routes: Routes = [
   { path: 'dashboard',            component: DashboardComponent,          data: { title: 'Enterprise Dashboard' } },
@@ -49,6 +57,14 @@ const routes: Routes = [
   { path: 'profitability',        component: ProfitabilityComponent,      data: { title: 'Profitability' } },
   { path: 'ubill-tracker',         component: UBillTrackerComponent,       data: { title: 'uBillTracker' } },
   { path: 'ubill-forecast',        component: UBillForecastComponent,      data: { title: 'uBillForecast' } },
+  { path: 'deployment',                    component: DeploymentListComponent,          data: { title: 'Deployment App' } },
+  { path: 'deployment/:id',                component: DeploymentActiveComponent,        data: { title: 'Deployment' } },
+  { path: 'deployment/:id/devices',        component: DeploymentDevicesComponent,       data: { title: 'Deployment Devices' } },
+  { path: 'deployment/:id/issues',         component: DeploymentIssuesComponent,        data: { title: 'Deployment Issues' } },
+  { path: 'deployment/:id/commissioning',  component: DeploymentCommissioningComponent, data: { title: 'Commissioning' } },
+  { path: 'deployment/:id/closeout',       component: DeploymentCloseoutComponent,      data: { title: 'Closeout Package' } },
+  { path: 'deployment/:id/photos',         component: DeploymentPhotosComponent,        data: { title: 'Deployment Photos' } },
+  { path: 'deployment/:id/materials',      component: DeploymentMaterialsComponent,     data: { title: 'Materials' } },
   { path: '',                     redirectTo: 'dashboard', pathMatch: 'full' },
 ];
 

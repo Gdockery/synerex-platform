@@ -1,0 +1,60 @@
+<div class="dmat-page">
+  <div class="dmat-topbar">
+    <button class="dmat-back fa fa-arrow-left" (click)="goBack()"></button>
+    <h2>Materials</h2>
+    <div class="dmat-summary">{{ totalDelivered }} / {{ totalExpected }} delivered</div>
+    <button class="dmat-btn-add" (click)="showAdd = !showAdd"><span class="fa fa-plus"></span> Add Item</button>
+  </div>
+
+  <div class="dmat-add-form" *ngIf="showAdd">
+    <div class="dmat-form-row">
+      <div class="dmat-form-group">
+        <label>Item Type</label>
+        <select class="dmat-input" [(ngModel)]="newMat.item_type"><option *ngFor="let t of ITEM_TYPES" [value]="t">{{ t }}</option></select>
+      </div>
+      <div class="dmat-form-group dmat-flex">
+        <label>Label / Description</label>
+        <input class="dmat-input" [(ngModel)]="newMat.item_label" placeholder="e.g. APF-3000 Unit A"/>
+      </div>
+      <div class="dmat-form-group">
+        <label>Expected Qty</label>
+        <input class="dmat-input" type="number" [(ngModel)]="newMat.expected_qty" min="1"/>
+      </div>
+    </div>
+    <div class="dmat-form-actions">
+      <button class="dmat-btn-primary" (click)="addMaterial()" [disabled]="saving || !newMat.item_label">{{ saving ? 'Saving...' : 'Add' }}</button>
+      <button class="dmat-btn-ghost" (click)="showAdd = false">Cancel</button>
+    </div>
+  </div>
+
+  <div class="dmat-table-wrap">
+    <div class="dmat-loading" *ngIf="loading"><span class="fa fa-spinner fa-spin"></span></div>
+    <div class="dmat-empty" *ngIf="!loading && materials.length === 0">No materials logged yet.</div>
+    <table class="dmat-table" *ngIf="!loading && materials.length > 0">
+      <thead>
+        <tr>
+          <th>Type</th>
+          <th>Label</th>
+          <th>Expected</th>
+          <th>Delivered</th>
+          <th>Installed</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let m of materials">
+          <td><span class="dmat-type-badge">{{ m.item_type }}</span></td>
+          <td class="dmat-label">{{ m.item_label }}</td>
+          <td class="dmat-qty">{{ m.expected_qty }}</td>
+          <td class="dmat-qty">
+            <input class="dmat-qty-input" type="number" [value]="m.delivered_qty" min="0" (change)="updateQty(m, 'delivered_qty', +$any($event.target).value)"/>
+          </td>
+          <td class="dmat-qty">
+            <input class="dmat-qty-input" type="number" [value]="m.installed_qty" min="0" (change)="updateQty(m, 'installed_qty', +$any($event.target).value)"/>
+          </td>
+          <td><span class="dmat-sts" [ngClass]="statusClass(m.status)">{{ m.status }}</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

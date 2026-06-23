@@ -1,0 +1,66 @@
+<div class="dpho-page">
+  <div class="dpho-topbar">
+    <button class="dpho-back fa fa-arrow-left" (click)="goBack()"></button>
+    <h2>Photos</h2>
+    <div class="dpho-topbar-right">
+      <select class="dpho-select" [(ngModel)]="filterType"><option value="">All Types</option><option *ngFor="let t of PHOTO_TYPES" [value]="t">{{ t }}</option></select>
+      <button class="dpho-btn-add" (click)="showAdd = !showAdd"><span class="fa fa-camera"></span> Add Photo</button>
+    </div>
+  </div>
+
+  <div class="dpho-add-form" *ngIf="showAdd">
+    <div class="dpho-form-row">
+      <div class="dpho-form-group">
+        <label>Type</label>
+        <select class="dpho-input" [(ngModel)]="newPhoto.photo_type"><option *ngFor="let t of PHOTO_TYPES" [value]="t">{{ t }}</option></select>
+      </div>
+      <div class="dpho-form-group dpho-flex">
+        <label>Photo URL / Reference</label>
+        <input class="dpho-input" [(ngModel)]="newPhoto.file_url" placeholder="https://... or local reference"/>
+      </div>
+      <div class="dpho-form-group dpho-flex">
+        <label>Description</label>
+        <input class="dpho-input" [(ngModel)]="newPhoto.description" placeholder="What does this photo show?"/>
+      </div>
+    </div>
+    <div class="dpho-form-actions">
+      <button class="dpho-btn-primary" (click)="addPhoto()" [disabled]="saving">{{ saving ? 'Saving...' : 'Add Photo' }}</button>
+      <button class="dpho-btn-ghost" (click)="showAdd = false">Cancel</button>
+    </div>
+  </div>
+
+  <div class="dpho-count-bar">{{ filtered.length }} photo{{ filtered.length !== 1 ? 's' : '' }}</div>
+
+  <div class="dpho-loading" *ngIf="loading"><span class="fa fa-spinner fa-spin"></span> Loading photos...</div>
+  <div class="dpho-empty" *ngIf="!loading && filtered.length === 0">
+    <span class="fa fa-camera dpho-empty-icon"></span>
+    <p>No photos yet. Tap the camera icon to add photos.</p>
+  </div>
+
+  <div class="dpho-grid" *ngIf="!loading && filtered.length > 0">
+    <div class="dpho-card" *ngFor="let p of filtered" (click)="openLightbox(p)">
+      <div class="dpho-thumb" [style.backgroundImage]="p.file_url ? 'url(' + p.file_url + ')' : 'none'">
+        <div class="dpho-thumb-placeholder" *ngIf="!p.file_url"><span class="fa fa-image"></span></div>
+        <span class="dpho-type-badge">{{ p.photo_type }}</span>
+      </div>
+      <div class="dpho-card-body">
+        <div class="dpho-card-desc">{{ p.description || '—' }}</div>
+        <div class="dpho-card-date">{{ fmtDate(p.createdAt) }}</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox -->
+  <div class="dpho-lightbox" *ngIf="lightbox" (click)="closeLightbox()">
+    <div class="dpho-lb-content" (click)="$event.stopPropagation()">
+      <button class="dpho-lb-close fa fa-times" (click)="closeLightbox()"></button>
+      <img *ngIf="lightbox.file_url" [src]="lightbox.file_url" class="dpho-lb-img" alt="Photo"/>
+      <div class="dpho-lb-placeholder" *ngIf="!lightbox.file_url"><span class="fa fa-image"></span></div>
+      <div class="dpho-lb-meta">
+        <span class="dpho-type-badge">{{ lightbox.photo_type }}</span>
+        <span class="dpho-lb-desc">{{ lightbox.description }}</span>
+        <span class="dpho-lb-date">{{ fmtDate(lightbox.createdAt) }}</span>
+      </div>
+    </div>
+  </div>
+</div>

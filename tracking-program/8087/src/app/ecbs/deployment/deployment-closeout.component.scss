@@ -1,0 +1,49 @@
+$bg:#0d1117;$panel:#161b22;$border:#30363d;$text:#e0e0e0;$sub:#546e7a;$blue:#00b0ff;$green:#00e676;$red:#f44336;
+.dclo-page{background:$bg;min-height:100vh;color:$text;display:flex;flex-direction:column;}
+.dclo-topbar{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid $border;background:$panel;}
+.dclo-back{font-size:18px;color:$sub;background:none;border:none;cursor:pointer;padding:8px;&:hover{color:$blue;}}
+h2{margin:0;font-size:18px;color:#fff;flex:1;}
+.dclo-progress-chip{font-size:14px;color:$blue;font-weight:700;}
+.dclo-progress-bar-wrap{background:#1e2a3a;height:4px;}
+.dclo-progress-bar{background:$blue;height:4px;transition:width 0.3s;&.bar-ready{background:$green;}}
+.dclo-approved-banner{background:rgba(0,230,118,0.12);border:1px solid rgba(0,230,118,0.4);border-radius:0;padding:20px 24px;color:$green;font-size:16px;font-weight:700;.fa{font-size:20px;margin-right:10px;}}
+.dclo-main{display:grid;grid-template-columns:1fr 320px;gap:20px;padding:20px;flex:1;}
+.dclo-req-list{display:flex;flex-direction:column;gap:2px;}
+.dclo-loading{padding:40px;text-align:center;color:$sub;}
+.dclo-empty{padding:40px;text-align:center;color:$sub;}
+.dclo-empty-hint{font-size:12px;color:$sub;margin-top:8px;}
+.dclo-req-row{display:flex;align-items:center;gap:14px;padding:16px;border-radius:8px;border:1px solid transparent;cursor:pointer;background:$panel;
+  &:hover{border-color:$border;}
+  &.dclo-complete{background:rgba(0,230,118,0.06);border-color:rgba(0,230,118,0.2);}
+}
+.dclo-req-check{.fa{font-size:20px;color:$sub;}.dclo-complete & .fa{color:$green;}}
+.dclo-req-info{flex:1;}
+.dclo-req-name{font-size:14px;color:$text;margin-bottom:4px;}
+.dclo-req-cat{font-size:11px;padding:2px 8px;border-radius:8px;font-weight:600;
+  &.cat-safety{background:rgba(244,67,54,0.15);color:$red;}
+  &.cat-tech{background:rgba(0,176,255,0.12);color:$blue;}
+  &.cat-doc{background:#1e2a3a;color:$sub;}
+  &.cat-other{background:#1e2a3a;color:$sub;}
+}
+.dclo-req-status{font-size:12px;font-weight:600;
+  &.sts-complete{color:$green;}
+  &.sts-pending{color:$sub;}
+}
+.dclo-sidebar{}
+.dclo-validate-card{background:$panel;border:1px solid $border;border-radius:10px;padding:20px;
+  h4{margin:0 0 10px;color:#fff;.fa{color:$green;margin-right:8px;}}
+  p{font-size:13px;color:$sub;margin-bottom:16px;}
+}
+.dclo-btn-validate{background:#1e2a3a;color:$blue;border:1px solid rgba(0,176,255,0.2);border-radius:8px;padding:12px 18px;font-size:14px;font-weight:600;cursor:pointer;width:100%;margin-bottom:16px;.fa{margin-right:8px;}
+  &:disabled{opacity:0.5;cursor:not-allowed;}
+}
+.dclo-validation-result{margin-top:8px;}
+.dclo-val-ok{color:$green;font-size:14px;font-weight:600;margin-bottom:16px;.fa{margin-right:8px;}}
+.dclo-val-fail{margin-bottom:16px;}
+.dclo-val-msg{font-size:13px;color:$text;margin-bottom:10px;}
+.dclo-blocker{font-size:13px;color:$red;padding:6px 0;.fa{margin-right:8px;}}
+.dclo-btn-approve{background:$green;color:#000;border:none;border-radius:8px;padding:14px 20px;font-size:15px;font-weight:700;cursor:pointer;width:100%;.fa{margin-right:8px;}
+  &:disabled{opacity:0.5;cursor:not-allowed;}
+  &:hover:not(:disabled){background:#00c853;}
+}
+@media (max-width:900px){.dclo-main{grid-template-columns:1fr;}}

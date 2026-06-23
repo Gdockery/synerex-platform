@@ -1,0 +1,31 @@
+$bg:#0d1117;$panel:#161b22;$border:#30363d;$text:#e0e0e0;$sub:#546e7a;$blue:#00b0ff;$green:#00e676;$yellow:#ffd740;
+.dmat-page{background:$bg;min-height:100vh;color:$text;display:flex;flex-direction:column;}
+.dmat-topbar{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid $border;background:$panel;}
+.dmat-back{font-size:18px;color:$sub;background:none;border:none;cursor:pointer;padding:8px;&:hover{color:$blue;}}
+h2{margin:0;font-size:18px;color:#fff;flex:1;}
+.dmat-summary{font-size:13px;color:$sub;}
+.dmat-btn-add{background:$blue;color:#000;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;.fa{margin-right:6px;}}
+.dmat-add-form{padding:16px 20px;border-bottom:1px solid $border;background:rgba(0,176,255,0.04);}
+.dmat-form-row{display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;}
+.dmat-form-group{display:flex;flex-direction:column;gap:6px;label{font-size:12px;color:$sub;}&.dmat-flex{flex:1;min-width:200px;}}
+.dmat-input{background:$bg;border:1px solid $border;border-radius:6px;color:$text;padding:10px 12px;font-size:13px;min-height:44px;&:focus{outline:none;border-color:$blue;}}
+.dmat-form-actions{display:flex;gap:10px;}
+.dmat-btn-primary{background:$blue;color:#000;border:none;border-radius:8px;padding:10px 18px;font-size:13px;font-weight:600;cursor:pointer;min-height:44px;&:disabled{opacity:0.5;}}
+.dmat-btn-ghost{background:transparent;color:$sub;border:1px solid $border;border-radius:8px;padding:10px 16px;font-size:13px;cursor:pointer;min-height:44px;}
+.dmat-table-wrap{padding:20px;overflow-x:auto;}
+.dmat-loading{padding:40px;text-align:center;color:$sub;}
+.dmat-empty{padding:40px;text-align:center;color:$sub;}
+.dmat-table{width:100%;border-collapse:collapse;
+  th{text-align:left;font-size:11px;color:$sub;text-transform:uppercase;letter-spacing:0.5px;padding:10px 12px;border-bottom:1px solid $border;}
+  td{padding:12px;border-bottom:1px solid rgba(255,255,255,0.04);vertical-align:middle;}
+}
+.dmat-type-badge{background:#1e2a3a;color:$blue;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;white-space:nowrap;}
+.dmat-label{font-size:14px;color:$text;}
+.dmat-qty{font-size:14px;color:$text;text-align:center;}
+.dmat-qty-input{background:$bg;border:1px solid $border;border-radius:6px;color:$text;padding:6px 10px;font-size:13px;width:70px;text-align:center;&:focus{outline:none;border-color:$blue;}}
+.dmat-sts{font-size:11px;padding:3px 10px;border-radius:10px;font-weight:600;
+  &.sts-ok{background:#0d2e1a;color:$green;}
+  &.sts-warn{background:#2a2000;color:$yellow;}
+  &.sts-installed{background:#0d2e1a;color:$green;}
+  &.sts-pending{background:#1e2a3a;color:$sub;}
+}

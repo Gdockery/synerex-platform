@@ -1,0 +1,73 @@
+<div class="diss-page">
+  <div class="diss-topbar">
+    <button class="diss-back fa fa-arrow-left" (click)="goBack()"></button>
+    <h2>Issues</h2>
+    <div class="diss-topbar-right">
+      <select class="diss-select" [(ngModel)]="filterPriority"><option value="">All Priorities</option><option *ngFor="let p of PRIORITIES" [value]="p">{{ p }}</option></select>
+      <select class="diss-select" [(ngModel)]="filterStatus"><option value="">All Status</option><option *ngFor="let s of STATUSES" [value]="s">{{ s }}</option></select>
+      <button class="diss-btn-add" (click)="showCreate = !showCreate"><span class="fa fa-plus"></span> Log Issue</button>
+    </div>
+  </div>
+
+  <div class="diss-kpi-row">
+    <div class="diss-kpi"><span class="diss-kpi-val">{{ kpiOpen }}</span><span class="diss-kpi-lbl">Open</span></div>
+    <div class="diss-kpi diss-kpi-red"><span class="diss-kpi-val">{{ kpiHigh }}</span><span class="diss-kpi-lbl">High / Critical</span></div>
+    <div class="diss-kpi diss-kpi-green"><span class="diss-kpi-val">{{ kpiResolved }}</span><span class="diss-kpi-lbl">Resolved</span></div>
+    <div class="diss-kpi"><span class="diss-kpi-val">{{ kpiTotal }}</span><span class="diss-kpi-lbl">Total</span></div>
+  </div>
+
+  <div class="diss-create-form" *ngIf="showCreate">
+    <h4>Log Issue</h4>
+    <div class="diss-form-grid">
+      <div class="diss-form-group diss-span2"><label>Title</label><input class="diss-input" [(ngModel)]="newIssue.title" placeholder="Brief issue description"/></div>
+      <div class="diss-form-group"><label>Priority</label><select class="diss-input" [(ngModel)]="newIssue.priority"><option *ngFor="let p of PRIORITIES" [value]="p">{{ p }}</option></select></div>
+      <div class="diss-form-group"><label>Impact Level</label><select class="diss-input" [(ngModel)]="newIssue.impact_level"><option *ngFor="let imp of IMPACTS" [value]="imp">{{ imp }}</option></select></div>
+      <div class="diss-form-group diss-span2"><label>Description</label><textarea class="diss-input diss-textarea" [(ngModel)]="newIssue.description" rows="3" placeholder="Details, location, steps to reproduce..."></textarea></div>
+    </div>
+    <div class="diss-form-actions">
+      <button class="diss-btn-primary" (click)="createIssue()" [disabled]="saving || !newIssue.title">{{ saving ? 'Saving...' : 'Log Issue' }}</button>
+      <button class="diss-btn-ghost" (click)="showCreate = false">Cancel</button>
+    </div>
+  </div>
+
+  <div class="diss-split">
+    <div class="diss-list-panel">
+      <div class="diss-loading" *ngIf="loading"><span class="fa fa-spinner fa-spin"></span></div>
+      <div class="diss-empty" *ngIf="!loading && filtered.length === 0">No issues logged. Great work!</div>
+      <div class="diss-issue-row" *ngFor="let iss of filtered" [class.diss-selected]="selected && selected.id === iss.id" (click)="select(iss)">
+        <div class="diss-row-top">
+          <span class="diss-num">{{ iss.issue_number || '#' + iss.id }}</span>
+          <span class="diss-pri-badge" [ngClass]="priorityClass(iss.priority)">{{ iss.priority }}</span>
+          <span class="diss-sts-badge" [class.sts-resolved]="iss.status === 'Resolved'" [class.sts-open]="iss.status === 'Open'">{{ iss.status }}</span>
+        </div>
+        <div class="diss-row-title">{{ iss.title }}</div>
+        <div class="diss-row-impact">
+          <span class="diss-impact-badge" [ngClass]="impactClass(iss.impact_level)">{{ iss.impact_level }}</span>
+          <span class="diss-row-date">{{ fmtDate(iss.createdAt) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="diss-detail-panel" *ngIf="selected">
+      <div class="diss-detail-header">
+        <span class="diss-detail-num">{{ selected.issue_number || '#' + selected.id }}</span>
+        <h3>{{ selected.title }}</h3>
+      </div>
+      <div class="diss-badges-row">
+        <span class="diss-pri-badge" [ngClass]="priorityClass(selected.priority)">{{ selected.priority }}</span>
+        <span class="diss-impact-badge" [ngClass]="impactClass(selected.impact_level)">{{ selected.impact_level }}</span>
+      </div>
+      <p class="diss-description">{{ selected.description || 'No description.' }}</p>
+      <div class="diss-detail-meta">
+        <div><span class="diss-meta-lbl">Created</span> {{ fmtDate(selected.createdAt) }}</div>
+        <div *ngIf="selected.resolved_at"><span class="diss-meta-lbl">Resolved</span> {{ fmtDate(selected.resolved_at) }}</div>
+      </div>
+      <div class="diss-status-actions">
+        <span class="diss-meta-lbl">Update Status:</span>
+        <button class="diss-sts-btn" *ngFor="let s of STATUSES" [class.active]="selected.status === s" (click)="updateStatus(selected, s)">{{ s }}</button>
+      </div>
+    </div>
+
+    <div class="diss-detail-empty" *ngIf="!selected"><span class="fa fa-flag"></span><p>Select an issue to view details</p></div>
+  </div>
+</div>

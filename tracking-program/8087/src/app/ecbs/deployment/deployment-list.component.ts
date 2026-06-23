@@ -1,0 +1,104 @@
+import { Component, OnInit } from '@angular/core';
+import { Router } from '@angular/router';
+import { ApiRequestService } from '../../api/api-request.service';
+import { CurrentUserService } from '../../shared/user/currentUser.service';
+
+@Component({
+  selector: 'app-deployment-list',
+  templateUrl: './deployment-list.component.html',
+  styleUrls: ['./deployment-list.component.scss'],
+})
+export class DeploymentListComponent implements OnInit {
+  deployments: any[] = [];
+  loading = true;
+  projectId: number = 0;
+  projectName: string = '';
+  showCreate = false;
+  newName = '';
+  creating = false;
+
+  constructor(
+    private api: ApiRequestService,
+    private userService: CurrentUserService,
+    private router: Router,
+  ) {}
+
+  ngOnInit() {
+    var p = this.userService.user && this.userService.user.selectedProject;
+    if (p) {
+      this.projectId = p.id;
+      this.projectName = p.name ? p.name.toString() : '';
+    }
+    this.load();
+  }
+
+  load() {
+    this.loading = true;
+    this.api.get('/api/dep/deployments?project=' + this.projectId).subscribe({
+      next: (r: any) => {
+        this.deployments = (r && r.response) ? r.response : [];
+        this.loading = false;
+      },
+      error: () => { this.loading = false; },
+    });
+  }
+
+  open(dep: any) {
+    this.router.navigate(['/ecbs/deployment', dep.id]);
+  }
+
+  create() {
+    if (!this.newName.trim()) return;
+    this.creating = true;
+    this.api.post('/api/dep/deployments', {
+      project_id: this.projectId,
+      deployment_name: this.newName.trim(),
+    }).subscribe({
+      next: (r: any) => {
+        var dep = (r && r.response) ? r.response : null;
+        this.creating = false;
+        this.showCreate = false;
+        this.newName = '';
+        if (dep) {
+          this.router.navigate(['/ecbs/deployment', dep.id]);
+        } else {
+          this.load();
+        }
+      },
+      error: () => { this.creating = false; },
+    });
+  }
+
+  statusClass(s: string): string {
+    var m: any = {
+      'not_started': 'status-pending',
+      'scheduled': 'status-warning',
+      'installing': 'status-active',
+      'commissioning': 'status-active',
+      'awaiting_approval': 'status-warning',
+      'activated': 'status-online',
+      'on_hold': 'status-offline',
+      'closed': 'status-online',
+    };
+    return m[s] || 'status-pending';
+  }
+
+  statusLabel(s: string): string {
+    var m: any = {
+      'not_started': 'Not Started',
+      'scheduled': 'Scheduled',
+      'installing': 'In Progress',
+      'commissioning': 'Commissioning',
+      'awaiting_approval': 'Awaiting Approval',
+      'activated': 'Activated',
+      'on_hold': 'On Hold',
+      'closed': 'Closed',
+    };
+    return m[s] || s;
+  }
+
+  fmtDate(ms: any): string {
+    if (!ms) return '—';
+    return new Date(Number(ms)).toLocaleDateString();
+  }
+}

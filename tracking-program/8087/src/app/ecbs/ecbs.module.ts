@@ -28,6 +28,14 @@ import { RatesTariffsComponent }        from './rates-tariffs/rates-tariffs.comp
 import { UBillTrackerComponent }  from './ubill-tracker/ubill-tracker.component';
 import { UBillForecastComponent } from './ubill-forecast/ubill-forecast.component';
 import { ProfitabilityComponent }       from './profitability/profitability.component';
+import { DeploymentListComponent }          from './deployment/deployment-list.component';
+import { DeploymentActiveComponent }        from './deployment/deployment-active.component';
+import { DeploymentDevicesComponent }       from './deployment/deployment-devices.component';
+import { DeploymentIssuesComponent }        from './deployment/deployment-issues.component';
+import { DeploymentCommissioningComponent } from './deployment/deployment-commissioning.component';
+import { DeploymentCloseoutComponent }      from './deployment/deployment-closeout.component';
+import { DeploymentPhotosComponent }        from './deployment/deployment-photos.component';
+import { DeploymentMaterialsComponent }     from './deployment/deployment-materials.component';
 
 @NgModule({
   imports: [
@@ -60,6 +68,14 @@ import { ProfitabilityComponent }       from './profitability/profitability.comp
     ProfitabilityComponent,
     UBillTrackerComponent,
     UBillForecastComponent,
+    DeploymentListComponent,
+    DeploymentActiveComponent,
+    DeploymentDevicesComponent,
+    DeploymentIssuesComponent,
+    DeploymentCommissioningComponent,
+    DeploymentCloseoutComponent,
+    DeploymentPhotosComponent,
+    DeploymentMaterialsComponent,
   ],
 })
 export class EcbsModule {}

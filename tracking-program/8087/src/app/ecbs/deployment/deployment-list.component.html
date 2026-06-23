@@ -1,0 +1,52 @@
+<div class="dep-list-page">
+
+  <div class="dep-list-header">
+    <div class="dep-list-title">
+      <span class="dep-list-icon fa fa-rocket"></span>
+      <div>
+        <h1>Deployment App</h1>
+        <p class="dep-list-sub">{{ projectName || 'Select a project' }}</p>
+      </div>
+    </div>
+    <button class="dep-btn-primary" (click)="showCreate = true">
+      <span class="fa fa-plus"></span> New Deployment
+    </button>
+  </div>
+
+  <div class="dep-create-card" *ngIf="showCreate">
+    <h3>New Deployment</h3>
+    <div class="dep-create-row">
+      <input class="dep-input" [(ngModel)]="newName" placeholder="Deployment name (e.g. Ochsner Ortho Phase 1)" />
+      <button class="dep-btn-primary" (click)="create()" [disabled]="creating || !newName.trim()">
+        {{ creating ? 'Creating...' : 'Create' }}
+      </button>
+      <button class="dep-btn-ghost" (click)="showCreate = false">Cancel</button>
+    </div>
+  </div>
+
+  <div class="dep-loading" *ngIf="loading">
+    <span class="fa fa-spinner fa-spin"></span> Loading deployments...
+  </div>
+
+  <div class="dep-empty" *ngIf="!loading && deployments.length === 0">
+    <span class="fa fa-rocket dep-empty-icon"></span>
+    <p>No deployments yet for this project.</p>
+    <button class="dep-btn-primary" (click)="showCreate = true">Create First Deployment</button>
+  </div>
+
+  <div class="dep-cards" *ngIf="!loading && deployments.length > 0">
+    <div class="dep-card" *ngFor="let d of deployments" (click)="open(d)">
+      <div class="dep-card-header">
+        <div class="dep-card-num">{{ d.deployment_number || 'DEP' }}</div>
+        <span class="dep-status-badge" [ngClass]="statusClass(d.status)">{{ statusLabel(d.status) }}</span>
+      </div>
+      <div class="dep-card-name">{{ d.deployment_name || d.notes || ('Deployment #' + d.id) }}</div>
+      <div class="dep-card-meta">
+        <span><span class="fa fa-calendar"></span> Created {{ fmtDate(d.createdAt) }}</span>
+        <span *ngIf="d.started_at"><span class="fa fa-play"></span> Started {{ fmtDate(d.started_at) }}</span>
+      </div>
+      <div class="dep-card-arrow fa fa-chevron-right"></div>
+    </div>
+  </div>
+
+</div>

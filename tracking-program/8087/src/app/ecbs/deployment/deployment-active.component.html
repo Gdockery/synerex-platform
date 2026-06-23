@@ -1,0 +1,158 @@
+<div class="dep-active-page" *ngIf="dep">
+
+  <!-- Header -->
+  <div class="dep-active-header">
+    <div class="dep-active-hinfo">
+      <a class="dep-back fa fa-arrow-left" routerLink="/ecbs/deployment"></a>
+      <div>
+        <div class="dep-active-num">{{ depNumber }}</div>
+        <h1 class="dep-active-name">{{ depName }}</h1>
+      </div>
+    </div>
+    <div class="dep-active-hright">
+      <span class="dep-status-chip" [class.chip-active]="depStatus==='installing'" [class.chip-warn]="depStatus==='on_hold'" [class.chip-ok]="depStatus==='activated'">
+        {{ statusLabel(depStatus) }}
+      </span>
+      <button class="dep-btn-primary" *ngIf="depStatus==='not_started' || depStatus==='scheduled'" (click)="startDeployment()">
+        <span class="fa fa-play"></span> Start Deployment
+      </button>
+      <button class="dep-btn-primary" *ngIf="depStatus==='installing' || depStatus==='commissioning'" (click)="continueDeployment()">
+        <span class="fa fa-chevron-right"></span> Continue
+      </button>
+    </div>
+  </div>
+
+  <!-- Safety Hold Banner -->
+  <div class="dep-safety-banner" *ngIf="safetyHolds > 0">
+    <span class="fa fa-exclamation-triangle"></span>
+    STOP WORK — {{ safetyHolds }} active safety hold(s). All work must pause.
+    <a (click)="go('safety')">View Safety Holds</a>
+  </div>
+
+  <!-- KPI cards -->
+  <div class="dep-kpi-row">
+    <div class="dep-kpi-card">
+      <div class="dep-kpi-val">{{ installedCount }} <span class="dep-kpi-of">/ {{ totalDevices }}</span></div>
+      <div class="dep-kpi-label">Devices Installed</div>
+      <div class="dep-kpi-icon fa fa-check-circle"></div>
+    </div>
+    <div class="dep-kpi-card">
+      <div class="dep-kpi-val">{{ commissionedCount }} <span class="dep-kpi-of">/ {{ totalDevices }}</span></div>
+      <div class="dep-kpi-label">Commissioned</div>
+      <div class="dep-kpi-icon fa fa-bolt"></div>
+    </div>
+    <div class="dep-kpi-card" [class.dep-kpi-warn]="openIssues > 0">
+      <div class="dep-kpi-val">{{ openIssues }}</div>
+      <div class="dep-kpi-label">Open Issues</div>
+      <div class="dep-kpi-icon fa fa-flag"></div>
+    </div>
+    <div class="dep-kpi-card" [class.dep-kpi-danger]="safetyHolds > 0">
+      <div class="dep-kpi-val">{{ safetyHolds }}</div>
+      <div class="dep-kpi-label">Safety Holds</div>
+      <div class="dep-kpi-icon fa fa-shield"></div>
+    </div>
+  </div>
+
+  <!-- Main two-panel -->
+  <div class="dep-main-grid">
+
+    <!-- Left: Today's Work + Activity -->
+    <div class="dep-main-left">
+
+      <!-- Today's Work -->
+      <div class="dep-panel">
+        <div class="dep-panel-title">
+          <span class="fa fa-list-ul"></span> Today's Work
+          <span class="dep-panel-badge">{{ pendingDevices.length }} remaining</span>
+        </div>
+        <div class="dep-work-list" *ngIf="pendingDevices.length > 0">
+          <div class="dep-work-item" *ngFor="let d of pendingDevices" (click)="go('devices')">
+            <div class="dep-work-icon fa" [class.fa-circle-o]="d.status==='Pending'" [class.fa-dot-circle-o]="d.status==='In Progress'"></div>
+            <div class="dep-work-info">
+              <div class="dep-work-name">{{ d.device_name || d.planned_label || ('Device #' + d.id) }}</div>
+              <div class="dep-work-loc">{{ d.location || d.device_type || '—' }}</div>
+            </div>
+            <span class="dep-work-status" [ngClass]="statusClass(d.status)">{{ d.status }}</span>
+          </div>
+        </div>
+        <div class="dep-work-empty" *ngIf="pendingDevices.length === 0">
+          <span class="fa fa-check-circle dep-all-done-icon"></span>
+          All devices commissioned!
+        </div>
+      </div>
+
+      <!-- Last Activity -->
+      <div class="dep-panel dep-panel-mt">
+        <div class="dep-panel-title"><span class="fa fa-history"></span> Last Activity</div>
+        <div class="dep-activity-list">
+          <div class="dep-activity-row" *ngFor="let e of events">
+            <div class="dep-activity-time">{{ fmtTs(e.ts) }}</div>
+            <div class="dep-activity-label">{{ fmtEvent(e) }}</div>
+          </div>
+          <div class="dep-activity-empty" *ngIf="events.length === 0">No activity yet.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Progress + Quick Access + Site Info -->
+    <div class="dep-main-right">
+
+      <!-- Progress donut -->
+      <div class="dep-panel dep-progress-panel">
+        <div class="dep-panel-title"><span class="fa fa-pie-chart"></span> Deployment Progress</div>
+        <div class="dep-donut-wrap">
+          <svg viewBox="0 0 120 120" class="dep-donut">
+            <circle cx="60" cy="60" r="52" fill="none" stroke="#1e2a3a" stroke-width="12"/>
+            <circle cx="60" cy="60" r="52" fill="none" stroke="#00b0ff" stroke-width="12"
+              stroke-linecap="round"
+              [attr.stroke-dasharray]="donutCircumference"
+              [attr.stroke-dashoffset]="donutOffset"
+              transform="rotate(-90 60 60)"/>
+            <text x="60" y="60" text-anchor="middle" dy="0.35em" fill="#fff" font-size="22" font-weight="700">{{ progressPct }}%</text>
+          </svg>
+          <div class="dep-donut-legend">
+            <div class="dep-legend-row"><span class="dep-legend-dot dot-commissioned"></span>Commissioned <strong>{{ commissionedCount }}</strong></div>
+            <div class="dep-legend-row"><span class="dep-legend-dot dot-progress"></span>In Progress <strong>{{ inProgressCount }}</strong></div>
+            <div class="dep-legend-row"><span class="dep-legend-dot dot-pending"></span>Pending <strong>{{ pendingCount }}</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Access -->
+      <div class="dep-panel dep-panel-mt">
+        <div class="dep-panel-title"><span class="fa fa-th-large"></span> Quick Access</div>
+        <div class="dep-quick-grid">
+          <div class="dep-quick-btn" (click)="go('devices')">
+            <span class="fa fa-microchip dep-quick-icon"></span>
+            <span>Devices</span>
+          </div>
+          <div class="dep-quick-btn" (click)="go('issues')">
+            <span class="fa fa-flag dep-quick-icon" [class.dep-quick-warn]="openIssues > 0"></span>
+            <span>Issues <span *ngIf="openIssues > 0" class="dep-quick-badge">{{ openIssues }}</span></span>
+          </div>
+          <div class="dep-quick-btn" (click)="go('photos')">
+            <span class="fa fa-camera dep-quick-icon"></span>
+            <span>Photos</span>
+          </div>
+          <div class="dep-quick-btn" (click)="go('commissioning')">
+            <span class="fa fa-bolt dep-quick-icon"></span>
+            <span>Commissioning</span>
+          </div>
+          <div class="dep-quick-btn" (click)="go('materials')">
+            <span class="fa fa-cubes dep-quick-icon"></span>
+            <span>Materials</span>
+          </div>
+          <div class="dep-quick-btn" (click)="go('closeout')">
+            <span class="fa fa-file-text-o dep-quick-icon"></span>
+            <span>Closeout</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<div class="dep-loading-full" *ngIf="loading">
+  <span class="fa fa-spinner fa-spin"></span> Loading deployment...
+</div>

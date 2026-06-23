@@ -1,0 +1,40 @@
+$bg:#0d1117;$panel:#161b22;$border:#30363d;$text:#e0e0e0;$sub:#546e7a;$blue:#00b0ff;$green:#00e676;
+.dcom-page{background:$bg;min-height:100vh;color:$text;display:flex;flex-direction:column;}
+.dcom-topbar{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid $border;background:$panel;}
+.dcom-back{font-size:18px;color:$sub;background:none;border:none;cursor:pointer;padding:8px;&:hover{color:$blue;}}
+h2{margin:0;font-size:18px;color:#fff;flex:1;}
+.dcom-progress-summary{font-size:14px;color:$blue;font-weight:600;}
+.dcom-split{display:grid;grid-template-columns:340px 1fr;flex:1;}
+.dcom-list-panel{border-right:1px solid $border;overflow-y:auto;max-height:calc(100vh - 72px);}
+.dcom-loading{padding:40px;text-align:center;color:$sub;}
+.dcom-empty{padding:40px;text-align:center;color:$sub;}
+.dcom-device-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,0.04);cursor:pointer;
+  &:hover{background:rgba(255,255,255,0.04);}
+  &.dcom-selected{background:rgba(0,176,255,0.08);border-left:3px solid $blue;}
+}
+.dcom-row-left{display:flex;align-items:center;gap:12px;}
+.dcom-row-type{background:#1e2a3a;color:$blue;padding:4px 8px;border-radius:6px;font-size:11px;font-weight:600;}
+.dcom-row-name{font-size:14px;color:$text;font-weight:500;}
+.dcom-row-loc{font-size:12px;color:$sub;margin-top:2px;}
+.dcom-row-status{font-size:11px;padding:3px 10px;border-radius:10px;font-weight:600;
+  &.sv-pending{background:#1e2a3a;color:$sub;}
+  &.sv-progress{background:#0d2137;color:$blue;}
+  &.sv-commissioned{background:#0d2e1a;color:$green;}
+}
+.dcom-detail-panel{padding:24px;overflow-y:auto;}
+.dcom-detail-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;h3{margin:0;font-size:18px;color:#fff;}}
+.dcom-check-progress{font-size:14px;color:$blue;font-weight:700;}
+.dcom-progress-bar-wrap{background:#1e2a3a;border-radius:4px;height:6px;margin-bottom:24px;}
+.dcom-progress-bar{background:$blue;border-radius:4px;height:6px;transition:width 0.3s;}
+.dcom-checklist{display:flex;flex-direction:column;gap:4px;margin-bottom:24px;}
+.dcom-check-row{display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:8px;cursor:pointer;border:1px solid transparent;
+  &:hover{background:rgba(255,255,255,0.04);}
+  &.dcom-checked{background:rgba(0,230,118,0.06);border-color:rgba(0,230,118,0.2);}
+}
+.dcom-check-box{.fa{font-size:20px;color:$sub;}&.dcom-checked .fa{color:$green;}}
+.dcom-check-row.dcom-checked .dcom-check-box .fa{color:$green;}
+.dcom-check-label{font-size:14px;color:$text;.dcom-checked &{color:#fff;}}
+.dcom-commissioned-banner{background:rgba(0,230,118,0.1);border:1px solid rgba(0,230,118,0.3);border-radius:10px;padding:20px;text-align:center;color:$green;font-size:16px;font-weight:700;.fa{font-size:24px;margin-right:10px;}}
+.dcom-ready-hint{background:rgba(0,176,255,0.08);border:1px solid rgba(0,176,255,0.2);border-radius:10px;padding:14px;text-align:center;color:$blue;font-size:13px;}
+.dcom-detail-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;color:$sub;.fa{font-size:64px;margin-bottom:16px;color:$blue;}p{font-size:14px;}}
+@media (max-width:900px){.dcom-split{grid-template-columns:1fr;}}
