@@ -58,7 +58,8 @@ export class DevicesComponent implements OnInit {
     // PQ Meters — use /data endpoint which returns all columns including lastCommunicatedAt
     this.api.get('/api/meter/data?project=' + this.projectId + '&pageSize=500').subscribe({
       next: (r: any) => {
-        const items: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
+        const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
+        const items: any[] = raw.filter((m: any) => m.isDeleted === 0 || m.isDeleted === false);
         const now = Date.now();
         items.forEach((m: any) => {
           const lastMs = m.lastCommunicatedAt || m.meshLastCommunicatedAt || 0;
@@ -83,7 +84,8 @@ export class DevicesComponent implements OnInit {
     // Gateways
     this.api.get('/api/gateway?project=' + this.projectId + '&pageSize=500').subscribe({
       next: (r: any) => {
-        const items: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
+        const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
+        const items: any[] = raw.filter((g: any) => g.isDeleted === 0 || g.isDeleted === false);
         const now = Date.now();
         items.forEach((g: any) => {
           const lastMs = g.lastCommunicatedAt || 0;
@@ -108,14 +110,12 @@ export class DevicesComponent implements OnInit {
     // Switches / APF units — correct endpoint, replaces broken /api/devices/apf
     this.api.get('/api/switch?project=' + this.projectId + '&pageSize=500').subscribe({
       next: (r: any) => {
-        const items: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
+        const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
+        const items: any[] = raw.filter((s: any) => s.isDeleted === 0 || s.isDeleted === false);
         const now = Date.now();
         items.forEach((s: any) => {
-          const statusArr: string[] = Array.isArray(s.status) ? s.status : [];
-          const isPoweroff = statusArr.indexOf('Poweroff') !== -1;
-          const isUndefined = statusArr.indexOf('Undefined') !== -1 && !isPoweroff;
-          const swStatus = isPoweroff ? 'Offline' : (isUndefined ? 'Warning' : 'Online');
           const lastMs = s.meshLastCommunicatedAt || s.lastCommunicatedAt || 0;
+          const swStatus = this._commStatus(lastMs, now);
           const typeName = s.deviceType === 0 ? 'APF Unit' : 'Switch';
           collected.push({
             id: 'sw-' + s.id,
