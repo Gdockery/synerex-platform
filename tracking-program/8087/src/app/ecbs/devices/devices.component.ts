@@ -37,7 +37,7 @@ export class DevicesComponent implements OnInit {
     const p = this.userService.user && this.userService.user.selectedProject;
     if (!p) { this.loading = false; return; }
     this.projectId = p.id;
-    this.projectName = p.name || '';
+    this.projectName = p.name ? p.name.toString() : '';
     this.loadAll();
   }
 
