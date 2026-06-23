@@ -59,7 +59,7 @@ export class DevicesComponent implements OnInit {
     this.api.get('/api/meter/data?project=' + this.projectId + '&pageSize=500').subscribe({
       next: (r: any) => {
         const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
-        const items: any[] = raw.filter((m: any) => m.isDeleted === 0 || m.isDeleted === false);
+        const items: any[] = raw.filter((m: any) => m.isDeleted !== 1 && m.isDeleted !== true);
         const now = Date.now();
         items.forEach((m: any) => {
           const lastMs = m.lastCommunicatedAt || m.meshLastCommunicatedAt || 0;
@@ -85,7 +85,7 @@ export class DevicesComponent implements OnInit {
     this.api.get('/api/gateway?project=' + this.projectId + '&pageSize=500').subscribe({
       next: (r: any) => {
         const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
-        const items: any[] = raw.filter((g: any) => g.isDeleted === 0 || g.isDeleted === false);
+        const items: any[] = raw.filter((g: any) => g.isDeleted !== 1 && g.isDeleted !== true);
         const now = Date.now();
         items.forEach((g: any) => {
           const lastMs = g.lastCommunicatedAt || 0;
@@ -111,7 +111,7 @@ export class DevicesComponent implements OnInit {
     this.api.get('/api/switch?project=' + this.projectId + '&pageSize=500').subscribe({
       next: (r: any) => {
         const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
-        const items: any[] = raw.filter((s: any) => s.isDeleted === 0 || s.isDeleted === false);
+        const items: any[] = raw.filter((s: any) => s.isDeleted !== 1 && s.isDeleted !== true);
         const now = Date.now();
         items.forEach((s: any) => {
           const lastMs = s.meshLastCommunicatedAt || s.lastCommunicatedAt || 0;
