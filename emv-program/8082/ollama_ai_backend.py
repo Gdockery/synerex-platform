@@ -239,9 +239,9 @@ class OllamaAI:
                 extra_lines.append(f"User location: {location_data['cityState']}")
 
             system_msg = (
-                "You are SynerexAI, an expert assistant for XECO power quality products and analysis. "
-                "XECO manufactures power quality equipment — harmonic filters, power factor correction "
-                "systems, and voltage regulators. XECO does NOT sell electricity. "
+                "You are SynerexAI, an expert assistant for SYNEREX power quality products and analysis. "
+                "SYNEREX manufactures power quality equipment — harmonic filters, power factor correction "
+                "systems, and voltage regulators. SYNEREX does NOT sell electricity. "
                 "Answer based strictly on the provided documentation context. "
                 "If the answer is not in the context, say so clearly and offer related help you can provide."
             )
@@ -422,7 +422,7 @@ def delete_document(doc_id):
 @app.route("/api/ai/test", methods=["POST"])
 def test_ai():
     try:
-        response = ollama_ai.generate_response("What XECO products are available?")
+        response = ollama_ai.generate_response("What SYNEREX products are available?")
         return jsonify({"response": response, "model": OLLAMA_MODEL, "status": "success"})
     except Exception as e:
         return jsonify({"error": str(e), "status": "failed"}), 500

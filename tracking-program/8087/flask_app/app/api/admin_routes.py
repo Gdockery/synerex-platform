@@ -91,7 +91,7 @@ def admin_restart():
             logger.info("Docker detected; scheduling process exit for container restart")
             return jsonify({
                 "success": True,
-                "message": "Tracking Program restart initiated. The service will be back in a few seconds.",
+                "message": "ECBS Intelligence Platform restart initiated. The service will be back in a few seconds.",
                 "restart_in_progress": True,
             })
         else:

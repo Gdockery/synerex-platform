@@ -148,7 +148,7 @@ module.exports = function (printer) {
                               [
                                 {
                                   border: [false, true, false, true],
-                                  // text: 'Xeco Energy Corporation'
+                                  // text: 'Synerex Labs'
                                   columns: [
                                     {
                                       width: '*',

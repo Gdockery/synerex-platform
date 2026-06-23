@@ -1,6 +1,6 @@
 # Migration Audit
 
-Comprehensive audit of the Tracking Program migration to Flask (8087-flask).  
+Comprehensive audit of the ECBS Intelligence Platform migration to Flask (8087-flask).  
 **Audit date:** February 2025
 
 ---
@@ -70,7 +70,7 @@ Comprehensive audit of the Tracking Program migration to Flask (8087-flask).
 | `GET /api/switch/get-savings` | phase11_routes | |
 | `GET /api/switch/equipment/*` | phase7, phase11 | |
 | `GET /api/datasync/:table/*` | phase9_routes | |
-| `PUT /api/xeco` | phase9_routes | |
+| `PUT /api/synerex` | phase9_routes | |
 | `POST /api/maintenance/*` | phase9_routes | |
 | `GET /api/dev/:command` | phase9_routes | |
 | `/api/payment/:action` | phase9_routes | |
@@ -268,7 +268,7 @@ All Sails models have Flask equivalents:
 - MeterAlert, MeterAlertGroup, MeterAlertEvent (same for repeater, switch)
 - MeterCsv, Schedule, SwitchCommand
 - Test, ReportData, SavingsReport
-- File, Xeco, PiBoard
+- File, Synerex, PiBoard
 - ServicePlan, GatewayCommand
 
 ---

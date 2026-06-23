@@ -14,7 +14,7 @@ let moment = require('moment');
 export class CurrentUserService {
 
   public user: User;
-  public projectIdKey = 'xeco-project-id';
+  public projectIdKey = 'synerex-project-id';
 
   constructor(@Inject(APP_CONFIG) private config: IAppConfig, private authService: AuthService, private window: WindowRef) {
     this.user = new User(config.locals.user);

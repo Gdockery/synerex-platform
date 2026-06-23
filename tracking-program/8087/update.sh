@@ -2,8 +2,8 @@
 
 SERVICES="rollup device-processor mqtt-http web"
 PASSPHRASE="Dag_lMSOpBntO9LQf9mrlgyOIchgDry"
-TMP="/tmp/xeco-update"
-SERVICE_PIPE="/tmp/xeco-update-service"
+TMP="/tmp/synerex-update"
+SERVICE_PIPE="/tmp/synerex-update-service"
 
 TEMP_FILES=()
 
@@ -127,7 +127,7 @@ case $1 in
 		# copy/overwrite new files
 		find . -type f -exec mv -f "{}" "$targetFolder/{}" \;
 
-		rm /tmp/xeco-update-status
+		rm /tmp/synerex-update-status
 		eval "sudo systemctl start $SERVICES"
 		;;
 
@@ -146,7 +146,7 @@ case $1 in
 		eval "sudo systemctl stop $SERVICES"
 		sudo rm -rf "$targetFolder"
 		sudo mv "$targetFolder-rollback" "$targetFolder"
-		rm /tmp/xeco-update-status
+		rm /tmp/synerex-update-status
 		eval "sudo systemctl start $SERVICES"
 		;;
 

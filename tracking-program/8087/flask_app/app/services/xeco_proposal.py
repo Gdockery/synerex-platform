@@ -158,7 +158,7 @@ def compute(data):
         facility_context = (pk.get("facility_context") or "").strip() or "handling high-horsepower industrial equipment",
         ramp_up_note   = pk.get("ramp_up_note") or None,
         excluded_meters= pk.get("excluded_meters") or [],
-        prepared_by_org= pk.get("prepared_by_org", "Xeco Energy Corporation"),
+        prepared_by_org= pk.get("prepared_by_org", "Synerex Labs"),
         preparer_name  = pk.get("preparer_name", ""),
         contact_name   = pk.get("contact_name", ""),
         contact_title  = pk.get("contact_title", ""),

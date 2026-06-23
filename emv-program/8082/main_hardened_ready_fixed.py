@@ -562,7 +562,7 @@ except ImportError:
     ENERGY_AI_GUARD_AVAILABLE = False
     logger.warning("Energy AI Guard System not available")
 
-# Import XECO Product Knowledge System
+# Import SYNEREX Product Knowledge System
 try:
     from xeco_product_knowledge import (
         get_xeco_product_info,
@@ -574,7 +574,7 @@ try:
     XECO_PRODUCT_KNOWLEDGE_AVAILABLE = True
 except ImportError:
     XECO_PRODUCT_KNOWLEDGE_AVAILABLE = False
-    logger.warning("XECO Product Knowledge System not available")
+    logger.warning("SYNEREX Product Knowledge System not available")
 
 
 try:
@@ -13969,7 +13969,7 @@ def compute_network_losses(before_data: dict, after_data: dict, config: dict) ->
 
     # ── Consistency check against metered ΔkW ────────────────────────────────
     # The revenue meter is at the Point of Common Coupling (upstream of all loads
-    # including the Xeco device). Any reduction in facility-side I²R losses already
+    # including the Synerex device). Any reduction in facility-side I²R losses already
     # manifests as a reduction in metered kW.  Claiming additional loss savings on
     # top of the metered result would double-count improvements already captured by
     # the meter.
@@ -17042,7 +17042,7 @@ def perform_comprehensive_analysis(
             # ── Thermal Settling Exclusion ─────────────────────────────────────
             # IPMVP §3.5 / ASHRAE Guideline 14-2023 §4.1.3 — Interactive Effects.
             # The post-installation CSV may include a transient period immediately
-            # after Xeco activation during which the facility has not yet reached
+            # after Synerex activation during which the facility has not yet reached
             # thermal steady state. Two lag categories apply:
             #   (a) Direct electrical effects (I²R, eddy-current, motor copper
             #       losses): reach steady state in 1–4 hours (NEMA MG1-2016).
@@ -33669,13 +33669,13 @@ def filter_energy_ai_response():
         return jsonify({"error": "Filtering failed", "reason": str(e)}), 500
 
 
-@app.route("/api/xeco/products", methods=["GET"])
+@app.route("/api/synerex/products", methods=["GET"])
 def get_xeco_products():
-    """Get XECO product information"""
+    """Get SYNEREX product information"""
     try:
         if not XECO_PRODUCT_KNOWLEDGE_AVAILABLE:
             return (
-                jsonify({"error": "XECO Product Knowledge System not available"}),
+                jsonify({"error": "SYNEREX Product Knowledge System not available"}),
                 500,
             )
 
@@ -33742,17 +33742,17 @@ def get_xeco_products():
             )
 
     except Exception as e:
-        logger.error(f"Error getting XECO products: {e}")
-        return jsonify({"error": "Failed to get XECO products", "reason": str(e)}), 500
+        logger.error(f"Error getting SYNEREX products: {e}")
+        return jsonify({"error": "Failed to get SYNEREX products", "reason": str(e)}), 500
 
 
-@app.route("/api/xeco/installation", methods=["GET"])
+@app.route("/api/synerex/installation", methods=["GET"])
 def get_xeco_installation_guide():
-    """Get XECO installation guide"""
+    """Get SYNEREX installation guide"""
     try:
         if not XECO_PRODUCT_KNOWLEDGE_AVAILABLE:
             return (
-                jsonify({"error": "XECO Product Knowledge System not available"}),
+                jsonify({"error": "SYNEREX Product Knowledge System not available"}),
                 500,
             )
 
@@ -33772,20 +33772,20 @@ def get_xeco_installation_guide():
         return jsonify(installation_guide)
 
     except Exception as e:
-        logger.error(f"Error getting XECO installation guide: {e}")
+        logger.error(f"Error getting SYNEREX installation guide: {e}")
         return (
             jsonify({"error": "Failed to get installation guide", "reason": str(e)}),
             500,
         )
 
 
-@app.route("/api/xeco/troubleshooting", methods=["GET"])
+@app.route("/api/synerex/troubleshooting", methods=["GET"])
 def get_xeco_troubleshooting_guide():
-    """Get XECO troubleshooting guide"""
+    """Get SYNEREX troubleshooting guide"""
     try:
         if not XECO_PRODUCT_KNOWLEDGE_AVAILABLE:
             return (
-                jsonify({"error": "XECO Product Knowledge System not available"}),
+                jsonify({"error": "SYNEREX Product Knowledge System not available"}),
                 500,
             )
 
@@ -33811,7 +33811,7 @@ def get_xeco_troubleshooting_guide():
         return jsonify(troubleshooting_guide)
 
     except Exception as e:
-        logger.error(f"Error getting XECO troubleshooting guide: {e}")
+        logger.error(f"Error getting SYNEREX troubleshooting guide: {e}")
         return (
             jsonify({"error": "Failed to get troubleshooting guide", "reason": str(e)}),
             500,

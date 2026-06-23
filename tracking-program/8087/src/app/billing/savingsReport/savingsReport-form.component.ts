@@ -183,7 +183,7 @@ let _ = require('lodash');
       </div>
       <div class="row">
         <div class="col-md-12">
-          <h3>Xeco Data for this Period <small>(savings % based on most recent test)</small></h3>
+          <h3>Synerex Data for this Period <small>(savings % based on most recent test)</small></h3>
         </div>
         <div class="col-md-6">
           <table style="width:100%;">

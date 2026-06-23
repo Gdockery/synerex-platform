@@ -162,7 +162,7 @@ class KnowledgeRetrieval:
         return match_ratio * 0.7 + content_factor * 0.3
     
     def search_products(self, query: str, limit: int = 3) -> List[Dict[str, Any]]:
-        """Search XECO products based on query"""
+        """Search SYNEREX products based on query"""
         query_keywords = self._extract_keywords(query)
         results = []
         
@@ -306,7 +306,7 @@ class KnowledgeRetrieval:
         
         # Tier 1: Direct knowledge base topics
         tier1_topics = {
-            'xeco_products': ['xeco', 'pfc', 'hf', 'product', 'specification', 'model', 'capacity'],
+            'xeco_products': ['synerex', 'pfc', 'hf', 'product', 'specification', 'model', 'capacity'],
             'installation': ['install', 'mount', 'wiring', 'connection', 'setup', 'guide', 'manual'],
             'standards': ['ieee', 'ashrae', 'standard', 'compliance', 'code', 'regulation'],
             'troubleshooting': ['problem', 'issue', 'error', 'fix', 'repair', 'troubleshoot'],
@@ -603,7 +603,7 @@ class KnowledgeRetrieval:
         for result in all_results[:5]:  # Top 5 most relevant results
             if result['type'] == 'product':
                 product = result['data']
-                context = f"**XECO Product: {product.get('name', 'Unknown')} ({product.get('model', 'N/A')})**\n"
+                context = f"**SYNEREX Product: {product.get('name', 'Unknown')} ({product.get('model', 'N/A')})**\n"
                 context += f"Description: {product.get('description', 'N/A')}\n"
                 
                 # Add key specifications
@@ -707,8 +707,8 @@ if __name__ == "__main__":
     
     # Test queries
     test_queries = [
-        "How do I install XECO-HF harmonic filter?",
-        "What are the specifications for XECO power factor correction?",
+        "How do I install SYNEREX-HF harmonic filter?",
+        "What are the specifications for SYNEREX power factor correction?",
         "What are IEEE 519 standards for harmonic distortion?",
         "How to troubleshoot power quality issues?"
     ]

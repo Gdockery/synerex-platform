@@ -98,7 +98,7 @@ services:
     startup_timeout: 30
 
   tracking_app:
-    name: "Tracking Program"
+    name: "ECBS Intelligence Platform"
     port: 8087
     runtime: "python"
     script: "run.py"

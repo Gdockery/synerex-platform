@@ -1,6 +1,6 @@
 # Phase 12: Cutover Planning & Migration
 
-Phase 12 covers the transition from Sails to Flask for the Tracking Program.
+Phase 12 covers the transition from Sails to Flask for the ECBS Intelligence Platform.
 
 ## 12.1 Pre-Cutover Checklist
 

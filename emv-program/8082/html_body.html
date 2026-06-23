@@ -611,13 +611,13 @@
         </div>
         <div class="field">
           <label>Before Period Label</label>
-          <input type="text" id="before_label" name="before_label" placeholder="e.g., XECO, Baseline, Pre-Installation" />
-          <div class="help">Custom label to display after "Before" in report headings (e.g., "Before XECO", "Before Baseline")</div>
+          <input type="text" id="before_label" name="before_label" placeholder="e.g., SYNEREX, Baseline, Pre-Installation" />
+          <div class="help">Custom label to display after "Before" in report headings (e.g., "Before SYNEREX", "Before Baseline")</div>
         </div>
         <div class="field">
           <label>After Period Label</label>
-          <input type="text" id="after_label" name="after_label" placeholder="e.g., XECO, Post-Retrofit, Post-Installation" />
-          <div class="help">Custom label to display after "After" in report headings (e.g., "After XECO", "After Post-Retrofit")</div>
+          <input type="text" id="after_label" name="after_label" placeholder="e.g., SYNEREX, Post-Retrofit, Post-Installation" />
+          <div class="help">Custom label to display after "After" in report headings (e.g., "After SYNEREX", "After Post-Retrofit")</div>
         </div>
         <div class="field">
           <label>% of Total PK Load</label>
@@ -1879,7 +1879,7 @@
     <div class="chat-messages" id="chatMessages">
       <div class="ai-message">
         <strong>SynerexAI:</strong> Hello! I'm your specialized Energy AI assistant. I can help with energy analysis,
-        XECO equipment, utility information, electrical code guidance, and SYNEREX program usage. What can I help you
+        SYNEREX equipment, utility information, electrical code guidance, and SYNEREX program usage. What can I help you
         with while you fill out this form?
       </div>
     </div>
@@ -1887,9 +1887,9 @@
     <div class="example-questions">
       <h4>Quick Questions:</h4>
       <div class="question-chips">
-        <span class="question-chip" onclick="askQuickQuestion('What are XECO-HF Series specifications?')">XECO-HF
+        <span class="question-chip" onclick="askQuickQuestion('What are SYNEREX-HF Series specifications?')">SYNEREX-HF
           Specs</span>
-        <span class="question-chip" onclick="askQuickQuestion('How to install XECO-PFC?')">XECO-PFC Install</span>
+        <span class="question-chip" onclick="askQuickQuestion('How to install SYNEREX-PFC?')">SYNEREX-PFC Install</span>
         <span class="question-chip" onclick="askQuickQuestion('What are the utility rates here?')">Utility Rates</span>
         <span class="question-chip" onclick="askQuickQuestion('Help with electrical code compliance')">Electrical
           Code</span>
@@ -1902,7 +1902,7 @@
 
     <div class="chat-input-container">
       <input type="text" id="chatInput"
-        placeholder="Ask SynerexAI about energy analysis, XECO equipment, utility rates, or form completion..."
+        placeholder="Ask SynerexAI about energy analysis, SYNEREX equipment, utility rates, or form completion..."
         onkeypress="handleChatKeyPress(event)">
       <button class="chat-send-btn" onclick="sendChatMessage()">Send</button>
     </div>
@@ -2390,9 +2390,9 @@
         What specific form section or data requirement do you need help with?`;
     }
 
-    // XECO Product Questions
-    if (lowerQuestion.includes('xeco-hf') || lowerQuestion.includes('harmonic filter')) {
-      return `The XECO-HF Series harmonic filters are designed for industrial and commercial applications. Key specifications include:
+    // SYNEREX Product Questions
+    if (lowerQuestion.includes('synerex-hf') || lowerQuestion.includes('harmonic filter')) {
+      return `The SYNEREX-HF Series harmonic filters are designed for industrial and commercial applications. Key specifications include:
         • Voltage Rating: 480V, 600V, 1000V
         • Current Rating: 50A to 2000A
         • Harmonic Filtering: 5th, 7th, 11th, 13th harmonics
@@ -2404,14 +2404,14 @@
 
     // Installation Questions
     if (lowerQuestion.includes('install') || lowerQuestion.includes('installation')) {
-      return `For XECO equipment installation, follow these key requirements:
+      return `For SYNEREX equipment installation, follow these key requirements:
         • All installations must comply with NEC and local codes
         • Qualified electrician required for installation
         • Proper grounding and bonding required
         • Adequate ventilation and clearance maintained
         • Electrical permits obtained before installation
         
-        Specific installation requirements vary by product model. Which XECO product are you installing?`;
+        Specific installation requirements vary by product model. Which SYNEREX product are you installing?`;
     }
 
     // Utility Information Questions
@@ -2453,7 +2453,7 @@
     // Troubleshooting Questions
     if (lowerQuestion.includes('troubleshoot') || lowerQuestion.includes('problem')) {
       return `For troubleshooting assistance, I can help with:
-        • Common XECO equipment issues
+        • Common SYNEREX equipment issues
         • Diagnostic procedures
         • Maintenance schedules
         • Replacement parts identification
@@ -2483,7 +2483,7 @@
       return `Hello! I'm SynerexAI, your specialized energy analysis assistant. I can help you with:
         
 **Energy Analysis**: Power quality, efficiency optimization, and savings calculations
-**XECO Equipment**: Product recommendations, installation guidance, and technical support  
+**SYNEREX Equipment**: Product recommendations, installation guidance, and technical support  
 **Utility Information**: Rate analysis, peak hours, and cost optimization
 **SYNEREX Program**: Form completion, data requirements, and system navigation
 **Electrical Codes**: NEC compliance, safety requirements, and installation standards
@@ -2500,7 +2500,7 @@ What would you like help with today?`;
 • Cost savings calculations and ROI analysis
 • Weather normalization and baseline adjustments
 
-**XECO Equipment Support**
+**SYNEREX Equipment Support**
 • Product selection and sizing recommendations
 • Installation requirements and electrical codes
 • Technical specifications and performance data
@@ -2524,7 +2524,7 @@ What specific area would you like to explore?`;
     // Default intelligent response - analyze the question more intelligently
     let response = `Thank you for your energy-related question! As SynerexAI, I specialize in:
 • Energy analysis and efficiency optimization
-• XECO equipment support and installation
+• SYNEREX equipment support and installation
 • Utility information and rate optimization
 • Electrical code compliance and safety
 • Power quality analysis and improvement
@@ -2551,10 +2551,10 @@ Could you provide more specific details about your energy question so I can give
 
 What specific energy challenge or analysis are you working on?`;
     } else if (lowerQuestion.includes('equipment') || lowerQuestion.includes('install') || lowerQuestion.includes(
-        'xeco')) {
+        'synerex')) {
       response = `I can help with equipment and installation questions! Here's what I can assist with:
 
-**XECO Equipment Support:**
+**SYNEREX Equipment Support:**
 • Product selection and sizing recommendations
 • Technical specifications and performance data
 • Installation requirements and electrical codes

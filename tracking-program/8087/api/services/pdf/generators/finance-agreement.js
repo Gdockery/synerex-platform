@@ -263,14 +263,14 @@ module.exports = function (printer) {
                       }
                     },
                     {
-                      text: '2. Second payment when Xeco installs equipment in the Debtor facility.',
+                      text: '2. Second payment when Synerex installs equipment in the Debtor facility.',
                       style: {
                         alignment: 'left',
                         fontSize: 7,
                       }
                     },
                     {
-                      text: '3. Monthly payments determined Xeco performs equipment test to establish the monthly energy savings for establishing the monthly payment.',
+                      text: '3. Monthly payments determined Synerex performs equipment test to establish the monthly energy savings for establishing the monthly payment.',
                       style: {
                         alignment: 'left',
                         fontSize: 7,
@@ -299,9 +299,9 @@ module.exports = function (printer) {
                     {
                       text: `The monthly payment amount is determined ` + 
                       'based on the results of a real-time performance test conducted immediately after the ' +
-                      'installation of Xeco’s equipment. The test compares consumption data gathered when Xeco’s ' + 
+                      'installation of Synerex’s equipment. The test compares consumption data gathered when Synerex’s ' + 
                       'equipment is ‘ON’ versus when it is ‘OFF’. Client will be billed the monthly payment ' + 
-                      'amount every month until the Total Cost of the installed equipment has been paid to Xeco at ' + 
+                      'amount every month until the Total Cost of the installed equipment has been paid to Synerex at ' + 
                       'which time billing will cease except for monthly service fees if applicable.',
                       style: {
                         alignment: 'left',
@@ -668,7 +668,7 @@ module.exports = function (printer) {
               stack: [
                 {
                   margin: [50, 0, 0, 0],
-                  text: 'Creditor: Xeco Energy Corporate',
+                  text: 'Creditor: Synerex Labs Corporate',
                   style: {
                     bold: true
                   }

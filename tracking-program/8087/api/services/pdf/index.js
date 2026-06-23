@@ -50,7 +50,7 @@ function getBrandName(req) {
     var hostname = req.hostname || req.get('host') || '';
     return sails.config.whitelabel.getBrandName(hostname);
   }
-  return 'Xeco'; // Default
+  return 'Synerex'; // Default
 }
 
 module.exports = {
@@ -146,14 +146,14 @@ module.exports = {
     var calculationPath = getPdfResourcePath(req, 'calculation.png');
     var projectManagersEngineersPath = getPdfResourcePath(req, 'project-managers-engineers.png');
     var etlLogoPath = getPdfResourcePath(req, 'etl-logo.png');
-    var xecoClientsPath = getPdfResourcePath(req, 'xeco-clients.png');
+    var xecoClientsPath = getPdfResourcePath(req, 'synerex-clients.png');
     var installationMapPath = getPdfResourcePath(req, 'installation-map.png');
     var insuranceCoveragePath = getPdfResourcePath(req, 'insurance-coverage.png');
     var signaturePath = getPdfResourcePath(req, 'signature.png');
     var powerQualityComparison = getPdfResourcePath(req, 'power-quality-comparison.png');
-    var powerQualityWithXeco = getPdfResourcePath(req, 'power-quality-with-xeco.png');
-    var powerQualityWithoutXeco = getPdfResourcePath(req, 'power-quality-without-xeco.png');
-    var xecoRealtimePortal = getPdfResourcePath(req, 'xeco-realtime-portal.png');
+    var powerQualityWithXeco = getPdfResourcePath(req, 'power-quality-with-synerex.png');
+    var powerQualityWithoutXeco = getPdfResourcePath(req, 'power-quality-without-synerex.png');
+    var xecoRealtimePortal = getPdfResourcePath(req, 'synerex-realtime-portal.png');
     var powerQualityImprovement = getPdfResourcePath(req, 'power-quality-improvement.png');
     var powerQualityCost = getPdfResourcePath(req, 'power-quality-cost.png');
     const stream = clientProposalGenerator.generate(clientProposalData, proposalCoverPath, billAnalyticLogoPath,

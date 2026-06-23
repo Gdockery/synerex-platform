@@ -107,8 +107,8 @@
           <div class="xt-kpi-unit">kVA</div>
           <div class="xt-kpi-sub">{{ recoveredPct | number:'1.0-0' }}% of Rated Capacity</div>
           <div class="xt-kpi-detail" *ngIf="usedKva > 0 && recoveredKva > 0">
-            <div>Before XECO: <strong>{{ (usedKva + recoveredKva) | number:'1.0-0' }} kVA</strong></div>
-            <div>After XECO: <strong style="color:#00e676;">{{ usedKva | number:'1.0-0' }} kVA</strong></div>
+            <div>Before SYNEREX: <strong>{{ (usedKva + recoveredKva) | number:'1.0-0' }} kVA</strong></div>
+            <div>After SYNEREX: <strong style="color:#00e676;">{{ usedKva | number:'1.0-0' }} kVA</strong></div>
           </div>
         </div>
 
@@ -190,8 +190,8 @@
           <div class="xt-chart-header">
             <span class="xt-chart-title">kVA LOAD TREND</span>
             <div class="xt-chart-legend">
-              <span class="xt-leg-dot" style="background:#8899a6;"></span> Before XECO
-              <span class="xt-leg-dot" style="background:#00e676;margin-left:8px;"></span> After XECO
+              <span class="xt-leg-dot" style="background:#8899a6;"></span> Before SYNEREX
+              <span class="xt-leg-dot" style="background:#00e676;margin-left:8px;"></span> After SYNEREX
               <span class="xt-leg-dash" style="border-color:#29b6f6;margin-left:8px;"></span> Rated Capacity
             </div>
           </div>
@@ -205,10 +205,10 @@
                     font-size="9" fill="#546e7a">{{ y.label }}</text>
               <!-- Area fill -->
               <path [attr.d]="afterXecoAreaPath" fill="rgba(0,230,118,0.08)" stroke="none"/>
-              <!-- Before XECO line -->
+              <!-- Before SYNEREX line -->
               <path *ngIf="beforeXecoPath" [attr.d]="beforeXecoPath"
                     fill="none" stroke="#546e7a" stroke-width="1.5" stroke-dasharray="4 2"/>
-              <!-- After XECO line -->
+              <!-- After SYNEREX line -->
               <path *ngIf="afterXecoPath" [attr.d]="afterXecoPath"
                     fill="none" stroke="#00e676" stroke-width="2"/>
               <!-- Rated capacity line -->

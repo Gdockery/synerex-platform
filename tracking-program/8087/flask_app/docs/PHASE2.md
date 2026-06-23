@@ -8,7 +8,7 @@
 | Client | client | |
 | User | user | |
 | Project | project | project_users__user_projects join |
-| Xeco | xeco | |
+| Synerex | synerex | |
 | Gateway | gateway | |
 | Repeater | repeater | |
 | Switch | switch | |

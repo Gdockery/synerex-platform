@@ -27,7 +27,7 @@
 |---------|-----------|---------|---------|
 | License Service | MySQL | licensing | Orgs, licenses, auth, billing |
 | EMV Program | MySQL | emv | Projects, feeders, PE certs, sessions |
-| Tracking Program | MySQL | tracking | Users, clients, projects, meters |
+| ECBS Intelligence Platform | MySQL | tracking | Users, clients, projects, meters |
 
 **org_id** is the shared identifier across all three. License Service owns the org registry; EMV and Tracking use org_id for multi-tenancy and license checks.
 
@@ -69,16 +69,16 @@
 | Sessions | user_sessions (user_id, org_id, session_token). |
 | org_id | Filters projects; comes from session/JWT. |
 
-### 2.3 Tracking Program – User.role (integer)
+### 2.3 ECBS Intelligence Platform – User.role (integer)
 
 | Role | Name | Description |
 |------|------|-------------|
 | 1 | Client User | Limited project access |
 | 2 | Client Admin | Client-level admin |
 | 3 | Client Manager | Client-level manager |
-| 4 | Xeco User | Internal user |
+| 4 | Synerex User | Internal user |
 | 7 | Account Manager | Account management |
-| 8 | Xeco Admin | Synerex admin – all projects, admin UI. SSO: admin_sso_email + role=8 |
+| 8 | Synerex Admin | Synerex admin – all projects, admin UI. SSO: admin_sso_email + role=8 |
 
 ---
 
@@ -137,7 +137,7 @@ Admin approves PE → sync_pe_to_emv(org) → POST {emv_program_url}/api/pe/regi
 
 ## 6. Summary Table
 
-| Aspect | License Service | EMV Program | Tracking Program |
+| Aspect | License Service | EMV Program | ECBS Intelligence Platform |
 |--------|-----------------|--------------|-------------------|
 | DB | licensing | emv | tracking |
 | User store | users | user_sessions | user |

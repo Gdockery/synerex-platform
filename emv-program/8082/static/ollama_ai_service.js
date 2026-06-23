@@ -366,8 +366,8 @@ class OllamaAIService {
 • The network connection is slow
 
 Try asking a more specific question about:
-• **XECO Product Specifications**: "What are the specs for XECO-PFC?"
-• **Installation Steps**: "What are the basic installation steps for XECO-HF?"
+• **SYNEREX Product Specifications**: "What are the specs for SYNEREX-PFC?"
+• **Installation Steps**: "What are the basic installation steps for SYNEREX-HF?"
 • **Standards Compliance**: "What IEEE standards apply to power factor correction?"
 
 Please ensure Ollama is running on port 11434 for full AI capabilities.`
@@ -486,7 +486,7 @@ You can check service status in the Admin Panel.`
         // Fallback responses when AI service is unavailable
         const fallbackResponses = {
             'install': 'I can help with installation guidance. Please ensure the Ollama AI service is running for detailed instructions.',
-            'specification': 'For detailed product specifications, please check the XECO product documentation or ensure the AI service is available.',
+            'specification': 'For detailed product specifications, please check the SYNEREX product documentation or ensure the AI service is available.',
             'troubleshoot': 'Troubleshooting assistance requires the AI service. Please check that Ollama is running on port 8090.',
             'standard': 'Energy standards information is available through the knowledge base. Please ensure the AI service is connected.',
             'default': 'I apologize, but the AI service is currently unavailable. Please check that Ollama is running and try again.'

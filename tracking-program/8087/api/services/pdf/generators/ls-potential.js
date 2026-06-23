@@ -84,7 +84,7 @@ module.exports = function (printer) {
                     body: [
                       [{
                         margin: [10, 10, 10, 0],
-                        text: 'XECO Representative Contact',
+                        text: 'SYNEREX Representative Contact',
                         style: {
                           bold: true,
                           fontSize: 8,

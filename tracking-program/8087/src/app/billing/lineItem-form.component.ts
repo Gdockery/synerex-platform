@@ -63,7 +63,7 @@ import { AdditionalValidators } from "../shared/validation/additional.validator"
         
         <td>
           <div class="form-group">
-            <label style="top:0;">Estimated Xeco savings</label><br />
+            <label style="top:0;">Estimated Synerex savings</label><br />
             {{getSavingsAmount(lineItem) | projectCurrency:"symbol":'1.2-2'}}
           </div>
         </td>

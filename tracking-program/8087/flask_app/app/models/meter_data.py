@@ -60,7 +60,7 @@ class MeterData(BaseModel):
     outputAmp = db.Column(db.Float, nullable=True)
     rawData = db.Column(db.JSON)
 
-    # Individual harmonic orders H3–H21 per phase (% of fundamental), nullable until Xeco register map confirmed
+    # Individual harmonic orders H3–H21 per phase (% of fundamental), nullable until Synerex register map confirmed
     HARMONIC_ORDERS = [3, 5, 7, 9, 11, 13, 15, 17, 19, 21]
 
     # L1 current harmonics

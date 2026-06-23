@@ -651,7 +651,7 @@ export default function MyAccount() {
                 <div className="flex-1">
                   <div className="font-semibold text-red-300">&#9888; Subscription Expired</div>
                   <div className="text-sm text-red-200 mt-0.5">
-                    Your Tracking Program subscription has expired. Renew to restore access for your team.
+                    Your ECBS Intelligence Platform subscription has expired. Renew to restore access for your team.
                     {userInfo.license_expires_at && (
                       <span className="ml-1">Expired: {new Date(userInfo.license_expires_at).toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}</span>
                     )}
@@ -743,7 +743,7 @@ export default function MyAccount() {
                 rel="noopener noreferrer"
                 className="block p-6 bg-green-600 hover:bg-green-500 rounded-lg text-center transition-colors border border-green-500"
               >
-                <div className="text-xl font-bold mb-2 text-white">Tracking Program</div>
+                <div className="text-xl font-bold mb-2 text-white">ECBS Intelligence Platform</div>
                 <div className="text-sm text-green-200">Equipment & Meter Tracking</div>
               </a>
             </div>
@@ -818,7 +818,7 @@ export default function MyAccount() {
               
               {/* Tracking Plans */}
               <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                <h3 className="text-xl font-bold mb-4 text-green-400">Tracking Program</h3>
+                <h3 className="text-xl font-bold mb-4 text-green-400">ECBS Intelligence Platform</h3>
                 {deployedMeterCount !== null && (
                   <div className="mb-4 px-3 py-2 bg-gray-700/60 rounded-lg text-sm text-gray-300">
                     Your account has <span className="font-semibold text-green-400">{deployedMeterCount} meter{deployedMeterCount !== 1 ? "s" : ""}</span> deployed.
@@ -989,7 +989,7 @@ export default function MyAccount() {
                     rel="noopener noreferrer"
                     className="block p-6 bg-green-600 hover:bg-green-400 rounded-lg text-center transition-colors"
                   >
-                    <div className="text-xl font-bold mb-2">Access Tracking Program</div>
+                    <div className="text-xl font-bold mb-2">Access ECBS Intelligence Platform</div>
                     <div className="text-sm text-green-500">Click to open the Tracking program</div>
                   </a>
                 )}

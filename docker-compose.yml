@@ -419,7 +419,7 @@ services:
     volumes:
       - mysql_tracking_data:/var/lib/mysql
 
-  xeco-deploy:
+  synerex-deploy:
     build:
       context: ../xeco_deployment_scanner
       dockerfile: Dockerfile
@@ -469,7 +469,7 @@ services:
     volumes:
       - mysql_deploy_data:/var/lib/mysql
 
-  xeco-inventory:
+  synerex-inventory:
     build:
       context: ../xeco_inventory_refactored
       dockerfile: Dockerfile
@@ -479,9 +479,9 @@ services:
     ports:
       - "8091:8091"
     environment:
-      DB_PATH: /data/xeco.db
+      DB_PATH: /data/synerex.db
       STORAGE_PATH: /data/storage
-      SECRET_KEY: xeco-inventory-secret-2024
+      SECRET_KEY: synerex-inventory-secret-2024
       SEED_USERS: "landon.dockery@xecoenergy.com:Amarillo12!"
     volumes:
       - xeco_inventory_data:/data

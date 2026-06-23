@@ -14,7 +14,7 @@ writeEntities()
 {
 	cd $BackupRoot
 	Moment=`date +%Y-%m-%d_%H:%M`
-	mysqldump -u $DbUser -pxecopass --ignore-table=xeco.meterdata --ignore-table=xeco.meterdata_clone --ignore-table=xeco.meterdataaggregate --ignore-table=xeco.permeterdataaggregate xeco > db.entities.sql
+	mysqldump -u $DbUser -pxecopass --ignore-table=synerex.meterdata --ignore-table=synerex.meterdata_clone --ignore-table=synerex.meterdataaggregate --ignore-table=synerex.permeterdataaggregate synerex > db.entities.sql
 	zip "$1/db.entities.$Moment.zip" db.entities.sql
 	rm db.entities.sql
 }

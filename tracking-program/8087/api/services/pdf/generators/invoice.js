@@ -5,7 +5,7 @@ module.exports = function (printer) {
   };
 
   function generate (invoiceData, logoPath, brandName) {
-    brandName = brandName || 'Xeco'; // Default fallback
+    brandName = brandName || 'Synerex'; // Default fallback
     let hasBorder = [0, 1, 3, 5];
     let docDefinition = {
       pageOrientation: 'landscape',
@@ -397,8 +397,8 @@ module.exports = function (printer) {
               ],
               [
                 {
-                  text: 'Installed XECO POWER SYSTEMS on all recommended equipment. Costs include parts and labor. ' +
-                  'The XECO Invoice includes the completed installation of all recommended XECO devices.',
+                  text: 'Installed SYNEREX POWER SYSTEMS on all recommended equipment. Costs include parts and labor. ' +
+                  'The SYNEREX Invoice includes the completed installation of all recommended SYNEREX devices.',
                   style: {
                     fontSize: 5,
                     alignment: 'center'
@@ -628,7 +628,7 @@ module.exports = function (printer) {
           text: 'The fees quoted are estimated according to specific project requirements, the agreed timescale and any ' +
           'assumptions detailed in the proposal. If the timescale, project objectives or requirements or research ' +
           'approach or the assumptions on which the quote is based change in any way, ' + brandName + ' Energy Corporation' + ' reserves ' +
-          'the right to review the agreed fee and charge for any additional work that has resulted from changes. Xeco ' +
+          'the right to review the agreed fee and charge for any additional work that has resulted from changes. Synerex ' +
           'Energy Corporation cannot accept responsibility for delays caused by weather, transport difficulties, ' +
           'industrial action or any other circumstances beyond its control. The fees include one verbal presentation and ' +
           'an electronic copy of documentation (and 6 bound copies of the debrief presentation). We reserve the right ' +
@@ -698,7 +698,7 @@ module.exports = function (printer) {
           'interests. You undertake to keep confidential and not disclose to any other person either during or after ' +
           'the termination of this contract any information whatsoever relating to our business, any proposals, ' +
           'methodologies and debrief documentation or other information supplied by us during or before the project, or ' +
-          'make use of the same in any manner which might be prejudicial to our interests. The findings from Xeco Energy ' +
+          'make use of the same in any manner which might be prejudicial to our interests. The findings from Synerex Labs ' +
           'Corporation’s research may only be published, used or quoted elsewhere, with our prior written approval and ' +
           'provided that the findings and work are attributed to ' + brandName + ' Energy Corporation' + '.',
           style: 'termsText'

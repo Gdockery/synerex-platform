@@ -1,5 +1,5 @@
 """
-Flask app factory for Tracking Program.
+Flask app factory for ECBS Intelligence Platform.
 """
 import time
 

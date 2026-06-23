@@ -1,5 +1,5 @@
 """
-Database migrations for the Tracking Program.
+Database migrations for the ECBS Intelligence Platform.
 Run via: flask user-logo-migrate
 Or: python scripts/add_user_logo_column.py
 """

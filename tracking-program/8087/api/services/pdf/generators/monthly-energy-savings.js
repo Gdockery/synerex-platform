@@ -374,7 +374,7 @@ module.exports = function (printer) {
             widths: ['100%'],
             body: [
               [{
-                text: 'NOTE: This Report is a summary of month-to-month accumulated savings since the implimentation of the Xeco solution.',
+                text: 'NOTE: This Report is a summary of month-to-month accumulated savings since the implimentation of the Synerex solution.',
                 style: {
                   fontSize: 7,
                   bold: true
@@ -505,7 +505,7 @@ module.exports = function (printer) {
                 },
                 {
                   border: noBordersCell,
-                  text: 'Electric Bill w/o Xeco',
+                  text: 'Electric Bill w/o Synerex',
                   style: {
                     fillColor: red,
                     color: 'white',
@@ -617,7 +617,7 @@ module.exports = function (printer) {
                     widths: ['*'],
                     body: [[{
                       margin: [0, -5, 0, 0],
-                      text: 'Xeco Savings',
+                      text: 'Synerex Savings',
                       style: {
                         fillColor: 'black',
                         color: 'white',

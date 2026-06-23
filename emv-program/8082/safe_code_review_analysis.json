@@ -1702,7 +1702,7 @@
       "type": "long_line",
       "line": 13193,
       "length": 188,
-      "content": "                <tr><th>Parameter</th><th style=\"text-align: center;\">Before XECO</th><th style=\"tex...",
+      "content": "                <tr><th>Parameter</th><th style=\"text-align: center;\">Before SYNEREX</th><th style=\"tex...",
       "fix": "Break long line 13193 (188 chars)"
     },
     {
@@ -1751,7 +1751,7 @@
       "type": "long_line",
       "line": 13206,
       "length": 188,
-      "content": "                <tr><th>Parameter</th><th style=\"text-align: center;\">Before XECO</th><th style=\"tex...",
+      "content": "                <tr><th>Parameter</th><th style=\"text-align: center;\">Before SYNEREX</th><th style=\"tex...",
       "fix": "Break long line 13206 (188 chars)"
     },
     {

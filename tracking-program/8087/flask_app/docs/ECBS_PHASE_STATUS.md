@@ -1,5 +1,5 @@
-# ECBS Operating System™ — Phase Implementation Status
-**Spec reference:** ECBS Operating System v4.0 Master Requirements Specification  
+# ECBS Intelligence Platform™ — Phase Implementation Status
+**Spec reference:** ECBS Intelligence Platform v4.0 Master Requirements Specification  
 **Last updated:** 2026-06-17  
 **Scope:** Phases 1–13 backend API + DB schema + Angular UI where indicated
 
@@ -205,7 +205,7 @@
 | 13 | Commercial Platform | ❌ Not started |
 | 14 | Advanced Features (AI, Simulator) | ❌ Not started |
 
-> **Important:** The files `phase6_routes.py`–`phase11_routes.py` in `app/api/` are **ported Sails JS routes** from the original xeco tracking system, **not** ECBS OS spec phases 6–11. They handle legacy alerts, sockets, savings reports, budget/files, etc. Do not confuse with ECBS spec phases.
+> **Important:** The files `phase6_routes.py`–`phase11_routes.py` in `app/api/` are **ported Sails JS routes** from the original synerex tracking system, **not** ECBS OS spec phases 6–11. They handle legacy alerts, sockets, savings reports, budget/files, etc. Do not confuse with ECBS spec phases.
 
 ---
 

@@ -121,7 +121,7 @@ export class CreateUserComponent implements OnInit {
   private syncing;
   private clients;
   private selectedRole;
-  public brandName: string = 'Xeco'; // Default, will be updated
+  public brandName: string = 'Synerex'; // Default, will be updated
   public inviteBaseUrl: string = window.location.origin;
   private selectedClient;
   private availableProjects;

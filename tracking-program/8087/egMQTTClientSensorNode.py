@@ -54,7 +54,7 @@ class EGMQTTClientSensorNode(EGMQTTClient):
 
     def createTopics(self):
 
-        topicNode = "xeco/" + str(globalSettings.id) + "/sensors/" + self.sensor.hostid
+        topicNode = "synerex/" + str(globalSettings.id) + "/sensors/" + self.sensor.hostid
 
         self.subscribeTopics = [
             (topicNode + "/control", 0),

@@ -15,7 +15,7 @@ import {WhitelabelService} from "./shared/services/whitelabel.service";
 export class AppComponent implements OnInit {
 
 	public _opened: boolean = true;
-	public brandName: string = 'Xeco';
+	public brandName: string = 'Synerex';
 	public lastUpdated: string = '';
 
 	private _refreshTimer: any;

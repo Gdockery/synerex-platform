@@ -10,7 +10,7 @@ import tempfile
 import time
 from pathlib import Path
 
-STATUS_FILE = "/tmp/xeco-update-status"
+STATUS_FILE = "/tmp/synerex-update-status"
 STATE_READY = "Ready"
 STATE_UPDATING = "Updating"
 STATE_ROLLING_BACK = "RollingBack"
@@ -260,7 +260,7 @@ def diff_list(local_items, remote_items):
 def create_file_list_pack(app, pack_path, source_folder=None):
     """Create encrypted pack of file listing. Returns (success, error)."""
     import tempfile
-    td = tempfile.mkdtemp(prefix="xeco-maint-list-")
+    td = tempfile.mkdtemp(prefix="synerex-maint-list-")
     try:
         list_path = os.path.join(td, "list")
         ok, err = list_files(app, list_path, source_folder)
@@ -285,7 +285,7 @@ def create_update_pack(app, local_list_path, remote_list_path, output_path, sour
     local_items = parse_file_list(local_list_path)
     remote_items = parse_file_list(remote_list_path)
     diff = diff_list(local_items, remote_items)
-    td = tempfile.mkdtemp(prefix="xeco-maint-update-")
+    td = tempfile.mkdtemp(prefix="synerex-maint-update-")
     try:
         with open(os.path.join(td, ".newFolders"), "w") as f:
             f.write("\n".join(diff["send"]["folder"]))
@@ -350,7 +350,7 @@ class RemoteHost:
     def get_file_list(self, output_path):
         """Stream remote files endpoint, unpack, extract list to output_path."""
         r = self._call("files", stream=True)
-        td = tempfile.mkdtemp(prefix="xeco-maint-remote-")
+        td = tempfile.mkdtemp(prefix="synerex-maint-remote-")
         try:
             pack_path = os.path.join(td, "pack")
             with open(pack_path, "wb") as f:
@@ -379,7 +379,7 @@ class RemoteHost:
 
     def update(self):
         """Perform remote update: get remote list, local list, diff, create pack, POST to remote."""
-        td = tempfile.mkdtemp(prefix="xeco-maint-update-")
+        td = tempfile.mkdtemp(prefix="synerex-maint-update-")
         try:
             remote_list = os.path.join(td, "remoteList")
             local_list = os.path.join(td, "localList")

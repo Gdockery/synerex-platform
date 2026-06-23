@@ -1,6 +1,6 @@
 """
-Phase 9: Remaining integrations - Payment, DataSync, Maintenance, XECO, Dev.
-Ported from api/controllers/web/payment, datasync, web/xeco/
+Phase 9: Remaining integrations - Payment, DataSync, Maintenance, SYNEREX, Dev.
+Ported from api/controllers/web/payment, datasync, web/synerex/
 """
 import json
 import os
@@ -16,7 +16,7 @@ from app.models.project import Project, project_user
 from app.models.service_plan import ServicePlan
 from app.models.user import User
 from app.helpers.project_access import user_has_project_access as _user_has_project_access
-from app.models.xeco import CompanySettings
+from app.models.synerex import CompanySettings
 
 phase9_bp = Blueprint("phase9", __name__, url_prefix="")
 
@@ -356,14 +356,14 @@ def node_sync(project_xuid, since=0):
         return jsonify({"error": str(e)}), 500
 
 
-# ----- XECO -----
+# ----- SYNEREX -----
 
 
-@phase9_bp.route("/api/xeco", methods=["PUT"])
+@phase9_bp.route("/api/synerex", methods=["PUT"])
 @login_required
 @license_required
 def xeco_update():
-    """PUT /api/xeco - update Xeco singleton. Body: valuesToSet."""
+    """PUT /api/synerex - update Synerex singleton. Body: valuesToSet."""
     data = request.get_json() or {}
     values = data.get("valuesToSet", data)
     if not values:
@@ -378,13 +378,13 @@ def xeco_update():
     if unrecognized:
         return jsonify({"error": f"Unrecognized properties: {unrecognized}"}), 400
 
-    xeco = Xeco.query.first()
-    if not xeco:
-        return jsonify({"error": "Xeco not found"}), 404
+    synerex = Synerex.query.first()
+    if not synerex:
+        return jsonify({"error": "Synerex not found"}), 404
 
     for k, v in values.items():
-        if hasattr(xeco, k):
-            setattr(xeco, k, v)
+        if hasattr(synerex, k):
+            setattr(synerex, k, v)
     db.session.commit()
     return jsonify({})
 
@@ -455,7 +455,7 @@ def maintenance_files():
     from io import BytesIO
     td = None
     try:
-        td = tempfile.mkdtemp(prefix="xeco-maint-files-")
+        td = tempfile.mkdtemp(prefix="synerex-maint-files-")
         pack_path = os.path.join(td, "pack")
         ok, err = create_file_list_pack(current_app, pack_path)
         if not ok:
@@ -493,7 +493,7 @@ def maintenance_update():
     path = None
     try:
         _maintenance_update_status({"state": STATE_UPDATING, "error": None})
-        fd, path = tempfile.mkstemp(suffix=".pack", prefix="xeco-received-")
+        fd, path = tempfile.mkstemp(suffix=".pack", prefix="synerex-received-")
         try:
             pack.save(path)
             ok, err = request_apply(current_app, path)

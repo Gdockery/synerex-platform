@@ -1,5 +1,5 @@
 """
-Enhanced XECO Knowledge System for SynerexAI
+Enhanced SYNEREX Knowledge System for SynerexAI
 Integrates xecoenergy.com products and installation guides
 """
 
@@ -11,8 +11,8 @@ logger = logging.getLogger(__name__)
 
 class EnhancedXECOKnowledgeSystem:
     """
-    Enhanced XECO Knowledge System
-    Provides comprehensive XECO product information and installation guidance
+    Enhanced SYNEREX Knowledge System
+    Provides comprehensive SYNEREX product information and installation guidance
     """
     
     def __init__(self):
@@ -21,12 +21,12 @@ class EnhancedXECOKnowledgeSystem:
         self.knowledge_base = self._build_knowledge_base()
     
     def _load_xeco_products(self) -> List[Dict[str, Any]]:
-        """Load XECO products from knowledge base"""
+        """Load SYNEREX products from knowledge base"""
         try:
             with open("knowledge_base/xeco_website/products/xeco_products.json", "r") as f:
                 return json.load(f)
         except FileNotFoundError:
-            logger.warning("XECO products not found, using fallback")
+            logger.warning("SYNEREX products not found, using fallback")
             return []
     
     def _load_installation_guides(self) -> List[Dict[str, Any]]:
@@ -90,7 +90,7 @@ class EnhancedXECOKnowledgeSystem:
         if product_model:
             product = self.get_product_info(product_model)
             if product:
-                response = f"XECO Product: {product['name']} ({product['model']})\n"
+                response = f"SYNEREX Product: {product['name']} ({product['model']})\n"
                 response += f"Category: {product['category']}\n"
                 response += f"Description: {product['description']}\n\n"
                 
@@ -114,13 +114,13 @@ class EnhancedXECOKnowledgeSystem:
         # Search products if no specific model
         products = self.search_products(user_question)
         if products:
-            response = "XECO Products matching your query:\n\n"
+            response = "SYNEREX Products matching your query:\n\n"
             for product in products[:3]:  # Limit to 3 results
                 response += f"- {product['name']} ({product['model']})\n"
                 response += f"  {product['description']}\n\n"
             return response
         
-        return "No XECO products found matching your query. Please try a different search term."
+        return "No SYNEREX products found matching your query. Please try a different search term."
     
     def generate_installation_response(self, product_model: str) -> str:
         """Generate installation guidance response"""
@@ -161,25 +161,25 @@ class EnhancedXECOKnowledgeSystem:
         
         return response
 
-# Enhanced XECO knowledge system instance
+# Enhanced SYNEREX knowledge system instance
 xeco_knowledge_system = EnhancedXECOKnowledgeSystem()
 
 def get_xeco_product_info(product_model: str) -> Optional[Dict[str, Any]]:
-    """Get XECO product information"""
+    """Get SYNEREX product information"""
     return xeco_knowledge_system.get_product_info(product_model)
 
 def get_xeco_installation_guide(product_model: str) -> Optional[Dict[str, Any]]:
-    """Get XECO installation guide"""
+    """Get SYNEREX installation guide"""
     return xeco_knowledge_system.get_installation_guide(product_model)
 
 def search_xeco_products(query: str) -> List[Dict[str, Any]]:
-    """Search XECO products"""
+    """Search SYNEREX products"""
     return xeco_knowledge_system.search_products(query)
 
 def generate_xeco_response(user_question: str, product_model: str = None) -> str:
-    """Generate XECO response for SynerexAI"""
+    """Generate SYNEREX response for SynerexAI"""
     return xeco_knowledge_system.generate_product_response(user_question, product_model)
 
 def generate_xeco_installation_response(product_model: str) -> str:
-    """Generate XECO installation response for SynerexAI"""
+    """Generate SYNEREX installation response for SynerexAI"""
     return xeco_knowledge_system.generate_installation_response(product_model)

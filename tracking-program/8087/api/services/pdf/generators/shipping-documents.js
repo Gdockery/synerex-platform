@@ -181,7 +181,7 @@ module.exports = function (printer) {
                   border: [false, false, true, false],
                   stack: [
                     {
-                      text: 'XECO ENERGY CORPORATION',
+                      text: 'Synerex Labs',
                       style: {
                         color: gray,
                         fontSize: 7,
@@ -302,7 +302,7 @@ module.exports = function (printer) {
                   border: [false, false, true, false],
                   stack: [
                     {
-                      text: 'XECO ENERGY CORPORATION',
+                      text: 'Synerex Labs',
                       style: {
                         color: darkGray,
                         fontSize: 7,
@@ -593,7 +593,7 @@ module.exports = function (printer) {
                                   text: '11b. COMPANY',
                                 },
                                 {
-                                  text: 'XECO ENERGY CORPORATION',
+                                  text: 'Synerex Labs',
                                   style: {
                                     fontSize: 7,
                                     color: darkGray,
@@ -1190,7 +1190,7 @@ module.exports = function (printer) {
                   border: [true, true, true, true],
                   stack: [
                     {
-                      text: 'XECO ENERGY CORPORATION',
+                      text: 'Synerex Labs',
                     },
                     {
                       text: '1393 N. Bennett Circle',
@@ -1770,7 +1770,7 @@ module.exports = function (printer) {
         {
           pageBreak: 'after',
           margin: [0, 5, 0, 0],
-          text: 'XECO ENERGY CORPORATION',
+          text: 'Synerex Labs',
           style: {
             fontSize: 9,
             alignment: 'left',
@@ -1904,7 +1904,7 @@ module.exports = function (printer) {
                   border: [true, false, true, true],
                   stack: [
                     {
-                      text: 'XECO ENERGY CORPORATION',
+                      text: 'Synerex Labs',
                     },
                     {
                       text: '1393 N. Bennett Circle',
@@ -2506,7 +2506,7 @@ module.exports = function (printer) {
                 {
                   margin: [5, 0, 0, 0],
                   border: [false, false, false, true],
-                  text: 'XECO ENERGY CORPORATION  ',
+                  text: 'Synerex Labs  ',
                 },
                 {
                   margin: [10, 0, 0, 0],

@@ -35,7 +35,7 @@ from app.models.meter import Meter
 from app.models.project import Project, project_user
 from app.models.report_data import ReportData
 from app.models.user import User
-from app.models.xeco import CompanySettings
+from app.models.synerex import CompanySettings
 from app.services import pdf_service as pdf_service_module
 
 web_bp = Blueprint("web", __name__, url_prefix="")
@@ -106,7 +106,7 @@ _ROLE_FRIENDLY_NAMES = {
     1: "Client User",
     2: "Client Admin",
     3: "Client Manager",
-    4: "Xeco User",
+    4: "Synerex User",
     7: "Account Manager",
     8: "Synerex Admin",
     9: "OEM Admin",
@@ -264,7 +264,7 @@ def _serve_spa():
         pd = _project_to_dict(p, include_meters=(user.role in (8, 9, 10)), sess=sess)
         if pd:
             projects.append(pd)
-    xeco = sess.query(CompanySettings).first()
+    synerex = sess.query(CompanySettings).first()
     try:
         clients_q = sess.query(Client).filter_by(isDeleted=False).all()
         # OEM users (9, 10): only their org's clients, excluding OEM's own client record
@@ -385,7 +385,7 @@ def _serve_spa():
         "environment": current_app.config.get("ENV", "development"),
         "user": _user_to_dict(user),
         "appVersion": current_app.config.get("APP_VERSION", "1.0.0"),
-        "xecoAdvancedOptions": {"id": xeco.id} if xeco else {},
+        "xecoAdvancedOptions": {"id": synerex.id} if synerex else {},
         "clients": clients,
         "xecoUsersAndAdmins": xeco_users_and_admins,
         "myAccountUrl": my_account_url,
@@ -2437,8 +2437,8 @@ def serve_files(path):
 @web_bp.route("/api/company-settings", methods=["GET"])
 @login_required
 def get_company_settings():
-    """GET /api/company-settings — return platform company settings (xeco singleton row)."""
-    from app.models.xeco import CompanySettings
+    """GET /api/company-settings — return platform company settings (synerex singleton row)."""
+    from app.models.synerex import CompanySettings
     sess = get_session()
     row = sess.query(CompanySettings).first()
     if row is None:
@@ -2466,7 +2466,7 @@ def get_company_settings():
 @login_required
 def update_company_settings():
     """PUT /api/company-settings — update platform company settings."""
-    from app.models.xeco import CompanySettings
+    from app.models.synerex import CompanySettings
     import time
     data = request.get_json(silent=True) or {}
     if not data.get("name", "").strip():

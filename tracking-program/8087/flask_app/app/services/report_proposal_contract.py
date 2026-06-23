@@ -108,7 +108,7 @@ def _mdp_cards(buses):
 def _payment_schedule_html(payment_schedule: list | None, customer: str, net_total: float) -> str:
     if not payment_schedule:
         return f"""  <p>Payment terms are to be agreed upon execution of the formal project agreement.
-    XECO will coordinate with {customer} to establish a payment schedule appropriate for
+    SYNEREX will coordinate with {customer} to establish a payment schedule appropriate for
     the project scope and timeline.</p>"""
 
     rows = ""
@@ -139,7 +139,7 @@ def _payment_schedule_html(payment_schedule: list | None, customer: str, net_tot
 
 def _insurance_html(insurance_policy: dict | None) -> str:
     if not insurance_policy:
-        return """<p>XECO maintains commercial general liability insurance coverage appropriate for its operations.
+        return """<p>SYNEREX maintains commercial general liability insurance coverage appropriate for its operations.
     Certificates of insurance may be provided upon request following project award.</p>"""
 
     carrier = insurance_policy.get("carrier", "")
@@ -158,7 +158,7 @@ def _insurance_html(insurance_policy: dict | None) -> str:
         if val:
             limit_rows += f"<tr><td>{label}</td><td class=\"val-col\">{val}</td></tr>"
 
-    return f"""<p>XECO maintains commercial general liability insurance through <strong>{carrier}</strong>.
+    return f"""<p>SYNEREX maintains commercial general liability insurance through <strong>{carrier}</strong>.
     Certificates of insurance may be provided upon request following project award.</p>
 <table class="doc-table" style="margin:.1in 0 .15in;">
   <thead><tr><th>Coverage Type</th><th>Limit</th></tr></thead>
@@ -274,7 +274,7 @@ def build_html(d: dict, doc_no: str | None = None) -> str:
     annual_savings = total_savings * 12
 
     # OEM branding
-    prepared_by_org  = d.get("prepared_by_org", "XECO Energy Corporation")
+    prepared_by_org  = d.get("prepared_by_org", "SYNEREX Energy Corporation")
     preparer_name    = d.get("preparer_name", "")
     payment_schedule = d.get("payment_schedule")   # list of {pct, desc} or None
     insurance_policy = d.get("insurance_policy")   # dict or None
@@ -316,7 +316,7 @@ def build_html(d: dict, doc_no: str | None = None) -> str:
     <strong style="color:#005fa3;font-size:9.5pt;">Engineering Optimization Advantage — APF-100 Co-Bus Deployment</strong><br>
     Standard harmonic mitigation deployments typically assign one APF-100 unit per VFD-dominated circuit.
     At {apf100_bus_labels}, preliminary single-line diagram review confirmed multiple VFD-driven circuits share a common physical bus.
-    XECO substituted a single APF-100 system at each location — maintaining full harmonic mitigation while reducing hardware count.
+    SYNEREX substituted a single APF-100 system at each location — maintaining full harmonic mitigation while reducing hardware count.
   </div>""" if apf100_buses else ""
 
     generic_facility_sentence = (
@@ -403,7 +403,7 @@ def build_html(d: dict, doc_no: str | None = None) -> str:
     )
     _vc = 'val-col'
     _mvv_meter_row = (
-        f'<tr><td>Revenue Grade Meter (Xeco)</td><td class="{_vc}">Electrical usage and operating data collection at utility supply point</td></tr>'
+        f'<tr><td>Revenue Grade Meter (Synerex)</td><td class="{_vc}">Electrical usage and operating data collection at utility supply point</td></tr>'
         if not customer_owns_meters else
         f'<tr><td>LC90 Communication Module</td><td class="{_vc}">Communication interface integrating customer-owned utility meters into ECBS monitoring platform</td></tr>'
     )
@@ -412,7 +412,7 @@ def build_html(d: dict, doc_no: str | None = None) -> str:
         if not customer_owns_meters else ""
     )
     _customer_owns_note = (
-        f'<p style="margin-top:.1in;font-size:9.5pt;color:#555;">Note: Existing utility revenue meters at this facility are owned and maintained by {customer}. XECO will provide communication interfaces, Rocoil current sensing devices, and associated monitoring infrastructure necessary to integrate utility metering data into the ECBS monitoring platform.</p>'
+        f'<p style="margin-top:.1in;font-size:9.5pt;color:#555;">Note: Existing utility revenue meters at this facility are owned and maintained by {customer}. SYNEREX will provide communication interfaces, Rocoil current sensing devices, and associated monitoring infrastructure necessary to integrate utility metering data into the ECBS monitoring platform.</p>'
         if customer_owns_meters else ""
     )
 
@@ -440,7 +440,7 @@ def build_html(d: dict, doc_no: str | None = None) -> str:
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>{customer} — XECO Proposal Contract</title>
+<title>{customer} — SYNEREX Proposal Contract</title>
 <style>
 @page {{ size: letter; margin: 1in; }}
 @page cover {{ margin: 0; }}
@@ -524,7 +524,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
   <div class="cover-overlay">
     <div class="cover-top">
       <div style="margin-bottom:.3in;">
-        <img src="data:image/png;base64,{_XECO_LOGO_WHITE_B64}" alt="Xeco Energy" style="height:42px;width:auto;filter:brightness(0) invert(1);">
+        <img src="data:image/png;base64,{_XECO_LOGO_WHITE_B64}" alt="Synerex Labs" style="height:42px;width:auto;filter:brightness(0) invert(1);">
       </div>
       <div class="cover-main-title">ECBS<br>Network-Wide<br>Energy<br>Optimization<br>Proposal</div>
       <div class="cover-rule"></div>
@@ -534,7 +534,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
       <div class="cover-customer-name">{customer} Facility</div>
       <div class="cover-location">{cover_location}</div>
       <div class="cover-divider"></div>
-      <div class="cover-subtitle">Proposed XECO Electrical System Deployment</div>
+      <div class="cover-subtitle">Proposed SYNEREX Electrical System Deployment</div>
       <div class="cover-tags">
         Patented ECBS Network Optimization Technology <span>&bull;</span> Current Balancing <span>&bull;</span> Harmonic Mitigation <span>&bull;</span> Power Quality Optimization
       </div>
@@ -559,7 +559,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
       <div class="cover-date-rule"></div>
       <div class="cover-confidential">Confidential &amp; Proprietary</div>
       <div style="margin-top:.15in;font-size:6pt;color:rgba(255,255,255,0.75);line-height:1.5;text-align:center;">
-        &copy; 2026 XECO Energy Corporation. All rights reserved. ECBS&reg; Network Optimization Technology is proprietary intellectual property protected under applicable laws. Unauthorized use prohibited.
+        &copy; 2026 SYNEREX Energy Corporation. All rights reserved. ECBS&reg; Network Optimization Technology is proprietary intellectual property protected under applicable laws. Unauthorized use prohibited.
       </div>
     </div>
   </div>
@@ -568,7 +568,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
 <!-- ═══ EXECUTIVE SUMMARY LETTER ════════════════════════════════════════════ -->
 <div class="letter-page">
   <div class="letter-header">
-    <img src="data:image/png;base64,{_XECO_LOGO_COLOR_B64}" alt="Xeco Energy" style="height:52px;width:auto;">
+    <img src="data:image/png;base64,{_XECO_LOGO_COLOR_B64}" alt="Synerex Labs" style="height:52px;width:auto;">
     <div class="letter-header-right" style="display:flex;align-items:center;gap:18px;">
       <div style="text-align:right;">
         <div style="font-weight:700;color:#1a3a6b;">{prepared_by_org}</div>
@@ -608,9 +608,9 @@ ul.body-list li {{ margin-bottom: .05in; }}
       {"<li>" + capacitor_bank_bullet + "</li>" if capacitor_bank_bullet else ""}
     </ul>
     <p>
-      <strong>Proposed solution:</strong> A full-facility deployment of <strong>{total_units} XECO hardware units</strong>
+      <strong>Proposed solution:</strong> A full-facility deployment of <strong>{total_units} SYNEREX hardware units</strong>
       ({s600} &times; ECBS-600{(", " + str(apf100) + " &times; APF-100") if apf100 > 0 else ""}) sized to serve all {num_mdps} production switchgear sections, paired with a
-      revenue-grade XECO metering kit at the utility supply point. The equipment will correct reactive demand,
+      revenue-grade SYNEREX metering kit at the utility supply point. The equipment will correct reactive demand,
       suppress harmonics on VFD-driven circuits, and raise power factor to <strong>98%+</strong>{pf_proposal_suffix}.
     </p>
     <p><strong>Projected financial impact</strong> (conservative estimates):</p>
@@ -733,14 +733,14 @@ ul.body-list li {{ margin-bottom: .05in; }}
     harmonic mitigation, and network-wide power quality optimization.
   </p>
   <p>
-    XECO has developed a proposed electrical system optimization deployment for the {customer_legal}
+    SYNEREX has developed a proposed electrical system optimization deployment for the {customer_legal}
     facility based on preliminary review of utility billing data, facility operating characteristics,
     and available electrical distribution information from the {sld_source}.
   </p>
   <div class="subsection-title">Scope of Supply</div>
   <p>
     This document constitutes the combined commercial proposal and preliminary project scope for the
-    XECO ECBS Network-Wide Energy Optimization System deployment at the {customer_legal} {facility_site_label}.
+    SYNEREX ECBS Network-Wide Energy Optimization System deployment at the {customer_legal} {facility_site_label}.
     It should be read in conjunction with the accompanying ECBS Electrical Network-Wide Assessment &amp;
     Proposed Deployment Scope document, which provides the technical basis for all equipment quantities
     and deployment locations described in this proposal.
@@ -800,7 +800,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
 
   <div class="subsection-title">Engineering Basis of Deployment</div>
   <p>
-    The proposed XECO system architecture was developed using a structured engineering methodology
+    The proposed SYNEREX system architecture was developed using a structured engineering methodology
     applied to the specific electrical topology and load profile of the {customer_legal} {facility_site_label}
     using {sld_source}. The following engineering inputs were used to determine equipment type, quantity,
     and placement at each distribution location:
@@ -816,7 +816,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
     </tbody>
   </table>
   <p>
-    This engineering-driven methodology distinguishes the XECO deployment from generalized product
+    This engineering-driven methodology distinguishes the SYNEREX deployment from generalized product
     offerings — each unit, at each location, serves a specific electrical function identified through
     the assessment process.
   </p>
@@ -871,7 +871,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
 <div class="page">
   <div class="section-title">Proposed Equipment Deployment</div>
   <p>
-    Based on the preliminary engineering review for the {customer_legal} {facility_site_label}, XECO developed
+    Based on the preliminary engineering review for the {customer_legal} {facility_site_label}, SYNEREX developed
     a proposed deployment architecture spanning all {num_mdps} production switchgear sections ({bus_range}).
   </p>
   {network_wide_table}
@@ -884,7 +884,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
 <div class="page" style="page-break-before:always;">
   <div class="section-title">Measurement, Verification &amp; Monitoring</div>
   <p>
-    The proposed XECO deployment includes integrated monitoring and analytics infrastructure providing
+    The proposed SYNEREX deployment includes integrated monitoring and analytics infrastructure providing
     ongoing visibility into facility electrical operating conditions following system commissioning.
   </p>
   <div class="subsubsection-title">Monitoring Infrastructure Summary</div>
@@ -923,7 +923,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
       {"" if not s600   else f'<tr><td>ECBS-600 Power Quality Units</td><td style="text-align:center;">{s600}</td><td style="text-align:right;">${pricing["ecbs600"]:,.0f}</td><td style="text-align:right;">${s600 * pricing["ecbs600"]:,.0f}</td></tr>'}
       {"" if not apf100 else f'<tr><td>APF-100 Active Power Filter Units</td><td style="text-align:center;">{apf100}</td><td style="text-align:right;">${pricing["apf100"]:,.0f}</td><td style="text-align:right;">${apf100 * pricing["apf100"]:,.0f}</td></tr>'}
       {"" if not apf50  else f'<tr><td>APF-50 Active Power Filter Units</td><td style="text-align:center;">{apf50}</td><td style="text-align:right;">${pricing["apf50"]:,.0f}</td><td style="text-align:right;">${apf50 * pricing["apf50"]:,.0f}</td></tr>'}
-      {"" if customer_owns_meters else f'<tr><td>Revenue Grade Meter (XECO)</td><td style="text-align:center;">{n_meters}</td><td style="text-align:right;">${pricing["meter"]:,.0f}</td><td style="text-align:right;">${n_meters * pricing["meter"]:,.0f}</td></tr>'}
+      {"" if customer_owns_meters else f'<tr><td>Revenue Grade Meter (SYNEREX)</td><td style="text-align:center;">{n_meters}</td><td style="text-align:right;">${pricing["meter"]:,.0f}</td><td style="text-align:right;">${n_meters * pricing["meter"]:,.0f}</td></tr>'}
       <tr><td>LC90 Communication Module</td><td style="text-align:center;">{n_meters}</td><td style="text-align:right;">${pricing["lc90"]:,.0f}</td><td style="text-align:right;">${n_meters * pricing["lc90"]:,.0f}</td></tr>
       <tr><td>Signal Booster</td><td style="text-align:center;">{n_meters}</td><td style="text-align:right;">${pricing["booster"]:,.0f}</td><td style="text-align:right;">${n_meters * pricing["booster"]:,.0f}</td></tr>
       <tr><td>LC60 Communication Modules</td><td style="text-align:center;">{lc60_qty}</td><td style="text-align:right;">${pricing["lc60"]:,.0f}</td><td style="text-align:right;">${lc60_qty * pricing["lc60"]:,.0f}</td></tr>
@@ -970,7 +970,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
 <!-- Project Execution Plan -->
 <div class="page" style="font-size:9.5pt;">
   <div class="section-title">Project Execution Plan</div>
-  <p>Following project approval, XECO will coordinate with {customer} facilities and engineering personnel to finalize deployment locations and installation requirements prior to procurement and commissioning activities.</p>
+  <p>Following project approval, SYNEREX will coordinate with {customer} facilities and engineering personnel to finalize deployment locations and installation requirements prior to procurement and commissioning activities.</p>
   <div class="subsubsection-title">Preliminary Project Sequence</div>
   <table class="doc-table">
     <thead><tr><th>Project Phase</th><th>Description</th></tr></thead>
@@ -1010,7 +1010,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
     The ECBS Electrical Network-Wide Assessment &amp; Proposed Deployment Scope document reflects
     preliminary hardware deployment sizing and associated base equipment costs derived from utility
     analytics, electrical network review, and engineering evaluation. The base hardware cost identified
-    in the assessment represents the primary XECO electrical optimization equipment only, including
+    in the assessment represents the primary SYNEREX electrical optimization equipment only, including
     ECBS-600 current balancing units, APF-100 active harmonic filtering equipment, and revenue-grade
     metering hardware.
   </p>
@@ -1042,29 +1042,29 @@ ul.body-list li {{ margin-bottom: .05in; }}
     derived from historical operating data, utility billing information, site observations, and
     preliminary system analysis. Actual results may vary based on facility loading conditions,
     production schedules, utility tariffs, operating practices, seasonal conditions, and other factors
-    beyond XECO&rsquo;s control. Accordingly, projected savings and performance estimates are not
+    beyond SYNEREX&rsquo;s control. Accordingly, projected savings and performance estimates are not
     intended as a guarantee of future utility cost reduction or operational performance.
   </p>
   <div class="subsection-title">Installation Responsibilities</div>
   <p>
-    Equipment pricing reflected within this proposal includes proposed XECO hardware deployment,
+    Equipment pricing reflected within this proposal includes proposed SYNEREX hardware deployment,
     monitoring infrastructure, mounting hardware, commissioning support, and associated project
     coordination activities.
   </p>
   <p>
     Electrical tie-in work, breaker modifications, shutdown coordination, and final installation
-    activities shall be coordinated between XECO Energy Corporation and facility personnel.
-    XECO&rsquo;s installation team will manage equipment installation, inspection, wiring,
+    activities shall be coordinated between SYNEREX Energy Corporation and facility personnel.
+    SYNEREX&rsquo;s installation team will manage equipment installation, inspection, wiring,
     commissioning, and startup activities. Hot-wire connections, breaker additions, panel
-    modifications, and any facility-specific electrical work required beyond the proposed XECO scope
+    modifications, and any facility-specific electrical work required beyond the proposed SYNEREX scope
     shall remain the responsibility of the facility and/or its designated electrical contractor
     unless otherwise agreed in writing.
   </p>
   <div class="subsection-title">Excluded Scope</div>
-  <p>The following items are specifically excluded from XECO&rsquo;s scope of supply and services
+  <p>The following items are specifically excluded from SYNEREX&rsquo;s scope of supply and services
   unless otherwise identified within this proposal or authorized through a written change order:</p>
   <ul class="body-list">
-    <li>Ethernet cable routing beyond designated XECO equipment locations</li>
+    <li>Ethernet cable routing beyond designated SYNEREX equipment locations</li>
     <li>Breaker additions, panel modifications, and facility electrical upgrades</li>
     <li>Shutdown coordination and production outage scheduling</li>
     <li>Facility network infrastructure modifications</li>
@@ -1088,7 +1088,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
     Should field verification, site conditions, customer-requested modifications, operational
     requirements, code requirements, or changes to the facility electrical infrastructure result in
     a material change to the project scope, equipment quantities, installation requirements,
-    monitoring infrastructure, commissioning requirements, or project schedule, XECO reserves the
+    monitoring infrastructure, commissioning requirements, or project schedule, SYNEREX reserves the
     right to issue a written Change Order reflecting any necessary adjustment to equipment
     quantities, installation requirements, project pricing, project schedule, or commissioning
     activities. No Change Order shall become effective until accepted by both parties.
@@ -1102,7 +1102,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
     In the event of termination by the customer, the customer shall remain responsible for payment
     of all engineering services performed, equipment procured, manufacturing costs incurred,
     software configuration activities completed, project administration costs incurred, and any
-    non-cancelable commitments made by XECO prior to the effective date of termination.
+    non-cancelable commitments made by SYNEREX prior to the effective date of termination.
   </p>
   <p>
     Any completed work, delivered equipment, or services rendered prior to termination shall be
@@ -1111,13 +1111,13 @@ ul.body-list li {{ margin-bottom: .05in; }}
   </p>
   <div class="subsection-title">Limitation of Liability</div>
   <p>
-    To the fullest extent permitted by applicable law, XECO Energy Corporation&rsquo;s total
+    To the fullest extent permitted by applicable law, SYNEREX Energy Corporation&rsquo;s total
     liability arising from or relating to the products, services, engineering activities,
     installation support, monitoring systems, software, or this proposal shall not exceed the total
-    amount paid to XECO under the applicable purchase order or agreement.
+    amount paid to SYNEREX under the applicable purchase order or agreement.
   </p>
   <p>
-    In no event shall XECO Energy Corporation be liable for any indirect, incidental, consequential,
+    In no event shall SYNEREX Energy Corporation be liable for any indirect, incidental, consequential,
     special, exemplary, or punitive damages, including but not limited to lost profits, lost revenue,
     loss of production, business interruption, loss of data, loss of goodwill, increased operating
     costs, or other consequential losses.
@@ -1151,7 +1151,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
     replace, and utilize the equipment within its facilities.
   </p>
   <p>
-    The purchase of equipment does not transfer ownership of any XECO patents, patent rights,
+    The purchase of equipment does not transfer ownership of any SYNEREX patents, patent rights,
     trademarks, copyrights, trade secrets, software source code, proprietary methodologies,
     engineering processes, deployment architectures, technical designs, or other intellectual
     property associated with the equipment or services provided.
@@ -1159,8 +1159,8 @@ ul.body-list li {{ margin-bottom: .05in; }}
   <p>
     The customer may use the equipment and associated documentation for its internal business
     operations but shall not manufacture, reproduce for commercial sale, reverse engineer for
-    commercial purposes, license, sublicense, market, or resell XECO intellectual property without
-    the prior written consent of XECO Energy Corporation.
+    commercial purposes, license, sublicense, market, or resell SYNEREX intellectual property without
+    the prior written consent of SYNEREX Energy Corporation.
   </p>
   <p>
     Nothing contained herein shall restrict the customer&rsquo;s ownership and normal use of the
@@ -1184,7 +1184,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
       <tr><td>Shipping Terms</td><td class="val-col">FOB Georgetown, Texas</td></tr>
       <tr><td>Proposal Validity</td><td class="val-col">30 Days</td></tr>
       <tr><td>Estimated Lead Time</td><td class="val-col">Approximately 2&ndash;6 Weeks</td></tr>
-      <tr><td>Commissioning Support</td><td class="val-col">Provided by XECO</td></tr>
+      <tr><td>Commissioning Support</td><td class="val-col">Provided by SYNEREX</td></tr>
       <tr><td>Payment Schedule</td><td class="val-col">30% at Execution &bull; 30% on Completion of Install &bull; 40% Net 60 at Final Commissioning</td></tr>
     </tbody>
   </table>
@@ -1225,9 +1225,9 @@ ul.body-list li {{ margin-bottom: .05in; }}
   </p>
   <div class="subsection-title">Warranty &amp; Insurance</div>
   <p>
-    XECO equipment included within the proposed deployment is manufactured and tested prior to
+    SYNEREX equipment included within the proposed deployment is manufactured and tested prior to
     shipment and is intended for installation within commercial and industrial electrical
-    environments operating under standard electrical conditions. XECO will provide a standard
+    environments operating under standard electrical conditions. SYNEREX will provide a standard
     manufacturer warranty covering defects in materials and workmanship for the equipment supplied
     under the final project agreement.
   </p>
@@ -1238,12 +1238,12 @@ ul.body-list li {{ margin-bottom: .05in; }}
     unauthorized modifications, or improper electrical connection.
   </p>
   <p>
-    During the commissioning period, XECO will provide reasonable remote engineering support
+    During the commissioning period, SYNEREX will provide reasonable remote engineering support
     associated with system startup, monitoring integration, and initial operational verification of
     the deployed equipment.
   </p>
   <p>
-    XECO maintains commercial general liability insurance coverage appropriate for its operations.
+    SYNEREX maintains commercial general liability insurance coverage appropriate for its operations.
     Certificates of insurance may be provided upon request following project award and execution of
     the final project agreement.
   </p>
@@ -1271,7 +1271,7 @@ ul.body-list li {{ margin-bottom: .05in; }}
   </p>
   <p>
     The proposed system is grounded in {billing_months} month(s) of {utility_name} utility billing data, SLD-level
-    switchgear topology review, and circuit-level equipment placement logic. {total_units} XECO units deployed
+    switchgear topology review, and circuit-level equipment placement logic. {total_units} SYNEREX units deployed
     across {num_mdps} main distribution boards represent a comprehensive, engineering-driven response to the
     specific load profile and distribution architecture of this facility.
   </p>

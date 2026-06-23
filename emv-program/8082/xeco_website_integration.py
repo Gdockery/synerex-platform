@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-XECO Website Integration for SynerexAI
+SYNEREX Website Integration for SynerexAI
 Integrates xecoenergy.com products and installation guides
 """
 
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class XECOProduct:
-    """XECO Product from website"""
+    """SYNEREX Product from website"""
     name: str
     model: str
     category: str
@@ -32,7 +32,7 @@ class XECOProduct:
 
 @dataclass
 class XECOInstallationGuide:
-    """XECO Installation Guide"""
+    """SYNEREX Installation Guide"""
     product_model: str
     title: str
     steps: List[str]
@@ -43,8 +43,8 @@ class XECOInstallationGuide:
 
 class XECOWebsiteIntegration:
     """
-    XECO Website Integration System
-    Fetches and processes XECO products and installation guides from xecoenergy.com
+    SYNEREX Website Integration System
+    Fetches and processes SYNEREX products and installation guides from xecoenergy.com
     """
     
     def __init__(self):
@@ -63,7 +63,7 @@ class XECOWebsiteIntegration:
         os.makedirs(f"{self.knowledge_base_path}/datasheets", exist_ok=True)
     
     def fetch_xeco_products(self) -> List[XECOProduct]:
-        """Fetch XECO products from website"""
+        """Fetch SYNEREX products from website"""
         products = []
         
         try:
@@ -85,11 +85,11 @@ class XECOWebsiteIntegration:
                     logger.warning(f"Error extracting product: {e}")
                     continue
             
-            logger.info(f"Fetched {len(products)} XECO products from website")
+            logger.info(f"Fetched {len(products)} SYNEREX products from website")
             return products
             
         except requests.RequestException as e:
-            logger.error(f"Error fetching XECO products: {e}")
+            logger.error(f"Error fetching SYNEREX products: {e}")
             return self._get_fallback_products()
     
     def _extract_product_info(self, element) -> Optional[XECOProduct]:
@@ -196,8 +196,8 @@ class XECOWebsiteIntegration:
         """Fallback products if website is unavailable"""
         return [
             XECOProduct(
-                name="XECO Harmonic Filter",
-                model="XECO-HF",
+                name="SYNEREX Harmonic Filter",
+                model="SYNEREX-HF",
                 category="Power Quality",
                 description="Advanced harmonic filtering solution for industrial applications",
                 specifications={
@@ -212,8 +212,8 @@ class XECOWebsiteIntegration:
                 features=["Advanced filtering", "High efficiency", "Easy installation"]
             ),
             XECOProduct(
-                name="XECO Power Factor Correction",
-                model="XECO-PFC",
+                name="SYNEREX Power Factor Correction",
+                model="SYNEREX-PFC",
                 category="Power Quality",
                 description="Automatic power factor correction system",
                 specifications={
@@ -230,7 +230,7 @@ class XECOWebsiteIntegration:
         ]
     
     def fetch_installation_guides(self, products: List[XECOProduct]) -> List[XECOInstallationGuide]:
-        """Fetch installation guides for XECO products"""
+        """Fetch installation guides for SYNEREX products"""
         guides = []
         
         for product in products:
@@ -411,7 +411,7 @@ class XECOWebsiteIntegration:
         )
     
     def save_knowledge_base(self, products: List[XECOProduct], guides: List[XECOInstallationGuide]):
-        """Save XECO knowledge base to files"""
+        """Save SYNEREX knowledge base to files"""
         
         # Save products
         products_data = []
@@ -459,10 +459,10 @@ class XECOWebsiteIntegration:
         with open(f"{self.knowledge_base_path}/xeco_knowledge_index.json", "w") as f:
             json.dump(index_data, f, indent=2)
         
-        logger.info(f"Saved XECO knowledge base: {len(products)} products, {len(guides)} guides")
+        logger.info(f"Saved SYNEREX knowledge base: {len(products)} products, {len(guides)} guides")
     
     def integrate_with_synerex_ai(self):
-        """Integrate XECO website knowledge with SynerexAI"""
+        """Integrate SYNEREX website knowledge with SynerexAI"""
         
         # Fetch products and guides
         products = self.fetch_xeco_products()
@@ -471,17 +471,17 @@ class XECOWebsiteIntegration:
         # Save to knowledge base
         self.save_knowledge_base(products, guides)
         
-        # Create enhanced XECO knowledge system
+        # Create enhanced SYNEREX knowledge system
         self._create_enhanced_xeco_system(products, guides)
         
-        logger.info("XECO website integration complete")
+        logger.info("SYNEREX website integration complete")
         return products, guides
     
     def _create_enhanced_xeco_system(self, products: List[XECOProduct], guides: List[XECOInstallationGuide]):
-        """Create enhanced XECO knowledge system for SynerexAI"""
+        """Create enhanced SYNEREX knowledge system for SynerexAI"""
         
         enhanced_system = f'''"""
-Enhanced XECO Knowledge System for SynerexAI
+Enhanced SYNEREX Knowledge System for SynerexAI
 Integrates xecoenergy.com products and installation guides
 """
 
@@ -494,8 +494,8 @@ logger = logging.getLogger(__name__)
 
 class EnhancedXECOKnowledgeSystem:
     """
-    Enhanced XECO Knowledge System
-    Provides comprehensive XECO product information and installation guidance
+    Enhanced SYNEREX Knowledge System
+    Provides comprehensive SYNEREX product information and installation guidance
     """
     
     def __init__(self):
@@ -504,12 +504,12 @@ class EnhancedXECOKnowledgeSystem:
         self.knowledge_base = self._build_knowledge_base()
     
     def _load_xeco_products(self) -> List[Dict[str, Any]]:
-        """Load XECO products from knowledge base"""
+        """Load SYNEREX products from knowledge base"""
         try:
             with open("knowledge_base/xeco_website/products/xeco_products.json", "r") as f:
                 return json.load(f)
         except FileNotFoundError:
-            logger.warning("XECO products not found, using fallback")
+            logger.warning("SYNEREX products not found, using fallback")
             return []
     
     def _load_installation_guides(self) -> List[Dict[str, Any]]:
@@ -594,7 +594,7 @@ class EnhancedXECOKnowledgeSystem:
         if product_model:
             product = self.get_product_info(product_model)
             if product:
-                response = f"XECO Product: {{product['name']}} ({{product['model']}})\\n"
+                response = f"SYNEREX Product: {{product['name']}} ({{product['model']}})\\n"
                 response += f"Category: {{product['category']}}\\n"
                 response += f"Description: {{product['description']}}\\n\\n"
                 
@@ -618,13 +618,13 @@ class EnhancedXECOKnowledgeSystem:
         # Search products if no specific model
         products = self.search_products(user_question)
         if products:
-            response = "XECO Products matching your query:\\n\\n"
+            response = "SYNEREX Products matching your query:\\n\\n"
             for product in products[:3]:  # Limit to 3 results
                 response += f"- {{product['name']}} ({{product['model']}})\\n"
                 response += f"  {{product['description']}}\\n\\n"
             return response
         
-        return "No XECO products found matching your query. Please try a different search term."
+        return "No SYNEREX products found matching your query. Please try a different search term."
     
     def generate_installation_response(self, product_model: str) -> str:
         """Generate installation guidance response"""
@@ -665,27 +665,27 @@ class EnhancedXECOKnowledgeSystem:
         
         return response
 
-# Enhanced XECO knowledge system instance
+# Enhanced SYNEREX knowledge system instance
 xeco_knowledge_system = EnhancedXECOKnowledgeSystem()
 
 def get_xeco_product_info(product_model: str) -> Optional[Dict[str, Any]]:
-    """Get XECO product information"""
+    """Get SYNEREX product information"""
     return xeco_knowledge_system.get_product_info(product_model)
 
 def get_xeco_installation_guide(product_model: str) -> Optional[Dict[str, Any]]:
-    """Get XECO installation guide"""
+    """Get SYNEREX installation guide"""
     return xeco_knowledge_system.get_installation_guide(product_model)
 
 def search_xeco_products(query: str) -> List[Dict[str, Any]]:
-    """Search XECO products"""
+    """Search SYNEREX products"""
     return xeco_knowledge_system.search_products(query)
 
 def generate_xeco_response(user_question: str, product_model: str = None) -> str:
-    """Generate XECO response for SynerexAI"""
+    """Generate SYNEREX response for SynerexAI"""
     return xeco_knowledge_system.generate_product_response(user_question, product_model)
 
 def generate_xeco_installation_response(product_model: str) -> str:
-    """Generate XECO installation response for SynerexAI"""
+    """Generate SYNEREX installation response for SynerexAI"""
     return xeco_knowledge_system.generate_installation_response(product_model)
 '''
         
@@ -693,18 +693,18 @@ def generate_xeco_installation_response(product_model: str) -> str:
         with open("xeco_website_knowledge_system.py", "w") as f:
             f.write(enhanced_system)
         
-        logger.info("Enhanced XECO knowledge system created")
+        logger.info("Enhanced SYNEREX knowledge system created")
 
 def main():
     """Main integration function"""
-    print("=== XECO Website Integration for SynerexAI ===")
+    print("=== SYNEREX Website Integration for SynerexAI ===")
     print("Integrating xecoenergy.com products and installation guides...")
     print()
     
     # Create integration instance
     integrator = XECOWebsiteIntegration()
     
-    # Integrate XECO website knowledge
+    # Integrate SYNEREX website knowledge
     products, guides = integrator.integrate_with_synerex_ai()
     
     print("=== Integration Complete ===")
@@ -712,13 +712,13 @@ def main():
     print(f"Installation guides: {len(guides)}")
     print()
     print("Files created:")
-    print("- knowledge_base/xeco_website/ (XECO knowledge base)")
+    print("- knowledge_base/xeco_website/ (SYNEREX knowledge base)")
     print("- xeco_website_knowledge_system.py (Enhanced system)")
     print()
     print("Next steps:")
-    print("1. Test XECO product queries with SynerexAI")
+    print("1. Test SYNEREX product queries with SynerexAI")
     print("2. Validate installation guide responses")
-    print("3. Update SynerexAI to use enhanced XECO knowledge")
+    print("3. Update SynerexAI to use enhanced SYNEREX knowledge")
     print("4. Set up regular website updates")
 
 if __name__ == "__main__":

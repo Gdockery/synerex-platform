@@ -12,7 +12,7 @@ def _safe(val, default=""):
     return val if val is not None else default
 
 
-def generate(invoice_data, logo_path=None, brand_name="Xeco"):
+def generate(invoice_data, logo_path=None, brand_name="Synerex"):
     """Generate invoice PDF. invoice_data from data_mappers.map_invoice_data."""
     if not invoice_data or not isinstance(invoice_data, dict):
         invoice_data = {}
@@ -90,7 +90,7 @@ def generate(invoice_data, logo_path=None, brand_name="Xeco"):
 
     # Itemized estimate
     story.append(Paragraph(
-        "Installed XECO POWER SYSTEMS on all recommended equipment. Costs include parts and labor.",
+        "Installed SYNEREX POWER SYSTEMS on all recommended equipment. Costs include parts and labor.",
         ParagraphStyle("Note", fontSize=6, alignment=1),
     ))
     story.append(Paragraph(

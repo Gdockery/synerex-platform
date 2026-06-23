@@ -25,7 +25,7 @@
             <p *ngIf="!currentUserService.user.selectedProject.hasRunTest">(No test has been run, so savings not displayed.)</p>
           </div>
           <div class="col-md-4 text-right">
-            <legend [values]="[{text:'Before XECO', color: '#9ca5d7'},{text:'CURRENT', color: '#26c49d'}]"></legend>
+            <legend [values]="[{text:'Before SYNEREX', color: '#9ca5d7'},{text:'CURRENT', color: '#26c49d'}]"></legend>
           </div>
           <div class="clearfix"></div>
         </div>
@@ -61,7 +61,7 @@
               <div class="compare-value">{{kvarAfter | number : '1.0-0'}}<span class="ss-down green pull-right"></span></div>
             </div>
             <div class="col-md-6" style="border-left:1px solid #e0e0e0;">
-              <div class="compare-label">Before Xeco </div>
+              <div class="compare-label">Before Synerex </div>
               <div class="compare-value">{{kvarBefore | number : '1.0-0'}}<span class="ss-up red pull-right"></span></div>
             </div>
             <div class="clearfix"></div>
@@ -77,7 +77,7 @@
               <div class="compare-value">{{pfAfter| number : '1.2-2'}}%<span class="ss-up green pull-right"></span></div>
             </div>
             <div class="col-md-6" style="border-left:1px solid #e0e0e0;">
-              <div class="compare-label">Before Xeco </div>
+              <div class="compare-label">Before Synerex </div>
               <div class="compare-value">{{pfBefore| number : '1.2-2'}}%<span class="ss-down red pull-right"></span></div>
             </div>
             <div class="clearfix"></div>

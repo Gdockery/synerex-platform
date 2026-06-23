@@ -46,7 +46,7 @@ export class PartService {
       price: 400,
     },*/
     {
-      name: 'Xeco Gateways',
+      name: 'Synerex Gateways',
       taxable: true,
       price: 129,
       countType: 'item',

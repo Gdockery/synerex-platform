@@ -247,7 +247,7 @@ class EnhancedSynerexAI {
     initializeEquipmentSelector() {
         this.equipmentSelector = {
             xecoProducts: {
-                'XECO-HF': {
+                'SYNEREX-HF': {
                     description: 'Harmonic Filter Series',
                     applications: ['VFDs', 'UPS Systems', 'LED Lighting'],
                     voltageRatings: ['480V', '600V', '1000V'],
@@ -255,7 +255,7 @@ class EnhancedSynerexAI {
                     efficiency: '>98%',
                     harmonics: ['5th', '7th', '11th', '13th']
                 },
-                'XECO-PF': {
+                'SYNEREX-PF': {
                     description: 'Power Factor Correction Series',
                     applications: ['Industrial Motors', 'Transformers', 'Capacitor Banks'],
                     voltageRatings: ['480V', '600V', '1000V'],
@@ -263,7 +263,7 @@ class EnhancedSynerexAI {
                     efficiency: '>99%',
                     correction: '0.85 to 0.95+'
                 },
-                'XECO-ES': {
+                'SYNEREX-ES': {
                     description: 'Energy Storage Series',
                     applications: ['Peak Shaving', 'Demand Response', 'Backup Power'],
                     capacity: ['50kWh', '100kWh', '250kWh', '500kWh', '1MWh'],
@@ -271,7 +271,7 @@ class EnhancedSynerexAI {
                     efficiency: '>95%',
                     duration: '2-8 hours'
                 },
-                'XECO-SM': {
+                'SYNEREX-SM': {
                     description: 'Smart Monitoring Series',
                     applications: ['Real-time Monitoring', 'Predictive Maintenance', 'Energy Management'],
                     features: ['IoT Connectivity', 'Cloud Integration', 'Mobile App'],
@@ -491,7 +491,7 @@ class EnhancedSynerexAI {
         this.visualAnalysisEngine = {
             imageRecognition: {
                 equipmentTypes: ['Motors', 'Transformers', 'Capacitors', 'Filters', 'Inverters', 'UPS Systems'],
-                xecoProducts: ['XECO-HF', 'XECO-PF', 'XECO-ES', 'XECO-SM'],
+                xecoProducts: ['SYNEREX-HF', 'SYNEREX-PF', 'SYNEREX-ES', 'SYNEREX-SM'],
                 installationIssues: ['Poor Ventilation', 'Inadequate Clearance', 'Improper Grounding', 'Overheating'],
                 conditionAssessment: ['Excellent', 'Good', 'Fair', 'Poor', 'Critical']
             },
@@ -1410,7 +1410,7 @@ class EnhancedSynerexAI {
         }
         
         // Equipment-specific questions
-        if (lowerQuestion.includes('equipment') || lowerQuestion.includes('xeco') || lowerQuestion.includes('filter')) {
+        if (lowerQuestion.includes('equipment') || lowerQuestion.includes('synerex') || lowerQuestion.includes('filter')) {
             const response = this.generateEquipmentResponse(question, energyContext);
             this.addToConversationHistory(question, response);
             return response;
@@ -1878,7 +1878,7 @@ class EnhancedSynerexAI {
      */
     isEquipmentSelectionQuestion(question) {
         const equipmentKeywords = [
-            'equipment', 'xeco', 'harmonic filter', 'power factor correction',
+            'equipment', 'synerex', 'harmonic filter', 'power factor correction',
             'energy storage', 'smart monitoring', 'sizing', 'selection',
             'recommend', 'which equipment', 'what size', 'specifications'
         ];
@@ -1891,9 +1891,9 @@ class EnhancedSynerexAI {
     generateEquipmentSelectionResponse(question, context) {
         let response = `**⚡ Equipment Sizing and Selection Intelligence:**\n\n`;
 
-        if (question.includes('harmonic') || question.includes('thd') || question.includes('xeco-hf')) {
-            const hf = this.equipmentSelector.xecoProducts['XECO-HF'];
-            response += `**XECO-HF Harmonic Filter Series:**\n`;
+        if (question.includes('harmonic') || question.includes('thd') || question.includes('synerex-hf')) {
+            const hf = this.equipmentSelector.xecoProducts['SYNEREX-HF'];
+            response += `**SYNEREX-HF Harmonic Filter Series:**\n`;
             response += `• **Description**: ${hf.description}\n`;
             response += `• **Applications**: ${hf.applications.join(', ')}\n`;
             response += `• **Voltage Ratings**: ${hf.voltageRatings.join(', ')}\n`;
@@ -1902,9 +1902,9 @@ class EnhancedSynerexAI {
             response += `• **Harmonics Filtered**: ${hf.harmonics.join(', ')}\n\n`;
         }
 
-        if (question.includes('power factor') || question.includes('pf') || question.includes('xeco-pf')) {
-            const pf = this.equipmentSelector.xecoProducts['XECO-PF'];
-            response += `**XECO-PF Power Factor Correction Series:**\n`;
+        if (question.includes('power factor') || question.includes('pf') || question.includes('synerex-pf')) {
+            const pf = this.equipmentSelector.xecoProducts['SYNEREX-PF'];
+            response += `**SYNEREX-PF Power Factor Correction Series:**\n`;
             response += `• **Description**: ${pf.description}\n`;
             response += `• **Applications**: ${pf.applications.join(', ')}\n`;
             response += `• **Voltage Ratings**: ${pf.voltageRatings.join(', ')}\n`;
@@ -1913,9 +1913,9 @@ class EnhancedSynerexAI {
             response += `• **Correction Range**: ${pf.correction}\n\n`;
         }
 
-        if (question.includes('energy storage') || question.includes('battery') || question.includes('xeco-es')) {
-            const es = this.equipmentSelector.xecoProducts['XECO-ES'];
-            response += `**XECO-ES Energy Storage Series:**\n`;
+        if (question.includes('energy storage') || question.includes('battery') || question.includes('synerex-es')) {
+            const es = this.equipmentSelector.xecoProducts['SYNEREX-ES'];
+            response += `**SYNEREX-ES Energy Storage Series:**\n`;
             response += `• **Description**: ${es.description}\n`;
             response += `• **Applications**: ${es.applications.join(', ')}\n`;
             response += `• **Capacity Options**: ${es.capacity.join(', ')}\n`;
@@ -1924,9 +1924,9 @@ class EnhancedSynerexAI {
             response += `• **Duration**: ${es.duration}\n\n`;
         }
 
-        if (question.includes('monitoring') || question.includes('smart') || question.includes('xeco-sm')) {
-            const sm = this.equipmentSelector.xecoProducts['XECO-SM'];
-            response += `**XECO-SM Smart Monitoring Series:**\n`;
+        if (question.includes('monitoring') || question.includes('smart') || question.includes('synerex-sm')) {
+            const sm = this.equipmentSelector.xecoProducts['SYNEREX-SM'];
+            response += `**SYNEREX-SM Smart Monitoring Series:**\n`;
             response += `• **Description**: ${sm.description}\n`;
             response += `• **Applications**: ${sm.applications.join(', ')}\n`;
             response += `• **Features**: ${sm.features.join(', ')}\n`;
@@ -2313,7 +2313,7 @@ class EnhancedSynerexAI {
 
         response += `**Image Recognition Capabilities:**\n`;
         response += `• **Equipment Types**: ${this.visualAnalysisEngine.imageRecognition.equipmentTypes.join(', ')}\n`;
-        response += `• **XECO Products**: ${this.visualAnalysisEngine.imageRecognition.xecoProducts.join(', ')}\n`;
+        response += `• **SYNEREX Products**: ${this.visualAnalysisEngine.imageRecognition.xecoProducts.join(', ')}\n`;
         response += `• **Installation Issues**: ${this.visualAnalysisEngine.imageRecognition.installationIssues.join(', ')}\n`;
         response += `• **Condition Assessment**: ${this.visualAnalysisEngine.imageRecognition.conditionAssessment.join(', ')}\n\n`;
 
@@ -2913,11 +2913,11 @@ Based on your project context:
 • Location: ${context.location}
 • Current Equipment: ${context.equipment}
 
-**XECO Product Recommendations:**
-• XECO-HF Series: Harmonic filtering for VFDs and LED lighting
-• XECO-PF Series: Power factor correction for industrial loads
-• XECO-ES Series: Energy storage for peak shaving
-• XECO-SM Series: Smart monitoring and control
+**SYNEREX Product Recommendations:**
+• SYNEREX-HF Series: Harmonic filtering for VFDs and LED lighting
+• SYNEREX-PF Series: Power factor correction for industrial loads
+• SYNEREX-ES Series: Energy storage for peak shaving
+• SYNEREX-SM Series: Smart monitoring and control
 
 **Installation Considerations:**
 • Climate Zone: ${context.locationInfo ? context.locationInfo.climateZone : 'Unknown'}
@@ -3026,7 +3026,7 @@ What specific form section or data requirement do you need help with?`;
 
 **Available Assistance:**
 • Energy analysis and optimization
-• XECO equipment recommendations
+• SYNEREX equipment recommendations
 • Utility rate optimization
 • Installation guidance and codes
 • Form completion assistance

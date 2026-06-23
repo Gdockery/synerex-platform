@@ -48,7 +48,7 @@ export default function AdminDashboard() {
       'emv_service_9000': 'SELF_RESTART', // Service Manager itself - uses special self-restart endpoint
       'emv_program_8082': 'main_app', // EMV Program maps to main_app
       'license_service_8000': null, // License Service - handled separately (custom restart logic)
-      'tracking_program_8087': null, // Tracking Program - handled separately (custom restart logic)
+      'tracking_program_8087': null, // ECBS Intelligence Platform - handled separately (custom restart logic)
       'website_frontend_5173': 'website_frontend' // Website Frontend - Docker-managed via Service Manager
     };
     // Check if key exists in mapping first, then return the value (even if null)
@@ -233,7 +233,7 @@ export default function AdminDashboard() {
             dependencies: []
           };
           transformedServices['tracking_program_8087'] = {
-            name: 'Tracking Program',
+            name: 'ECBS Intelligence Platform',
             description: 'Tracking program application',
             url: TRACKING_URL,
             running: data.services?.tracking_app?.running || (trackingResult.status === 'fulfilled' && (trackingResult.value.ok || trackingResult.value.status === 302)),
@@ -432,7 +432,7 @@ export default function AdminDashboard() {
           alert(`License Service (port 8000) only supports Start and Stop operations.`);
         }
       } else if (serviceId === 'tracking_program_8087') {
-        // Tracking Program - Restart via License Service proxy (session auth, same-origin)
+        // ECBS Intelligence Platform - Restart via License Service proxy (session auth, same-origin)
         if (action === 'restart') {
           setServiceActions(prev => ({ ...prev, [serviceId]: action }));
           try {
@@ -443,7 +443,7 @@ export default function AdminDashboard() {
             });
             const data = await response.json().catch(() => ({ success: false, message: 'Invalid response' }));
             if (data.success) {
-              alert(data.message || 'Tracking Program restart initiated.');
+              alert(data.message || 'ECBS Intelligence Platform restart initiated.');
               setTimeout(() => {
                 loadServices();
                 setServiceActions(prev => {
@@ -456,8 +456,8 @@ export default function AdminDashboard() {
               throw new Error(data.message || data.error || data.detail || 'Unknown error');
             }
           } catch (err) {
-            console.error('Failed to restart Tracking Program:', err);
-            alert('Failed to restart Tracking Program: ' + messageForFetchError(err, 'License Service (proxy)', LICENSE_SERVICE_URL));
+            console.error('Failed to restart ECBS Intelligence Platform:', err);
+            alert('Failed to restart ECBS Intelligence Platform: ' + messageForFetchError(err, 'License Service (proxy)', LICENSE_SERVICE_URL));
             setServiceActions(prev => {
               const next = { ...prev };
               delete next[serviceId];
@@ -476,7 +476,7 @@ export default function AdminDashboard() {
           );
           const data = await response.json();
           if (data.success !== false) {
-            alert(data.message || `Tracking Program ${action} initiated.`);
+            alert(data.message || `ECBS Intelligence Platform ${action} initiated.`);
             setTimeout(() => {
               loadServices();
               setServiceActions(prev => {
@@ -489,7 +489,7 @@ export default function AdminDashboard() {
             throw new Error(data.message || data.error || 'Unknown error');
           }
         } catch (err) {
-          const serviceName = 'Tracking Program (8087)';
+          const serviceName = 'ECBS Intelligence Platform (8087)';
           const startCmd = 'cd tracking-program/8087/flask_app && python run.py (or docker-compose up -d tracking-program)';
           const stopCmd = 'Stop the process or: docker-compose stop tracking-program';
           if (action === 'start') {
@@ -1245,19 +1245,19 @@ export default function AdminDashboard() {
                 </div>
               </div>
               
-              {/* Tracking Program */}
+              {/* ECBS Intelligence Platform */}
               <div>
                 <h3 className="text-lg font-bold text-cyan-400 mb-4 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                   </svg>
-                  Tracking Program
+                  ECBS Intelligence Platform
                 </h3>
                 <div className="grid md:grid-cols-1 gap-4">
                   {['tracking_program_8087'].map(serviceId => {
                     const service = services[serviceId];
                     const defaultService = {
-                      name: 'Tracking Program (Port 8087)',
+                      name: 'ECBS Intelligence Platform (Port 8087)',
                       description: 'Tracking program application',
                       url: TRACKING_URL,
                       running: false,

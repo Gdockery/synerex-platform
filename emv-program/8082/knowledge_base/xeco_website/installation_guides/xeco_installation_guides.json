@@ -1,7 +1,7 @@
 [
   {
-    "product_model": "XECO-HF",
-    "title": "XECO Harmonic Filter Series Installation Guide",
+    "product_model": "SYNEREX-HF",
+    "title": "SYNEREX Harmonic Filter Series Installation Guide",
     "steps": [
       "Review installation requirements and specifications",
       "Verify electrical connections and voltage ratings",
@@ -56,8 +56,8 @@
     ]
   },
   {
-    "product_model": "XECO-PFC",
-    "title": "XECO Power Factor Correction Installation Guide",
+    "product_model": "SYNEREX-PFC",
+    "title": "SYNEREX Power Factor Correction Installation Guide",
     "steps": [
       "Review installation requirements and specifications",
       "Verify electrical connections and voltage ratings",
@@ -112,8 +112,8 @@
     ]
   },
   {
-    "product_model": "XECO-VR",
-    "title": "XECO Voltage Regulator Installation Guide",
+    "product_model": "SYNEREX-VR",
+    "title": "SYNEREX Voltage Regulator Installation Guide",
     "steps": [
       "Review installation requirements and specifications",
       "Verify electrical connections and voltage ratings",
@@ -168,8 +168,8 @@
     ]
   },
   {
-    "product_model": "XECO-EM",
-    "title": "XECO Energy Monitor Installation Guide",
+    "product_model": "SYNEREX-EM",
+    "title": "SYNEREX Energy Monitor Installation Guide",
     "steps": [
       "Review installation requirements and specifications",
       "Verify electrical connections and voltage ratings",
@@ -224,8 +224,8 @@
     ]
   },
   {
-    "product_model": "XECO-MC",
-    "title": "XECO Motor Controller Installation Guide",
+    "product_model": "SYNEREX-MC",
+    "title": "SYNEREX Motor Controller Installation Guide",
     "steps": [
       "Review installation requirements and specifications",
       "Verify electrical connections and voltage ratings",

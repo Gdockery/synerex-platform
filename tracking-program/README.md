@@ -1,6 +1,6 @@
-# Tracking Program
+# ECBS Intelligence Platform
 
-Flask backend with Angular frontend for the Synerex Tracking (XECO) application.
+Flask backend with Angular frontend for the Synerex Tracking (SYNEREX) application.
 
 ## Structure
 

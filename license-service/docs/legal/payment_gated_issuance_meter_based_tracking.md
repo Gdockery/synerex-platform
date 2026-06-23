@@ -7,8 +7,8 @@
 
 3. **Non-Payment Suspension.** If any undisputed amounts become past due, Licensor may suspend the License (and corresponding Program access) after any applicable notice and cure period set forth in this Agreement. During suspension, verification shall fail and Licensee shall have no right to access or use the Program.
 
-## Section: Tracking Program Fees Based on Installed Meters
-1. **Meter-Based Fees.** For the Synerex Tracking Program, fees are based on the number of installed and/or monitored meters covered by the License (“Licensed Meters”). Licensed Meters may be identified by meter identifiers and/or by a maximum meter limit specified in the License.
+## Section: ECBS Intelligence Platform Fees Based on Installed Meters
+1. **Meter-Based Fees.** For the Synerex ECBS Intelligence Platform, fees are based on the number of installed and/or monitored meters covered by the License (“Licensed Meters”). Licensed Meters may be identified by meter identifiers and/or by a maximum meter limit specified in the License.
 
 2. **True-Up and Changes.** If the number of Licensed Meters increases above the licensed meter limit (or above the paid-for meter count), Licensee shall promptly notify Licensor and pay the applicable incremental fees. Licensor may require a license update reflecting the revised meter count and may suspend Tracking access if Licensee exceeds the licensed meter count without payment.
 

@@ -7,7 +7,7 @@ There are **three separate MySQL containers** and **three independent user syste
 | Program | Container | Database | Credentials |
 |---|---|---|---|
 | License Service | `synerex-platform-mysql-1` | `licensing` | `license_user` / `LicensePass123` |
-| Tracking Program | `synerex-platform-mysql-tracking-1` | `tracking` | `tracking_user` / `TrackingPass123` |
+| ECBS Intelligence Platform | `synerex-platform-mysql-tracking-1` | `tracking` | `tracking_user` / `TrackingPass123` |
 | EMV Program | `synerex-platform-mysql-emv-1` | `emv` | `emv_user` / `EmvPass123` |
 
 Root password for all three MySQL containers: `rootpass123`
@@ -49,7 +49,7 @@ ssh -i ~/.ssh/synerex root@synerexlabs.com
 - **License admin panel** (`synerexlabs.com/license`) — managed separately through the license service. OEM users generally don't need this.
 - **EMV** (`/emv/`) — a completely separate tool for M&V energy analysis. Has its own login with roles: `administrator`, `engineer`, `pe_reviewer`. Only relevant if the person is doing load analysis work.
 
-**For OEM users (Oscar, new Harmoniq user, Xeco user):** only the **Tracking DB** user is needed.
+**For OEM users (Oscar, new Harmoniq user, Synerex user):** only the **Tracking DB** user is needed.
 
 ---
 
@@ -133,9 +133,9 @@ Pulled from the License Service (`/api/orgs`):
 | org_id | Name | Type |
 |---|---|---|
 | `OEM-HARMONIQ` | Harmoniq | OEM |
-| `OEM-XECO-ENERGY` | Xeco Energy | OEM |
+| `OEM-SYNEREX-ENERGY` | Synerex Labs | OEM |
 | `XCT` | XCT | OEM |
-| `CUSTOMER-XECO-ENERGY-CORPORAT-002` | XECO ENERGY CORPORATION | Customer |
+| `CUSTOMER-SYNEREX-ENERGY-CORPORAT-002` | Synerex Labs | Customer |
 | `CUSTOMER-ROCKWOOL-WEST-VA` | Rockwool-West-VA | Customer |
 | `ADMIN` | Admin Organization | — |
 
@@ -164,7 +164,7 @@ Current assignments:
 | Cloud Kitchen (1386) | `OEM-HARMONIQ` |
 | Savoy Hotels (1387) | `OEM-HARMONIQ` |
 | Rockwool (5) | `OEM-HARMONIQ` |
-| Ochsner Health System (4) | `OEM-XECO-ENERGY` |
+| Ochsner Health System (4) | `OEM-SYNEREX-ENERGY` |
 
 ---
 

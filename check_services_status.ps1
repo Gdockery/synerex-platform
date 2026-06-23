@@ -7,7 +7,7 @@ $services = @(
     @{Name="License Service"; BaseUrl=$env:LICENSE_SERVICE_URL; Path="/admin/login"},
     @{Name="Website Frontend"; BaseUrl=$env:WEBSITE_FRONTEND_URL; Path="/"},
     @{Name="EMV Main App"; BaseUrl=$env:EMV_BASE_URL; Path="/api/health"},
-    @{Name="Tracking Program"; BaseUrl=$env:TRACKING_PROGRAM_URL; Path="/login"},
+    @{Name="ECBS Intelligence Platform"; BaseUrl=$env:TRACKING_PROGRAM_URL; Path="/login"},
     @{Name="Service Manager"; BaseUrl=$env:SERVICE_MANAGER_URL; Path="/health"}
 )
 # Default URLs when env not set

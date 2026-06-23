@@ -19,7 +19,7 @@
           <p style="font-size: 12px; font-weight: bold;">Energy Usage Chart Is For Current Day (15Min Intervals)</p> 
         </div>
         <div class="col-md-5">
-          <legend style="font-size: 10px" [values]="[{text:'After Xeco', color: '#26c49d'},{text:'Before Xeco', color: '#9ca5d7'}]"></legend>
+          <legend style="font-size: 10px" [values]="[{text:'After Synerex', color: '#26c49d'},{text:'Before Synerex', color: '#9ca5d7'}]"></legend>
         </div>
         <div class="col-md-12">
             <line-chart #savingsChart style="height:250px;" [beginAtZero]="false"></line-chart>
@@ -41,7 +41,7 @@
               <td></td>
             </tr>
             <tr class="text-center" style="border-bottom:1px solid gray">
-              <td style="text-align:right; font-size:11px"><strong>(Xeco)&nbsp;&nbsp;</strong></td>
+              <td style="text-align:right; font-size:11px"><strong>(Synerex)&nbsp;&nbsp;</strong></td>
               <td style="text-align:left; font-size:11px"><strong>{{breakdown.todayAvgKw}}</strong></td>
               <td></td>
             </tr>
@@ -66,7 +66,7 @@
               <td style="font-size: 10px">Current Month</td>
             </tr>
             <tr class="text-center">
-              <td style="text-align:right; font-size:11px"><strong>(Xeco)&nbsp;&nbsp;</strong></td>
+              <td style="text-align:right; font-size:11px"><strong>(Synerex)&nbsp;&nbsp;</strong></td>
               <td style="text-align:left; font-size:11px"><strong>{{breakdown.monthPeakKw}}</strong></td>
               <td></td>
               <td style="font-size: 10px">KW Peak Savings</td>
@@ -90,7 +90,7 @@
               <td></td>
             </tr>
             <tr class="text-center">
-              <td style="text-align:right; font-size: 11px"><strong>(Xeco)&nbsp;&nbsp;</strong></td>
+              <td style="text-align:right; font-size: 11px"><strong>(Synerex)&nbsp;&nbsp;</strong></td>
               <td style="text-align:left; font-size: 11px"><strong>{{breakdown.todayKwh + equipmentSavings.dailyAfterKwh| number : '1.2-2'}}</strong></td>
               <td></td>
               <td style="font-size: 10px">Daily kWh Savings</td>
@@ -252,7 +252,7 @@
         <div class="row"><img class="logo" src="/tracking-images/ubill-tracker-logo.png" alt="" style="width:138px; height:34px;"/></div>
         <div class="col-md-7">
           <p style="font-size: 16px; text-align: left; color: white; font-weight: bold;">Current Bill Cost: </p>
-          <p style="font-size: 12px; text-align: left; color: #f7a90d; padding-left: 25px;">Estimated Without Xeco Utility Bill: </p>
+          <p style="font-size: 12px; text-align: left; color: #f7a90d; padding-left: 25px;">Estimated Without Synerex Utility Bill: </p>
           <p style="font-size: 12px; text-align: left; color: white; padding-left: 25px;">Avg Daily kWh Cost This Month: </p>
           <!--p style="font-size: 12px; text-align: left; color: white; padding-left: 25px;">Avg Daily kWh Cost Last Month:</pi-->
           <p style="font-size: 16px; text-align: left; color: white; font-weight: bold;">Days Recorded: </p>

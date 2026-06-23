@@ -1,2 +1,2 @@
-20 * * * * xcorp /bin/bash /home/xcorp/Documents/Xeco-Portal/maintenance/db-entities-backup/backup-entities.sh hourly >/dev/null 2>&1
-0 0 * * 6 xcorp /bin/bash /home/xcorp/Documents/Xeco-Portal/maintenance/db-entities-backup/backup-entities.sh weekly >/dev/null 2>&1
+20 * * * * xcorp /bin/bash /home/xcorp/Documents/Synerex-Portal/maintenance/db-entities-backup/backup-entities.sh hourly >/dev/null 2>&1
+0 0 * * 6 xcorp /bin/bash /home/xcorp/Documents/Synerex-Portal/maintenance/db-entities-backup/backup-entities.sh weekly >/dev/null 2>&1

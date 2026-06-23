@@ -63,7 +63,7 @@ def _pending_activation_response(license_url):
   <div class="card">
     <div class="icon">&#9203;</div>
     <h1>Your Account Is Being Set Up</h1>
-    <p>Your organization's Tracking Program subscription is pending activation by your administrator.</p>
+    <p>Your organization's ECBS Intelligence Platform subscription is pending activation by your administrator.</p>
     <p>You will receive an email confirmation once your account is ready. If you believe this is an error, please contact your OEM partner or Synerex support.</p>
     <a href="{my_account_url}" class="btn">Back to My Account</a>
   </div>
@@ -102,7 +102,7 @@ def _license_expired_response(license_url, renewal_url=None):
   <div class="card">
     <div class="icon">&#128197;</div>
     <h1>Your Subscription Has Expired</h1>
-    <p>Your Tracking Program subscription has expired. Renew now to restore access for your team.</p>
+    <p>Your ECBS Intelligence Platform subscription has expired. Renew now to restore access for your team.</p>
     {renew_link}
     <br/>
     <a href="{my_account_url}" class="btn btn-sec" style="margin-top:0.75rem;">Back to My Account</a>
@@ -195,7 +195,7 @@ def license_required(f):
                     "error": "No org_id",
                     "code": "LICENSE_REQUIRED",
                     "program_id": "tracking",
-                    "message": "A valid Tracking Program license is required.",
+                    "message": "A valid ECBS Intelligence Platform license is required.",
                 }), 403
             if role in (1, 2):
                 return _pending_activation_response(license_url)
@@ -216,7 +216,7 @@ def license_required(f):
                     "error": reason,
                     "code": "LICENSE_REQUIRED",
                     "program_id": "tracking",
-                    "message": "A valid Tracking Program license is required.",
+                    "message": "A valid ECBS Intelligence Platform license is required.",
                 }), 403
             if role in (1, 2):
                 return _pending_activation_response(license_url)
@@ -249,7 +249,7 @@ def license_required(f):
                 "error": reason,
                 "code": "LICENSE_REQUIRED",
                 "program_id": "tracking",
-                "message": "A valid Tracking Program license is required.",
+                "message": "A valid ECBS Intelligence Platform license is required.",
             }), 403
         if role in (1, 2):
             # Client users whose license expired get sent to the renewal page
@@ -264,7 +264,7 @@ def remote_maintainer(f):
     """
     Require remote maintainer access. Ported from isRemoteMaintainer policy.
     Allows if: (1) X-Maintenance-Secret header or body 'secret' matches MAINTENANCE_SECRET,
-    or (2) body 'key' is GPG-encrypted JSON with secret matching ~/.xeco-maintenance or MAINTENANCE_SECRET.
+    or (2) body 'key' is GPG-encrypted JSON with secret matching ~/.synerex-maintenance or MAINTENANCE_SECRET.
     """
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -287,7 +287,7 @@ def remote_maintainer(f):
                     expected = secret
                     if not expected:
                         try:
-                            with open(os.path.expanduser("~/.xeco-maintenance")) as f:
+                            with open(os.path.expanduser("~/.synerex-maintenance")) as f:
                                 expected = f.read().strip()
                         except Exception:
                             pass

@@ -11,7 +11,7 @@ def _safe(val, default=""):
     return val if val is not None else default
 
 
-def generate(report_data, logo_path=None, brand_name="Xeco"):
+def generate(report_data, logo_path=None, brand_name="Synerex"):
     """Generate test report PDF."""
     if not report_data or not isinstance(report_data, dict):
         report_data = {}

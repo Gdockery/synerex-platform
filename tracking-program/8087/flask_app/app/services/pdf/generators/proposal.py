@@ -12,7 +12,7 @@ def _safe(val, default=""):
     return val if val is not None else default
 
 
-def generate(proposal_data, logo_path=None, brand_name="Xeco"):
+def generate(proposal_data, logo_path=None, brand_name="Synerex"):
     """Generate proposal PDF. proposal_data from data mapper."""
     if not proposal_data or not isinstance(proposal_data, dict):
         proposal_data = {}

@@ -20,7 +20,7 @@ ssh -i ${SSH_KEY} -o ConnectTimeout=5 ${SERVER_USER}@${SERVER_HOST} "rm -rf ${SE
 
 # Deploy main app files
 echo "📄 Deploying main application..."
-cd /Users/euphoria/Downloads/Xeco/oneform/8082
+cd /Users/euphoria/Downloads/Synerex/oneform/8082
 scp -i ${SSH_KEY} -o ConnectTimeout=5 main_hardened_ready_fixed.py ${SERVER_USER}@${SERVER_HOST}:${SERVER_BASE_PATH}/8082/
 scp -i ${SSH_KEY} -o ConnectTimeout=5 html_body.html ${SERVER_USER}@${SERVER_HOST}:${SERVER_BASE_PATH}/8082/
 scp -i ${SSH_KEY} -o ConnectTimeout=5 html_head.html ${SERVER_USER}@${SERVER_HOST}:${SERVER_BASE_PATH}/8082/
@@ -37,22 +37,22 @@ fi
 
 # Deploy PDF services
 echo "📄 Deploying PDF services..."
-cd /Users/euphoria/Downloads/Xeco/oneform/8083
+cd /Users/euphoria/Downloads/Synerex/oneform/8083
 scp -i ${SSH_KEY} -o ConnectTimeout=5 pdf_generator_8083.py ${SERVER_USER}@${SERVER_HOST}:${SERVER_BASE_PATH}/8083/
 scp -i ${SSH_KEY} -o ConnectTimeout=5 generate_envelope_report.py ${SERVER_USER}@${SERVER_HOST}:${SERVER_BASE_PATH}/8083/
 
-cd /Users/euphoria/Downloads/Xeco/oneform/8084
+cd /Users/euphoria/Downloads/Synerex/oneform/8084
 scp -i ${SSH_KEY} -o ConnectTimeout=5 pdf_generator_8084.py ${SERVER_USER}@${SERVER_HOST}:${SERVER_BASE_PATH}/8084/
 scp -i ${SSH_KEY} -o ConnectTimeout=5 generate_styled_html.py ${SERVER_USER}@${SERVER_HOST}:${SERVER_BASE_PATH}/8084/
 
 # Deploy requirements
 echo "📚 Deploying requirements..."
-cd /Users/euphoria/Downloads/Xeco/oneform/common
+cd /Users/euphoria/Downloads/Synerex/oneform/common
 scp -i ${SSH_KEY} -o ConnectTimeout=5 requirements.txt ${SERVER_USER}@${SERVER_HOST}:${SERVER_BASE_PATH}/
 
 # Deploy local database
 echo "🗄️ Deploying local database..."
-cd /Users/euphoria/Downloads/Xeco/oneform/8082/results
+cd /Users/euphoria/Downloads/Synerex/oneform/8082/results
 scp -i ${SSH_KEY} -o ConnectTimeout=5 app.db ${SERVER_USER}@${SERVER_HOST}:${SERVER_BASE_PATH}/8082/results/
 echo "✅ Database deployed"
 

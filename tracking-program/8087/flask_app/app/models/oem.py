@@ -16,8 +16,8 @@ class Oem(BaseModel):
     # String slug that matches the existing org_id strings throughout the system
     # e.g. "OEM-XCT", "OEM-SNX". Unique, indexed.
     org_id      = db.Column(db.String(255), nullable=False, unique=True, index=True)
-    name        = db.Column(db.String(255), nullable=False)   # Display name, e.g. "XECO Energy"
-    slug        = db.Column(db.String(100), nullable=True)    # URL-safe slug, e.g. "xeco"
+    name        = db.Column(db.String(255), nullable=False)   # Display name, e.g. "SYNEREX Energy"
+    slug        = db.Column(db.String(100), nullable=True)    # URL-safe slug, e.g. "synerex"
     domain      = db.Column(db.String(255), nullable=True)    # Portal domain, e.g. "portal.xecoenergy.com"
     is_active   = db.Column(db.Boolean, default=True, nullable=False)
     contact_email = db.Column(db.String(255), nullable=True)  # Primary contact

@@ -69,7 +69,7 @@ def _resolve_login_branding(request: Request, db: Session) -> dict:
             # Use the sponsor OEM org_id for logo lookup
             oem_logo_org_id = getattr(org, "sponsor_org_id", None) or None
 
-    # Fetch OEM logo URL from Tracking Program
+    # Fetch OEM logo URL from ECBS Intelligence Platform
     brand_logo_url = None
     if oem_logo_org_id:
         try:
@@ -264,7 +264,7 @@ def client_login_submit(
         token_to_use = request.session.get("user_token") or session_token
 
         if user_role == "customer_viewer":
-            # Client User → go directly to Tracking Program
+            # Client User → go directly to ECBS Intelligence Platform
             tracking_url = (f"{base}/tracking" if base else "/tracking")
             return RedirectResponse(f"{tracking_url}/?token={token_to_use}", status_code=303)
         else:
@@ -646,7 +646,7 @@ def get_user_jwt(request: Request, db: Session = Depends(db_session)):
 
 @router.post("/api/verify-credentials")
 def verify_credentials(body: dict, db: Session = Depends(db_session)):
-    """Verify username+password for a user — used by other services (e.g. Tracking Program) for SSO credential check."""
+    """Verify username+password for a user — used by other services (e.g. ECBS Intelligence Platform) for SSO credential check."""
     username = body.get("username") or body.get("email")
     password = body.get("password")
     if not username or not password:

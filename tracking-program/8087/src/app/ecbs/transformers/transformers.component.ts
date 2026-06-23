@@ -329,13 +329,13 @@ export class TransformersComponent implements OnInit, OnDestroy {
     return Math.max(...used, ...total, this.ratedKva, 100);
   }
 
-  /** Line: After XECO (actual load) */
+  /** Line: After SYNEREX (actual load) */
   get afterXecoPath(): string {
     const vals = this.capTrends.map((t: any) => t.used_capacity || 0);
     return this._buildPath(vals, this.CHART_W, this.CHART_H, this.trendChartMax);
   }
 
-  /** Line: Before XECO (load + hidden losses) */
+  /** Line: Before SYNEREX (load + hidden losses) */
   get beforeXecoPath(): string {
     const vals = this.capTrends.map((t: any) => (t.used_capacity || 0) + (t.hidden_capacity || 0));
     return this._buildPath(vals, this.CHART_W, this.CHART_H, this.trendChartMax);
@@ -347,7 +347,7 @@ export class TransformersComponent implements OnInit, OnDestroy {
     return this.CHART_H - (this.ratedKva / this.trendChartMax) * this.CHART_H * 0.9;
   }
 
-  /** Area fill under After XECO */
+  /** Area fill under After SYNEREX */
   get afterXecoAreaPath(): string {
     if (!this.capTrends.length) return '';
     const line = this.afterXecoPath;

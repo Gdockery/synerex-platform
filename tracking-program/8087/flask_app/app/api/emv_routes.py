@@ -71,7 +71,7 @@ def _emv_customer_gate():
             "code": "EMV_ACCESS_DENIED",
             "message": (
                 "EM&V Program access is restricted to OEM and Synerex Admin users. "
-                "Client users receive approved results in the ECBS Operating System."
+                "Client users receive approved results in the ECBS Intelligence Platform."
             ),
         }), 403
     return None

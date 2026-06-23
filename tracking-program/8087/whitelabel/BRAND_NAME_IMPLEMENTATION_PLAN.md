@@ -1,10 +1,10 @@
 # Brand Name Whitelabeling Implementation Plan
 
 ## Overview
-Replace all hardcoded "Xeco" and "Xeco Energy" strings throughout the codebase with a dynamic brand name system that reads from `whitelabel/{branding}/brandname.txt` files. Default to "Xeco" when no brandname.txt exists.
+Replace all hardcoded "Synerex" and "Synerex Labs" strings throughout the codebase with a dynamic brand name system that reads from `whitelabel/{branding}/brandname.txt` files. Default to "Synerex" when no brandname.txt exists.
 
 ## Current State
-- **622 occurrences** of "Xeco" or "XECO" across **156 files**
+- **622 occurrences** of "Synerex" or "SYNEREX" across **156 files**
 - Found in: Frontend templates (Angular HTML), Backend templates (EJS), PDF generators, Email templates, TypeScript/JavaScript code
 - No dynamic brand name system exists
 
@@ -16,7 +16,7 @@ Replace all hardcoded "Xeco" and "Xeco Energy" strings throughout the codebase w
 - Add `getBrandName(hostname)` function that:
   - Extracts branding from hostname (same logic as `getBrandingFromHostname`)
   - Reads `whitelabel/{branding}/brandname.txt` if exists
-  - Falls back to default "Xeco" if file doesn't exist or branding is null
+  - Falls back to default "Synerex" if file doesn't exist or branding is null
   - Caches the result to avoid repeated file reads
 
 **File**: `api/helpers/web/whitelabel/get-brand-name.js` (NEW)
@@ -34,7 +34,7 @@ Replace all hardcoded "Xeco" and "Xeco Energy" strings throughout the codebase w
 
 **File**: `api/controllers/web/whitelabel/get-brand-name.js` (NEW)
 - API endpoint that returns current brand name based on request hostname
-- Returns: `{brandName: "Xeco"}` or `{brandName: "Synerex"}`
+- Returns: `{brandName: "Synerex"}` or `{brandName: "Synerex"}`
 
 ### 3. Replacement Strategy
 
@@ -46,7 +46,7 @@ Replace all hardcoded "Xeco" and "Xeco Energy" strings throughout the codebase w
 
 #### Phase 2: PDF Generators
 - **Files**: `api/services/pdf/generators/*.js`, `api/helpers/pdf/*-data-mapper.js`
-- Replace "Xeco Energy Corporation" with dynamic brand name
+- Replace "Synerex Labs" with dynamic brand name
 - Pass `req` object through PDF generation chain (already done for assets)
 - Use helper in data mappers
 
@@ -57,7 +57,7 @@ Replace all hardcoded "Xeco" and "Xeco Energy" strings throughout the codebase w
 
 #### Phase 4: Frontend Templates (Angular)
 - **Files**: `src/app/**/*.html`
-- Replace hardcoded "Xeco" with `{{whitelabelService.getBrandName()}}`
+- Replace hardcoded "Synerex" with `{{whitelabelService.getBrandName()}}`
 - Update TypeScript components to inject WhitelabelService where needed
 
 #### Phase 5: TypeScript/JavaScript Code
@@ -71,7 +71,7 @@ Replace all hardcoded "Xeco" and "Xeco Energy" strings throughout the codebase w
 #### Brand Name File Format
 - **Location**: `whitelabel/{branding}/brandname.txt`
 - **Content**: Single line with brand name (e.g., "Synerex")
-- **Default**: If file doesn't exist, use "Xeco"
+- **Default**: If file doesn't exist, use "Synerex"
 
 #### Caching Strategy
 - Backend: Cache brand name per hostname in memory (simple object cache)
@@ -79,12 +79,12 @@ Replace all hardcoded "Xeco" and "Xeco Energy" strings throughout the codebase w
 - Invalidate on server restart (acceptable for whitelabel use case)
 
 #### Common Patterns to Replace
-1. `"Xeco"` → dynamic brand name
-2. `"Xeco Energy"` → `"{brandName} Energy"` or just brand name
-3. `"Xeco Energy Corporation"` → `"{brandName} Energy Corporation"` or just brand name
-4. `"Xeco Web Portal"` → `"{brandName} Web Portal"`
-5. `"Xeco Units"` → `"{brandName} Units"`
-6. `"XECO"` (uppercase) → uppercase version of brand name
+1. `"Synerex"` → dynamic brand name
+2. `"Synerex Labs"` → `"{brandName} Energy"` or just brand name
+3. `"Synerex Labs"` → `"{brandName} Energy Corporation"` or just brand name
+4. `"Synerex Web Portal"` → `"{brandName} Web Portal"`
+5. `"Synerex Units"` → `"{brandName} Units"`
+6. `"SYNEREX"` (uppercase) → uppercase version of brand name
 
 ### 5. Files to Create
 
@@ -113,7 +113,7 @@ Replace all hardcoded "Xeco" and "Xeco Energy" strings throughout the codebase w
 
 ### 7. Testing Strategy
 
-1. Test default behavior (no brandname.txt) → should show "Xeco"
+1. Test default behavior (no brandname.txt) → should show "Synerex"
 2. Test with `whitelabel/tracking/brandname.txt` containing "Synerex"
 3. Verify all user-facing text updates
 4. Verify PDFs use correct brand name
@@ -134,9 +134,9 @@ Replace all hardcoded "Xeco" and "Xeco Energy" strings throughout the codebase w
 ## Technical Considerations
 
 - **Performance**: Cache brand name lookups to avoid file I/O on every request
-- **Fallback**: Always default to "Xeco" if brandname.txt missing
-- **Case Handling**: Preserve original case context (e.g., "XECO" → uppercase brand name)
-- **Context Awareness**: Some contexts may need "Xeco Energy" vs just "Xeco"
+- **Fallback**: Always default to "Synerex" if brandname.txt missing
+- **Case Handling**: Preserve original case context (e.g., "SYNEREX" → uppercase brand name)
+- **Context Awareness**: Some contexts may need "Synerex Labs" vs just "Synerex"
 - **Backward Compatibility**: Ensure default behavior unchanged when no whitelabel
 
 ## Estimated Impact

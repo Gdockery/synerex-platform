@@ -70,12 +70,12 @@ def _load_logo_b64(logo_src: str, logo_type: str) -> str | None:
 
 
 def _load_xeco_logo_b64() -> str:
-    """Load the Xeco logo from assets."""
+    """Load the Synerex logo from assets."""
     # Try Flask app static assets folder
     assets_candidates = [
-        Path(current_app.root_path).parent / "8087" / "assets" / "img" / "xeco-logo.png",
-        Path(current_app.root_path).parent / "assets" / "img" / "xeco-logo.png",
-        Path(current_app.root_path) / "assets" / "xeco-logo.png",
+        Path(current_app.root_path).parent / "8087" / "assets" / "img" / "synerex-logo.png",
+        Path(current_app.root_path).parent / "assets" / "img" / "synerex-logo.png",
+        Path(current_app.root_path) / "assets" / "synerex-logo.png",
     ]
     for p in assets_candidates:
         if p.exists():
@@ -96,7 +96,7 @@ def _assemble_proposal_data(project: Project, overrides: dict) -> dict:
 
     # Preparer info: from user record + OEM branding
     user = current_user
-    prepared_by_org = getattr(user, "company", None) or "Xeco Energy Corporation"
+    prepared_by_org = getattr(user, "company", None) or "Synerex Labs"
     preparer_name = (getattr(user, "name", None) or
                      f"{getattr(user, 'firstName', '') or ''} {getattr(user, 'lastName', '') or ''}".strip()
                      or "")

@@ -27,21 +27,21 @@
       </a>
     </li>
     <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
-      <!-- (only (A) XECO Managers and (B) XECO Administrators can see this choice) -->
-      <a [routerLink]="['/xeco-administrator/client']" [routerLinkActive]="['router-link-active']">
+      <!-- (only (A) SYNEREX Managers and (B) SYNEREX Administrators can see this choice) -->
+      <a [routerLink]="['/synerex-administrator/client']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-building-o"></span>
         <span class="text">Clients</span>
       </a>
     </li>
     <li *ngIf="!userService.user.selectedProject && (userService.user.role == 7)">
-      <!-- (only (A) XECO Managers and (B) XECO Administrators can see this choice) -->
+      <!-- (only (A) SYNEREX Managers and (B) SYNEREX Administrators can see this choice) -->
       <a [routerLink]="['/project/client/list']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-building-o"></span>
         <span class="text">Clients</span>
       </a>
     </li>
     <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
-      <a [routerLink]="['/xeco-administrator/project']" [routerLinkActive]="['router-link-active']">
+      <a [routerLink]="['/synerex-administrator/project']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-industry"></span>
         <span class="text">Projects</span>
       </a>
@@ -60,14 +60,14 @@
     </li>
     <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
       <!-- (again, this choice is further limited.  Note that this pattern continues for some other choices below) -->
-      <a [routerLink]="['/xeco-administrator/user']" [routerLinkActive]="['router-link-active']">
+      <a [routerLink]="['/synerex-administrator/user']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-users"></span>
         <span class="text">Users</span>
       </a>
     </li>
 
     <li *ngIf="!userService.user.selectedProject && (userService.user.role === 8 || userService.user.role === 9 || userService.user.role === 10)">
-      <a [routerLink]="['/xeco-administrator/advanced']" [routerLinkActive]="['router-link-active']">
+      <a [routerLink]="['/synerex-administrator/advanced']" [routerLinkActive]="['router-link-active']">
         <span class="icon fa fa-sliders"></span>
         <span class="text">Advanced Options</span>
       </a>

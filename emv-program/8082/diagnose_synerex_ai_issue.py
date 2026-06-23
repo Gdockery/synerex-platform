@@ -140,8 +140,8 @@ def test_chat_functionality():
     
     # Test AI response generation
     test_questions = [
-        "What are XECO-HF Series specifications?",
-        "How to install XECO-PFC?", 
+        "What are SYNEREX-HF Series specifications?",
+        "How to install SYNEREX-PFC?", 
         "What are the utility rates here?",
         "Help with electrical code compliance",
         "How do I use the SYNEREX dashboard?"
@@ -162,9 +162,9 @@ def simulate_ai_response(question):
     """Simulate the AI response function"""
     lower_question = question.lower()
     
-    # XECO Product Questions
-    if 'xeco-hf' in lower_question or 'harmonic filter' in lower_question:
-        return """The XECO-HF Series harmonic filters are designed for industrial and commercial applications. Key specifications include:
+    # SYNEREX Product Questions
+    if 'synerex-hf' in lower_question or 'harmonic filter' in lower_question:
+        return """The SYNEREX-HF Series harmonic filters are designed for industrial and commercial applications. Key specifications include:
         • Voltage Rating: 480V, 600V, 1000V
         • Current Rating: 50A to 2000A
         • Harmonic Filtering: 5th, 7th, 11th, 13th harmonics
@@ -175,14 +175,14 @@ def simulate_ai_response(question):
     
     # Installation Questions
     if 'install' in lower_question or 'installation' in lower_question:
-        return """For XECO equipment installation, follow these key requirements:
+        return """For SYNEREX equipment installation, follow these key requirements:
         • All installations must comply with NEC and local codes
         • Qualified electrician required for installation
         • Proper grounding and bonding required
         • Adequate ventilation and clearance maintained
         • Electrical permits obtained before installation
         
-        Specific installation requirements vary by product model. Which XECO product are you installing?"""
+        Specific installation requirements vary by product model. Which SYNEREX product are you installing?"""
     
     # Utility Information Questions
     if 'utility' in lower_question or 'rate' in lower_question:
@@ -212,7 +212,7 @@ def simulate_ai_response(question):
     # General Energy Questions
     return """Thank you for your energy-related question! As SynerexAI, I specialize in:
     • Energy analysis and efficiency optimization
-    • XECO equipment support and installation
+    • SYNEREX equipment support and installation
     • Utility information and rate optimization
     • Electrical code compliance and safety
     • Power quality analysis and improvement

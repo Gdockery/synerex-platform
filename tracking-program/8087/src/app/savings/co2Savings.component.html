@@ -18,7 +18,7 @@
         <div class="col-md-8">
           <div class="col-md-7" style="font-size: 10px">Carbon Emission (Metric Tonnes) per hour</div>
           <div class="col-md-5"> 
-            <legend style="font-size: 10px" [values]="[{text:'CO2 With Xeco', color: '#26c49d'},{text:'CO2 Without Xeco', color: '#9ca5d7'}]"></legend>
+            <legend style="font-size: 10px" [values]="[{text:'CO2 With Synerex', color: '#26c49d'},{text:'CO2 Without Synerex', color: '#9ca5d7'}]"></legend>
           </div>
           <div class="col-md-12">
             <line-chart [beginAtZero]="false" style="height:250px;" #savingsChart></line-chart>
@@ -43,7 +43,7 @@
               <td></td>
             </tr>
             <tr class="text-center" style="border-bottom:1px solid gray">
-              <td style="text-align:right; font-size:14px"><strong>CO2(Xeco)&nbsp;&nbsp;</strong></td>
+              <td style="text-align:right; font-size:14px"><strong>CO2(Synerex)&nbsp;&nbsp;</strong></td>
               <td style="text-align:left; font-size:14px">{{breakdown.co2Today}}</td>
               <td style="text-align:left; font-size:14px">C.C. Rate ${{breakdown.carbonCreditRate}}</td>
               <td style="text-align:center; font-size:14px">${{breakdown.ccValueToday}}</td>

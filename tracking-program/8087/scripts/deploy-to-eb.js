@@ -42,7 +42,7 @@ s3.upload({
     process.exit(1);
   }
   var params = {
-    ApplicationName: 'Xeco',
+    ApplicationName: 'Synerex',
     AutoCreateApplication: false,
     Description: version + ' (' + process.env.sails_environment + ')',
     Process: false,
@@ -62,7 +62,7 @@ s3.upload({
     console.log('Created version:', data);
     console.log('---');
     var params = {
-      ApplicationName: 'Xeco',
+      ApplicationName: 'Synerex',
       EnvironmentName: process.env.EB_ENV || awsConfig.elasticbeanstalk.params.environmentName,
       VersionLabel: 'v' + version,
       OptionSettings: (awsConfig.elasticbeanstalk._envOptions || []).concat([

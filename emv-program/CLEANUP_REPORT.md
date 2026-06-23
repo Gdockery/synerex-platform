@@ -40,8 +40,8 @@
 - cleanup_backup_20251024_132824/8082/demo_xeco_integration.py
 - cleanup_backup_20251024_132824/8082/demo_xeco_synerex_ai.py
 - cleanup_backup_20251024_132824/8082/files/protected/verified/20251010_071340_2025-10-05_Lineage_Windsor-SG4-OFF_-_2025-05-01_to_2025-05-31_60_minute_intervals.csv.backup_1760098496
-- cleanup_backup_20251024_132824/8082/files/raw/2025-10-20/2025-10-20_ATT-DFW-1_-_2025-08-07_to_2025-09-03_60_minute_intervals-XECO-OFF.csv.backup_1760991480
-- cleanup_backup_20251024_132824/8082/files/raw/2025-10-20/2025-10-20_ATT-DFW-1_-_2025-09-05_to_2025-09-29_60_minute_intervals_1-XECO-ON.csv.backup_1760991554
+- cleanup_backup_20251024_132824/8082/files/raw/2025-10-20/2025-10-20_ATT-DFW-1_-_2025-08-07_to_2025-09-03_60_minute_intervals-SYNEREX-OFF.csv.backup_1760991480
+- cleanup_backup_20251024_132824/8082/files/raw/2025-10-20/2025-10-20_ATT-DFW-1_-_2025-09-05_to_2025-09-29_60_minute_intervals_1-SYNEREX-ON.csv.backup_1760991554
 - cleanup_backup_20251024_132824/8082/report_template.html
 - cleanup_backup_20251024_132824/8082/results/backups/app_backup_20250929_140230.db
 - cleanup_backup_20251024_132824/8082/results/backups/app_backup_20250930_095841.db

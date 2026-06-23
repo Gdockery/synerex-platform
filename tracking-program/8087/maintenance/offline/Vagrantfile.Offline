@@ -2,15 +2,15 @@
 # vi: set ft=ruby :
 
 Vagrant.configure("2") do |config|
-  config.vm.box = "xeco-vm"
+  config.vm.box = "synerex-vm"
 
   config.vm.network "forwarded_port", guest: 1337, host: 1337
   config.vm.network "forwarded_port", guest: 1883, host: 8883
 
-  config.vm.synced_folder "../xeco-storage", "/mnt/storage"
+  config.vm.synced_folder "../synerex-storage", "/mnt/storage"
 
   config.vm.provider "virtualbox" do |vb|
-    vb.customize [ "modifyvm", :id, "--uartmode1", "file", File.join(Dir.pwd, "xeco-vm-console.log") ]
+    vb.customize [ "modifyvm", :id, "--uartmode1", "file", File.join(Dir.pwd, "synerex-vm-console.log") ]
     vb.memory = "2048"
   end
 

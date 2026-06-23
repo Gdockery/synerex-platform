@@ -1,5 +1,5 @@
 """
-internal_routes.py — Machine-to-machine API for the Xeco Deployment Scanner.
+internal_routes.py — Machine-to-machine API for the Synerex Deployment Scanner.
 All endpoints require X-Internal-Token header matching INTERNAL_API_TOKEN env var.
 """
 import os

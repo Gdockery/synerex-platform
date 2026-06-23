@@ -61,7 +61,7 @@ curl -X POST http://localhost:8000/api/orgs/ensure \
 | `ROOT_PATH` | URL prefix when behind proxy (e.g. `/license`). Can be `""` for standalone. |
 | `CORS_ORIGINS` | Comma-separated allowed origins |
 
-### Tracking Program
+### ECBS Intelligence Platform
 
 | Var | Purpose |
 |-----|---------|

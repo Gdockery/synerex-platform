@@ -3,7 +3,7 @@
 ## EM&V Program
 Authorizes baseline/test workflows and baseline sealing.
 
-## Tracking Program
+## ECBS Intelligence Platform
 Authorizes ongoing monitoring, reporting, alerting, CP event detection, etc.
 
 ## Non-overlap

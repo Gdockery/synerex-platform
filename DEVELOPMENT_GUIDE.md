@@ -51,7 +51,7 @@ nginx.conf changes after a pull).
 
 ## Services — Where Everything Lives
 
-### Tracking Program
+### ECBS Intelligence Platform
 
 | | Path |
 |---|---|

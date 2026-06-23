@@ -253,7 +253,7 @@ if normalized_kw_after > kw_after:
     print(f"Efficiency-adjusted savings: {efficiency_adjusted_savings:.2f} kW ({efficiency_adjusted_savings_pct:.1f}%)")
     print()
     print("✅ With efficiency adjustment, normalized savings are BETTER than raw savings")
-    print("   This properly reflects that XECO equipment efficiency improvements")
+    print("   This properly reflects that SYNEREX equipment efficiency improvements")
     print("   (PF 92%→99.9%, 87% harmonics, less heat) outperform small weather differences")
 else:
     print()
@@ -332,7 +332,7 @@ print("  ✓ Base_temp calculation accounts for equipment efficiency improvement
 print("  ✓ Smaller offsets (1.5-4°C) keep base_temp closer to average when weather differences are small")
 print("  ✓ More flexible constraints allow efficiency gains to show through in normalized savings")
 print("  ✓ Normalized savings should be BETTER than raw savings when equipment is more efficient")
-print("  ✓ This reflects that XECO equipment not only reduces power but also generates less heat")
+print("  ✓ This reflects that SYNEREX equipment not only reduces power but also generates less heat")
 print()
 print("Each project will get a unique factor based on its weather characteristics,")
 print("and normalized savings will properly reflect both weather differences AND efficiency improvements.")

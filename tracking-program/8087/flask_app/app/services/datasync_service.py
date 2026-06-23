@@ -1,6 +1,6 @@
 """
 DataSync service - ported from api/services/DataSyncService.js
-Exports records for sync between XECO installations.
+Exports records for sync between SYNEREX installations.
 Expects tables to have xuid and updatedAt columns.
 """
 
@@ -23,7 +23,7 @@ REFERENCES = {
     "meterdata": {"meter": "meter"},
     "meterdataaggregate": {"project": "project"},
     "permeterdataaggregate": {"project": "project", "meter": "meter"},
-    "xeco": {},
+    "synerex": {},
     # reportdata has var ref typeId:@type:meter|project - skipped for simplified port
     "piboard": {},
 }

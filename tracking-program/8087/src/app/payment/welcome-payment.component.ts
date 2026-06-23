@@ -66,22 +66,22 @@ export class WelcomePaymentComponent {
     {
       type: 'gateways',
       icon: 'wifi',
-      title: 'Xeco Gateway',
+      title: 'Synerex Gateway',
     },
     {
       type: 'meters',
       icon: 'barchart',
-      title: 'Xeco Meter',
+      title: 'Synerex Meter',
     },
     {
       type: 'switches',
       icon: 'toggles',
-      title: 'Xeco Switches',
+      title: 'Synerex Switches',
     },
     {
       type: 'repeaters',
       icon: 'target',
-      title: 'Xeco Repeater',
+      title: 'Synerex Repeater',
     },
     {
       type: 'upgrades',

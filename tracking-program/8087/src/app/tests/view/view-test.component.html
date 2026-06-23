@@ -55,7 +55,7 @@
               <th>kwh</th>
               <!--th>THD (%)</th-->
               <th>Cycle</th>
-              <th>Xeco (On/Off)</th> 
+              <th>Synerex (On/Off)</th> 
             </tr>
             <tr *ngFor="let segment of data.segments; let i = index">
               <td>{{((segment.startTime + 3600000) | projectTzMoment) | amDateFormat:'MM/DD/YYYY hh:mm:ss A'}}</td>
@@ -70,7 +70,7 @@
               <td>{{segment.segment == 1 ? 'Off' : 'On'}}</td>
             </tr>
             <tr>
-              <td colspan="2">Xeco savings %</td>
+              <td colspan="2">Synerex savings %</td>
               <td>{{data.percentSaved.kwPeak * 100 | round:2}}%</td>
               <td>{{data.percentSaved.powerFactor * 100 | round:2}}%</td>
               <td>{{data.percentSaved.kvar * 100 | round:2}}%</td>
@@ -96,7 +96,7 @@
             <th>kWh</th>
             <!--th>THD</th-->
             <th>Cycle</th>
-            <th>Xeco (On/Off)</th>
+            <th>Synerex (On/Off)</th>
           </tr>
           <tr>
             <td></td>

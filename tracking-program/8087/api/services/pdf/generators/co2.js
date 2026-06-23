@@ -42,7 +42,7 @@ module.exports = function (printer) {
 	          body: [
 	            [
 	              {
-	                text: 'Xeco Energy Corp, - Facility Engineering Services',
+	                text: 'Synerex Labs Corp, - Facility Engineering Services',
 	                style: {
 	                    bold: true
 	                }
@@ -210,7 +210,7 @@ module.exports = function (printer) {
                       decoration: 'underline'
                     }
                    },
-                   ' This Carbon Emission Reduction Report (Report) has been prepared for the proposed Client by Xeco Energy Corporation (Xeco), based on assumptions as identified throughout the text and upon information and data supplied by others. The Report is to be read in the context of the methodology, procedures and techniques used, Xeco’s assumptions, and the circumstances and constraints under which the Report was written. The Report is to be read as a whole, and sections or parts thereof should therefore not be read or relied upon out of context. Xeco has, in preparing the Report, followed methodology and procedures, and exercised due care consistent with the intended level of accuracy, using its professional judgment and reasonable care. However, no warranty should be implied as to the accuracy of estimates or other values and all estimates and other values are only valid as at the date of the Report and will vary thereafter. Parts of the Report have been prepared or arranged by Client or third party contributors, as detailed in the document. While the contents of those parts have been generally reviewed by Xeco for inclusion into the Report, they have not been fully audited or sought to be verified by Xeco. Xeco is not in a position to, and does not, verify the accuracy or completeness of, or adopt as its own, the information and data supplied by others and disclaims all liability, damages or loss with respect to such information and data. In respect of all parts of the Report, whether or not prepared by Xeco no express or implied representation or warranty is made by Xeco or by any person acting for and/or on behalf of Xeco to any third party that the contents of the Report are verified, accurate, suitably qualified, reasonable or free from errors, omissions or other defects of any kind or nature. Third parties who rely upon the Report do so at their own risk and Xeco disclaims all liability, damages or loss with respect to such reliance. Xeco disclaims any liability, damage and loss to Client and to third parties in respect of the publication, reference, quoting or distribution of the Report or any of its contents to and reliance thereon by any third party. This disclaimer must accompany every copy of this Report, which is an integral document and must be read in its entirety.'
+                   ' This Carbon Emission Reduction Report (Report) has been prepared for the proposed Client by Synerex Labs (Synerex), based on assumptions as identified throughout the text and upon information and data supplied by others. The Report is to be read in the context of the methodology, procedures and techniques used, Synerex’s assumptions, and the circumstances and constraints under which the Report was written. The Report is to be read as a whole, and sections or parts thereof should therefore not be read or relied upon out of context. Synerex has, in preparing the Report, followed methodology and procedures, and exercised due care consistent with the intended level of accuracy, using its professional judgment and reasonable care. However, no warranty should be implied as to the accuracy of estimates or other values and all estimates and other values are only valid as at the date of the Report and will vary thereafter. Parts of the Report have been prepared or arranged by Client or third party contributors, as detailed in the document. While the contents of those parts have been generally reviewed by Synerex for inclusion into the Report, they have not been fully audited or sought to be verified by Synerex. Synerex is not in a position to, and does not, verify the accuracy or completeness of, or adopt as its own, the information and data supplied by others and disclaims all liability, damages or loss with respect to such information and data. In respect of all parts of the Report, whether or not prepared by Synerex no express or implied representation or warranty is made by Synerex or by any person acting for and/or on behalf of Synerex to any third party that the contents of the Report are verified, accurate, suitably qualified, reasonable or free from errors, omissions or other defects of any kind or nature. Third parties who rely upon the Report do so at their own risk and Synerex disclaims all liability, damages or loss with respect to such reliance. Synerex disclaims any liability, damage and loss to Client and to third parties in respect of the publication, reference, quoting or distribution of the Report or any of its contents to and reliance thereon by any third party. This disclaimer must accompany every copy of this Report, which is an integral document and must be read in its entirety.'
                 ],
                	style: {
                     fontSize: 8,
@@ -433,7 +433,7 @@ module.exports = function (printer) {
                   style: {
                     fontSize: 11
                   },
-                  text: 'In order to design an effective sustainability strategy a company must collect usage data, develop a streamlined project plan, identify potential costs and analyze the specific regulatory policies, government subsidies, incentives and the capital required to implement the desired program. Xeco Corporation produces a comprehensive carbon credit analysis to meet the unique needs of companies who desire to establish a sustainability program or must comply with greenhouse gas regulations.'
+                  text: 'In order to design an effective sustainability strategy a company must collect usage data, develop a streamlined project plan, identify potential costs and analyze the specific regulatory policies, government subsidies, incentives and the capital required to implement the desired program. Synerex Corporation produces a comprehensive carbon credit analysis to meet the unique needs of companies who desire to establish a sustainability program or must comply with greenhouse gas regulations.'
                 },
               ],[
                 { width: '*',
@@ -450,7 +450,7 @@ module.exports = function (printer) {
                       alignment: 'left',
                       table:{
                         body:[
-                          [{text: `Xeco's XPS technology will reduce overall carbon emissions throughout a company’s operations and supply chain by reducing the kilowatt/hour consumption of the facility. Xeco calculates the reduction of GHG emissions using EPA formulated calculations to measure and identify opportunities for carbon offset projects. Our approach combines detailed technical assessments and a full analysis of the overall corporate wide GHG emission reduction strategy.`}],
+                          [{text: `Synerex's XPS technology will reduce overall carbon emissions throughout a company’s operations and supply chain by reducing the kilowatt/hour consumption of the facility. Synerex calculates the reduction of GHG emissions using EPA formulated calculations to measure and identify opportunities for carbon offset projects. Our approach combines detailed technical assessments and a full analysis of the overall corporate wide GHG emission reduction strategy.`}],
                           [{ margin: [0, 10, 0, 0], text: `This approach is being applied to companies in the U.S. and other regions of the world.`}],
                           [{ margin: [0, 10, 0, 0], text: `Actual project or baseline emissions may differ from the estimated XPS carbon credit reduction of the facility.`}],
                         ]
@@ -744,7 +744,7 @@ module.exports = function (printer) {
           width: '100%',
           columns: [
             {
-                text: 'Choosing to permanently install the XECO POWER SYSTEMS technology onto the identified electrical equipment will result in the Carbon Emission Savings as calculated above.',
+                text: 'Choosing to permanently install the SYNEREX POWER SYSTEMS technology onto the identified electrical equipment will result in the Carbon Emission Savings as calculated above.',
                 style: {
                     fontSize: 8,
                     bold: true
@@ -1170,7 +1170,7 @@ module.exports = function (printer) {
                   color: 'black',
                   fontSize: 8, italics: true
                 },
-                text: '©Copyright 2016 to Present by Xeco Energy Corpration. All rights reserved. Federal copyright law prohibits unauthorized reproduction by any means and imposes fines up to $25,000 for violation. This material may not be duplicated for any profit-driven enterprise.' }]
+                text: '©Copyright 2016 to Present by Synerex Labs Corpration. All rights reserved. Federal copyright law prohibits unauthorized reproduction by any means and imposes fines up to $25,000 for violation. This material may not be duplicated for any profit-driven enterprise.' }]
             ]
           }
         }

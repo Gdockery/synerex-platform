@@ -66,8 +66,8 @@ def _fmt_number(val):
         return "0"
 
 
-def map_invoice_data(project, client, xeco, invoice_type):
-    """Map project+client+xeco to invoice PDF data. invoice_type: depositInvoice|finalInvoice|installationInvoice|totalInvoice."""
+def map_invoice_data(project, client, synerex, invoice_type):
+    """Map project+client+synerex to invoice PDF data. invoice_type: depositInvoice|finalInvoice|installationInvoice|totalInvoice."""
     rf = (project.reportFields or {}) if hasattr(project, "reportFields") else {}
     equip = (project.equipmentInfo or {}) if hasattr(project, "equipmentInfo") else {}
     eba = (project.electricBillAnalysis or {}) if hasattr(project, "electricBillAnalysis") else {}
@@ -99,7 +99,7 @@ def map_invoice_data(project, client, xeco, invoice_type):
         price = float(item.get("price") or 0)
         cost = price * qty * (1 - discount)
         items.append({
-            "type": "XECO Model",
+            "type": "SYNEREX Model",
             "name": item.get("name", ""),
             "quantity": qty,
             "price": _fmt_currency(price),
@@ -150,7 +150,7 @@ def map_invoice_data(project, client, xeco, invoice_type):
     )
     metering_price = float(metering_svc.get("price") or 0)
 
-    xeco_addr = (xeco.address or "").split("\n")
+    xeco_addr = (synerex.address or "").split("\n")
     ship_parts = [
         rf.get("shipToAddress", ""),
         f"{rf.get('shipToZip', '')} {rf.get('shipToCity', '')}, {rf.get('shipToState', '')}, {rf.get('shipToCountry', '')}",
@@ -181,8 +181,8 @@ def map_invoice_data(project, client, xeco, invoice_type):
         "invoiceType": label,
         "invoiceNumber": str(inv_num_val or ""),
         "invoiceDate": invoice_date,
-        "xecoAddress": "\n".join(xeco_addr) if xeco_addr else (xeco.address or ""),
-        "xecoCity": f"{xeco.city or ''}, {xeco.state or ''} {xeco.zip or ''}",
+        "xecoAddress": "\n".join(xeco_addr) if xeco_addr else (synerex.address or ""),
+        "xecoCity": f"{synerex.city or ''}, {synerex.state or ''} {synerex.zip or ''}",
         "contact": rf.get("invoiceContactName", ""),
         "phone": rf.get("invoiceContactPhone", ""),
         "clientName": client.legalName or client.name if client else "",
@@ -274,7 +274,7 @@ def map_proposal_data(project, client, xeco_manager):
     estimated_pct = float(eba.get("estimatedSavingsPercent") or calc.get("estimatedSavingsPercent") or 0)
     baseline_roi = round((total_val * 12) / total_savings) if total_savings else 0
 
-    # Xeco company info
+    # Synerex company info
     xeco_name = f"{xeco_manager.firstName or ''} {xeco_manager.lastName or ''}".strip() if xeco_manager else ""
 
     items = []
@@ -370,7 +370,7 @@ def map_proposal_data(project, client, xeco_manager):
     }
 
 
-def map_finance_agreement_data(project, client, xeco):
+def map_finance_agreement_data(project, client, synerex):
     """Map project to finance agreement PDF data."""
     rf = (project.reportFields or {}) if hasattr(project, "reportFields") else {}
     equip = (project.equipmentInfo or {}) if hasattr(project, "equipmentInfo") else {}

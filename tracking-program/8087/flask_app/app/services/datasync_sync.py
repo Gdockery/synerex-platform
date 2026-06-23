@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 # Table order for sync - refs before dependents
 ORDERED_TABLES = [
-    "serviceplan", "xeco", "piboard", "client",
+    "serviceplan", "synerex", "piboard", "client",
     "user", "project", "gateway", "meter", "repeater", "switch",
     "test",
     "switchcommand",
@@ -249,7 +249,7 @@ def _table_needs_syncing(table, this_is_master, only_these_tables=None):
 
 def _sync_semaphore_start(host):
     """Acquire file-based sync semaphore. Returns True if acquired."""
-    path = f"{SEMAPHORE_DIR}/xeco-datasync-semaphore-{host.replace('/', '_')}"
+    path = f"{SEMAPHORE_DIR}/synerex-datasync-semaphore-{host.replace('/', '_')}"
     try:
         if os.path.exists(path):
             mtime = os.path.getmtime(path)
@@ -264,7 +264,7 @@ def _sync_semaphore_start(host):
 
 def _sync_semaphore_stop(host):
     try:
-        path = f"{SEMAPHORE_DIR}/xeco-datasync-semaphore-{host.replace('/', '_')}"
+        path = f"{SEMAPHORE_DIR}/synerex-datasync-semaphore-{host.replace('/', '_')}"
         if os.path.exists(path):
             os.unlink(path)
     except Exception:

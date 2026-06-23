@@ -1,7 +1,7 @@
 # License as Access Authorization Clause (Synerex EM&V and Tracking)
 
 The following language is intended to be inserted into the software-only license agreement(s)
-for the Synerex One EM&V Program and the Synerex Tracking Program.
+for the Synerex One EM&V Program and the Synerex ECBS Intelligence Platform.
 
 ## Section: License as Access Authorization
 

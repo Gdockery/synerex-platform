@@ -158,7 +158,7 @@ import {ItemService} from "../equipment/items.service";
           </div>
           <div class="col-md-2">
             <div class="form-group">
-              <label for="xecoUnitType">Xeco Unit Type</label>
+              <label for="xecoUnitType">Synerex Unit Type</label>
               <select formControlName="xecoUnitType" class="form-control">
                 <option *ngFor="let unit of xecoUnits" value={{unit.id}}>{{unit.name}}</option>
               </select>

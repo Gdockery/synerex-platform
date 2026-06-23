@@ -1,6 +1,6 @@
 """
-XECO Product Knowledge System for SynerexAI
-Comprehensive database of XECO products and installation recommendations
+SYNEREX Product Knowledge System for SynerexAI
+Comprehensive database of SYNEREX products and installation recommendations
 """
 
 from typing import Dict, List, Any, Optional
@@ -11,7 +11,7 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class XECOProduct:
-    """XECO Product Information"""
+    """SYNEREX Product Information"""
     model: str
     series: str
     category: str
@@ -25,8 +25,8 @@ class XECOProduct:
 
 class XECOProductDatabase:
     """
-    Comprehensive XECO Product Knowledge Database
-    Contains all XECO products with detailed specifications and installation guidance
+    Comprehensive SYNEREX Product Knowledge Database
+    Contains all SYNEREX products with detailed specifications and installation guidance
     """
     
     def __init__(self):
@@ -35,11 +35,11 @@ class XECOProductDatabase:
         self.troubleshooting_guides = self._initialize_troubleshooting_guides()
     
     def _initialize_xeco_products(self) -> Dict[str, XECOProduct]:
-        """Initialize comprehensive XECO product database"""
+        """Initialize comprehensive SYNEREX product database"""
         return {
             # Power Quality Products
             'xeco_hf_series': XECOProduct(
-                model='XECO-HF Series',
+                model='SYNEREX-HF Series',
                 series='Harmonic Filters',
                 category='Power Quality',
                 description='Advanced harmonic filtering solutions for industrial and commercial applications',
@@ -91,7 +91,7 @@ class XECOProductDatabase:
             ),
             
             'xeco_pfc_series': XECOProduct(
-                model='XECO-PFC Series',
+                model='SYNEREX-PFC Series',
                 series='Power Factor Correction',
                 category='Power Quality',
                 description='Automatic power factor correction systems for improved energy efficiency',
@@ -143,7 +143,7 @@ class XECOProductDatabase:
             ),
             
             'xeco_vr_series': XECOProduct(
-                model='XECO-VR Series',
+                model='SYNEREX-VR Series',
                 series='Voltage Regulation',
                 category='Power Quality',
                 description='Automatic voltage regulation systems for stable power supply',
@@ -196,7 +196,7 @@ class XECOProductDatabase:
             
             # Energy Management Products
             'xeco_em_series': XECOProduct(
-                model='XECO-EM Series',
+                model='SYNEREX-EM Series',
                 series='Energy Management',
                 category='Energy Management',
                 description='Comprehensive energy monitoring and management systems',
@@ -249,7 +249,7 @@ class XECOProductDatabase:
             
             # Monitoring and Control Products
             'xeco_mc_series': XECOProduct(
-                model='XECO-MC Series',
+                model='SYNEREX-MC Series',
                 series='Monitoring and Control',
                 category='Monitoring',
                 description='Advanced monitoring and control systems for electrical equipment',
@@ -302,10 +302,10 @@ class XECOProductDatabase:
         }
     
     def _initialize_installation_guides(self) -> Dict[str, Dict[str, Any]]:
-        """Initialize XECO installation guides"""
+        """Initialize SYNEREX installation guides"""
         return {
             'general_installation': {
-                'title': 'General XECO Installation Requirements',
+                'title': 'General SYNEREX Installation Requirements',
                 'requirements': [
                     'All installations must comply with NEC and local codes',
                     'Qualified electrician required for installation',
@@ -363,10 +363,10 @@ class XECOProductDatabase:
         }
     
     def _initialize_troubleshooting_guides(self) -> Dict[str, Dict[str, Any]]:
-        """Initialize XECO troubleshooting guides"""
+        """Initialize SYNEREX troubleshooting guides"""
         return {
             'common_issues': {
-                'title': 'Common XECO Equipment Issues',
+                'title': 'Common SYNEREX Equipment Issues',
                 'issues': {
                     'no_power': {
                         'symptom': 'Equipment not powering up',
@@ -386,7 +386,7 @@ class XECOProductDatabase:
                 }
             },
             'maintenance_procedures': {
-                'title': 'XECO Maintenance Procedures',
+                'title': 'SYNEREX Maintenance Procedures',
                 'procedures': {
                     'daily': ['Visual inspection', 'Check alarms', 'Monitor performance'],
                     'weekly': ['Clean equipment', 'Check connections', 'Review logs'],
@@ -398,11 +398,11 @@ class XECOProductDatabase:
         }
     
     def get_product_info(self, product_model: str) -> Optional[XECOProduct]:
-        """Get detailed information about a specific XECO product"""
+        """Get detailed information about a specific SYNEREX product"""
         return self.products.get(product_model.lower())
     
     def get_installation_guide(self, product_model: str) -> Dict[str, Any]:
-        """Get installation guide for a specific XECO product"""
+        """Get installation guide for a specific SYNEREX product"""
         product = self.get_product_info(product_model)
         if not product:
             return {}
@@ -416,7 +416,7 @@ class XECOProductDatabase:
         }
     
     def get_troubleshooting_guide(self, product_model: str, issue: str) -> Dict[str, Any]:
-        """Get troubleshooting guide for a specific XECO product and issue"""
+        """Get troubleshooting guide for a specific SYNEREX product and issue"""
         return {
             'product': product_model,
             'issue': issue,
@@ -425,7 +425,7 @@ class XECOProductDatabase:
         }
     
     def search_products(self, category: str = None, application: str = None) -> List[XECOProduct]:
-        """Search XECO products by category or application"""
+        """Search SYNEREX products by category or application"""
         results = []
         for product in self.products.values():
             if category and product.category.lower() == category.lower():
@@ -435,30 +435,30 @@ class XECOProductDatabase:
         return results
     
     def get_compatible_equipment(self, product_model: str) -> List[str]:
-        """Get list of compatible equipment for a specific XECO product"""
+        """Get list of compatible equipment for a specific SYNEREX product"""
         product = self.get_product_info(product_model)
         return product.compatible_equipment if product else []
     
     def get_maintenance_schedule(self, product_model: str) -> Dict[str, List[str]]:
-        """Get maintenance schedule for a specific XECO product"""
+        """Get maintenance schedule for a specific SYNEREX product"""
         product = self.get_product_info(product_model)
         return product.maintenance_schedule if product else {}
 
-# Global XECO product database instance
+# Global SYNEREX product database instance
 xeco_database = XECOProductDatabase()
 
 def get_xeco_product_info(product_model: str) -> Optional[XECOProduct]:
-    """Convenience function to get XECO product information"""
+    """Convenience function to get SYNEREX product information"""
     return xeco_database.get_product_info(product_model)
 
 def get_xeco_installation_guide(product_model: str) -> Dict[str, Any]:
-    """Convenience function to get XECO installation guide"""
+    """Convenience function to get SYNEREX installation guide"""
     return xeco_database.get_installation_guide(product_model)
 
 def get_xeco_troubleshooting_guide(product_model: str, issue: str) -> Dict[str, Any]:
-    """Convenience function to get XECO troubleshooting guide"""
+    """Convenience function to get SYNEREX troubleshooting guide"""
     return xeco_database.get_troubleshooting_guide(product_model, issue)
 
 def search_xeco_products(category: str = None, application: str = None) -> List[XECOProduct]:
-    """Convenience function to search XECO products"""
+    """Convenience function to search SYNEREX products"""
     return xeco_database.search_products(category, application)

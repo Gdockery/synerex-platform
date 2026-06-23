@@ -26,7 +26,7 @@ Created an **Enhanced SynerexAI** that dynamically accesses project fields and p
 - ✅ **Local Codes**: References regional electrical codes
 
 ### **3. Equipment-Specific Analysis**
-- ✅ **XECO Product Recommendations**: Suggests appropriate XECO equipment
+- ✅ **SYNEREX Product Recommendations**: Suggests appropriate SYNEREX equipment
 - ✅ **Installation Guidance**: Provides installation requirements
 - ✅ **Performance Analysis**: Analyzes equipment performance for location
 - ✅ **ROI Calculations**: Considers local rates and incentives
@@ -61,7 +61,7 @@ User: "What can you tell me about this project?"
 Enhanced AI: "Based on your current project 'Industrial Facility' at Los Angeles, CA:
 • Facility: Industrial Facility
 • Location: Los Angeles, California  
-• Equipment: XECO-HF Series Harmonic Filters
+• Equipment: SYNEREX-HF Series Harmonic Filters
 • Utility: LADWP
 • Climate Zone: Zone 3-4 (Mediterranean)
 • Available Incentives: SGIP, Federal ITC, Property tax exemptions
@@ -73,7 +73,7 @@ Enhanced AI: "Based on your current project 'Industrial Facility' at Los Angeles
 ```
 User: "What equipment do you recommend for this location?"
 Enhanced AI: "For Los Angeles, California (Zone 3-4 Mediterranean):
-• XECO-HF Series: Optimal for VFDs and LED lighting
+• SYNEREX-HF Series: Optimal for VFDs and LED lighting
 • Climate Considerations: Moderate temperatures, low humidity
 • Utility Requirements: LADWP interconnection standards
 • Local Incentives: SGIP, California Solar Initiative
@@ -130,7 +130,7 @@ class EnhancedSynerexAI {
 ### **Integration Points:**
 1. **Form Data Access**: Reads all input fields in real-time
 2. **Location Analysis**: Determines climate zone and utility info
-3. **Equipment Matching**: Suggests appropriate XECO products
+3. **Equipment Matching**: Suggests appropriate SYNEREX products
 4. **Incentive Identification**: Finds available local programs
 5. **Cost Optimization**: Calculates potential savings
 

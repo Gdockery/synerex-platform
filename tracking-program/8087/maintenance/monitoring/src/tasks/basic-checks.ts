@@ -68,7 +68,7 @@ function checkHost(
 				`${ssh} vboxmanage list runningvms`
 			)
 
-			m = out.match(/Xeco-Portal/)
+			m = out.match(/Synerex-Portal/)
 			if (!m) throw `${host} VM seems to be down`
 
 			status = Status.VM_UP
@@ -76,7 +76,7 @@ function checkHost(
 			// ------ VM RESPONSIVE? ------
 
 			out = await shell(
-				`${ssh} "ssh -oStrictHostKeyChecking=no -i /home/xcorp/Documents/Xeco-Portal/.vagrant/machines/default/virtualbox/private_key -p 2222 vagrant@${process.env.VAGRANT_HOST} date"`
+				`${ssh} "ssh -oStrictHostKeyChecking=no -i /home/xcorp/Documents/Synerex-Portal/.vagrant/machines/default/virtualbox/private_key -p 2222 vagrant@${process.env.VAGRANT_HOST} date"`
 			)
 
 			status = Status.VM_RESPONSIVE
@@ -104,7 +104,7 @@ function restartHost(host) {
 	return shell(
 		`${hostSsh(
 			host
-		)} "cd Documents/Xeco-Portal && vagrant halt -f && vagrant up"`
+		)} "cd Documents/Synerex-Portal && vagrant halt -f && vagrant up"`
 	)
 }
 

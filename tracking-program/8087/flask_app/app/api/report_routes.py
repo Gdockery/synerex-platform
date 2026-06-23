@@ -67,7 +67,7 @@ def _load_logo_b64(logo_src: str, logo_type: str) -> str | None:
 
 def _get_oem_data():
     """Return (prepared_by_org, preparer_name, insurance_policy, payment_schedule, prepared_by_location)."""
-    prepared_by_org = "Xeco Energy Corporation"
+    prepared_by_org = "Synerex Labs"
     preparer_name   = ""
     insurance_policy = None
     payment_schedule = None

@@ -13,8 +13,8 @@
 - `GET /api/datasync/<table>/<since>/<limit>` – Sync with limit
 - `GET /api/datasync/<table>/<since>/<limit>/<ref_id>` – Sync with ref ID
 
-### XECO
-- `PUT /api/xeco` – Update XECO config
+### SYNEREX
+- `PUT /api/synerex` – Update SYNEREX config
 
 ### Maintenance (full implementation)
 - `POST /api/maintenance/status` – Get local status

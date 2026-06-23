@@ -1157,7 +1157,7 @@ const { PDFDocument } = require('pdf-lib');
 
             <div *ngIf="selectedSavingsReport" style="font-size:0.8em;">
               <h3>
-                Xeco Data for {{ (selectedSavingsReport.month | momentFormat:'YYYY-M') | amDateFormat:'MMM YYYY' }}
+                Synerex Data for {{ (selectedSavingsReport.month | momentFormat:'YYYY-M') | amDateFormat:'MMM YYYY' }}
                 <small>(savings % based on most recent test)</small>
               </h3>
               <table style="width:100%;">

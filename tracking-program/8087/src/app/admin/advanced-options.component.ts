@@ -138,7 +138,7 @@ export class AdvancedOptionsComponent implements OnInit {
     }
 
     // Send new values to server
-    this.apiRequest.put('/api/xeco', {
+    this.apiRequest.put('/api/synerex', {
       valuesToSet: this.form.value
     });
   }

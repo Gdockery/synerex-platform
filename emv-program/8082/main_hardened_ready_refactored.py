@@ -4699,7 +4699,7 @@ class WeatherNormalizationML:
                 logger.error(f"   This will show negative savings when raw savings are positive - THIS IS WRONG")
                 
                 # ENHANCED SAFETY FIX: Account for equipment efficiency improvements
-                # When XECO equipment is more efficient (generates less heat), normalized savings should be BETTER
+                # When SYNEREX equipment is more efficient (generates less heat), normalized savings should be BETTER
                 # Set normalized_kw_after to be LESS than raw kw_after to show efficiency gain
                 # This reflects that efficient equipment consumes less power even when normalized to same weather
                 raw_savings_pct = (kw_before - kw_after) / kw_before if kw_before > 0 else 0
@@ -22566,7 +22566,7 @@ def my_account_page():
             <h1>👤 My Account - Synerex Platform</h1>
             <div class="header-actions">
                 <a href="/main-dashboard" class="back-btn">⚡ EMV Program</a>
-                <a href="__TRACKING_URL__" class="back-btn">📊 Tracking Program</a>
+                <a href="__TRACKING_URL__" class="back-btn">📊 ECBS Intelligence Platform</a>
             </div>
         </div>
         
@@ -22664,7 +22664,7 @@ def my_account_page():
                 },
                 {
                     id: 'tracking',
-                    name: 'Energy Tracking Program',
+                    name: 'Energy ECBS Intelligence Platform',
                     icon: '📊',
                     description: 'Real-time energy consumption tracking and monitoring. Monitor usage patterns, identify anomalies, and optimize energy efficiency.',
                     url: '__TRACKING_URL__',
@@ -38115,9 +38115,9 @@ def admin_panel():
                                     }});
                                     const d = await r.json();
                                     if (r.ok && d.success) {{
-                                        showToast(d.message || 'Tracking Program restart initiated', 'success');
+                                        showToast(d.message || 'ECBS Intelligence Platform restart initiated', 'success');
                                     }} else {{
-                                        showToast(d.message || d.error || 'Failed to restart Tracking Program', 'error');
+                                        showToast(d.message || d.error || 'Failed to restart ECBS Intelligence Platform', 'error');
                                     }}
                                 }} catch (e) {{
                                     showToast('Action failed: ' + (e.message || e), 'error');

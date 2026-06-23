@@ -165,7 +165,7 @@ export class EditUserComponent implements OnInit {
   private syncingUser:boolean;
   private syncingSubmit:boolean;
   private archivingUser:boolean;
-  public brandName: string = 'Xeco'; // Default, will be updated
+  public brandName: string = 'Synerex'; // Default, will be updated
   public inviteBaseUrl: string = window.location.origin;
 
   // Our user data

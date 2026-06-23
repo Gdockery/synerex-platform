@@ -1820,14 +1820,14 @@ def _run_alarm_evaluation():
 def process_queue_message(topic, data):
     """Route device message by MQTT topic to appropriate handler."""
     for pattern, name in [
-        (r"^xeco/(.+)/sensors/(.*)/(.*)/data$", "processSensorData"),
-        (r"^xeco/(.+)/sensors/(.*)/(.*)/meterData$", "processMeterData"),
-        (r"^xeco/(.+)/sensors/(.*)/(.*)/equipmentData$", "processEquipmentData"),
-        (r"^xeco/(.+)/gateways/(.*)/status$", "processBeacon"),
-        (r"^xeco/.+/(sensors|gateways)/.+/control$|cancelcontrol", "processControlMessage"),
-        (r"^xeco/(.+)/sensors/(.*)/ack$", "processControlAck"),
-        (r"^xeco/(.+)/gateways/(.*)/ack$", "processSoftwareAck"),
-        (r"^xeco/(.+)/sensors/(.*)/status$", "processStatus"),
+        (r"^synerex/(.+)/sensors/(.*)/(.*)/data$", "processSensorData"),
+        (r"^synerex/(.+)/sensors/(.*)/(.*)/meterData$", "processMeterData"),
+        (r"^synerex/(.+)/sensors/(.*)/(.*)/equipmentData$", "processEquipmentData"),
+        (r"^synerex/(.+)/gateways/(.*)/status$", "processBeacon"),
+        (r"^synerex/.+/(sensors|gateways)/.+/control$|cancelcontrol", "processControlMessage"),
+        (r"^synerex/(.+)/sensors/(.*)/ack$", "processControlAck"),
+        (r"^synerex/(.+)/gateways/(.*)/ack$", "processSoftwareAck"),
+        (r"^synerex/(.+)/sensors/(.*)/status$", "processStatus"),
     ]:
         if re.match(pattern, topic):
             if name == "processControlMessage":

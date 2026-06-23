@@ -5,7 +5,7 @@
 
 DB_USER="xeco_staging"
 DB_PASS="xecopass"
-DB_NAME="xeco"
+DB_NAME="synerex"
 
 echo "Starting daily rollup fill for meterdataaggregate..."
 

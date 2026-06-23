@@ -157,7 +157,7 @@ export class WhitelabelService {
   }
 
   /**
-   * Get the brand name (e.g., "Xeco" or "Synerex")
+   * Get the brand name (e.g., "Synerex" or "Synerex")
    * Caches the result after first call
    * @returns Observable<string> - The brand name
    */

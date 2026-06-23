@@ -38,7 +38,7 @@ import { WhitelabelService } from "../../shared/services/whitelabel.service";
 export class UserListComponent implements OnInit {
   private users;
   private syncingUsers = true;
-  public brandName: string = 'Xeco'; // Default, will be updated
+  public brandName: string = 'Synerex'; // Default, will be updated
 
   constructor(private currentUserService: CurrentUserService, private userService: UserService, private whitelabelService: WhitelabelService) {
     this.fetch();

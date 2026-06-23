@@ -421,7 +421,7 @@ Based on your question about installation, here are some general guidelines:
 4. **Testing**: Perform thorough testing after installation
 5. **Compliance**: Ensure compliance with local electrical codes
 
-For specific installation instructions, please refer to the XECO product documentation or contact technical support.
+For specific installation instructions, please refer to the SYNEREX product documentation or contact technical support.
 
 *Note: For detailed AI-powered installation guidance, please ensure the Ollama AI service is running.*`;
     }
@@ -434,8 +434,8 @@ For specific installation instructions, please refer to the XECO product documen
 
 For detailed product specifications, please refer to:
 
-1. **XECO Product Database**: Available in the knowledge base
-2. **Technical Datasheets**: Download from XECO website
+1. **SYNEREX Product Database**: Available in the knowledge base
+2. **Technical Datasheets**: Download from SYNEREX website
 3. **Installation Guides**: Include detailed specifications
 4. **Equipment Database**: Comprehensive technical data
 
@@ -501,7 +501,7 @@ Standards typically cover:
     generateGeneralResponse(question, context) {
         return `**SynerexAI Response:**
 
-Thank you for your question. I'm here to help with power quality analysis, XECO product information, and system optimization.
+Thank you for your question. I'm here to help with power quality analysis, SYNEREX product information, and system optimization.
 
 I can assist with:
 - Product specifications and installation

@@ -4840,9 +4840,9 @@ function generateAIResponse_DEPRECATED(question) {
     // Fallback to basic responses
     const lowerQuestion = question.toLowerCase();
     
-    // XECO Product Questions
-    if (lowerQuestion.includes('xeco-hf') || lowerQuestion.includes('harmonic filter')) {
-        return `The XECO-HF Series harmonic filters are designed for industrial and commercial applications. Key specifications include:
+    // SYNEREX Product Questions
+    if (lowerQuestion.includes('synerex-hf') || lowerQuestion.includes('harmonic filter')) {
+        return `The SYNEREX-HF Series harmonic filters are designed for industrial and commercial applications. Key specifications include:
         • Voltage Rating: 480V, 600V, 1000V
         • Current Rating: 50A to 2000A
         • Harmonic Filtering: 5th, 7th, 11th, 13th harmonics
@@ -4854,14 +4854,14 @@ function generateAIResponse_DEPRECATED(question) {
     
     // Installation Questions
     if (lowerQuestion.includes('install') || lowerQuestion.includes('installation')) {
-        return `For XECO equipment installation, follow these key requirements:
+        return `For SYNEREX equipment installation, follow these key requirements:
         • All installations must comply with NEC and local codes
         • Qualified electrician required for installation
         • Proper grounding and bonding required
         • Adequate ventilation and clearance maintained
         • Electrical permits obtained before installation
         
-        Specific installation requirements vary by product model. Which XECO product are you installing?`;
+        Specific installation requirements vary by product model. Which SYNEREX product are you installing?`;
     }
     
     // Utility Information Questions
@@ -4903,7 +4903,7 @@ function generateAIResponse_DEPRECATED(question) {
     // Troubleshooting Questions
     if (lowerQuestion.includes('troubleshoot') || lowerQuestion.includes('problem')) {
         return `For troubleshooting assistance, I can help with:
-        • Common XECO equipment issues
+        • Common SYNEREX equipment issues
         • Diagnostic procedures
         • Maintenance schedules
         • Replacement parts identification
@@ -4930,7 +4930,7 @@ function generateAIResponse_DEPRECATED(question) {
     // General Energy Questions
     return `Thank you for your energy-related question! As SynerexAI, I specialize in:
     • Energy analysis and efficiency optimization
-    • XECO equipment support and installation
+    • SYNEREX equipment support and installation
     • Utility information and rate optimization
     • Electrical code compliance and safety
     • Power quality analysis and improvement

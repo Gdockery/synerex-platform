@@ -3,7 +3,7 @@
 
 ## 1. Scope
 This document defines the threat model for the Synerex One EM&V Program,
-Synerex Tracking Program, and the Synerex License Service.
+Synerex ECBS Intelligence Platform, and the Synerex License Service.
 
 ## 2. Assets Protected
 - Signed licenses (EM&V and Tracking)

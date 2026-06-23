@@ -1,5 +1,5 @@
 {
-	"name": "xeco-monitoring",
+	"name": "synerex-monitoring",
 	"version": "1.0.0",
 	"description": "Create tasks that: - read data - process it - write data or send notifications",
 	"main": "dist/index.js",

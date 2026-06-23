@@ -537,7 +537,7 @@ def send_oem_invitation_email(
   </div>
   <div class="body">
     <p>Hello,</p>
-    <p>{'Your OEM partner credentials for <strong>' + org_name + '</strong> have been updated by Synerex.' if is_reset else 'You have been set up as an OEM partner on the Synerex platform for <strong>' + org_name + '</strong>. As a partner, you can manage your customer organizations and distribute access to the Tracking Program.'}</p>
+    <p>{'Your OEM partner credentials for <strong>' + org_name + '</strong> have been updated by Synerex.' if is_reset else 'You have been set up as an OEM partner on the Synerex platform for <strong>' + org_name + '</strong>. As a partner, you can manage your customer organizations and distribute access to the ECBS Intelligence Platform.'}</p>
 
     <div class="creds-box">
       <div class="title">&#128272; Your Login Credentials</div>

@@ -10,7 +10,7 @@ Status lifecycle (spec §Phase 4):
   awaiting_approval → activated → on_hold
 
 [COMPAT] FK to project.id and site.id.  The existing project.release_status
-         field continues to gate the XECO Deploy app; the Deployment record
+         field continues to gate the SYNEREX Deploy app; the Deployment record
          adds per-deployment workflow tracking on top of that.
          Consolidated with Deploy app at end of all phases.
 """

@@ -249,7 +249,7 @@ function connectToVmOn(remote) {
   return new Promise(async (resolve, reject) => {
     const privateKey = await exec(
       remote,
-      'cat /home/xcorp/Documents/Xeco-Portal/.vagrant/machines/default/virtualbox/private_key'
+      'cat /home/xcorp/Documents/Synerex-Portal/.vagrant/machines/default/virtualbox/private_key'
     );
 
     var vm = new Client();
@@ -275,7 +275,7 @@ function connectToVmOn(remote) {
 function runSql(remote, sqlFile) {
   return new Promise(async (resolve, reject) => {
     const random = Math.random().toString(16).slice(2, 8);
-    const remoteSqlName = `/tmp/xeco-maitenance-${random}.sql`;
+    const remoteSqlName = `/tmp/synerex-maitenance-${random}.sql`;
 
     try {
       await upload(remote, sqlFile, remoteSqlName);
@@ -283,7 +283,7 @@ function runSql(remote, sqlFile) {
       resolve(
         await exec(
           remote,
-          `mysql -uxeco_staging -pxecopass xeco < ${remoteSqlName}; rm ${remoteSqlName}`
+          `mysql -uxeco_staging -pxecopass synerex < ${remoteSqlName}; rm ${remoteSqlName}`
         )
       );
     } catch (e) {

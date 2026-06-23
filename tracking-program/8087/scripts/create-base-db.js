@@ -96,9 +96,9 @@ prompt.get({
 
             },
 
-            xeco: function(cb) {
-              sails.log.info(' creating XECO record (for storing advanced options)...');
-              Xeco.create({
+            synerex: function(cb) {
+              sails.log.info(' creating SYNEREX record (for storing advanced options)...');
+              Synerex.create({
                 billingEmail: 'billing@xecoenergy.com',
                 billingPhone: '+1 (555) 555.5555',
                 address: '352 South 200 West\nSuite 123  #987\nATTN: Arlene Agoncillo',
@@ -109,7 +109,7 @@ prompt.get({
                 xecoManagerCostPercent: 5.0,
               }).exec(function (err) {
                 if (err) {
-                  console.error('Error creating XECO record:');
+                  console.error('Error creating SYNEREX record:');
                   console.error(err);
                 }
                 return cb(err);
@@ -119,12 +119,12 @@ prompt.get({
             // Create clients.
             client: function(cb) {
 
-              sails.log.info(' creating XECO client...');
+              sails.log.info(' creating SYNEREX client...');
 
               Client.create(
                 {
                   id: 1,
-                  name: 'Xeco Energy Corporation',
+                  name: 'Synerex Labs',
                   address: '352 South 200 West',
                   city: 'Farmington',
                   state: 'UT',

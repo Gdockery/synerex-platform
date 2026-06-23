@@ -1,16 +1,16 @@
 [
   {
     "company_info": {
-      "name": "XECO",
+      "name": "SYNEREX",
       "business_model": "Power quality equipment manufacturer",
-      "description": "XECO manufactures power quality products including harmonic filters, power factor correction systems, and voltage regulators. XECO does NOT sell electricity or energy - they sell equipment that helps customers reduce their energy consumption and improve power quality.",
+      "description": "SYNEREX manufactures power quality products including harmonic filters, power factor correction systems, and voltage regulators. SYNEREX does NOT sell electricity or energy - they sell equipment that helps customers reduce their energy consumption and improve power quality.",
       "products": "Power quality equipment, not energy/utility services",
       "customers": "Industrial and commercial facilities looking to reduce energy costs and improve power quality"
     }
   },
   {
-    "name": "XECO Harmonic Filter Series",
-    "model": "XECO-HF",
+    "name": "SYNEREX Harmonic Filter Series",
+    "model": "SYNEREX-HF",
     "category": "Power Quality",
     "description": "Advanced harmonic filtering solutions for industrial and commercial applications",
     "specifications": {
@@ -23,8 +23,8 @@
       "humidity": "0-95% non-condensing",
       "enclosure": "NEMA 3R, IP54"
     },
-    "installation_guide_url": "https://xecoenergy.com/installation-guides/xeco-hf",
-    "datasheet_url": "https://xecoenergy.com/datasheets/xeco-hf",
+    "installation_guide_url": "https://xecoenergy.com/installation-guides/synerex-hf",
+    "datasheet_url": "https://xecoenergy.com/datasheets/synerex-hf",
     "applications": [
       "Industrial facilities",
       "Commercial buildings",
@@ -41,8 +41,8 @@
     ]
   },
   {
-    "name": "XECO Power Factor Correction",
-    "model": "XECO-PFC",
+    "name": "SYNEREX Power Factor Correction",
+    "model": "SYNEREX-PFC",
     "category": "Power Quality",
     "description": "Automatic power factor correction system for improved energy efficiency",
     "specifications": {
@@ -54,8 +54,8 @@
       "response_time": "< 1 second",
       "enclosure": "NEMA 3R, IP54"
     },
-    "installation_guide_url": "https://xecoenergy.com/installation-guides/xeco-pfc",
-    "datasheet_url": "https://xecoenergy.com/datasheets/xeco-pfc",
+    "installation_guide_url": "https://xecoenergy.com/installation-guides/synerex-pfc",
+    "datasheet_url": "https://xecoenergy.com/datasheets/synerex-pfc",
     "applications": [
       "Industrial facilities",
       "Commercial buildings",
@@ -72,8 +72,8 @@
     ]
   },
   {
-    "name": "XECO Voltage Regulator",
-    "model": "XECO-VR",
+    "name": "SYNEREX Voltage Regulator",
+    "model": "SYNEREX-VR",
     "category": "Power Quality",
     "description": "Automatic voltage regulation for stable power supply",
     "specifications": {
@@ -84,8 +84,8 @@
       "efficiency": "98%+",
       "enclosure": "NEMA 3R, IP54"
     },
-    "installation_guide_url": "https://xecoenergy.com/installation-guides/xeco-vr",
-    "datasheet_url": "https://xecoenergy.com/datasheets/xeco-vr",
+    "installation_guide_url": "https://xecoenergy.com/installation-guides/synerex-vr",
+    "datasheet_url": "https://xecoenergy.com/datasheets/synerex-vr",
     "applications": [
       "Sensitive equipment protection",
       "Data centers",
@@ -102,8 +102,8 @@
     ]
   },
   {
-    "name": "XECO Energy Monitor",
-    "model": "XECO-EM",
+    "name": "SYNEREX Energy Monitor",
+    "model": "SYNEREX-EM",
     "category": "Energy Management",
     "description": "Advanced energy monitoring and analysis system",
     "specifications": {
@@ -114,8 +114,8 @@
       "display": "7-inch touchscreen",
       "data_logging": "1 year minimum"
     },
-    "installation_guide_url": "https://xecoenergy.com/installation-guides/xeco-em",
-    "datasheet_url": "https://xecoenergy.com/datasheets/xeco-em",
+    "installation_guide_url": "https://xecoenergy.com/installation-guides/synerex-em",
+    "datasheet_url": "https://xecoenergy.com/datasheets/synerex-em",
     "applications": [
       "Energy management",
       "Power quality monitoring",
@@ -132,8 +132,8 @@
     ]
   },
   {
-    "name": "XECO Motor Controller",
-    "model": "XECO-MC",
+    "name": "SYNEREX Motor Controller",
+    "model": "SYNEREX-MC",
     "category": "Motor Control",
     "description": "Advanced motor control and protection system",
     "specifications": {
@@ -144,8 +144,8 @@
       "communication": "Modbus RTU/TCP",
       "efficiency": "98%+"
     },
-    "installation_guide_url": "https://xecoenergy.com/installation-guides/xeco-mc",
-    "datasheet_url": "https://xecoenergy.com/datasheets/xeco-mc",
+    "installation_guide_url": "https://xecoenergy.com/installation-guides/synerex-mc",
+    "datasheet_url": "https://xecoenergy.com/datasheets/synerex-mc",
     "applications": [
       "Motor control applications",
       "Pump control",

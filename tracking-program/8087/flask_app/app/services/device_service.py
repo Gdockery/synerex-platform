@@ -23,7 +23,7 @@ def send_switch_command(project_slug, switch_id, command, time_ms, switch_comman
     cmd_types = current_app.config.get("SWITCH_COMMAND_TYPES", {"POWER_ON": 1, "POWER_OFF": 2})
     cmd_str = "off" if command == cmd_types.get("POWER_OFF", 2) else "on"
 
-    topic = f"xeco/{project_slug}/sensors/{switch.meshId or ''}/control"
+    topic = f"synerex/{project_slug}/sensors/{switch.meshId or ''}/control"
     payload = {
         "id": switch_command_id,
         "schedule": schedule_id,
@@ -65,7 +65,7 @@ def cancel_switch_schedule(project_slug, schedule_id):
     from app.services.iot_command_service import publish
     for switch in switches:
         if switch.meshId:
-            topic = f"xeco/{project_slug}/sensors/{switch.meshId}/cancelcontrol"
+            topic = f"synerex/{project_slug}/sensors/{switch.meshId}/cancelcontrol"
             payload = {"schedule": schedule_id}
             publish(topic, payload)
             logger.info("Sent cancelcontrol for %s to switch %s", schedule_id, switch.id)

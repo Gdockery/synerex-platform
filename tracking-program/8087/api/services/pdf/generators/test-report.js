@@ -15,7 +15,7 @@ module.exports = function (printer) {
 
   return {
     generate: function (data, logoPath, brandName) {
-      brandName = brandName || 'Xeco'; // Default fallback
+      brandName = brandName || 'Synerex'; // Default fallback
       var log = sails.log;
       try {
         log.info('Starting test-report generation', 'Test ID:', data.test && data.test.id, 'Meter count:', data.testData && data.testData.length);
@@ -690,7 +690,7 @@ module.exports = function (printer) {
                       }
                     },
                     {
-                      text: 'Xeco',
+                      text: 'Synerex',
                       style: {
                         alignment: 'center',
                         fillColor: lightGrayBG,
@@ -763,7 +763,7 @@ module.exports = function (printer) {
                   [
                     { text: '', },
                     {
-                      text: 'Xeco Savings',
+                      text: 'Synerex Savings',
                       style: { alignment: 'center', fontSize: 7 }
                     },
                     {
@@ -890,7 +890,7 @@ module.exports = function (printer) {
                     },
                     {
                       border: [false, true, false, true],
-                      text: 'XECO Savings ' + data.project.currencyCode,
+                      text: 'SYNEREX Savings ' + data.project.currencyCode,
                       style: {
                         alignment: 'right',
                         fillColor: xecoSavingsColor,
@@ -960,7 +960,7 @@ module.exports = function (printer) {
                     { border: noBordersCell, text: '', },
                     {
                       border: [false, false, true, false],
-                      text: 'Xeco Savings',
+                      text: 'Synerex Savings',
                       style: {
                         alignment: 'center',
                         bold: true,
@@ -1022,7 +1022,7 @@ module.exports = function (printer) {
                     { border: noBordersCell, text: '' },
                     {
                       border: noBordersCell,
-                      text: 'XECO % Savings:',
+                      text: 'SYNEREX % Savings:',
                       style: { alignment: 'right', bold: true, },
                       colSpan: 2,
                     },
@@ -1182,7 +1182,7 @@ module.exports = function (printer) {
                       },
                     },
                     {
-                      text: 'Xeco',
+                      text: 'Synerex',
                       style: {
                         alignment: 'center',
                         fillColor: 'black',
@@ -1387,7 +1387,7 @@ module.exports = function (printer) {
           }
         },
         {
-          text: 'Xeco',
+          text: 'Synerex',
           style: {
             alignment: 'center',
             fillColor: lightGrayBG,
@@ -1438,7 +1438,7 @@ module.exports = function (printer) {
       let row3 = [
         { text: '', },
         {
-          text: 'Xeco Savings (%)',
+          text: 'Synerex Savings (%)',
           style: { alignment: 'center', fontSize: 6 }
         },
         {

@@ -116,7 +116,7 @@ jwt_secret: str = "YOUR_SECURE_RANDOM_STRING_HERE"
 window.location.href = `https://license-service.synerex.com/access/${programId}?license_id=${licenseId}`;
 ```
 
-### In EM&V/Tracking Programs
+### In EM&V/ECBS Intelligence Platforms
 
 **Validate Token:**
 ```python

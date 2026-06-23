@@ -9,7 +9,7 @@ synerex-platform/
 ├── website/              # Main website (React/Vite)
 ├── license-service/      # License Management Service (FastAPI)
 ├── emv-program/         # EM&V Program (Flask)
-└── tracking-program/    # Tracking Program (Flask + Angular)
+└── tracking-program/    # ECBS Intelligence Platform (Flask + Angular)
 ```
 
 ## Components
@@ -31,7 +31,7 @@ synerex-platform/
 - Audit and utility-grade power analysis
 - Integrates with License Service for authentication
 
-### Tracking Program (`tracking-program/`)
+### ECBS Intelligence Platform (`tracking-program/`)
 - Flask backend at `8087/flask_app` with Angular frontend in `8087/`
 - Rollup (1339) and Errands (1340) services for cron jobs
 - Integrates with License Service for authentication
@@ -59,7 +59,7 @@ cd emv-program/8082
 python main_hardened_ready_refactored.py
 ```
 
-### Tracking Program
+### ECBS Intelligence Platform
 ```bash
 cd tracking-program/8087/flask_app
 python run.py

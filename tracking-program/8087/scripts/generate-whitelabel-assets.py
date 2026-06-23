@@ -32,8 +32,8 @@ IMAGE_SIZES = {
     'images/logo-small.png': {'width': 135, 'maintain_aspect': True, 'source': 'rect'},
     'images/logo-big.png': {'width': 225, 'maintain_aspect': True, 'source': 'rect'},
     'images/logo-big1.png': {'width': 225, 'maintain_aspect': True, 'source': 'rect'},
-    'images/xeco-logo-sm.png': {'width': 110, 'maintain_aspect': True, 'source': 'rect'},
-    'images/xeco-welcome2.png': {'width': 1000, 'maintain_aspect': True, 'source': 'rect'},
+    'images/synerex-logo-sm.png': {'width': 110, 'maintain_aspect': True, 'source': 'rect'},
+    'images/synerex-welcome2.png': {'width': 1000, 'maintain_aspect': True, 'source': 'rect'},
     'images/ubill-tracker-logo.png': {'width': 138, 'height': 34, 'maintain_aspect': False, 'source': 'rect'},
     'images/ubill-cast-logo.png': {'width': 138, 'height': 34, 'maintain_aspect': False, 'source': 'rect'},
     'images/favicon.ico': {'width': 32, 'height': 32, 'maintain_aspect': False, 'source': 'square'},
@@ -195,8 +195,8 @@ def generate_assets(rect_input_path, square_input_path, output_dir=None):
     print(f"  │   ├── logo-small.png")
     print(f"  │   ├── logo-big.png")
     print(f"  │   ├── logo-big1.png")
-    print(f"  │   ├── xeco-logo-sm.png")
-    print(f"  │   ├── xeco-welcome2.png")
+    print(f"  │   ├── synerex-logo-sm.png")
+    print(f"  │   ├── synerex-welcome2.png")
     print(f"  │   ├── ubill-tracker-logo.png")
     print(f"  │   └── ubill-cast-logo.png")
     print(f"  └── pdf-resources/")

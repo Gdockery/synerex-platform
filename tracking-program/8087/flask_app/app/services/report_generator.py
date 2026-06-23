@@ -640,14 +640,14 @@ def _render_pdf(data: dict, file_path: Path, report_name: str,
 </head>
 <body>
   <div class="header">
-    <h1>XECO Energy Intelligence Portal</h1>
+    <h1>SYNEREX Energy Intelligence Portal</h1>
     <div class="sub">{cat_label} &nbsp;|&nbsp; {report_name} &nbsp;|&nbsp; Generated {ts_label}</div>
   </div>
   <div class="cards">
     {card_html}
   </div>
   {table_html}
-  <div class="footer">ECBS Operating System™ &nbsp;•&nbsp; Confidential &nbsp;•&nbsp; {ts_label}</div>
+  <div class="footer">ECBS Intelligence Platform™ &nbsp;•&nbsp; Confidential &nbsp;•&nbsp; {ts_label}</div>
 </body>
 </html>"""
 

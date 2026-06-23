@@ -10,7 +10,7 @@ export class DeviceTypeService extends BaseTypeService {
   constructor(@Inject(APP_CONFIG) private config: IAppConfig) {
     super();
     this.types = [
-      {id:config.constants.DEVICE_TYPES.XECO_UNIT,name:"Xeco Unit"},
+      {id:config.constants.DEVICE_TYPES.XECO_UNIT,name:"Synerex Unit"},
     ];
   }
 }

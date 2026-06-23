@@ -1,5 +1,5 @@
 """
-Configuration for Tracking Program Flask app.
+Configuration for ECBS Intelligence Platform Flask app.
 Ported from tracking-program/8087/config/local.js, datastores.js, constants.js.
 """
 import os
@@ -125,7 +125,7 @@ class Config:
         "WHITELABEL_BASE_PATH", str(_8087_ROOT / "whitelabel")
     )
     LOCAL_HOSTNAMES = [x.strip() for x in (os.environ.get("LOCAL_HOSTNAMES", "") or "").split(",") if x and x.strip()]
-    # Domain mappings: JSON like {"portal.xecoenergy.com": "xeco"} or empty dict
+    # Domain mappings: JSON like {"portal.xecoenergy.com": "synerex"} or empty dict
     _dm = os.environ.get("WHITELABEL_DOMAIN_MAPPINGS", "{}")
     try:
         WHITELABEL_DOMAIN_MAPPINGS = __import__("json").loads(_dm) if _dm else {}
@@ -193,9 +193,9 @@ class Config:
 
     # Service plans (from config/constants.js)
     SERVICE_PLAN_NAMES = {
-        "lan": "Xeco Server (LAN/VPN) + Cloud",
-        "cloud": "Xeco Cloud Only",
-        "oem": "Xeco Server / OEM Software",
+        "lan": "Synerex Server (LAN/VPN) + Cloud",
+        "cloud": "Synerex Cloud Only",
+        "oem": "Synerex Server / OEM Software",
     }
     SERVICE_PLAN_PRICES = {
         "lan": {

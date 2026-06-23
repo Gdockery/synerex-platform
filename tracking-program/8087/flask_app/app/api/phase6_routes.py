@@ -293,7 +293,7 @@ def _send_email_via_smtp(smtp_cfg, to_address, subject, body_text, body_html=Non
 
 
 def _role_friendly_name(role):
-    names = {1: "Client User", 2: "Client Admin", 3: "Client Manager", 4: "Xeco User",
+    names = {1: "Client User", 2: "Client Admin", 3: "Client Manager", 4: "Synerex User",
              7: "Account Manager", 8: "Synerex Admin", 9: "OEM Admin", 10: "OEM User"}
     return names.get(role, "User")
 

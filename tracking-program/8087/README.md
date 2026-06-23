@@ -1,6 +1,6 @@
-# XECO integrated app
+# SYNEREX integrated app
 
-a [Sails](http://sailsjs.com) 1.0 application serving an Angular 2 front end for the XECO application.
+a [Sails](http://sailsjs.com) 1.0 application serving an Angular 2 front end for the SYNEREX application.
 
 ### To run:
 
@@ -28,14 +28,14 @@ Currently the app serves a single page via the `/api/controllers/index.js` actio
 ##### Setting up the MySQL server
 
 1. Make sure you have Docker installed.
-2. From the `sails-xeco` directory, run:
+2. From the `sails-synerex` directory, run:
    ```
-   docker build -f docker/mysql/mysql.dockerfile -t xeco/mysql docker/mysql
+   docker build -f docker/mysql/mysql.dockerfile -t synerex/mysql docker/mysql
    ```
    to build the Docker image.
 3. Run:
    ```
-   docker run --name xeco-mysql -d -p 3333:3306 xeco/mysql
+   docker run --name synerex-mysql -d -p 3333:3306 synerex/mysql
    ```
-   to create and run a container in the background, using the `xeco/mysql` image.
+   to create and run a container in the background, using the `synerex/mysql` image.
 

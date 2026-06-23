@@ -18,7 +18,7 @@ export class WelcomeComponent implements AfterViewInit {
   public projectSelected = 0;
 	public selectedProjectName = 'ALL SITES';
   public welcomeImageUrl: string;
-  public brandName: string = 'Xeco'; // Default, will be updated
+  public brandName: string = 'Synerex'; // Default, will be updated
 
   get displayName(): string {
     const user = this.userService.user;
@@ -40,7 +40,7 @@ export class WelcomeComponent implements AfterViewInit {
 
   ngAfterViewInit() {
     // Remove legacy welcome image from DOM once rendered.
-    const welcomeImage = document.querySelector('img[src="/tracking-images/xeco-welcome2.png"]');
+    const welcomeImage = document.querySelector('img[src="/tracking-images/synerex-welcome2.png"]');
     if (welcomeImage && welcomeImage.parentNode) {
       welcomeImage.parentNode.removeChild(welcomeImage);
     }

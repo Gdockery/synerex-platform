@@ -58,7 +58,7 @@ echo -e "${GREEN}Pushing to remote...${NC}"
 git push
 
 # Restart the monitoring service
-echo -e "${GREEN}Restarting xeco-monitoring service...${NC}"
-sudo systemctl restart xeco-monitoring.service
+echo -e "${GREEN}Restarting synerex-monitoring service...${NC}"
+sudo systemctl restart synerex-monitoring.service
 
 echo -e "${GREEN}Done!${NC}"

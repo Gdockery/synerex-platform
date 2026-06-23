@@ -68,10 +68,10 @@ def generate_pdf(project, document_kind, **kwargs):
 
     if document_kind in INVOICE_TYPES:
         client = _get_project_client(project)
-        xeco = _get_xeco()
-        if not xeco:
-            raise ValueError("Xeco config not found")
-        invoice_data = data_mappers.map_invoice_data(project, client, xeco, document_kind)
+        synerex = _get_xeco()
+        if not synerex:
+            raise ValueError("Synerex config not found")
+        invoice_data = data_mappers.map_invoice_data(project, client, synerex, document_kind)
         logo_path = _get_oem_logo_path(project) or _get_pdf_logo_path("logo.png")
         brand_name = _get_brand_name(project)
         return invoice_gen.generate(invoice_data, logo_path, brand_name)
@@ -156,10 +156,10 @@ def generate_pdf(project, document_kind, **kwargs):
 
     if document_kind == "financeAgreement":
         client = _get_project_client(project)
-        xeco = _get_xeco()
-        if not xeco:
-            raise ValueError("Xeco config not found")
-        data = data_mappers.map_finance_agreement_data(project, client, xeco)
+        synerex = _get_xeco()
+        if not synerex:
+            raise ValueError("Synerex config not found")
+        data = data_mappers.map_finance_agreement_data(project, client, synerex)
         buf = _try_pdf_bridge(document_kind, data, project=project)
         if buf:
             return buf
@@ -324,8 +324,8 @@ def _get_project_client(project):
 
 
 def _get_xeco():
-    """Get first Xeco config."""
-    from app.models.xeco import CompanySettings
+    """Get first Synerex config."""
+    from app.models.synerex import CompanySettings
     return CompanySettings.query.first()
 
 

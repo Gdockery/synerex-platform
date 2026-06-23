@@ -21,7 +21,7 @@ class SynerexAIKnowledgeBase {
                     "Energy efficiency optimization and savings calculations",
                     "Weather normalization and baseline adjustments",
                     "Utility rate analysis and cost optimization",
-                    "XECO equipment recommendations and installation guidance",
+                    "SYNEREX equipment recommendations and installation guidance",
                     "Standards compliance verification (IEEE 519, ASHRAE 14, IPMVP)",
                     "Professional engineering review and audit trails",
                     "Comprehensive reporting and documentation"
@@ -155,10 +155,10 @@ class SynerexAIKnowledgeBase {
                 equipmentSpecifications: {
                     title: "Equipment Specifications and Requirements",
                     xecoProducts: [
-                        "XECO-HF Series: Harmonic filtering for VFDs and LED lighting",
-                        "XECO-PF Series: Power factor correction for industrial loads",
-                        "XECO-ES Series: Energy storage for peak shaving",
-                        "XECO-SM Series: Smart monitoring and control systems"
+                        "SYNEREX-HF Series: Harmonic filtering for VFDs and LED lighting",
+                        "SYNEREX-PF Series: Power factor correction for industrial loads",
+                        "SYNEREX-ES Series: Energy storage for peak shaving",
+                        "SYNEREX-SM Series: Smart monitoring and control systems"
                     ],
                     installationRequirements: [
                         "Electrical clearance: 3 feet front, 1 foot sides",
@@ -221,7 +221,7 @@ class SynerexAIKnowledgeBase {
                     title: "SynerexAI Capabilities and Features",
                     capabilities: [
                         "Project-specific energy analysis guidance",
-                        "XECO equipment recommendations and sizing",
+                        "SYNEREX equipment recommendations and sizing",
                         "Utility rate optimization and cost analysis",
                         "Installation guidance and code compliance",
                         "Form completion assistance and data requirements",
@@ -329,7 +329,7 @@ class SynerexAIKnowledgeBase {
                     },
                     {
                         question: "What equipment does SYNEREX recommend?",
-                        answer: "SYNEREX recommends XECO equipment including harmonic filters (HF series), power factor correction (PF series), energy storage (ES series), and smart monitoring (SM series) based on your specific needs."
+                        answer: "SYNEREX recommends SYNEREX equipment including harmonic filters (HF series), power factor correction (PF series), energy storage (ES series), and smart monitoring (SM series) based on your specific needs."
                     }
                 ]
             }
@@ -439,7 +439,7 @@ class SynerexAIKnowledgeBase {
 • Weather normalization and baseline adjustments
 • Utility rate analysis and cost optimization
 
-**⚡ XECO Equipment:**
+**⚡ SYNEREX Equipment:**
 • Product recommendations and sizing
 • Installation requirements and electrical codes
 • Technical specifications and performance data

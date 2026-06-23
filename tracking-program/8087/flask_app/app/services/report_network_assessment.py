@@ -309,7 +309,7 @@ def build_html(d: dict, doc_no: str | None = None) -> str:
 <div style="margin-top:16px;font-size:11.5px;color:#1a1a1a;line-height:1.9">
   <p style="margin:0 0 7px"><strong>Step 1 — Identify the Switchgear:</strong> This page identifies the MDP, transformer feed, voltage, breaker size, and estimated share of facility demand for this section of the electrical network.</p>
   <p style="margin:0 0 7px"><strong>Step 2 — Review the Load Share:</strong> The load share shows the estimated percentage of facility demand flowing through this switchgear and its potential impact on efficiency improvements.</p>
-  <p style="margin:0 0 7px"><strong>Step 3 — Follow the Equipment Placement Diagram:</strong> The placement diagram shows where XECO equipment is recommended across the main bus and downstream circuits.</p>
+  <p style="margin:0 0 7px"><strong>Step 3 — Follow the Equipment Placement Diagram:</strong> The placement diagram shows where SYNEREX equipment is recommended across the main bus and downstream circuits.</p>
   <p style="margin:0 0 7px"><strong>Step 4 — Understand the Equipment Type:</strong> XPS 600 units are assigned to reactive/non-VFD loads, while APF systems are assigned to VFD-driven or harmonic-producing loads.</p>
   <p style="margin:0"><strong>Step 5 — Verify During Site Survey:</strong> All amperage values, breaker configurations, and final equipment locations should be verified during the field site survey prior to installation.</p>
 </div>"""
@@ -335,7 +335,7 @@ def build_html(d: dict, doc_no: str | None = None) -> str:
         n_eth = GW + 1
         total_hw_units = total_ecbs + total_apf50 + total_apf100
         _meter_row = (
-            f'<tr><td style="padding-left:22px">Revenue Grade Meter (Xeco) — utility supply point</td>'
+            f'<tr><td style="padding-left:22px">Revenue Grade Meter (Synerex) — utility supply point</td>'
             f'<td class="tc">—</td><td class="tc">{N_METERS} Meter</td><td class="tc">—</td>'
             f'<td class="tr">${cost_meters:,.0f}</td></tr>'
             if not customer_owns_meters else
@@ -395,7 +395,7 @@ def build_html(d: dict, doc_no: str | None = None) -> str:
 </p>"""
 
     # ── Build image tags ───────────────────────────────────────────────────────
-    xeco_img = f'<img src="data:image/png;base64,{_XECO_LOGO_B64}" alt="Xeco" style="height:40px;object-fit:contain">'
+    xeco_img = f'<img src="data:image/png;base64,{_XECO_LOGO_B64}" alt="Synerex" style="height:40px;object-fit:contain">'
     if customer_logo_b64:
         cust_img = f'<img src="data:image/png;base64,{customer_logo_b64}" alt="{customer}" style="height:40px;object-fit:contain">'
     else:
@@ -494,7 +494,7 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
     </div>
     <div style="width:.38in;height:2.5px;background:#3ab4ff;margin-bottom:.28in;"></div>
     <div style="margin-bottom:.15in;">
-      <img src="data:image/png;base64,{_XECO_LOGO_B64}" alt="Xeco Energy"
+      <img src="data:image/png;base64,{_XECO_LOGO_B64}" alt="Synerex Labs"
            style="height:44px;width:auto;filter:brightness(0) invert(1);opacity:0.92;">
     </div>
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:86px;font-weight:800;color:#3ab4ff;line-height:0.92;letter-spacing:-.01em;margin-top:.25in;margin-bottom:.06in;">ECBS<sup style="font-size:32px;vertical-align:super;line-height:0;">&trade;</sup></div>
@@ -553,7 +553,7 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
       </div>
     </div>
     <div style="margin-top:.18in;font-size:6px;color:rgba(255,255,255,0.3);line-height:1.6;">
-      &copy; 2026 Xeco Energy Corporation. All rights reserved. ECBS&reg; Network Optimization Technology, associated methodologies, designs, and engineering concepts constitute proprietary intellectual property of their respective owners and are protected under applicable patent, copyright, and trade secret laws. Unauthorized reproduction, distribution, disclosure, or use of this material without prior written authorization is prohibited.
+      &copy; 2026 Synerex Labs. All rights reserved. ECBS&reg; Network Optimization Technology, associated methodologies, designs, and engineering concepts constitute proprietary intellectual property of their respective owners and are protected under applicable patent, copyright, and trade secret laws. Unauthorized reproduction, distribution, disclosure, or use of this material without prior written authorization is prohibited.
     </div>
   </div>
 </div>
@@ -564,7 +564,7 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
     <div class="logo-group">{xeco_img}</div>
     <div class="report-tag">
       <div class="tag">NETWORK ASSESSMENT</div>
-      <div class="dt">Prepared {date_label} &nbsp;&middot;&nbsp; Confidential &nbsp;&middot;&nbsp; XECO Energy Corporation</div>
+      <div class="dt">Prepared {date_label} &nbsp;&middot;&nbsp; Confidential &nbsp;&middot;&nbsp; SYNEREX Energy Corporation</div>
       {('<div style="font-family:monospace;font-size:9px;color:#aaaaaa;margin-top:3px;">' + doc_no + '</div>') if doc_no else ''}
     </div>
     <div class="logo-group">{cust_img}</div>
@@ -652,7 +652,7 @@ body{{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;fon
 
 <div class="rpt-footer">
   <span>{customer} ({customer_legal}) &middot; {address}</span>
-  <span>XECO Energy Corporation &middot; {date_label} &middot; Prepared for {contact_name}, {contact_title}</span>
+  <span>SYNEREX Energy Corporation &middot; {date_label} &middot; Prepared for {contact_name}, {contact_title}</span>
 </div>
 
 </body>

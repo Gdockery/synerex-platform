@@ -1,6 +1,6 @@
 #!/bin/bash
 
-VM_NAME="Xeco-Portal_default_1543627446179_9563"
+VM_NAME="Synerex-Portal_default_1543627446179_9563"
 
 case $1 in
     start)

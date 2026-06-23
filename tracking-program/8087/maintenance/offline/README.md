@@ -1,18 +1,18 @@
-# Offline maintenance of the Xeco VM and application <!-- omit in toc -->
+# Offline maintenance of the Synerex VM and application <!-- omit in toc -->
 
 There are three parts to the offline installation:
-1. `code.zip` (the code pack) - contains the Xeco-Portal codebase
+1. `code.zip` (the code pack) - contains the Synerex-Portal codebase
 2. `node_modules.zip` (the `node_modules` pack) - a zip file containing all node modules required by the application
-3. `package.box` - the `xeco-vm` box which serves as the base for creating a new VMs
+3. `package.box` - the `synerex-vm` box which serves as the base for creating a new VMs
 
 Having this broken down in 3 parts should make the update process of any part simple and quick.
 
 This document describes usual tasks related to the maintenance of offline instalations:
 - [Re-generate the `code` pack](#re-generate-the-code-pack)
 - [Re-generate the `node_modules` pack](#re-generate-the-nodemodules-pack)
-- [Re-generate the `xeco-vm` box](#re-generate-the-xeco-vm-box)
-- [Install `xeco-vm` box](#install-xeco-vm-box)
-- [Create a Xeco VM instance](#create-a-xeco-vm-instance)
+- [Re-generate the `synerex-vm` box](#re-generate-the-synerex-vm-box)
+- [Install `synerex-vm` box](#install-synerex-vm-box)
+- [Create a Synerex VM instance](#create-a-synerex-vm-instance)
 
 ---
 
@@ -21,14 +21,14 @@ This document describes usual tasks related to the maintenance of offline instal
 
 Two ways to do this:
 1. Download and manually archive it:
-   - Clone from github; will create a local `Xeco-Portal` folder:
+   - Clone from github; will create a local `Synerex-Portal` folder:
     
-            git clone https://github.com/Gdockery/Xeco-Portal.git
+            git clone https://github.com/Gdockery/Synerex-Portal.git
    - Zip it:
 
-            zip -r code Xeco-Portal
+            zip -r code Synerex-Portal
    - This will yield `code.zip`
-2. Or, download the zip directly from github https://github.com/Gdockery/Xeco-Portal/archive/master.zip
+2. Or, download the zip directly from github https://github.com/Gdockery/Synerex-Portal/archive/master.zip
     **NOTE**: this needs login first
 
 ---
@@ -50,7 +50,7 @@ Two ways to do this:
 
 ---
 
-## Re-generate the `xeco-vm` box
+## Re-generate the `synerex-vm` box
 
 - Create a folder that will hold the generated files
 - Copy [`maintenance/offline/Vagrantfile.XecoVM`](./Vagrantfile.XecoVM) as `Vagrantfile` in your folder
@@ -75,20 +75,20 @@ Two ways to do this:
 
 ---
 
-## Install `xeco-vm` box
->**REQUIRES**: getting the xeco-vm `package.box` file
+## Install `synerex-vm` box
+>**REQUIRES**: getting the synerex-vm `package.box` file
 
-- (optional) Remove previous `xeco-vm` installation:
+- (optional) Remove previous `synerex-vm` installation:
  
-        vagrant box remove xeco-vm
-- Install the new `xeco-vm` box in Vagrant:
+        vagrant box remove synerex-vm
+- Install the new `synerex-vm` box in Vagrant:
   
-        vagrant box add --name xeco-vm package.box
+        vagrant box add --name synerex-vm package.box
 
 ---
 
-## Create a Xeco VM instance
->**REQUIRES**: `xeco-vm` box to have been previously installed
+## Create a Synerex VM instance
+>**REQUIRES**: `synerex-vm` box to have been previously installed
 
 - (optional) Destroy existing VM:
 

@@ -21,7 +21,7 @@
 
 ---
 
-## 2. Tracking Program (Synerex Administrator)
+## 2. ECBS Intelligence Platform (Synerex Administrator)
 
 | Field         | Value                        |
 |---------------|------------------------------|
@@ -70,7 +70,7 @@
 | Program          | Login URL                                     | Username / Email         | Password     | Role                   |
 |------------------|-----------------------------------------------|--------------------------|--------------|------------------------|
 | License Service  | `/license/admin/login`                        | `admin`                  | `admin123`   | Super Admin            |
-| Tracking Program | `/tracking/login`                             | `admin@synerex.local`    | `admin123`   | Synerex Administrator  |
+| ECBS Intelligence Platform | `/tracking/login`                             | `admin@synerex.local`    | `admin123`   | Synerex Administrator  |
 | EMV Program      | `/emv/login` (Org: Synerex Admin)             | `admin`                  | `admin123`   | Administrator          |
 | EMV Engineer     | `/emv/login` (Org: Synerex Admin)             | `engineer`               | `engineer123`| Engineer               |
 

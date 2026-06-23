@@ -52,9 +52,9 @@ module.exports.constants = {
   },
 
   SERVICE_PLAN_NAMES: {
-    'lan': "Xeco Server (LAN/VPN) + Cloud",
-    'cloud': "Xeco Cloud Only",
-    'oem': "Xeco Server / OEM Software"
+    'lan': "Synerex Server (LAN/VPN) + Cloud",
+    'cloud': "Synerex Cloud Only",
+    'oem': "Synerex Server / OEM Software"
   },
 
   SERVICE_PLAN_PRICES: {

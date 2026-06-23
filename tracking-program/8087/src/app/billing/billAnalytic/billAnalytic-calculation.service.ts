@@ -103,7 +103,7 @@ export class BillAnalyticCalculationsService  {
     // kwPeak may live at the top-level analytic or inside the first meterBill
     const firstBill = analytic.meterBills && analytic.meterBills[0];
     const kwPeak    = parseFloat(analytic.kwPeak) || parseFloat(firstBill && firstBill.kwPeak);
-    // kWPerUnit defaults to 75 (standard XECO unit capacity) when not set or zero
+    // kWPerUnit defaults to 75 (standard SYNEREX unit capacity) when not set or zero
     const kWPerUnit = parseFloat(analytic.kWPerUnit) || parseFloat(firstBill && firstBill.kWPerUnit) || 75;
 
     if (!kwPeak || isNaN(kwPeak)) {
