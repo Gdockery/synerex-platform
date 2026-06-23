@@ -136,7 +136,6 @@ export class DevicesComponent implements OnInit {
   }
 
   private _meterStatus(m: any, now: number): string {
-    if (m.isReporting === false) return 'Offline';
     const lastMs = m.lastCommunicatedAt || m.meshLastCommunicatedAt || 0;
     return this._commStatus(lastMs, now);
   }
