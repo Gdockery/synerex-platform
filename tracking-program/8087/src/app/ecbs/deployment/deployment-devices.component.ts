@@ -159,8 +159,11 @@ export class DeploymentDevicesComponent implements OnInit {
         payload.install_lng = pos.coords.longitude;
         self.api.patch('/api/dep/devices/' + d.id, payload).subscribe({ next: () => self.load() });
       },
-      function() {
+      function(err: any) {
         self.gpsCapturing = false;
+        // #region agent log
+        fetch('http://127.0.0.1:7790/ingest/7eed15d0-e4e9-4f21-b0dd-c59c8d5479d3',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'822e51'},body:JSON.stringify({sessionId:'822e51',runId:'1',hypothesisId:'H2',location:'deployment-devices.component.ts:163',message:'GPS error callback fired - gpsError NOT set on component',data:{errCode:err&&err.code,errMsg:err&&err.message,deviceId:d.id},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
         self.api.patch('/api/dep/devices/' + d.id, payload).subscribe({ next: () => self.load() });
       },
       { timeout: 5000, maximumAge: 60000 }

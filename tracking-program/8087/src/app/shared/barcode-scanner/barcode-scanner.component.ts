@@ -160,6 +160,13 @@ export class BarcodeScannerComponent implements OnInit, OnDestroy {
 
     try {
       var ZXing = require('@zxing/library');
+      // #region agent log
+      if (!(self as any)._dbgFrameCount) (self as any)._dbgFrameCount = 0;
+      (self as any)._dbgFrameCount++;
+      if ((self as any)._dbgFrameCount === 1) {
+        fetch('http://127.0.0.1:7790/ingest/7eed15d0-e4e9-4f21-b0dd-c59c8d5479d3',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'822e51'},body:JSON.stringify({sessionId:'822e51',runId:'1',hypothesisId:'H1',location:'barcode-scanner.component.ts:162',message:'RGBLuminanceSource input stats (first frame)',data:{bytesPerElement:imageData.data.BYTES_PER_ELEMENT,dataLength:imageData.data.length,canvasW:canvas.width,canvasH:canvas.height,expectedGrayLen:canvas.width*canvas.height,isRGBA:imageData.data.BYTES_PER_ELEMENT===1&&imageData.data.length===canvas.width*canvas.height*4},timestamp:Date.now()})}).catch(()=>{});
+      }
+      // #endregion
       var luminance = new ZXing.RGBLuminanceSource(imageData.data, canvas.width, canvas.height);
       var binary = new ZXing.HybridBinarizer(luminance);
       var bitmap = new ZXing.BinaryBitmap(binary);
