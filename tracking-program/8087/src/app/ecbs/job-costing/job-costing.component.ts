@@ -96,7 +96,7 @@ export class JobCostingComponent implements OnInit {
       { label: 'TOTAL JOBS', value: String(this.jobs.length), change: '', dir: 'neutral', color: '#29b6f6' },
       { label: 'CONTRACT VALUE', value: cost ? '$' + cost.toLocaleString(undefined, { maximumFractionDigits: 0 }) : '—', change: cost ? 'From project record' : 'Not entered', dir: 'neutral', color: '#ce93d8' },
       { label: 'ROI', value: this.roi ? this.roi.toFixed(1) + '%' : '—', change: this.payback ? 'Payback ' + this.payback.toFixed(1) + ' yrs' : '', dir: this.roi > 0 ? 'up' : 'neutral', color: '#00e676' },
-      { label: 'OVER-BUDGET JOBS', value: '0', change: '', dir: 'neutral', color: '#ef5350' },
+      { label: 'OVER-BUDGET JOBS', value: String(this.jobs.filter(j => j.budget > 0 && j.actual > j.budget).length), change: '', dir: 'neutral', color: '#ef5350' },
       { label: 'ECBS SAVINGS (MTD)', value: this.mtdSavings ? '$' + this.mtdSavings.toLocaleString() : '—', change: 'EM&V verified', dir: this.mtdSavings > 0 ? 'up' : 'neutral', color: '#4caf50' },
       { label: 'ANNUAL SAVINGS', value: this.annualSavings ? '$' + Math.round(this.annualSavings).toLocaleString() : '—', change: '', dir: this.annualSavings > 0 ? 'up' : 'neutral', color: '#ffd740' },
     ];

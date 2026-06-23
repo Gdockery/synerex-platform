@@ -129,9 +129,9 @@
       <div class="ecbs-card">
         <div class="ecbs-card-title"><span class="fa fa-pie-chart"></span> Cost Breakdown</div>
         <div class="ecbs-kv-table">
-          <div class="kv-row"><span class="kv-key">Energy Charges</span><span class="kv-val">{{ (summary?.energy_pct||65) | number:'1.0-0' }}%</span></div>
-          <div class="kv-row"><span class="kv-key">Demand Charges</span><span class="kv-val">{{ (summary?.demand_pct||25) | number:'1.0-0' }}%</span></div>
-          <div class="kv-row"><span class="kv-key">Taxes &amp; Fees</span><span class="kv-val">{{ (summary?.taxes_pct||10) | number:'1.0-0' }}%</span></div>
+          <div class="kv-row"><span class="kv-key">Energy Charges</span><span class="kv-val">{{ (summary?.energy_pct||0) | number:'1.0-0' }}%</span></div>
+          <div class="kv-row"><span class="kv-key">Demand Charges</span><span class="kv-val">{{ (summary?.demand_pct||0) | number:'1.0-0' }}%</span></div>
+          <div class="kv-row"><span class="kv-key">Taxes &amp; Fees</span><span class="kv-val">{{ (summary?.taxes_pct||0) | number:'1.0-0' }}%</span></div>
         </div>
         <div style="margin-top:12px;">
           <a class="btn-ecbs btn-outline btn-sm" routerLink="/billing/savings-report/list">
