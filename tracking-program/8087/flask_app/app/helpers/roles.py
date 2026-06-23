@@ -54,6 +54,7 @@ class ROLE:
     INSTALLER        = 11   # Installer (legacy / duplicate of Account Manager)
     EXECUTIVE        = 12   # Executive — dashboards and reports only
     READ_ONLY        = 13   # Read Only — view data only, no writes            [NEW]
+    PROJECT_MANAGER  = 14   # Project Manager — Deployment App only, PM sign-off [NEW]
 
 
 # ── Role name lookup (matches angular userRoles.ts displayNames) ──────────────
@@ -72,6 +73,7 @@ ROLE_NAMES: dict[int, str] = {
     ROLE.INSTALLER:       "Installer",
     ROLE.EXECUTIVE:       "Executive",
     ROLE.READ_ONLY:       "Read Only",
+    ROLE.PROJECT_MANAGER: "Project Manager",
 }
 
 
@@ -108,8 +110,11 @@ ENGINEERING_ROLES = {ROLE.ENGINEERING} | ADMIN_ROLES
 # Field technician roles (deploy, commission devices)
 FIELD_ROLES = {ROLE.ACCOUNT_MANAGER, ROLE.INSTALLER}
 
-# Roles with deployment access
-DEPLOYMENT_ROLES = FIELD_ROLES | {ROLE.ENGINEERING, ROLE.OPERATIONS} | ADMIN_ROLES
+# Project Manager — Deployment App access only, can sign off on deployments
+PROJECT_MANAGER_ROLES = {ROLE.PROJECT_MANAGER}
+
+# Roles with deployment access (field + PM + engineering + admin)
+DEPLOYMENT_ROLES = FIELD_ROLES | {ROLE.ENGINEERING, ROLE.OPERATIONS, ROLE.PROJECT_MANAGER} | ADMIN_ROLES
 
 # Read-only roles (view data only)
 VIEWER_ROLES = {ROLE.READ_ONLY, ROLE.EXECUTIVE, ROLE.CLIENT_USER, ROLE.CLIENT_FINANCE}
@@ -129,6 +134,7 @@ ALL_ROLES_ORDERED = [
     ROLE.EXECUTIVE,
     ROLE.READ_ONLY,
     ROLE.CLIENT_USER,
+    ROLE.PROJECT_MANAGER,
 ]
 
 

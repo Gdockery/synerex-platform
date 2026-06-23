@@ -47,3 +47,122 @@ h2{margin:0;font-size:18px;color:#fff;flex:1;}
   &:hover:not(:disabled){background:#00c853;}
 }
 @media (max-width:900px){.dclo-main{grid-template-columns:1fr;}}
+
+/* PM Sign-Off Card */
+.dclo-pm-card {
+  background: $panel;
+  border: 1px solid $border;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 16px;
+  &.dclo-pm-signed {
+    border-color: rgba(0,230,118,0.4);
+    background: rgba(0,230,118,0.04);
+  }
+}
+.dclo-pm-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  .fa { color: $blue; font-size: 18px; }
+  h4 { margin: 0; color: #fff; font-size: 14px; }
+}
+.dclo-pm-signed-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.dclo-pm-check { font-size: 28px; color: $green; flex-shrink: 0; }
+.dclo-pm-signed-label { font-size: 13px; font-weight: 700; color: $green; }
+.dclo-pm-signed-date { font-size: 12px; color: $sub; margin-top: 2px; }
+.dclo-pm-notes { font-size: 12px; color: $text; margin-top: 6px; font-style: italic; }
+.dclo-pm-desc { font-size: 13px; color: $sub; margin-bottom: 14px; }
+.dclo-form-group { margin-bottom: 12px; label { font-size: 12px; color: $sub; display: block; margin-bottom: 6px; } }
+.dclo-required { color: $red; }
+.dclo-pm-input {
+  width: 100%;
+  background: $bg;
+  border: 1px solid $border;
+  border-radius: 6px;
+  color: $text;
+  padding: 10px 12px;
+  font-size: 14px;
+  box-sizing: border-box;
+  min-height: 44px;
+  &:focus { outline: none; border-color: $blue; }
+}
+.dclo-pm-textarea { min-height: 70px; resize: vertical; }
+.dclo-pm-form { margin-bottom: 12px; }
+.dclo-pm-actions { display: flex; gap: 10px; }
+.dclo-btn-pm-sign {
+  background: $green;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  min-height: 44px;
+  .fa { margin-right: 6px; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+.dclo-btn-pm {
+  background: rgba(0,230,118,0.1);
+  color: $green;
+  border: 1px solid rgba(0,230,118,0.3);
+  border-radius: 8px;
+  padding: 12px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  min-height: 44px;
+  .fa { margin-right: 6px; }
+  &:hover { background: rgba(0,230,118,0.15); }
+}
+.dclo-assign-pm {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid $border;
+}
+.dclo-assign-pm-toggle {
+  font-size: 12px;
+  color: $sub;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  .fa { color: $blue; }
+  &:hover { color: $text; }
+}
+.dclo-assign-pm-form {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.dclo-pm-select {
+  flex: 1;
+  background: $bg;
+  border: 1px solid $border;
+  border-radius: 6px;
+  color: $text;
+  padding: 8px 10px;
+  font-size: 13px;
+  min-height: 40px;
+}
+.dclo-btn-assign {
+  background: $blue;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  min-height: 40px;
+  white-space: nowrap;
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}

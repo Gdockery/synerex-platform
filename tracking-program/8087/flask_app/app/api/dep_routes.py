@@ -785,6 +785,11 @@ def validate_closeout(dep_id):
     if photo_count == 0:
         blockers.append({"type": "No Photos", "count": 0})
 
+    # Check PM sign-off
+    dep = _tbl_get("deployment", dep_id)
+    if not (dep and dep.get("pm_signed_at")):
+        blockers.append({"type": "PM Sign-Off Required", "count": 0})
+
     can_close = len(blockers) == 0
     return jsonify({
         "can_close": can_close,
@@ -809,6 +814,135 @@ def approve_closeout(dep_id):
     })
     _log_event(dep_id, "DEPLOYMENT_RELEASED_TO_OPERATIONS")
     return jsonify({"response": {"message": "Deployment released to operations", "status": "activated"}})
+
+
+# ─── Project Manager Assignment ──────────────────────────────────────────────
+
+@dep_bp.route("/deployments/<int:dep_id>/assign-pm", methods=["PATCH"])
+@login_required
+def assign_pm(dep_id):
+    """
+    Assign a Project Manager to a deployment.
+    Restricted to Synerex Admin (8) and OEM Admin (9).
+    """
+    from app.helpers.roles import ROLE
+    user_role = getattr(current_user, "role", None)
+    if user_role not in (ROLE.SYNEREX_ADMIN, ROLE.OEM_ADMIN):
+        return jsonify({"error": "Only OEM Admins and Platform Admins can assign a Project Manager"}), 403
+
+    dep = _tbl_get("deployment", dep_id)
+    if not dep:
+        return jsonify({"error": "Not found"}), 404
+
+    data = request.get_json() or {}
+    pm_id = data.get("project_manager_id")
+    if not pm_id:
+        return jsonify({"error": "project_manager_id required"}), 400
+
+    # Verify the user being assigned exists and is role 14 (PM), 9 (OEM Admin), or 8 (Platform Admin)
+    from sqlalchemy import text
+    pm_user = db.session.execute(
+        text("SELECT id, role, email FROM user WHERE id=:uid LIMIT 1"),
+        {"uid": pm_id}
+    ).fetchone()
+    if not pm_user:
+        return jsonify({"error": "User not found"}), 404
+
+    allowed_pm_roles = (ROLE.PROJECT_MANAGER, ROLE.SYNEREX_ADMIN, ROLE.OEM_ADMIN, ROLE.ENGINEERING)
+    if pm_user[1] not in allowed_pm_roles:
+        return jsonify({"error": "User does not have a Project Manager role"}), 400
+
+    _tbl_patch("deployment", dep_id, {"project_manager_id": pm_id})
+    _log_event(dep_id, "PM_ASSIGNED", payload={"pm_id": pm_id})
+    return jsonify({"response": _tbl_get("deployment", dep_id)})
+
+
+@dep_bp.route("/deployments/<int:dep_id>/pm-signoff", methods=["POST"])
+@login_required
+def pm_signoff(dep_id):
+    """
+    Project Manager digitally signs off on a deployment before Release to Operations.
+    Restricted to: Project Manager (14), OEM Admin (9), Synerex Admin (8), Engineering (5).
+    """
+    from app.helpers.roles import ROLE
+    user_role = getattr(current_user, "role", None)
+    allowed = (ROLE.PROJECT_MANAGER, ROLE.SYNEREX_ADMIN, ROLE.OEM_ADMIN, ROLE.ENGINEERING)
+    if user_role not in allowed:
+        return jsonify({"error": "Only Project Managers or Admins can sign off on a deployment"}), 403
+
+    dep = _tbl_get("deployment", dep_id)
+    if not dep:
+        return jsonify({"error": "Not found"}), 404
+
+    if dep.get("pm_signed_at"):
+        return jsonify({"error": "Deployment already has PM sign-off"}), 400
+
+    data = request.get_json() or {}
+    notes = data.get("notes", "")
+    signature = data.get("signature", "")
+
+    if not signature:
+        return jsonify({"error": "signature is required (typed name or PIN)"}), 400
+
+    import hashlib
+    sig_hash = hashlib.sha256((str(current_user.id) + signature + str(_now())).encode()).hexdigest()[:32]
+
+    _tbl_patch("deployment", dep_id, {}, {
+        "pm_signed_by": current_user.id if current_user.is_authenticated else None,
+        "pm_signed_at": _now(),
+        "pm_approval_notes": notes,
+        "pm_signature": sig_hash,
+    })
+    _log_event(dep_id, "PM_SIGNED_OFF", payload={"notes": notes})
+    return jsonify({"response": _tbl_get("deployment", dep_id)})
+
+
+@dep_bp.route("/deployments/<int:dep_id>/pm-signoff", methods=["DELETE"])
+@login_required
+def revoke_pm_signoff(dep_id):
+    """Revoke PM sign-off. Synerex Admin only."""
+    from app.helpers.roles import ROLE
+    if getattr(current_user, "role", None) != ROLE.SYNEREX_ADMIN:
+        return jsonify({"error": "Only Platform Admin can revoke PM sign-off"}), 403
+    _tbl_patch("deployment", dep_id, {}, {
+        "pm_signed_by": None,
+        "pm_signed_at": None,
+        "pm_approval_notes": None,
+        "pm_signature": None,
+    })
+    _log_event(dep_id, "PM_SIGNOFF_REVOKED")
+    return jsonify({"response": _tbl_get("deployment", dep_id)})
+
+
+@dep_bp.route("/users/pm-eligible", methods=["GET"])
+@login_required
+def pm_eligible_users():
+    """
+    Return list of users eligible to be assigned as PM.
+    Restricted to OEM Admin and Synerex Admin.
+    """
+    from app.helpers.roles import ROLE
+    user_role = getattr(current_user, "role", None)
+    if user_role not in (ROLE.SYNEREX_ADMIN, ROLE.OEM_ADMIN):
+        return jsonify({"error": "Insufficient permissions"}), 403
+
+    from sqlalchemy import text
+    allowed_roles = (ROLE.PROJECT_MANAGER, ROLE.ENGINEERING, ROLE.OEM_ADMIN, ROLE.SYNEREX_ADMIN)
+    placeholders = ",".join([str(r) for r in allowed_roles])
+    rows = db.session.execute(
+        text("SELECT id, email, firstName, lastName, role FROM user WHERE role IN (" + placeholders + ") AND isDeleted=0 ORDER BY lastName, firstName"),
+    ).fetchall()
+    users = []
+    for r in rows:
+        users.append({
+            "id": r[0],
+            "email": r[1],
+            "firstName": r[2],
+            "lastName": r[3],
+            "role": r[4],
+            "name": ((r[2] or "") + " " + (r[3] or "")).strip() or r[1],
+        })
+    return jsonify({"meta": {"total": len(users)}, "response": users})
 
 
 # ─── Summary ─────────────────────────────────────────────────────────────────

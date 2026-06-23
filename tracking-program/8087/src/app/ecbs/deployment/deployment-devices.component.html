@@ -1,5 +1,19 @@
 <div class="ddv-page">
 
+  <!-- Barcode Scanner Overlay -->
+  <app-barcode-scanner
+    *ngIf="showScanner"
+    [label]="scannerTarget === 'installed' ? 'Scan Installed Serial Number' : 'Scan Expected Serial Number'"
+    hint="Point the camera at the Code 128 barcode on the device nameplate."
+    (scanned)="onScanned($event)"
+    (cancelled)="onScanCancelled()">
+  </app-barcode-scanner>
+
+  <!-- GPS capturing notice -->
+  <div class="ddv-gps-toast" *ngIf="gpsCapturing">
+    <span class="fa fa-map-marker"></span> Capturing GPS location...
+  </div>
+
   <!-- Top bar -->
   <div class="ddv-topbar">
     <button class="ddv-back fa fa-arrow-left" (click)="goBack()"></button>
@@ -93,14 +107,79 @@
         <button class="ddv-btn-delete fa fa-trash" (click)="deleteDevice(selected)"></button>
       </div>
 
+      <!-- Serial Number Section -->
+      <div class="ddv-serial-section">
+        <div class="ddv-serial-title">
+          <span class="fa fa-barcode"></span> Serial Numbers
+          <span class="ddv-serial-match-badge" *ngIf="serialMatch()">
+            <span class="fa fa-check-circle"></span> Match Verified
+          </span>
+          <span class="ddv-serial-mismatch-badge" *ngIf="serialMismatch()">
+            <span class="fa fa-exclamation-triangle"></span> MISMATCH
+          </span>
+        </div>
+
+        <!-- Expected Serial -->
+        <div class="ddv-serial-row">
+          <div class="ddv-serial-label">Expected (from PO):</div>
+          <div class="ddv-serial-val-row" *ngIf="editingSerial !== 'expected'">
+            <span class="ddv-serial-val">{{ selected.expected_serial || '—' }}</span>
+            <button class="ddv-serial-btn" (click)="openScanner('expected')" title="Scan barcode">
+              <span class="fa fa-barcode"></span>
+            </button>
+            <button class="ddv-serial-btn" (click)="startEditSerial('expected')" title="Type manually">
+              <span class="fa fa-pencil"></span>
+            </button>
+          </div>
+          <div class="ddv-serial-edit-row" *ngIf="editingSerial === 'expected'">
+            <input class="ddv-serial-input" [(ngModel)]="serialDraft" placeholder="Enter expected serial..." (keydown.enter)="saveSerial()" autofocus/>
+            <button class="ddv-serial-save" (click)="saveSerial()" [disabled]="serialSaving">
+              {{ serialSaving ? '...' : 'Save' }}
+            </button>
+            <button class="ddv-serial-cancel" (click)="cancelEditSerial()">Cancel</button>
+          </div>
+        </div>
+
+        <!-- Installed Serial -->
+        <div class="ddv-serial-row ddv-serial-installed">
+          <div class="ddv-serial-label">Installed (scanned):</div>
+          <div class="ddv-serial-val-row" *ngIf="editingSerial !== 'installed'">
+            <span class="ddv-serial-val" [class.ddv-serial-missing]="!selected.installed_serial">
+              {{ selected.installed_serial || 'Not captured yet' }}
+            </span>
+            <button class="ddv-serial-btn ddv-serial-btn-scan" (click)="openScanner('installed')" title="Scan barcode">
+              <span class="fa fa-camera"></span> Scan
+            </button>
+            <button class="ddv-serial-btn" (click)="startEditSerial('installed')" title="Type manually">
+              <span class="fa fa-keyboard-o"></span>
+            </button>
+          </div>
+          <div class="ddv-serial-edit-row" *ngIf="editingSerial === 'installed'">
+            <input class="ddv-serial-input" [(ngModel)]="serialDraft" placeholder="Enter or paste serial number..." (keydown.enter)="saveSerial()" autofocus
+                   autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+            <button class="ddv-serial-save" (click)="saveSerial()" [disabled]="serialSaving">
+              {{ serialSaving ? '...' : 'Save' }}
+            </button>
+            <button class="ddv-serial-cancel" (click)="cancelEditSerial()">Cancel</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Device Info Grid -->
       <div class="ddv-detail-grid">
         <div class="ddv-detail-item"><span class="ddv-detail-lbl">Type</span><span class="ddv-detail-val">{{ selected.device_type || '—' }}</span></div>
         <div class="ddv-detail-item"><span class="ddv-detail-lbl">Location</span><span class="ddv-detail-val">{{ selected.location || '—' }}</span></div>
         <div class="ddv-detail-item"><span class="ddv-detail-lbl">Breaker</span><span class="ddv-detail-val">{{ selected.breaker_req || '—' }}</span></div>
         <div class="ddv-detail-item"><span class="ddv-detail-lbl">CTs Required</span><span class="ddv-detail-val">{{ selected.ct_req || '—' }}</span></div>
-        <div class="ddv-detail-item"><span class="ddv-detail-lbl">Serial (Expected)</span><span class="ddv-detail-val">{{ selected.expected_serial || '—' }}</span></div>
-        <div class="ddv-detail-item"><span class="ddv-detail-lbl">Serial (Installed)</span><span class="ddv-detail-val">{{ selected.installed_serial || '—' }}</span></div>
+        <div class="ddv-detail-item"><span class="ddv-detail-lbl">Model</span><span class="ddv-detail-val">{{ selected.expected_model || '—' }}</span></div>
         <div class="ddv-detail-item"><span class="ddv-detail-lbl">Firmware</span><span class="ddv-detail-val">{{ selected.firmware_version || '—' }}</span></div>
+        <div class="ddv-detail-item" *ngIf="selected.install_lat">
+          <span class="ddv-detail-lbl">Install GPS</span>
+          <span class="ddv-detail-val ddv-gps-val">
+            <span class="fa fa-map-marker"></span>
+            {{ selected.install_lat | number:'1.5-5' }}, {{ selected.install_lng | number:'1.5-5' }}
+          </span>
+        </div>
         <div class="ddv-detail-item"><span class="ddv-detail-lbl">Status</span><span class="ddv-detail-val ddv-status-val" [ngClass]="statusClass(selected.status)">{{ selected.status }}</span></div>
       </div>
 
@@ -122,7 +201,9 @@
       <!-- Actions -->
       <div class="ddv-detail-actions">
         <button class="ddv-btn-primary" *ngIf="nextStep(selected)" (click)="advanceStatus(selected)">
-          <span class="fa fa-arrow-right"></span> Mark as {{ nextStep(selected) }}
+          <span class="fa" [class.fa-map-marker]="nextStep(selected)==='Installed'" [class.fa-arrow-right]="nextStep(selected)!=='Installed'"></span>
+          Mark as {{ nextStep(selected) }}
+          <span *ngIf="nextStep(selected)==='Installed'" class="ddv-gps-hint">(GPS auto-captured)</span>
         </button>
         <button class="ddv-btn-secondary" (click)="goIssues()">
           <span class="fa fa-flag"></span> Log Issue

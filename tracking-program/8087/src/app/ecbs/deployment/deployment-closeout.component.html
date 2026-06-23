@@ -30,6 +30,71 @@
     </div>
 
     <div class="dclo-sidebar">
+
+      <!-- PM Sign-Off Card -->
+      <div class="dclo-pm-card" [class.dclo-pm-signed]="pmSigned">
+        <div class="dclo-pm-header">
+          <span class="fa" [class.fa-signature]="pmSigned" [class.fa-user-circle]="!pmSigned"></span>
+          <h4>Project Manager Sign-Off</h4>
+        </div>
+
+        <!-- PM Signed state -->
+        <div class="dclo-pm-signed-info" *ngIf="pmSigned">
+          <span class="fa fa-check-circle dclo-pm-check"></span>
+          <div>
+            <div class="dclo-pm-signed-label">Signed Off</div>
+            <div class="dclo-pm-signed-date">{{ pmSignedBy }}</div>
+            <div class="dclo-pm-notes" *ngIf="dep && dep.pm_approval_notes">{{ dep.pm_approval_notes }}</div>
+          </div>
+        </div>
+
+        <!-- PM Not Signed state -->
+        <div *ngIf="!pmSigned">
+          <p class="dclo-pm-desc">Deployment requires Project Manager approval before Release to Operations.</p>
+
+          <!-- Sign-off form -->
+          <div class="dclo-pm-form" *ngIf="showPmSignoff">
+            <div class="dclo-form-group">
+              <label>Type your full name to sign <span class="dclo-required">*</span></label>
+              <input class="dclo-pm-input" [(ngModel)]="pmSignature" placeholder="e.g. John Smith" autocomplete="off"/>
+            </div>
+            <div class="dclo-form-group">
+              <label>Approval notes (optional)</label>
+              <textarea class="dclo-pm-input dclo-pm-textarea" [(ngModel)]="pmNotes" rows="2" placeholder="Any notes for the record..."></textarea>
+            </div>
+            <div class="dclo-pm-actions">
+              <button class="dclo-btn-pm-sign" (click)="submitPmSignoff()" [disabled]="pmSigning || !pmSignature.trim()">
+                <span class="fa" [class.fa-check]="!pmSigning" [class.fa-spinner]="pmSigning" [class.fa-spin]="pmSigning"></span>
+                {{ pmSigning ? 'Signing...' : 'Sign Off' }}
+              </button>
+              <button class="dclo-btn-ghost" (click)="showPmSignoff = false">Cancel</button>
+            </div>
+          </div>
+
+          <button class="dclo-btn-pm" *ngIf="!showPmSignoff" (click)="showPmSignoff = true">
+            <span class="fa fa-pencil"></span> Sign Off as PM
+          </button>
+        </div>
+
+        <!-- Assign PM section (admin only) -->
+        <div class="dclo-assign-pm" *ngIf="pmEligibleUsers.length > 0">
+          <div class="dclo-assign-pm-toggle" (click)="showAssignPm = !showAssignPm">
+            <span class="fa fa-cog"></span>
+            {{ dep && dep.project_manager_id ? 'Change PM' : 'Assign PM' }}
+          </div>
+          <div class="dclo-assign-pm-form" *ngIf="showAssignPm">
+            <select class="dclo-pm-select" [(ngModel)]="selectedPmId">
+              <option [value]="0">Select project manager...</option>
+              <option *ngFor="let u of pmEligibleUsers" [value]="u.id">{{ u.name }} ({{ u.email }})</option>
+            </select>
+            <button class="dclo-btn-assign" (click)="assignPm()" [disabled]="assigningPm || !selectedPmId">
+              {{ assigningPm ? 'Assigning...' : 'Assign' }}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Validation Card -->
       <div class="dclo-validate-card">
         <h4><span class="fa fa-check-circle"></span> Closeout Validation</h4>
         <p>Run validation to check all requirements before releasing to operations.</p>
@@ -53,6 +118,7 @@
           </button>
         </div>
       </div>
+
     </div>
   </div>
 </div>

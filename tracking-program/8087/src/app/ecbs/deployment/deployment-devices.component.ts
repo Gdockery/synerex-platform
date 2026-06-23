@@ -19,6 +19,19 @@ export class DeploymentDevicesComponent implements OnInit {
   newDevice: any = { device_name: '', device_type: 'APF', location: '', breaker_req: '', ct_req: '' };
   saving = false;
 
+  // Barcode scanner state
+  showScanner = false;
+  scannerTarget: 'expected' | 'installed' = 'installed';
+
+  // Serial number editing
+  editingSerial: 'expected' | 'installed' | null = null;
+  serialDraft = '';
+  serialSaving = false;
+
+  // GPS state
+  gpsCapturing = false;
+  gpsError = '';
+
   readonly STATUSES = ['Pending', 'In Progress', 'Installed', 'CT Verified', 'Communications Verified', 'Commissioned', 'Failed'];
   readonly TYPES = ['APF', 'Gateway', 'Meter', 'XECO600', 'Load Controller', 'Line Filter'];
   readonly WORKFLOW = ['Pending', 'In Progress', 'Installed', 'CT Verified', 'Communications Verified', 'Commissioned'];
@@ -120,9 +133,102 @@ export class DeploymentDevicesComponent implements OnInit {
   advanceStatus(d: any) {
     var next = this.nextStep(d);
     if (!next) return;
-    this.api.patch('/api/dep/devices/' + d.id, { status: next }).subscribe({
+    // When advancing to "Installed", try to capture GPS automatically
+    if (next === 'Installed') {
+      this._advanceWithGps(d, next);
+    } else {
+      this.api.patch('/api/dep/devices/' + d.id, { status: next }).subscribe({
+        next: () => this.load(),
+      });
+    }
+  }
+
+  private _advanceWithGps(d: any, status: string) {
+    var self = this;
+    var payload: any = { status: status };
+    if (!navigator.geolocation) {
+      self.api.patch('/api/dep/devices/' + d.id, payload).subscribe({ next: () => self.load() });
+      return;
+    }
+    self.gpsCapturing = true;
+    self.gpsError = '';
+    navigator.geolocation.getCurrentPosition(
+      function(pos) {
+        self.gpsCapturing = false;
+        payload.install_lat = pos.coords.latitude;
+        payload.install_lng = pos.coords.longitude;
+        self.api.patch('/api/dep/devices/' + d.id, payload).subscribe({ next: () => self.load() });
+      },
+      function() {
+        self.gpsCapturing = false;
+        self.api.patch('/api/dep/devices/' + d.id, payload).subscribe({ next: () => self.load() });
+      },
+      { timeout: 5000, maximumAge: 60000 }
+    );
+  }
+
+  // ── Barcode / Serial ──────────────────────────────────────────────────────
+
+  openScanner(target: 'expected' | 'installed') {
+    this.scannerTarget = target;
+    this.showScanner = true;
+  }
+
+  onScanned(value: string) {
+    this.showScanner = false;
+    if (!this.selected) return;
+    var field = this.scannerTarget === 'expected' ? 'expected_serial' : 'installed_serial';
+    var payload: any = {};
+    payload[field] = value;
+    this.api.patch('/api/dep/devices/' + this.selected.id, payload).subscribe({
       next: () => this.load(),
     });
+  }
+
+  onScanCancelled() {
+    this.showScanner = false;
+  }
+
+  startEditSerial(target: 'expected' | 'installed') {
+    this.editingSerial = target;
+    this.serialDraft = target === 'expected'
+      ? (this.selected && this.selected.expected_serial || '')
+      : (this.selected && this.selected.installed_serial || '');
+  }
+
+  saveSerial() {
+    if (!this.selected || !this.editingSerial) return;
+    this.serialSaving = true;
+    var field = this.editingSerial === 'expected' ? 'expected_serial' : 'installed_serial';
+    var payload: any = {};
+    payload[field] = this.serialDraft;
+    this.api.patch('/api/dep/devices/' + this.selected.id, payload).subscribe({
+      next: () => {
+        this.serialSaving = false;
+        this.editingSerial = null;
+        this.load();
+      },
+      error: () => { this.serialSaving = false; },
+    });
+  }
+
+  cancelEditSerial() {
+    this.editingSerial = null;
+    this.serialDraft = '';
+  }
+
+  serialMatch(): boolean {
+    if (!this.selected) return false;
+    var exp = (this.selected.expected_serial || '').trim();
+    var ins = (this.selected.installed_serial || '').trim();
+    return exp && ins && exp === ins;
+  }
+
+  serialMismatch(): boolean {
+    if (!this.selected) return false;
+    var exp = (this.selected.expected_serial || '').trim();
+    var ins = (this.selected.installed_serial || '').trim();
+    return exp && ins && exp !== ins;
   }
 
   addDevice() {

@@ -9,6 +9,7 @@ import { ApiRequestService } from '../../api/api-request.service';
 })
 export class DeploymentCloseoutComponent implements OnInit {
   depId: number = 0;
+  dep: any = null;
   requirements: any[] = [];
   loading = true;
   validating = false;
@@ -16,12 +17,76 @@ export class DeploymentCloseoutComponent implements OnInit {
   approving = false;
   approved = false;
 
+  // PM Sign-off
+  showPmSignoff = false;
+  pmSignature = '';
+  pmNotes = '';
+  pmSigning = false;
+  pmEligibleUsers: any[] = [];
+  showAssignPm = false;
+  selectedPmId: number = 0;
+  assigningPm = false;
+
   constructor(private route: ActivatedRoute, private router: Router, private api: ApiRequestService) {}
 
   ngOnInit() {
     this.route.params.subscribe((p: any) => {
       this.depId = Number(p['id']);
       this.load();
+      this.loadDep();
+      this.loadPmUsers();
+    });
+  }
+
+  loadDep() {
+    this.api.get('/api/dep/deployments/' + this.depId).subscribe({
+      next: (r: any) => { this.dep = (r && r.response) ? r.response : null; },
+    });
+  }
+
+  loadPmUsers() {
+    this.api.get('/api/dep/users/pm-eligible').subscribe({
+      next: (r: any) => { this.pmEligibleUsers = (r && r.response) ? r.response : []; },
+      error: () => {},
+    });
+  }
+
+  get pmSigned(): boolean { return !!(this.dep && this.dep.pm_signed_at); }
+  get pmSignedBy(): string {
+    if (!this.dep || !this.dep.pm_signed_at) return '';
+    return 'Signed ' + new Date(Number(this.dep.pm_signed_at)).toLocaleString();
+  }
+
+  submitPmSignoff() {
+    if (!this.pmSignature.trim()) return;
+    this.pmSigning = true;
+    this.api.post('/api/dep/deployments/' + this.depId + '/pm-signoff', {
+      signature: this.pmSignature.trim(),
+      notes: this.pmNotes.trim(),
+    }).subscribe({
+      next: (r: any) => {
+        this.pmSigning = false;
+        this.showPmSignoff = false;
+        this.dep = (r && r.response) ? r.response : this.dep;
+        this.pmSignature = '';
+        this.pmNotes = '';
+      },
+      error: () => { this.pmSigning = false; },
+    });
+  }
+
+  assignPm() {
+    if (!this.selectedPmId) return;
+    this.assigningPm = true;
+    this.api.patch('/api/dep/deployments/' + this.depId + '/assign-pm', {
+      project_manager_id: this.selectedPmId,
+    }).subscribe({
+      next: (r: any) => {
+        this.assigningPm = false;
+        this.showAssignPm = false;
+        this.dep = (r && r.response) ? r.response : this.dep;
+      },
+      error: () => { this.assigningPm = false; },
     });
   }
 

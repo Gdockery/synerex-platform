@@ -74,3 +74,31 @@ h2{margin:0;font-size:18px;color:#fff;flex:1;}
 
 .ddv-detail-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;color:$sub;.fa{font-size:48px;margin-bottom:16px;}p{font-size:14px;}}
 @media (max-width:900px){.ddv-split{grid-template-columns:1fr;}.ddv-list-panel{max-height:50vh;}.ddv-detail-panel{max-height:none;}}
+
+/* GPS toast */
+.ddv-gps-toast{position:fixed;top:16px;left:50%;transform:translateX(-50%);background:#161b22;border:1px solid #00b0ff;border-radius:8px;padding:10px 20px;color:#00b0ff;font-size:13px;font-weight:600;z-index:9000;.fa{margin-right:8px;}}
+
+/* Serial Number Section */
+.ddv-serial-section{background:#0d1117;border:1px solid #30363d;border-radius:10px;padding:16px;margin-bottom:20px;}
+.ddv-serial-title{font-size:12px;color:#546e7a;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;margin-bottom:12px;display:flex;align-items:center;gap:10px;.fa{color:#00b0ff;}}
+.ddv-serial-match-badge{background:rgba(0,230,118,0.1);color:#00e676;border:1px solid rgba(0,230,118,0.3);padding:2px 10px;border-radius:10px;font-size:11px;font-weight:600;.fa{margin-right:4px;}}
+.ddv-serial-mismatch-badge{background:rgba(244,67,54,0.1);color:#f44336;border:1px solid rgba(244,67,54,0.3);padding:2px 10px;border-radius:10px;font-size:11px;font-weight:700;.fa{margin-right:4px;}}
+.ddv-serial-row{margin-bottom:10px;&:last-child{margin-bottom:0;}}
+.ddv-serial-installed{padding-top:10px;border-top:1px solid rgba(255,255,255,0.06);}
+.ddv-serial-label{font-size:11px;color:#546e7a;margin-bottom:6px;}
+.ddv-serial-val-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.ddv-serial-val{font-family:monospace;font-size:14px;color:#e0e0e0;flex:1;min-width:0;word-break:break-all;
+  &.ddv-serial-missing{color:#546e7a;font-style:italic;font-family:inherit;}
+}
+.ddv-serial-btn{background:none;border:1px solid #30363d;border-radius:6px;color:#546e7a;cursor:pointer;padding:6px 10px;font-size:13px;min-height:36px;
+  &:hover{border-color:#00b0ff;color:#00b0ff;}
+}
+.ddv-serial-btn-scan{background:#0d2137;color:#00b0ff;border-color:rgba(0,176,255,0.3);font-weight:600;.fa{margin-right:4px;}}
+.ddv-serial-edit-row{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.ddv-serial-input{flex:1;background:#161b22;border:1px solid #00b0ff;border-radius:6px;color:#e0e0e0;font-family:monospace;font-size:14px;padding:8px 12px;min-height:40px;&:focus{outline:none;}}
+.ddv-serial-save{background:#00b0ff;color:#000;border:none;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:700;cursor:pointer;min-height:40px;&:disabled{opacity:0.5;}}
+.ddv-serial-cancel{background:none;color:#546e7a;border:1px solid #30363d;border-radius:6px;padding:8px 12px;font-size:13px;cursor:pointer;min-height:40px;}
+
+/* GPS value display */
+.ddv-gps-val{color:#00e676;font-size:13px;.fa{margin-right:4px;}}
+.ddv-gps-hint{font-size:11px;color:rgba(0,176,255,0.7);margin-left:6px;font-weight:400;}

@@ -1,0 +1,98 @@
+<div class="bs-overlay">
+  <div class="bs-modal">
+
+    <!-- Header -->
+    <div class="bs-header">
+      <span class="bs-title"><span class="fa fa-barcode"></span> {{ label }}</span>
+      <button class="bs-close fa fa-times" (click)="cancel()"></button>
+    </div>
+
+    <!-- HTTP fallback notice -->
+    <div class="bs-https-notice" *ngIf="httpsRequired">
+      <span class="fa fa-lock bs-lock-icon"></span>
+      <p>Camera scanning requires a secure connection (HTTPS).</p>
+      <p class="bs-hint">Enter the serial number manually below.</p>
+    </div>
+
+    <!-- Loading camera -->
+    <div class="bs-loading" *ngIf="scanning">
+      <span class="fa fa-spinner fa-spin"></span> Starting camera...
+    </div>
+
+    <!-- Camera error -->
+    <div class="bs-cam-error" *ngIf="cameraError">
+      <span class="fa fa-exclamation-triangle"></span> {{ cameraError }}
+    </div>
+
+    <!-- Camera feed -->
+    <div class="bs-video-wrap" *ngIf="cameraActive && !scannedValue">
+      <video id="bs-video" class="bs-video" autoplay playsinline muted></video>
+      <div class="bs-scan-overlay">
+        <div class="bs-scan-line"></div>
+        <div class="bs-scan-corner bs-tl"></div>
+        <div class="bs-scan-corner bs-tr"></div>
+        <div class="bs-scan-corner bs-bl"></div>
+        <div class="bs-scan-corner bs-br"></div>
+      </div>
+      <div class="bs-hint-text">{{ hint }}</div>
+      <div class="bs-cam-actions">
+        <button class="bs-btn-ghost" (click)="useManual()">
+          <span class="fa fa-keyboard-o"></span> Type it instead
+        </button>
+      </div>
+    </div>
+
+    <!-- Scan result confirmation -->
+    <div class="bs-result" *ngIf="scannedValue">
+      <div class="bs-result-icon fa fa-check-circle"></div>
+      <div class="bs-result-label">Barcode Detected</div>
+      <div class="bs-result-value">{{ scannedValue }}</div>
+      <div class="bs-result-actions">
+        <button class="bs-btn-primary" (click)="confirm()">
+          <span class="fa fa-check"></span> Use This Value
+        </button>
+        <button class="bs-btn-ghost" (click)="rescan()">
+          <span class="fa fa-redo"></span> Scan Again
+        </button>
+      </div>
+    </div>
+
+    <!-- Manual entry (fallback) — always shown below camera -->
+    <div class="bs-manual" *ngIf="!cameraActive || cameraError || httpsRequired">
+      <div class="bs-manual-label">Enter manually:</div>
+      <div class="bs-manual-row">
+        <input class="bs-manual-input"
+               [(ngModel)]="manualValue"
+               placeholder="Type or paste barcode value..."
+               (keydown.enter)="submitManual()"
+               autocomplete="off"
+               autocorrect="off"
+               autocapitalize="off"
+               spellcheck="false"/>
+        <button class="bs-btn-primary" (click)="submitManual()" [disabled]="!manualValue || !manualValue.trim()">
+          <span class="fa fa-check"></span> Use
+        </button>
+      </div>
+      <div class="bs-manual-hint">Tip: a Bluetooth barcode scanner will type directly into this field.</div>
+    </div>
+
+    <!-- Also show manual input alongside camera as secondary option -->
+    <div class="bs-manual bs-manual-secondary" *ngIf="cameraActive && !scannedValue">
+      <div class="bs-manual-label">Or type it:</div>
+      <div class="bs-manual-row">
+        <input class="bs-manual-input"
+               [(ngModel)]="manualValue"
+               placeholder="Manual entry..."
+               (keydown.enter)="submitManual()"
+               autocomplete="off"
+               autocorrect="off"
+               autocapitalize="off"
+               spellcheck="false"/>
+        <button class="bs-btn-secondary" (click)="submitManual()" [disabled]="!manualValue || !manualValue.trim()">
+          Use
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>

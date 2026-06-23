@@ -36,6 +36,7 @@ import { DeploymentCommissioningComponent } from './deployment/deployment-commis
 import { DeploymentCloseoutComponent }      from './deployment/deployment-closeout.component';
 import { DeploymentPhotosComponent }        from './deployment/deployment-photos.component';
 import { DeploymentMaterialsComponent }     from './deployment/deployment-materials.component';
+import { BarcodeScannerComponent }          from '../shared/barcode-scanner/barcode-scanner.component';
 
 @NgModule({
   imports: [
@@ -76,6 +77,7 @@ import { DeploymentMaterialsComponent }     from './deployment/deployment-materi
     DeploymentCloseoutComponent,
     DeploymentPhotosComponent,
     DeploymentMaterialsComponent,
+    BarcodeScannerComponent,
   ],
 })
 export class EcbsModule {}
