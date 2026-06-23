@@ -136,7 +136,7 @@
                 <span class="arl-set-sep"> / </span>
                 <span class="arl-set-crit">{{ rule.critical_threshold || '—' }}</span>
               </td>
-              <td class="arl-value">{{ rule.current_value ?? '—' }}</td>
+              <td class="arl-value">{{ rule.current_value || '—' }}</td>
               <td>
                 <span class="arl-status-badge" [class]="ruleStatusClass(rule)">{{ ruleStatusLabel(rule) }}</span>
               </td>
@@ -218,7 +218,7 @@
             <div class="arl-top-asset">{{ alarm.asset_name || alarm.asset || '—' }}</div>
           </div>
           <div class="arl-top-right">
-            <div class="arl-top-value" [style.color]="alertSeverityColor(alarm.severity)">{{ alarm.current_value ?? '—' }}</div>
+            <div class="arl-top-value" [style.color]="alertSeverityColor(alarm.severity)">{{ alarm.current_value || '—' }}</div>
             <div class="arl-top-level" [style.color]="alertSeverityColor(alarm.severity)">{{ alarm.severity }}</div>
           </div>
         </div>
