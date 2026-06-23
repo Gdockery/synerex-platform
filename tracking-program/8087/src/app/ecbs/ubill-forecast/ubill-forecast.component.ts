@@ -93,7 +93,7 @@ export class UBillForecastComponent implements OnInit {
 
   // ── Config display ─────────────────────────────────────────────────────────
   get forecastName(): string  { return (this.nextForecast && this.nextForecast.forecast_month) ? this.nextForecast.forecast_month + ' Forecast' : '—'; }
-  get forecastSite(): string  { return (this.userService.user && this.userService.user.selectedProject && this.userService.user.selectedProject.name) || '—'; }
+  get forecastSite(): string  { var p = this.userService.user && this.userService.user.selectedProject; return p && p.name ? p.name.toString() : '—'; }
   get forecastUtility(): string { return (this.summary && this.summary.utility_provider) || '—'; }
   get forecastPeriod(): string  { return this.nextForecast ? this.nextForecast.forecast_month : '—'; }
   get forecastModel(): string   { return 'Hybrid (Regression + ML)'; }
