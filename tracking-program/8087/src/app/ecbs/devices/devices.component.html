@@ -1,173 +1,303 @@
-<!-- ECBS OS™ Devices — Spec SS-15 (Devices) + SS-16 (Device Scheduling) -->
-<div class="ecbs-page">
-  <div class="ecbs-page-header">
-    <div class="page-title-block">
-      <h1>Device Management™</h1>
-      <p>Manage all ECBS monitoring hardware — PQ meters, APFs, gateways, controllers, and edge devices.</p>
+<!-- ECBS OS™ Devices — Spec SS-15 -->
+<div class="dv-page">
+
+  <!-- ── Page Header ─────────────────────────────────────────────────────── -->
+  <div class="dv-header">
+    <div class="dv-header-left">
+      <h1 class="dv-title">Devices</h1>
+      <p class="dv-subtitle">Monitor and manage all devices at this site.</p>
     </div>
-    <div class="page-actions">
-      <button class="btn-ecbs btn-outline" (click)="loadAll()"><span class="fa fa-refresh"></span> Refresh</button>
-      <button class="btn-ecbs btn-outline" *ngIf="activeTab==='schedule'"><span class="fa fa-plus"></span> Add Schedule</button>
+    <div class="dv-header-right">
+      <div class="dv-search-wrap">
+        <span class="fa fa-search dv-search-icon"></span>
+        <input
+          type="text"
+          class="dv-search-input"
+          placeholder="Search devices..."
+          [value]="searchQuery"
+          (input)="onSearch($event)">
+      </div>
+      <button class="btn-ecbs btn-outline"><span class="fa fa-filter"></span> Filters</button>
+      <button class="btn-ecbs btn-outline" (click)="loadAll()">
+        <span class="fa fa-download"></span> Export Devices
+      </button>
     </div>
   </div>
 
-  <!-- Device Status Summary KPIs -->
-  <div class="ecbs-kpi-row">
-    <div class="ecbs-kpi-card kpi-green">
-      <div class="kpi-icon"><span class="fa fa-flash"></span></div>
-      <div class="kpi-value">{{ meters.length }}</div>
-      <div class="kpi-label">PQ Meters</div>
-      <div class="kpi-delta">{{ activeMeters }} Active</div>
-    </div>
-    <div class="ecbs-kpi-card kpi-blue">
-      <div class="kpi-icon"><span class="fa fa-wifi"></span></div>
-      <div class="kpi-value">{{ gateways.length }}</div>
-      <div class="kpi-label">Gateways</div>
-      <div class="kpi-delta neutral">{{ activeGateways }} Online</div>
-    </div>
-    <div class="ecbs-kpi-card kpi-purple">
-      <div class="kpi-icon"><span class="fa fa-filter"></span></div>
-      <div class="kpi-value">{{ apfs.length }}</div>
-      <div class="kpi-label">APF Units</div>
-      <div class="kpi-delta neutral">Active Harmonic Filters</div>
-    </div>
-    <div class="ecbs-kpi-card" [class.kpi-red]="offlineCount>0" [class.kpi-green]="offlineCount===0">
-      <div class="kpi-icon"><span class="fa fa-exclamation-triangle"></span></div>
-      <div class="kpi-value">{{ offlineCount }}</div>
-      <div class="kpi-label">Offline / Fault</div>
-      <div class="kpi-delta" [class.negative]="offlineCount>0">{{ offlineCount===0?'All Systems Clear':'Needs Attention' }}</div>
-    </div>
+  <!-- ── Loading ─────────────────────────────────────────────────────────── -->
+  <div *ngIf="loading" class="dv-loading">
+    <span class="fa fa-spinner fa-spin"></span> Loading devices...
   </div>
 
-  <!-- Tabs — Meters / Gateways / APF / Schedule -->
-  <div class="ecbs-tabs">
-    <button class="ecbs-tab" [class.active]="activeTab==='meters'" (click)="activeTab='meters'">
-      <span class="fa fa-flash"></span> PQ Meters <span class="tab-count">{{ meters.length }}</span>
-    </button>
-    <button class="ecbs-tab" [class.active]="activeTab==='gateways'" (click)="activeTab='gateways'">
-      <span class="fa fa-wifi"></span> Gateways <span class="tab-count">{{ gateways.length }}</span>
-    </button>
-    <button class="ecbs-tab" [class.active]="activeTab==='apf'" (click)="activeTab='apf'">
-      <span class="fa fa-filter"></span> APF Units <span class="tab-count">{{ apfs.length }}</span>
-    </button>
-    <button class="ecbs-tab" [class.active]="activeTab==='schedule'" (click)="activeTab='schedule'">
-      <span class="fa fa-calendar"></span> Scheduling
-    </button>
-  </div>
+  <div *ngIf="!loading">
 
-  <!-- ── METERS TAB ── -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='meters'">
-    <div *ngIf="loading" class="ecbs-spinner"><span class="fa fa-spinner fa-spin"></span> Loading devices...</div>
+    <!-- ── KPI Row ─────────────────────────────────────────────────────── -->
+    <div class="dv-kpi-row">
 
-    <div *ngIf="!loading && meters.length===0" class="ecbs-empty">
-      <span class="empty-icon fa fa-flash"></span>
-      <span class="empty-title">No PQ Meters Found</span>
-      <p>Add PQ meters to begin collecting electrical data.</p>
-      <a class="btn-ecbs btn-primary" routerLink="/electricity-meters">Add Meter</a>
+      <div class="dv-kpi-card">
+        <div class="dv-kpi-icon-wrap dv-icon-blue">
+          <span class="fa fa-desktop"></span>
+        </div>
+        <div class="dv-kpi-body">
+          <div class="dv-kpi-label">TOTAL DEVICES</div>
+          <div class="dv-kpi-value">{{ totalDevices }}</div>
+          <a class="dv-kpi-link">View All Devices &rarr;</a>
+        </div>
+      </div>
+
+      <div class="dv-kpi-card">
+        <div class="dv-kpi-icon-wrap dv-icon-green">
+          <span class="fa fa-check-circle"></span>
+        </div>
+        <div class="dv-kpi-body">
+          <div class="dv-kpi-label">ONLINE</div>
+          <div class="dv-kpi-value">{{ onlineCount }}</div>
+          <div class="dv-kpi-sub">{{ onlinePct }}%</div>
+        </div>
+      </div>
+
+      <div class="dv-kpi-card">
+        <div class="dv-kpi-icon-wrap dv-icon-yellow">
+          <span class="fa fa-exclamation-triangle"></span>
+        </div>
+        <div class="dv-kpi-body">
+          <div class="dv-kpi-label">WARNING</div>
+          <div class="dv-kpi-value">{{ warningCount }}</div>
+          <div class="dv-kpi-sub">{{ warningPct }}%</div>
+        </div>
+      </div>
+
+      <div class="dv-kpi-card">
+        <div class="dv-kpi-icon-wrap dv-icon-red">
+          <span class="fa fa-times-circle"></span>
+        </div>
+        <div class="dv-kpi-body">
+          <div class="dv-kpi-label">OFFLINE</div>
+          <div class="dv-kpi-value">{{ offlineCount }}</div>
+          <div class="dv-kpi-sub">{{ offlinePct }}%</div>
+        </div>
+      </div>
+
+      <div class="dv-kpi-card">
+        <div class="dv-kpi-icon-wrap dv-icon-purple">
+          <span class="fa fa-heartbeat"></span>
+        </div>
+        <div class="dv-kpi-body">
+          <div class="dv-kpi-label">HEALTH SCORE (AVG)</div>
+          <div class="dv-kpi-value">
+            {{ avgHealthScore }}<span class="dv-kpi-unit">/100</span>
+          </div>
+          <div class="dv-kpi-sub" [style.color]="healthColor(avgHealthScore)">{{ healthLabel(avgHealthScore) }}</div>
+          <a class="dv-kpi-link">View Health Details &rarr;</a>
+        </div>
+      </div>
+
+      <div class="dv-kpi-card">
+        <div class="dv-kpi-icon-wrap dv-icon-teal">
+          <span class="fa fa-shield"></span>
+        </div>
+        <div class="dv-kpi-body">
+          <div class="dv-kpi-label">FIRMWARE UP TO DATE</div>
+          <div class="dv-kpi-value">{{ firmwareUpToDatePct }}%</div>
+          <div class="dv-kpi-sub">{{ firmwareUpToDate }} of {{ totalDevices }}</div>
+          <a class="dv-kpi-link">View Details &rarr;</a>
+        </div>
+      </div>
+
     </div>
 
-    <table *ngIf="!loading && meters.length>0" class="ecbs-table">
-      <thead>
-        <tr><th>Meter Name</th><th>Model</th><th>Phase</th><th>Location</th><th>Serial #</th><th>License</th><th>Status</th><th>Last Reading</th><th></th></tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let m of meters">
-          <td style="font-weight:600;">{{ m.name }}</td>
-          <td style="color:#8899a6;">{{ m.model || '—' }}</td>
-          <td>{{ m.phases || '3Ø' }}</td>
-          <td style="color:#8899a6;">{{ m.location || '—' }}</td>
-          <td style="font-family:monospace;font-size:11px;">{{ m.serial_number || '—' }}</td>
-          <td><span [class]="m.license_active?'badge-healthy':'badge-warning'">{{ m.license_active?'Active':'Pending' }}</span></td>
-          <td><span [class]="statusClass(m.status)">{{ (m.status||'unknown')|titlecase }}</span></td>
-          <td style="font-size:11px;color:#546e7a;white-space:nowrap;">{{ m.lastReading | date:'MMM d, h:mm a' }}</td>
-          <td>
-            <a class="btn-ecbs btn-xs btn-outline" routerLink="/electricity-meters"><span class="fa fa-eye"></span> View</a>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
+    <!-- ── Content: Table + Sidebar ─────────────────────────────────────── -->
+    <div class="dv-content">
 
-  <!-- ── GATEWAYS TAB ── -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='gateways'">
-    <div *ngIf="!loading && gateways.length===0" class="ecbs-empty">
-      <span class="empty-icon fa fa-wifi"></span>
-      <span class="empty-title">No Gateways Found</span>
-      <a class="btn-ecbs btn-primary" routerLink="/gateways">Manage Gateways</a>
+      <!-- Device Table -->
+      <div class="dv-table-section">
+
+        <div class="dv-table-header">
+          <div class="dv-table-title">
+            DEVICES AT {{ projectName }} ({{ filteredDevices.length }})
+          </div>
+          <div class="dv-table-controls">
+            <button class="btn-ecbs btn-outline btn-sm" (click)="loadAll()" title="Refresh">
+              <span class="fa fa-refresh"></span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty state -->
+        <div *ngIf="allDevices.length === 0" class="dv-empty">
+          <span class="fa fa-desktop dv-empty-icon"></span>
+          <div class="dv-empty-title">No Devices Found</div>
+          <p>No meters, gateways, or switches have been configured for this project.</p>
+        </div>
+
+        <!-- Device table -->
+        <table *ngIf="allDevices.length > 0" class="dv-table">
+          <thead>
+            <tr>
+              <th>Device Name</th>
+              <th>Type</th>
+              <th>Location / Asset</th>
+              <th>Status</th>
+              <th>Health Score</th>
+              <th>Last Seen</th>
+              <th>Firmware</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let d of pagedDevices" class="dv-row">
+              <td class="dv-cell-name">
+                <span class="dv-device-icon">
+                  <span class="fa"
+                    [class.fa-tachometer]="d.sourceType === 'meter'"
+                    [class.fa-wifi]="d.sourceType === 'gateway'"
+                    [class.fa-filter]="d.sourceType === 'switch'"></span>
+                </span>
+                <span class="dv-device-name-text">{{ d.name }}</span>
+              </td>
+              <td class="dv-cell-type">{{ d.deviceTypeName }}</td>
+              <td class="dv-cell-loc">{{ d.location }}</td>
+              <td class="dv-cell-status">
+                <span class="dv-status-badge"
+                  [class.dv-status-online]="d.status === 'Online'"
+                  [class.dv-status-warning]="d.status === 'Warning'"
+                  [class.dv-status-offline]="d.status === 'Offline'">
+                  <span class="dv-status-dot"></span>{{ d.status }}
+                </span>
+              </td>
+              <td class="dv-cell-health">
+                <div class="dv-health-row">
+                  <div class="dv-health-bar">
+                    <div class="dv-health-fill"
+                         [style.width]="d.healthScore + '%'"
+                         [style.background]="healthColor(d.healthScore)"></div>
+                  </div>
+                  <span class="dv-health-num">{{ d.healthScore }}</span>
+                </div>
+              </td>
+              <td class="dv-cell-lastseen">{{ timeAgo(d.lastSeenMs) }}</td>
+              <td class="dv-cell-fw">{{ d.firmware }}</td>
+              <td class="dv-cell-actions">
+                <button class="btn-ecbs btn-xs btn-outline">
+                  <span class="fa fa-ellipsis-h"></span>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Pagination -->
+        <div *ngIf="filteredDevices.length > pageSize" class="dv-pagination">
+          <span class="dv-pag-info">
+            Showing {{ pagedStart }} to {{ pagedEnd }} of {{ filteredDevices.length }} devices
+          </span>
+          <div class="dv-pag-buttons">
+            <button class="dv-pag-btn" [disabled]="currentPage === 1" (click)="setPage(currentPage - 1)">
+              <span class="fa fa-chevron-left"></span>
+            </button>
+            <ng-container *ngFor="let p of pageNumbers">
+              <span *ngIf="p === -1" class="dv-pag-ellipsis">...</span>
+              <button *ngIf="p !== -1" class="dv-pag-btn" [class.dv-pag-active]="p === currentPage" (click)="setPage(p)">
+                {{ p }}
+              </button>
+            </ng-container>
+            <button class="dv-pag-btn" [disabled]="currentPage === totalPages" (click)="setPage(currentPage + 1)">
+              <span class="fa fa-chevron-right"></span>
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Right Sidebar -->
+      <div class="dv-sidebar">
+
+        <!-- Devices by Type donut -->
+        <div class="dv-sidebar-card">
+          <div class="dv-sidebar-title">DEVICES BY TYPE</div>
+          <div class="dv-donut-wrap" *ngIf="totalDevices > 0">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="42" fill="none" stroke="#1e2d45" stroke-width="14"/>
+              <ng-container *ngFor="let seg of typeDonutSegments">
+                <circle *ngIf="seg.dash > 0"
+                        cx="55" cy="55" r="42" fill="none"
+                        [attr.stroke]="seg.color"
+                        stroke-width="14"
+                        [attr.stroke-dasharray]="seg.dash + ' ' + (seg.total - seg.dash)"
+                        [attr.stroke-dashoffset]="seg.offset"
+                        style="transform:rotate(-90deg);transform-origin:55px 55px;"></circle>
+              </ng-container>
+              <text x="55" y="50" text-anchor="middle" font-size="20" font-weight="700" fill="#e8edf5">{{ totalDevices }}</text>
+              <text x="55" y="64" text-anchor="middle" font-size="9" fill="#8899a6">Total</text>
+            </svg>
+            <div class="dv-donut-legend">
+              <div *ngFor="let g of typeGroups" class="dv-donut-item">
+                <span class="dv-donut-dot" [style.background]="g.color"></span>
+                <span class="dv-donut-name">{{ g.label }}</span>
+                <span class="dv-donut-count">{{ g.count }} ({{ g.pct }}%)</span>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="totalDevices === 0" class="dv-sidebar-empty">No devices configured.</div>
+        </div>
+
+        <!-- Device Health Summary donut -->
+        <div class="dv-sidebar-card">
+          <div class="dv-sidebar-title">DEVICE HEALTH SUMMARY</div>
+          <div class="dv-donut-wrap" *ngIf="totalDevices > 0">
+            <svg width="110" height="110" viewBox="0 0 110 110">
+              <circle cx="55" cy="55" r="42" fill="none" stroke="#1e2d45" stroke-width="14"/>
+              <ng-container *ngFor="let seg of healthDonutSegments">
+                <circle *ngIf="seg.dash > 0"
+                        cx="55" cy="55" r="42" fill="none"
+                        [attr.stroke]="seg.color"
+                        stroke-width="14"
+                        [attr.stroke-dasharray]="seg.dash + ' ' + (seg.total - seg.dash)"
+                        [attr.stroke-dashoffset]="seg.offset"
+                        style="transform:rotate(-90deg);transform-origin:55px 55px;"></circle>
+              </ng-container>
+              <text x="55" y="50" text-anchor="middle" font-size="20" font-weight="700" fill="#e8edf5">{{ avgHealthScore }}</text>
+              <text x="55" y="64" text-anchor="middle" font-size="9" fill="#8899a6">Average</text>
+            </svg>
+            <div class="dv-donut-legend">
+              <ng-container *ngFor="let b of healthBuckets">
+                <div *ngIf="b.count > 0" class="dv-donut-item">
+                  <span class="dv-donut-dot" [style.background]="b.color"></span>
+                  <span class="dv-donut-name">{{ b.label }}</span>
+                  <span class="dv-donut-count">{{ b.count }} ({{ b.pct }}%)</span>
+                </div>
+              </ng-container>
+            </div>
+          </div>
+          <div *ngIf="totalDevices === 0" class="dv-sidebar-empty">No devices configured.</div>
+        </div>
+
+        <!-- Recent Device Alerts -->
+        <div class="dv-sidebar-card">
+          <div class="dv-sidebar-header">
+            <div class="dv-sidebar-title">RECENT DEVICE ALERTS</div>
+            <a class="dv-sidebar-link">View All &rarr;</a>
+          </div>
+          <div *ngIf="recentAlerts.length === 0" class="dv-alerts-clear">
+            <span class="fa fa-check-circle" style="color:#00e676;margin-right:6px;"></span>
+            All devices operating normally
+          </div>
+          <div *ngFor="let a of recentAlerts" class="dv-alert-row">
+            <span class="dv-alert-icon-wrap" [style.color]="a.color">
+              <span [class]="'fa ' + a.iconClass"></span>
+            </span>
+            <div class="dv-alert-body">
+              <div class="dv-alert-name">{{ a.name }}</div>
+              <div class="dv-alert-msg">{{ a.message }}</div>
+            </div>
+            <div class="dv-alert-time">{{ a.timeAgo }}</div>
+          </div>
+        </div>
+
+      </div>
+
     </div>
-    <table *ngIf="gateways.length>0" class="ecbs-table">
-      <thead><tr><th>Name</th><th>IP Address</th><th>Firmware</th><th>Meters Connected</th><th>Uptime</th><th>Status</th></tr></thead>
-      <tbody>
-        <tr *ngFor="let g of gateways">
-          <td style="font-weight:600;">{{ g.name }}</td>
-          <td style="font-family:monospace;font-size:11px;">{{ g.ip || '—' }}</td>
-          <td style="color:#8899a6;">{{ g.firmware || '—' }}</td>
-          <td>{{ g.meterCount || 0 }}</td>
-          <td style="color:#8899a6;">{{ g.uptime || '—' }}</td>
-          <td><span [class]="statusClass(g.status)">{{ (g.status||'unknown')|titlecase }}</span></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
 
-  <!-- ── APF TAB ── -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='apf'">
-    <div *ngIf="apfs.length===0" class="ecbs-empty">
-      <span class="empty-icon fa fa-filter"></span>
-      <span class="empty-title">No APF Units Configured</span>
-      <p>Active Harmonic Filter units appear here after commissioning.</p>
-    </div>
-    <table *ngIf="apfs.length>0" class="ecbs-table">
-      <thead><tr><th>APF Name</th><th>Model</th><th>Serial #</th><th>CT Amp Rating</th><th>CT Ratio</th><th>CT Orientation</th><th>Phase Rotation</th><th>Status</th></tr></thead>
-      <tbody>
-        <tr *ngFor="let a of apfs">
-          <td style="font-weight:600;">{{ a.name || a.device_id }}</td>
-          <td>{{ a.model || '—' }}</td>
-          <td style="font-family:monospace;font-size:11px;">{{ a.serial_number || '—' }}</td>
-          <td>{{ a.ct_amp_rating || '—' }} A</td>
-          <td>{{ a.ct_ratio || '—' }}</td>
-          <td><span [class]="a.ct_orientation?'badge-healthy':'badge-critical'">{{ a.ct_orientation?'Correct':'Incorrect' }}</span></td>
-          <td><span [class]="a.phase_rotation_verified?'badge-healthy':'badge-warning'">{{ a.phase_rotation_verified?'Verified':'Pending' }}</span></td>
-          <td><span [class]="statusClass(a.status)">{{ (a.status||'planned')|titlecase }}</span></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>
-
-  <!-- ── SCHEDULING TAB — Spec SS-16 ── -->
-  <div class="ecbs-card ecbs-tab-card" *ngIf="activeTab==='schedule'">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-      <span style="font-size:12px;color:#8899a6;">Schedule operational behaviors — enable, disable, maintenance windows. All schedules are logged and auditable.</span>
-      <button class="btn-ecbs btn-primary btn-sm"><span class="fa fa-plus"></span> New Schedule</button>
-    </div>
-
-    <div *ngIf="schedules.length===0" class="ecbs-empty" style="padding:40px;">
-      <span class="empty-icon fa fa-calendar"></span>
-      <span class="empty-title">No Schedules Configured</span>
-      <p>Device schedules allow automatic enable/disable, maintenance windows, and service periods for all ECBS hardware.</p>
-      <button class="btn-ecbs btn-primary" (click)="addSampleSchedule()"><span class="fa fa-plus"></span> Create First Schedule</button>
-    </div>
-
-    <table *ngIf="schedules.length>0" class="ecbs-table">
-      <thead>
-        <tr><th>Schedule Name</th><th>Device</th><th>Action</th><th>Type</th><th>Time</th><th>Days</th><th>Next Run</th><th>Status</th><th></th></tr>
-      </thead>
-      <tbody>
-        <tr *ngFor="let s of schedules">
-          <td style="font-weight:600;">{{ s.name }}</td>
-          <td style="color:#8899a6;">{{ s.device }}</td>
-          <td><span [class]="s.action==='enable'?'badge-healthy':s.action==='disable'?'badge-offline':'badge-warning'">{{ s.action | titlecase }}</span></td>
-          <td>{{ s.type | titlecase }}</td>
-          <td style="font-family:monospace;font-size:11px;">{{ s.time }}</td>
-          <td style="font-size:11px;">{{ s.days }}</td>
-          <td style="font-size:11px;color:#8899a6;">{{ s.nextRun }}</td>
-          <td><span [class]="s.enabled?'badge-healthy':'badge-offline'">{{ s.enabled?'Active':'Paused' }}</span></td>
-          <td>
-            <button class="btn-ecbs btn-xs btn-outline" (click)="s.enabled=!s.enabled">{{ s.enabled?'Pause':'Resume' }}</button>
-          </td>
-        </tr>
-      </tbody>
-    </table>
   </div>
 
 </div>
