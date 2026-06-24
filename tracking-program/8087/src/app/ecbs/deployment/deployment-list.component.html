@@ -37,8 +37,9 @@
       <button class="dep-btn-primary" (click)="create()" [disabled]="creating || !newName.trim()">
         {{ creating ? 'Creating...' : 'Create' }}
       </button>
-      <button class="dep-btn-ghost" (click)="showCreate = false">Cancel</button>
+      <button class="dep-btn-ghost" (click)="showCreate = false; createError = ''">Cancel</button>
     </div>
+    <p class="dep-create-error" *ngIf="createError">{{ createError }}</p>
   </div>
 
   <div class="dep-loading" *ngIf="loading">

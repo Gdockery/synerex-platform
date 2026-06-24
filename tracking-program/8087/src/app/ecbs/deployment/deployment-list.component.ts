@@ -16,6 +16,7 @@ export class DeploymentListComponent implements OnInit {
   showCreate = false;
   newName = '';
   creating = false;
+  createError = '';
   canCreate = false;
 
   // Field-mode project picker (role 14)
@@ -76,24 +77,53 @@ export class DeploymentListComponent implements OnInit {
   }
 
   create() {
-    if (!this.newName.trim()) return;
+    const name = this.newName.trim();
+    if (!name) return;
+
+    // Re-read project at call time in case it was selected after ngOnInit
+    if (!this.projectId) {
+      const p = this.userService.user && this.userService.user.selectedProject;
+      if (p) {
+        this.projectId = p.id;
+        this.projectName = p.name ? p.name.toString() : '';
+      }
+    }
+
+    if (!this.projectId) {
+      this.createError = 'No project selected. Please select a project first.';
+      return;
+    }
+
+    this.createError = '';
     this.creating = true;
     this.api.post('/api/dep/deployments', {
       project_id: this.projectId,
-      deployment_name: this.newName.trim(),
+      deployment_name: name,
     }).subscribe({
       next: (r: any) => {
-        var dep = (r && r.response) ? r.response : null;
+        const dep = (r && r.response) ? r.response : null;
         this.creating = false;
         this.showCreate = false;
         this.newName = '';
+        this.createError = '';
         if (dep) {
           this.router.navigate(['/ecbs/deployment', dep.id]);
         } else {
           this.load();
         }
       },
-      error: () => { this.creating = false; },
+      error: (err: any) => {
+        this.creating = false;
+        const code = err && err.code;
+        if (code === 400) {
+          this.createError = 'Invalid request. Check that a project is selected.';
+        } else if (code === 404) {
+          this.createError = 'Project not found or not accessible.';
+        } else {
+          this.createError = 'Failed to create deployment. Please try again.';
+        }
+        console.error('[Deployment] create failed:', err);
+      },
     });
   }
 
