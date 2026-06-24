@@ -136,6 +136,10 @@ def license_required(f):
         if role == 9:
             return f(*args, **kwargs)
 
+        # Project Manager bypass (role=14) — internal field role, no org/license required
+        if role == 14:
+            return f(*args, **kwargs)
+
         org_id = request.headers.get("x-org-id")
         if not org_id and current_user.is_authenticated:
             # Try Bearer token - verify via License Service
