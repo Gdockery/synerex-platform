@@ -1,536 +1,304 @@
-$bg-dark:   #0d1117;
-$bg-card:   #161b22;
-$bg-card2:  #1c2330;
-$border:    #30363d;
-$text:      #e0e0e0;
-$text-dim:  #8b949e;
-$accent:    #00b0ff;
-$green:     #00e676;
-$yellow:    #ffb300;
-$red:       #ef5350;
+$bg:      #0d1117;
+$card:    #161b22;
+$card2:   #1c2330;
+$border:  #30363d;
+$txt:     #e0e0e0;
+$dim:     #8b949e;
+$blue:    #00b0ff;
+$green:   #00e676;
+$yellow:  #ffb300;
+$red:     #ef5350;
+$purple:  #ce93d8;
 
-// ── Page shell ─────────────────────────────────────────────────────────────
+// ── Shell ───────────────────────────────────────────────────────────────────
 .da-page {
-  background: $bg-dark;
+  background: $bg;
   min-height: 100vh;
-  color: $text;
+  color: $txt;
   display: flex;
   flex-direction: column;
-  padding-bottom: 80px;
+  padding-bottom: 70px;
 }
 
 .da-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 60vh;
-  color: $text-dim;
-  font-size: 16px;
-  gap: 10px;
+  display: flex; align-items: center; justify-content: center;
+  min-height: 60vh; color: $dim; font-size: 16px; gap: 10px;
 }
 
-// ── Header ─────────────────────────────────────────────────────────────────
+// ── Header ───────────────────────────────────────────────────────────────────
 .da-header {
-  background: $bg-card;
+  background: $card;
   border-bottom: 1px solid $border;
-  padding: 16px 24px;
+  padding: 14px 20px;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 16px;
 }
-
-.da-header-left {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
+.da-header-left { display: flex; align-items: flex-start; gap: 14px; }
+.da-header-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 
 .da-back {
-  background: none;
-  border: 1px solid $border;
-  color: $text-dim;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-top: 4px;
-  &:hover { color: $text; border-color: $accent; }
+  background: none; border: 1px solid $border; color: $dim;
+  width: 34px; height: 34px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; margin-top: 2px;
+  &:hover { color: $txt; border-color: $blue; }
 }
 
-.da-header-top {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 4px;
-}
-
-.da-title {
-  font-size: 22px;
-  font-weight: 700;
-  color: #fff;
-}
+.da-header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 3px; }
+.da-title      { font-size: 22px; font-weight: 700; color: #fff; }
+.da-sep        { color: $dim; margin: 0 4px; }
 
 .da-status-badge {
-  padding: 3px 10px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  &.badge-pending   { background: $border; color: $text-dim; }
-  &.badge-warning   { background: rgba($yellow, 0.18); color: $yellow; }
-  &.badge-progress  { background: rgba($accent, 0.18); color: $accent; }
-  &.badge-active    { background: rgba($green, 0.18); color: $green; }
-  &.badge-hold      { background: rgba($red, 0.18); color: $red; }
+  padding: 3px 10px; border-radius: 4px; font-size: 11px; font-weight: 700; letter-spacing: .05em;
+  &.badge-pending  { background: $border; color: $dim; }
+  &.badge-warning  { background: rgba($yellow,.18); color: $yellow; }
+  &.badge-progress { background: rgba($blue,.18);   color: $blue; }
+  &.badge-active   { background: rgba($green,.18);  color: $green; }
+  &.badge-hold     { background: rgba($red,.18);    color: $red; }
 }
 
-.da-subtitle {
-  font-size: 15px;
-  color: $text-dim;
-  margin-bottom: 6px;
-}
+.da-subtitle { font-size: 14px; color: $dim; margin-bottom: 5px; }
 
 .da-meta-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 4px;
-  font-size: 12px;
-  color: $text-dim;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  font-size: 12px; color: $dim;
 }
-.da-meta-item { color: $text; }
-.da-meta-sep  { color: $text-dim; margin: 0 2px; }
+.da-meta-item { color: $txt; }
 
-.da-header-right {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex-shrink: 0;
-  padding-top: 4px;
-}
-
-.da-sync {
-  font-size: 12px;
-  color: $text-dim;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  .fa { color: $accent; }
-}
+.da-sync  { font-size: 12px; color: $dim; display: flex; align-items: center; gap: 6px; .fa { color: $blue; } }
 
 .da-icon-btn {
-  position: relative;
-  background: none;
-  border: 1px solid $border;
-  color: $text-dim;
-  width: 36px;
-  height: 36px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  &:hover { color: $text; border-color: $accent; }
+  position: relative; background: none; border: 1px solid $border; color: $dim;
+  width: 34px; height: 34px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  &:hover { color: $txt; border-color: $blue; }
 }
-
 .da-badge {
-  position: absolute;
-  top: -5px;
-  right: -5px;
-  background: $red;
-  color: #fff;
-  border-radius: 10px;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 5px;
-  min-width: 16px;
-  text-align: center;
+  position: absolute; top: -5px; right: -5px; background: $red; color: #fff;
+  border-radius: 10px; font-size: 10px; font-weight: 700; padding: 1px 5px;
 }
 
-// ── KPI Bar ────────────────────────────────────────────────────────────────
-.da-kpi-bar {
-  display: flex;
-  gap: 12px;
-  padding: 16px 24px;
-  overflow-x: auto;
+// ── 6-card KPI strip ─────────────────────────────────────────────────────────
+.da-kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  border-bottom: 1px solid $border;
 }
 
-.da-kpi-card {
-  background: $bg-card;
-  border: 1px solid $border;
-  border-radius: 10px;
-  padding: 14px 16px;
+.da-kpi {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  min-width: 160px;
-  flex: 1;
+  padding: 16px 18px;
+  border-right: 1px solid $border;
   cursor: pointer;
-  transition: border-color 0.15s;
-  &:hover { border-color: $accent; }
-  &.da-kpi-card--warn:hover { border-color: $yellow; }
-  &.da-kpi-card--danger:hover { border-color: $red; }
+  transition: background .15s;
+  &:last-child { border-right: none; }
+  &:hover { background: rgba($blue,.04); }
+  &.da-kpi--warn   { &:hover { background: rgba($yellow,.04); } }
+  &.da-kpi--danger { &:hover { background: rgba($red,.04); } }
+  &.da-kpi--purple { cursor: default; &:hover { background: rgba($purple,.04); } }
 }
 
 .da-kpi-icon {
-  font-size: 20px;
-  color: $accent;
-  margin-top: 2px;
-  .da-kpi-card--warn &  { color: $yellow; }
-  .da-kpi-card--danger & { color: $red; }
+  font-size: 22px; margin-top: 2px; flex-shrink: 0;
+  &.da-kpi-icon--blue   { color: $blue; }
+  &.da-kpi-icon--yellow { color: $yellow; }
+  &.da-kpi-icon--red    { color: $red; }
+  &.da-kpi-icon--purple { color: $purple; }
+  &.da-kpi-icon--dim    { color: $dim; }
 }
 
-.da-kpi-body {
-  flex: 1;
-  min-width: 0;
+.da-kpi-body { flex: 1; min-width: 0; }
+
+.da-kpi-val {
+  font-size: 22px; font-weight: 700; color: #fff; line-height: 1.1;
 }
 
-.da-kpi-value {
-  font-size: 20px;
-  font-weight: 700;
-  color: #fff;
-  line-height: 1.2;
-}
-
-.da-kpi-label {
-  font-size: 11px;
-  color: $text-dim;
-  margin-top: 2px;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+.da-kpi-lbl {
+  font-size: 10px; font-weight: 600; color: $dim; text-transform: uppercase;
+  letter-spacing: .06em; margin-top: 3px;
 }
 
 .da-kpi-link {
-  font-size: 11px;
-  color: $accent;
-  font-weight: 600;
-  margin-top: 4px;
-  .da-kpi-card--warn &  { color: $yellow; }
-  .da-kpi-card--danger & { color: $red; }
+  font-size: 11px; font-weight: 600; margin-top: 5px; color: $blue;
+  &.da-kpi-link--purple { color: $purple; }
+  &.da-kpi-link--red    { color: $red; }
 }
 
-.da-kpi-pct-bar {
-  height: 3px;
-  background: $border;
-  border-radius: 2px;
-  margin-top: 8px;
-  overflow: hidden;
+.da-kpi-bar {
+  height: 3px; background: $border; border-radius: 2px; margin-top: 8px; overflow: hidden;
 }
-.da-kpi-pct-fill {
-  height: 100%;
-  background: $green;
-  border-radius: 2px;
-  transition: width 0.4s;
-  &.da-kpi-pct-fill--blue { background: $accent; }
+.da-kpi-fill {
+  height: 100%; background: $green; border-radius: 2px; transition: width .4s;
+  &.da-kpi-fill--blue { background: $blue; }
 }
 
-// ── Main Grid ──────────────────────────────────────────────────────────────
-.da-grid {
+// ── Body grid ────────────────────────────────────────────────────────────────
+.da-body {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: 5fr 4fr 3fr;
   gap: 16px;
-  padding: 0 24px 16px;
+  padding: 16px 20px;
+  flex: 1;
 }
 
-.da-col {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+.da-col { display: flex; flex-direction: column; gap: 16px; }
 
-// ── Cards ──────────────────────────────────────────────────────────────────
+// ── Cards ────────────────────────────────────────────────────────────────────
 .da-card {
-  background: $bg-card;
-  border: 1px solid $border;
-  border-radius: 10px;
-  padding: 16px;
+  background: $card; border: 1px solid $border; border-radius: 10px; padding: 16px;
 }
 
-.da-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-bottom: 14px;
+.da-card-hdr {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px;
 }
 
-.da-card-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: $text-dim;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  .fa { color: $accent; }
+.da-card-ttl {
+  font-size: 12px; font-weight: 700; color: $dim; text-transform: uppercase;
+  letter-spacing: .06em; display: flex; align-items: center; gap: 7px;
+  .fa { color: $blue; }
 }
 
-.da-badge-pill {
-  background: $bg-card2;
-  border: 1px solid $border;
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 11px;
-  color: $accent;
-  font-weight: 600;
+.da-pill {
+  background: $card2; border: 1px solid $border; border-radius: 20px;
+  padding: 2px 10px; font-size: 11px; color: $blue; font-weight: 600;
 }
 
-// ── Task list ──────────────────────────────────────────────────────────────
-.da-task-list { display: flex; flex-direction: column; gap: 10px; }
-
-.da-task-empty {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  color: $green;
-  font-size: 14px;
-  padding: 12px 0;
+// ── Task table ────────────────────────────────────────────────────────────────
+.da-task-table {
+  width: 100%; border-collapse: collapse; font-size: 13px;
+  thead th { color: $dim; font-weight: 600; font-size: 11px; padding: 0 8px 8px; text-align: left; }
+  tbody tr { border-top: 1px solid rgba($border,.5); }
 }
-.da-task-done-icon { font-size: 20px; }
-
-.da-task-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 10px;
-  background: $bg-card2;
-  border-radius: 6px;
-  border: 1px solid $border;
+.da-task-check-cell {
+  padding: 8px 8px; display: flex; align-items: center; gap: 8px;
+  .fa { font-size: 15px; }
+  .task-done { color: $green; }
+  .fa:not(.task-done) { color: $dim; }
 }
-
-.da-task-check {
-  font-size: 16px;
-  &.task-done     { color: $green; }
-  &.task-progress { color: $accent; }
-  &.task-pending  { color: $text-dim; }
-}
-
-.da-task-info { flex: 1; min-width: 0; }
-.da-task-name { font-size: 13px; color: $text; font-weight: 500; }
-.da-task-loc  { font-size: 11px; color: $text-dim; margin-top: 2px; }
+.da-task-name { color: $txt; }
+.da-task-loc  { padding: 8px; color: $dim; font-size: 12px; }
 
 .da-task-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 4px;
-  &.task-done     { background: rgba($green, 0.15); color: $green; }
-  &.task-progress { background: rgba($accent, 0.15); color: $accent; }
-  &.task-pending  { background: $border; color: $text-dim; }
+  display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px;
+  &.task-done     { background: rgba($green,.15); color: $green; }
+  &.task-progress { background: rgba($blue,.15);  color: $blue; border: 1px solid $blue; }
+  &.task-pending  { background: rgba($yellow,.15); color: $yellow; border: 1px solid $yellow; }
+}
+
+.da-task-empty {
+  display: flex; align-items: center; gap: 10px; color: $green;
+  font-size: 14px; padding: 10px 0; .fa { font-size: 18px; }
 }
 
 .da-link-btn {
-  background: none;
-  border: none;
-  color: $accent;
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 4px 0;
+  background: none; border: none; color: $blue; font-size: 12px; font-weight: 600;
+  cursor: pointer; padding: 8px 0 0; display: block;
   &:hover { text-decoration: underline; }
 }
 
-// ── Activity ───────────────────────────────────────────────────────────────
+// ── Activity ────────────────────────────────────────────────────────────────
 .da-activity-list { display: flex; flex-direction: column; gap: 8px; }
+.da-act-empty { color: $dim; font-size: 13px; }
+.da-act-row   { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.da-act-time  { color: $dim; font-size: 12px; min-width: 50px; font-variant-numeric: tabular-nums; }
+.da-act-dot   { font-size: 6px; color: $blue; }
+.da-act-text  { color: $txt; }
 
-.da-activity-empty { color: $text-dim; font-size: 13px; padding: 8px 0; }
-
-.da-activity-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-}
-.da-activity-time { color: $text-dim; font-size: 12px; min-width: 52px; font-variant-numeric: tabular-nums; }
-.da-activity-dot  { font-size: 6px; color: $accent; }
-.da-activity-text { color: $text; }
-
-// ── Site Info ──────────────────────────────────────────────────────────────
-.da-info-grid { display: flex; flex-direction: column; gap: 8px; }
-
+// ── Site info ────────────────────────────────────────────────────────────────
+.da-info-list { display: flex; flex-direction: column; }
 .da-info-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  font-size: 13px;
-  border-bottom: 1px solid rgba($border, 0.5);
-  padding-bottom: 8px;
-  &:last-child { border-bottom: none; padding-bottom: 0; }
-}
-.da-info-label { color: $text-dim; flex-shrink: 0; }
-.da-info-val   { color: $text; text-align: right; }
-
-// ── Milestones ─────────────────────────────────────────────────────────────
-.da-milestone-list { display: flex; flex-direction: column; gap: 12px; }
-
-.da-milestone-row { display: flex; flex-direction: column; gap: 5px; }
-
-.da-milestone-top {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-.da-milestone-label  { flex: 1; color: $text; }
-.da-milestone-counts { color: $text-dim; font-size: 12px; }
-.da-milestone-pct    { color: $text-dim; font-size: 12px; min-width: 34px; text-align: right; }
-
-.da-milestone-bar {
-  height: 4px;
-  background: $border;
-  border-radius: 2px;
-  overflow: hidden;
-}
-.da-milestone-fill {
-  height: 100%;
-  background: $accent;
-  border-radius: 2px;
-  transition: width 0.4s;
-  &.da-milestone-fill--done { background: $green; }
-}
-
-// ── Progress donut ─────────────────────────────────────────────────────────
-.da-card--progress { }
-
-.da-progress-wrap {
-  display: flex;
-  align-items: center;
-  gap: 24px;
-}
-
-.da-donut {
-  width: 110px;
-  height: 110px;
-  flex-shrink: 0;
-}
-.da-donut-track { stroke: $border; }
-.da-donut-fill  { stroke: $accent; stroke-linecap: round; transition: stroke-dashoffset 0.5s; }
-.da-donut-pct   { font-size: 20px; font-weight: 700; fill: #fff; }
-
-.da-progress-legend { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: $text; }
-
-.da-legend-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  strong { margin-left: auto; }
-}
-.da-legend-dot {
-  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
-  &.da-legend-dot--green { background: $green; }
-  &.da-legend-dot--blue  { background: $accent; }
-  &.da-legend-dot--grey  { background: $text-dim; }
-}
-
-// ── Health list ────────────────────────────────────────────────────────────
-.da-health-list { display: flex; flex-direction: column; gap: 10px; }
-
-.da-health-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 13px;
-  padding: 6px 0;
-  border-bottom: 1px solid rgba($border, 0.5);
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+  padding: 7px 0; border-bottom: 1px solid rgba($border,.5); font-size: 13px;
   &:last-child { border-bottom: none; }
 }
-.da-health-icon  { color: $accent; width: 16px; text-align: center; }
-.da-health-label { flex: 1; color: $text-dim; }
-.da-health-val   { color: $text; font-weight: 500; }
-.health-ok      { color: $green !important; }
-.health-warn    { color: $yellow !important; }
-.health-danger  { color: $red !important; }
+.da-info-k { color: $dim; flex-shrink: 0; }
+.da-info-v { color: $txt; text-align: right; }
 
-.da-health-dot {
-  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
-  &.dot-green  { background: $green; }
-  &.dot-yellow { background: $yellow; }
-  &.dot-red    { background: $red; }
+// ── Milestones ───────────────────────────────────────────────────────────────
+.da-mile-list { display: flex; flex-direction: column; gap: 12px; }
+.da-mile-row  { }
+.da-mile-top  { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-bottom: 5px; }
+.da-mile-lbl  { flex: 1; color: $txt; }
+.da-mile-cnt  { color: $dim; font-size: 12px; }
+.da-mile-pct  { color: $dim; font-size: 12px; min-width: 32px; text-align: right; }
+.da-mile-bar  { height: 4px; background: $border; border-radius: 2px; overflow: hidden; }
+.da-mile-fill {
+  height: 100%; background: $blue; border-radius: 2px; transition: width .4s;
+  &.da-mile-fill--done { background: $green; }
 }
 
-// ── Quick Actions ──────────────────────────────────────────────────────────
-.da-quick-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
+// ── Donut ────────────────────────────────────────────────────────────────────
+.da-donut-wrap { display: flex; align-items: center; gap: 20px; }
+.da-donut      { width: 100px; height: 100px; flex-shrink: 0; }
+.da-donut-track { stroke: $border; }
+.da-donut-seg   { stroke: $blue; stroke-linecap: round; transition: stroke-dashoffset .5s; }
+.da-donut-txt   { font-size: 20px; font-weight: 700; fill: #fff; }
+.da-donut-legend { display: flex; flex-direction: column; gap: 8px; font-size: 13px; }
+.da-leg-row { display: flex; align-items: center; gap: 8px; color: $txt; strong { margin-left: auto; } }
+.da-leg-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+.dot-green { background: $green; }
+.dot-blue  { background: $blue; }
+.dot-grey  { background: $dim; }
+
+// ── Health ───────────────────────────────────────────────────────────────────
+.da-health-list { display: flex; flex-direction: column; }
+.da-health-row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 0;
+  border-bottom: 1px solid rgba($border,.5); font-size: 13px;
+  &:last-child { border-bottom: none; }
+}
+.da-h-icon { color: $blue; width: 16px; text-align: center; }
+.da-h-lbl  { flex: 1; color: $dim; }
+.da-h-val  { color: $txt; font-weight: 500; &.ok { color: $green; } &.danger { color: $red; } }
+.da-h-dot  { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.dot-yellow { background: $yellow; }
+.dot-red    { background: $red; }
+
+// ── Quick actions ────────────────────────────────────────────────────────────
+.da-quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+.da-qbtn {
+  background: $card2; border: 1px solid $border; border-radius: 8px;
+  padding: 10px 12px; color: $txt; font-size: 12px; cursor: pointer;
+  display: flex; align-items: center; gap: 10px; text-align: left; width: 100%;
+  .fa:first-child { color: $blue; font-size: 16px; flex-shrink: 0; }
+  span { flex: 1; line-height: 1.3; }
+  &:hover { border-color: $blue; background: rgba($blue,.05); }
+}
+.da-q-arr { color: $dim; font-size: 11px; }
+
+// ── Footer ───────────────────────────────────────────────────────────────────
+.da-footer {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: $card; border-top: 1px solid $border;
+  padding: 12px 20px; display: flex; align-items: center;
+  justify-content: space-between; gap: 16px; z-index: 100;
+}
+.da-foot-note { font-size: 12px; color: $dim; display: flex; align-items: center; gap: 6px; .fa { color: $blue; } }
+
+.da-cta {
+  background: $green; color: #000; border: none; border-radius: 8px;
+  padding: 12px 28px; font-size: 14px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; letter-spacing: .04em;
+  white-space: nowrap;
+  &:hover { background: #00c853; }
+  &.da-cta--done { background: $border; color: $dim; cursor: default; }
 }
 
-.da-quick-btn {
-  background: $bg-card2;
-  border: 1px solid $border;
-  border-radius: 8px;
-  padding: 12px 10px;
-  color: $text;
-  font-size: 12px;
-  cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 6px;
-  transition: border-color 0.15s, background 0.15s;
-  .fa { font-size: 18px; color: $accent; }
-  &:hover { border-color: $accent; background: rgba($accent, 0.06); }
-}
-
-// ── Footer action bar ──────────────────────────────────────────────────────
-.da-footer-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: $bg-card;
-  border-top: 1px solid $border;
-  padding: 14px 24px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  z-index: 100;
-}
-
-.da-footer-note {
-  font-size: 12px;
-  color: $text-dim;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  .fa { color: $accent; }
-}
-
-.da-continue-btn {
-  background: $green;
-  color: #000;
-  border: none;
-  border-radius: 8px;
-  padding: 12px 28px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  letter-spacing: 0.04em;
-  transition: background 0.15s;
-  &:hover { background: darken($green, 8%); }
-  &.da-continue-btn--done { background: $border; color: $text-dim; cursor: default; }
-}
-
-// ── Responsive ─────────────────────────────────────────────────────────────
-@media (max-width: 1100px) {
-  .da-grid { grid-template-columns: 1fr 1fr; }
+// ── Responsive ───────────────────────────────────────────────────────────────
+@media (max-width: 1200px) {
+  .da-kpi-strip { grid-template-columns: repeat(3, 1fr); }
+  .da-body      { grid-template-columns: 1fr 1fr; }
   .da-col:last-child { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
 }
 
-@media (max-width: 720px) {
-  .da-grid { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  .da-kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .da-body      { grid-template-columns: 1fr; }
   .da-col:last-child { grid-column: auto; display: flex; }
-  .da-kpi-bar { flex-wrap: wrap; }
-  .da-kpi-card { min-width: 140px; }
-  .da-footer-bar { flex-direction: column; align-items: stretch; }
-  .da-continue-btn { justify-content: center; }
+  .da-footer    { flex-direction: column; align-items: stretch; }
+  .da-cta       { justify-content: center; }
 }
