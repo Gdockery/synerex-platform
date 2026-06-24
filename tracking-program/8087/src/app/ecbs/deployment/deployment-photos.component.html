@@ -1,66 +1,223 @@
-<div class="dpho-page">
-  <div class="dpho-topbar">
-    <button class="dpho-back fa fa-arrow-left" (click)="goBack()"></button>
-    <h2>Photos</h2>
-    <div class="dpho-topbar-right">
-      <select class="dpho-select" [(ngModel)]="filterType"><option value="">All Types</option><option *ngFor="let t of PHOTO_TYPES" [value]="t">{{ t }}</option></select>
-      <button class="dpho-btn-add" (click)="showAdd = !showAdd"><span class="fa fa-camera"></span> Add Photo</button>
+<div class="ph-page" *ngIf="!loading; else phLoading">
+
+  <!-- Header -->
+  <div class="ph-header">
+    <div class="ph-header-left">
+      <div>
+        <div class="ph-header-top">
+          <span class="ph-title">Photos</span>
+          <span class="ph-badge ph-badge--{{ statusClass(depStatus) }}">{{ depStatus }}</span>
+        </div>
+        <div class="ph-subtitle">{{ siteName }}</div>
+        <div class="ph-meta-row">
+          <span class="ph-meta">Deployment ID: {{ depNumber }}</span>
+          <span class="ph-meta" *ngIf="utility !== '—'">Utility: {{ utility }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="ph-header-right">
+      <span class="ph-sync"><i class="fa fa-refresh"></i> Synced: {{ syncedAt }}</span>
+      <button class="ph-icon-btn"><i class="fa fa-bell-o"></i></button>
+      <button class="ph-icon-btn"><i class="fa fa-question-circle-o"></i></button>
+      <button class="ph-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
     </div>
   </div>
 
-  <div class="dpho-add-form" *ngIf="showAdd">
-    <div class="dpho-form-row">
-      <div class="dpho-form-group">
-        <label>Type</label>
-        <select class="dpho-input" [(ngModel)]="newPhoto.photo_type"><option *ngFor="let t of PHOTO_TYPES" [value]="t">{{ t }}</option></select>
-      </div>
-      <div class="dpho-form-group dpho-flex">
-        <label>Photo URL / Reference</label>
-        <input class="dpho-input" [(ngModel)]="newPhoto.file_url" placeholder="https://... or local reference"/>
-      </div>
-      <div class="dpho-form-group dpho-flex">
-        <label>Description</label>
-        <input class="dpho-input" [(ngModel)]="newPhoto.description" placeholder="What does this photo show?"/>
+  <!-- KPI Strip -->
+  <div class="ph-kpi-strip">
+    <div class="ph-kpi-card">
+      <i class="fa fa-camera ph-kpi-icon ph-kpi-icon--blue"></i>
+      <div class="ph-kpi-body">
+        <span class="ph-kpi-label">Total Photos</span>
+        <span class="ph-kpi-val">{{ totalPhotos }}</span>
+        <span class="ph-kpi-sub">100% Uploaded</span>
       </div>
     </div>
-    <div class="dpho-form-actions">
-      <button class="dpho-btn-primary" (click)="addPhoto()" [disabled]="saving">{{ saving ? 'Saving...' : 'Add Photo' }}</button>
-      <button class="dpho-btn-ghost" (click)="showAdd = false">Cancel</button>
+    <div class="ph-kpi-card">
+      <i class="fa fa-check-circle ph-kpi-icon ph-kpi-icon--green"></i>
+      <div class="ph-kpi-body">
+        <span class="ph-kpi-label">Verified Photos</span>
+        <span class="ph-kpi-val ph-kpi-val--green">{{ verifiedPhotos }}</span>
+        <span class="ph-kpi-sub">{{ totalPhotos ? (verifiedPhotos / totalPhotos * 100 | number:'1.0-0') + '%' : '0%' }}</span>
+      </div>
+    </div>
+    <div class="ph-kpi-card">
+      <i class="fa fa-clock-o ph-kpi-icon ph-kpi-icon--blue"></i>
+      <div class="ph-kpi-body">
+        <span class="ph-kpi-label">Pending Review</span>
+        <span class="ph-kpi-val ph-kpi-val--blue">{{ pendingReview }}</span>
+        <span class="ph-kpi-sub">{{ totalPhotos ? (pendingReview / totalPhotos * 100 | number:'1.0-0') + '%' : '0%' }}</span>
+      </div>
+    </div>
+    <div class="ph-kpi-card">
+      <i class="fa fa-exclamation-triangle ph-kpi-icon" [class.ph-kpi-icon--amber]="missingPhotos > 0" [class.ph-kpi-icon--dim]="!missingPhotos"></i>
+      <div class="ph-kpi-body">
+        <span class="ph-kpi-label">Missing Photos</span>
+        <span class="ph-kpi-val" [class.ph-kpi-val--amber]="missingPhotos > 0">{{ missingPhotos }}</span>
+        <span class="ph-kpi-sub ph-kpi-sub--link" *ngIf="missingPhotos > 0">VIEW MISSING</span>
+      </div>
+    </div>
+    <div class="ph-kpi-card">
+      <i class="fa fa-folder-open ph-kpi-icon ph-kpi-icon--purple"></i>
+      <div class="ph-kpi-body">
+        <span class="ph-kpi-label">Photo Albums</span>
+        <span class="ph-kpi-val ph-kpi-val--purple">{{ albums.length }}</span>
+        <span class="ph-kpi-sub ph-kpi-sub--link">VIEW ALBUMS</span>
+      </div>
+    </div>
+    <div class="ph-kpi-card ph-kpi-card--meta">
+      <div class="ph-kpi-meta-lbl">Last Photo Uploaded</div>
+      <div class="ph-kpi-meta-val">{{ syncedAt }}</div>
+      <span class="ph-kpi-sub ph-kpi-sub--link">VIEW ACTIVITY</span>
     </div>
   </div>
 
-  <div class="dpho-count-bar">{{ filtered.length }} photo{{ filtered.length !== 1 ? 's' : '' }}</div>
+  <!-- Body -->
+  <div class="ph-body">
+    <!-- Left: Filters + Gallery -->
+    <div class="ph-left">
 
-  <div class="dpho-loading" *ngIf="loading"><span class="fa fa-spinner fa-spin"></span> Loading photos...</div>
-  <div class="dpho-empty" *ngIf="!loading && filtered.length === 0">
-    <span class="fa fa-camera dpho-empty-icon"></span>
-    <p>No photos yet. Tap the camera icon to add photos.</p>
-  </div>
-
-  <div class="dpho-grid" *ngIf="!loading && filtered.length > 0">
-    <div class="dpho-card" *ngFor="let p of filtered" (click)="openLightbox(p)">
-      <div class="dpho-thumb" [style.backgroundImage]="p.file_url ? 'url(' + p.file_url + ')' : 'none'">
-        <div class="dpho-thumb-placeholder" *ngIf="!p.file_url"><span class="fa fa-image"></span></div>
-        <span class="dpho-type-badge">{{ p.photo_type }}</span>
+      <!-- Filter Bar -->
+      <div class="ph-filter-bar">
+        <button class="ph-filter-btn"><i class="fa fa-filter"></i> FILTERS</button>
+        <select class="ph-select" [(ngModel)]="filterType">
+          <option value="">All Types</option>
+          <option *ngFor="let t of PHOTO_TYPES" [value]="t">{{ t }}</option>
+        </select>
+        <select class="ph-select">
+          <option>All Locations</option>
+        </select>
+        <select class="ph-select">
+          <option>All Devices</option>
+        </select>
+        <select class="ph-select" [(ngModel)]="filterStatus">
+          <option value="">All Statuses</option>
+          <option value="Verified">Verified</option>
+          <option value="Pending">Pending</option>
+        </select>
+        <div class="ph-search-wrap">
+          <i class="fa fa-search ph-search-icon"></i>
+          <input class="ph-search" placeholder="Search photos..." [(ngModel)]="search" />
+        </div>
+        <div class="ph-view-btns">
+          <button class="ph-view-btn ph-view-btn--active"><i class="fa fa-th-large"></i></button>
+          <button class="ph-view-btn"><i class="fa fa-list"></i></button>
+        </div>
+        <span class="ph-sort">SORT: Newest First ▾</span>
       </div>
-      <div class="dpho-card-body">
-        <div class="dpho-card-desc">{{ p.description || '—' }}</div>
-        <div class="dpho-card-date">{{ fmtDate(p.createdAt) }}</div>
+
+      <!-- Photo Grid -->
+      <div class="ph-grid-wrap">
+        <div class="ph-grid" *ngIf="filtered.length > 0; else noPhotos">
+          <div class="ph-photo-card" *ngFor="let p of filtered" (click)="openLightbox(p)">
+            <div class="ph-photo-img">
+              <img *ngIf="p.file_url || p.thumbnail_url" [src]="p.file_url || p.thumbnail_url" [alt]="p.description" />
+              <div class="ph-photo-placeholder" *ngIf="!p.file_url && !p.thumbnail_url">
+                <i class="fa fa-camera"></i>
+              </div>
+              <span class="ph-photo-badge" [ngClass]="statusClass(p.status)">{{ statusBadge(p.status) }}</span>
+              <span class="ph-photo-count" *ngIf="p.count > 1"><i class="fa fa-clone"></i> {{ p.count }}</span>
+            </div>
+            <div class="ph-photo-info">
+              <div class="ph-photo-name">{{ p.description || p.photo_type || 'Photo' }}</div>
+              <div class="ph-photo-date">{{ p.uploaded_at ? (p.uploaded_at | date:'MMM d, yyyy h:mm a') : '—' }}</div>
+              <div class="ph-photo-device">{{ p.device_name || p.location || '—' }}</div>
+            </div>
+          </div>
+        </div>
+        <ng-template #noPhotos>
+          <div class="ph-no-photos">
+            <i class="fa fa-camera"></i>
+            <span>No photos yet. Upload the first photo above.</span>
+          </div>
+        </ng-template>
+
+        <!-- Pagination -->
+        <div class="ph-pagination" *ngIf="photos.length > 0">
+          <span>Showing 1 to {{ filtered.length }} of {{ totalPhotos }} photos</span>
+          <div class="ph-pages">
+            <button class="ph-page-btn">‹</button>
+            <button class="ph-page-btn ph-page-btn--active">1</button>
+            <button class="ph-page-btn">2</button>
+            <button class="ph-page-btn">3</button>
+            <button class="ph-page-btn">›</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Upload + Albums + Quick Actions -->
+    <div class="ph-right">
+
+      <!-- Upload Area -->
+      <div class="ph-upload-section">
+        <div class="ph-upload-title">UPLOAD PHOTOS</div>
+        <div class="ph-drop-zone"
+          (drop)="onDrop($event)" (dragover)="onDragOver($event)">
+          <i class="fa fa-cloud-upload ph-drop-icon"></i>
+          <div class="ph-drop-text">Drag and drop photos here</div>
+          <div class="ph-drop-or">or</div>
+          <label class="ph-select-btn">
+            <input type="file" multiple accept="image/*,.heic" style="display:none" (change)="onFilesSelected($event)" />
+            SELECT PHOTOS
+          </label>
+        </div>
+        <div class="ph-upload-hint">
+          <i class="fa fa-plus-circle"></i>
+          You can upload up to 20 photos at a time.<br />
+          Accepted formats: JPG, PNG, HEIC
+        </div>
+        <div class="ph-uploading" *ngIf="uploading">
+          <i class="fa fa-spinner fa-spin"></i> Uploading...
+        </div>
+      </div>
+
+      <!-- Photo Albums -->
+      <div class="ph-albums-section">
+        <div class="ph-albums-header">
+          <span class="ph-albums-title">PHOTO ALBUMS ({{ albums.length }})</span>
+          <button class="ph-view-all">VIEW ALL</button>
+        </div>
+        <div class="ph-album-list">
+          <div class="ph-album-item" *ngFor="let a of albums">
+            <i class="fa fa-folder ph-album-icon"></i>
+            <div class="ph-album-info">
+              <div class="ph-album-name">{{ a.name }}</div>
+              <div class="ph-album-sub">{{ a.count }} photos &nbsp;•&nbsp; {{ a.date }}</div>
+            </div>
+          </div>
+          <div class="ph-album-more">+ 3 more albums</div>
+        </div>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="ph-qa-section">
+        <div class="ph-qa-title">QUICK ACTIONS</div>
+        <div class="ph-qa-grid">
+          <div class="ph-qa-item"><i class="fa fa-folder-o"></i> Create Album</div>
+          <div class="ph-qa-item"><i class="fa fa-pencil-square-o"></i> Add Photo Note</div>
+          <div class="ph-qa-item"><i class="fa fa-camera"></i> Request Photo</div>
+          <div class="ph-qa-item"><i class="fa fa-check-square-o"></i> Photo Checklist</div>
+        </div>
+        <button class="ph-export-btn"><i class="fa fa-download"></i> Export Photos (ZIP)</button>
       </div>
     </div>
   </div>
 
   <!-- Lightbox -->
-  <div class="dpho-lightbox" *ngIf="lightbox" (click)="closeLightbox()">
-    <div class="dpho-lb-content" (click)="$event.stopPropagation()">
-      <button class="dpho-lb-close fa fa-times" (click)="closeLightbox()"></button>
-      <img *ngIf="lightbox.file_url" [src]="lightbox.file_url" class="dpho-lb-img" alt="Photo"/>
-      <div class="dpho-lb-placeholder" *ngIf="!lightbox.file_url"><span class="fa fa-image"></span></div>
-      <div class="dpho-lb-meta">
-        <span class="dpho-type-badge">{{ lightbox.photo_type }}</span>
-        <span class="dpho-lb-desc">{{ lightbox.description }}</span>
-        <span class="dpho-lb-date">{{ fmtDate(lightbox.createdAt) }}</span>
+  <div class="ph-lightbox" *ngIf="lightbox" (click)="closeLightbox()">
+    <div class="ph-lb-inner" (click)="$event.stopPropagation()">
+      <button class="ph-lb-close" (click)="closeLightbox()"><i class="fa fa-times"></i></button>
+      <img *ngIf="lightbox.file_url" [src]="lightbox.file_url" class="ph-lb-img" />
+      <div *ngIf="!lightbox.file_url" class="ph-lb-placeholder"><i class="fa fa-camera"></i></div>
+      <div class="ph-lb-info">
+        <div class="ph-lb-desc">{{ lightbox.description || lightbox.photo_type || 'Photo' }}</div>
+        <div class="ph-lb-meta">{{ lightbox.device_name || '—' }} &bull; {{ lightbox.uploaded_at | date:'medium' }}</div>
       </div>
     </div>
   </div>
 </div>
+
+<ng-template #phLoading>
+  <div class="ph-loading"><i class="fa fa-spinner fa-spin"></i> Loading photos...</div>
+</ng-template>

@@ -1,0 +1,244 @@
+<div class="de-page" *ngIf="!loading; else deLoading">
+
+  <!-- Header -->
+  <div class="de-header">
+    <div class="de-header-left">
+      <div>
+        <div class="de-header-top">
+          <span class="de-title">Electrical Network</span>
+          <span class="de-status-badge de-status--{{ statusClass(depStatus) }}">{{ depStatus }}</span>
+        </div>
+        <div class="de-subtitle">{{ siteName }}</div>
+        <div class="de-meta-row">
+          <span class="de-meta-item">Deployment ID: {{ depNumber }}</span>
+          <span class="de-meta-item" *ngIf="utility !== '—'">Utility: {{ utility }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="de-header-right">
+      <span class="de-sync"><i class="fa fa-refresh"></i> Synced: {{ syncedAt }}</span>
+      <button class="de-icon-btn"><i class="fa fa-bell-o"></i></button>
+      <button class="de-icon-btn"><i class="fa fa-question-circle-o"></i></button>
+      <button class="de-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="de-kpi-strip">
+    <div class="de-kpi-card">
+      <i class="fa fa-sitemap de-kpi-icon de-kpi-icon--blue"></i>
+      <div class="de-kpi-body">
+        <span class="de-kpi-label">Total Assets</span>
+        <span class="de-kpi-val">{{ flatAssets.length }}</span>
+        <span class="de-kpi-sub">Asset Points</span>
+      </div>
+    </div>
+    <div class="de-kpi-card">
+      <i class="fa fa-check-circle de-kpi-icon de-kpi-icon--green"></i>
+      <div class="de-kpi-body">
+        <span class="de-kpi-label">Devices Installed</span>
+        <span class="de-kpi-val de-kpi-val--green">{{ installedCount }}/{{ totalDevices }}</span>
+        <span class="de-kpi-sub">{{ totalDevices ? (installedCount / totalDevices * 100 | number:'1.0-0') + '%' : '0%' }}</span>
+      </div>
+    </div>
+    <div class="de-kpi-card">
+      <i class="fa fa-check-circle-o de-kpi-icon de-kpi-icon--blue"></i>
+      <div class="de-kpi-body">
+        <span class="de-kpi-label">Commissioned</span>
+        <span class="de-kpi-val de-kpi-val--blue">{{ commissionedCount }}/{{ totalDevices }}</span>
+        <span class="de-kpi-sub">{{ totalDevices ? (commissionedCount / totalDevices * 100 | number:'1.0-0') + '%' : '0%' }}</span>
+      </div>
+    </div>
+    <div class="de-kpi-card">
+      <i class="fa fa-exclamation-triangle de-kpi-icon" [class.de-kpi-icon--amber]="openIssues > 0" [class.de-kpi-icon--dim]="!openIssues"></i>
+      <div class="de-kpi-body">
+        <span class="de-kpi-label">Open Issues</span>
+        <span class="de-kpi-val" [class.de-kpi-val--amber]="openIssues > 0">{{ openIssues }}</span>
+        <span class="de-kpi-sub de-kpi-sub--link" *ngIf="openIssues > 0">VIEW ISSUES</span>
+      </div>
+    </div>
+    <div class="de-kpi-card">
+      <i class="fa fa-random de-kpi-icon de-kpi-icon--purple"></i>
+      <div class="de-kpi-body">
+        <span class="de-kpi-label">Engineering Requests</span>
+        <span class="de-kpi-val de-kpi-val--purple">2</span>
+        <span class="de-kpi-sub de-kpi-sub--link">VIEW REQUESTS</span>
+      </div>
+    </div>
+    <div class="de-kpi-card">
+      <i class="fa fa-heartbeat de-kpi-icon de-kpi-icon--green"></i>
+      <div class="de-kpi-body">
+        <span class="de-kpi-label">Health Status</span>
+        <span class="de-kpi-val de-kpi-val--green">Good</span>
+        <span class="de-kpi-sub">All Systems Normal</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="de-body">
+    <!-- Left: Network diagram + table -->
+    <div class="de-left">
+
+      <!-- View toggle + toolbar -->
+      <div class="de-toolbar">
+        <div class="de-toolbar-left">
+          <i class="fa fa-filter"></i>
+          <span>Filters</span>
+          <span class="de-sep">View:</span>
+          <button class="de-view-btn" [class.active]="viewMode === 'network'" (click)="viewMode = 'network'">Network</button>
+          <button class="de-view-btn" [class.active]="viewMode === 'hierarchy'" (click)="viewMode = 'hierarchy'">Hierarchy</button>
+          <button class="de-tool-btn"><i class="fa fa-download"></i> Legend</button>
+        </div>
+        <div class="de-toolbar-right">
+          <button class="de-tool-btn"><i class="fa fa-expand"></i></button>
+          <span class="de-zoom">100%</span>
+          <button class="de-tool-btn"><i class="fa fa-search-plus"></i></button>
+        </div>
+      </div>
+
+      <!-- Network Diagram (SVG visual hierarchy) -->
+      <div class="de-diagram-wrap" *ngIf="viewMode === 'network'">
+        <div class="de-network-visual">
+          <!-- Top level: Utility Service -->
+          <div class="de-net-row de-net-row--center">
+            <div class="de-net-node de-net-node--utility" (click)="selectAsset(assets[0])">
+              <div class="de-net-node-label">Utility Service</div>
+              <div class="de-net-node-sub">CFE • 13.8 kV</div>
+            </div>
+          </div>
+          <div class="de-net-vline"></div>
+          <!-- Transformer -->
+          <div class="de-net-row de-net-row--center" *ngIf="assets[0]?.children?.length">
+            <div class="de-net-node de-net-node--transformer" (click)="selectAsset(assets[0].children[0])">
+              <div class="de-net-node-label">Main Transformer</div>
+              <div class="de-net-node-sub">T1 - 2500 kVA • 13.8 kV / 480V</div>
+            </div>
+          </div>
+          <div class="de-net-vline" *ngIf="assets[0]?.children?.length"></div>
+          <!-- Switchgear -->
+          <div class="de-net-row de-net-row--center" *ngIf="assets[0]?.children[0]?.children?.length">
+            <div class="de-net-node de-net-node--switchgear" (click)="selectAsset(assets[0].children[0].children[0])">
+              <div class="de-net-node-label">Main Switchgear</div>
+              <div class="de-net-node-sub">MSB-1 • 480V</div>
+            </div>
+          </div>
+          <!-- Panels row -->
+          <div class="de-net-hline" *ngIf="assets[0]?.children[0]?.children[0]?.children?.length"></div>
+          <div class="de-net-row de-net-row--panels" *ngIf="assets[0]?.children[0]?.children[0]?.children as panels">
+            <div class="de-net-panel-group" *ngFor="let panel of panels">
+              <div class="de-net-node de-net-node--panel" (click)="selectAsset(panel)">
+                <div class="de-net-node-label">{{ panel.name }}</div>
+                <div class="de-net-node-sub">480V</div>
+              </div>
+              <div class="de-net-vline--sm" *ngIf="panel.children?.length"></div>
+              <div class="de-net-devices-row" *ngIf="panel.children?.length">
+                <div class="de-net-device" *ngFor="let dev of panel.children"
+                  [class]="'de-net-device--' + statusClass(dev.status)"
+                  (click)="selectAsset(dev)">
+                  <div class="de-net-device-name">{{ dev.name || dev.device_name }}</div>
+                  <div class="de-net-device-status">{{ dev.status || 'Pending' }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Legend -->
+        <div class="de-legend">
+          <div class="de-leg-item"><span class="de-leg-dot de-leg-dot--green"></span> Commissioned</div>
+          <div class="de-leg-item"><span class="de-leg-dot de-leg-dot--blue"></span> In Progress</div>
+          <div class="de-leg-item"><span class="de-leg-dot de-leg-dot--amber"></span> Pending</div>
+          <div class="de-leg-item"><span class="de-leg-dot de-leg-dot--dim"></span> Not Started</div>
+          <div class="de-leg-item"><span class="de-leg-dot de-leg-dot--green de-leg-dot--wifi"></span> Online</div>
+        </div>
+      </div>
+
+      <!-- Asset Hierarchy Table -->
+      <div class="de-hier-wrap">
+        <div class="de-hier-title">ASSET HIERARCHY</div>
+        <table class="de-hier-table">
+          <thead>
+            <tr>
+              <th>Asset Name</th>
+              <th>Type</th>
+              <th>Voltage</th>
+              <th>Rating</th>
+              <th>Devices</th>
+              <th>Installed</th>
+              <th>Status</th>
+              <th>Health</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let asset of flatAssets" [class.selected]="selectedAsset?.id === asset.id" (click)="selectAsset(asset)">
+              <td>
+                <div class="de-hier-name" [style.padding-left.px]="asset.depth * 18">
+                  <button class="de-expand-btn" *ngIf="asset.children?.length"
+                    (click)="toggleExpand(asset, $event)">
+                    <i class="fa" [ngClass]="asset.expanded ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                  </button>
+                  <i class="fa" [ngClass]="typeIcon(asset.type)"></i>
+                  {{ asset.name || asset.device_name || asset.asset_name }}
+                </div>
+              </td>
+              <td><span class="de-type-badge">{{ asset.type || asset.device_type }}</span></td>
+              <td>{{ asset.voltage || '—' }}</td>
+              <td>{{ asset.rating || asset.kva || '—' }}</td>
+              <td>{{ (asset.children?.length || 0) }}</td>
+              <td>—</td>
+              <td><span class="de-status-pill de-status-pill--{{ statusClass(asset.status || 'pending') }}">{{ asset.status || 'PENDING' }}</span></td>
+              <td><span class="de-health-pill">● GOOD</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right: Asset Details -->
+    <div class="de-right">
+      <div class="de-detail-panel" *ngIf="selectedAsset; else noSelection">
+        <div class="de-dp-header">ASSET DETAILS</div>
+        <div class="de-dp-img">
+          <i class="fa" [ngClass]="typeIcon(selectedAsset.type || selectedAsset.device_type)" style="font-size:40px;color:#4b5563;"></i>
+        </div>
+        <div class="de-dp-name">{{ selectedAsset.name || selectedAsset.device_name || selectedAsset.asset_name }}</div>
+        <div class="de-dp-status de-status--{{ statusClass(selectedAsset.status) }}">{{ selectedAsset.status || '—' }}</div>
+
+        <div class="de-dp-rows">
+          <div class="de-dp-row"><span>Asset Type</span><span>{{ selectedAsset.type || selectedAsset.device_type || '—' }}</span></div>
+          <div class="de-dp-row"><span>Asset ID</span><span>{{ selectedAsset.id || selectedAsset.device_id || '—' }}</span></div>
+          <div class="de-dp-row"><span>Voltage</span><span>{{ selectedAsset.voltage || '—' }}</span></div>
+          <div class="de-dp-row"><span>Rating</span><span>{{ selectedAsset.rating || selectedAsset.kva || '—' }}</span></div>
+          <div class="de-dp-row"><span>Status</span><span class="de-status--{{ statusClass(selectedAsset.status) }}">{{ selectedAsset.status || '—' }}</span></div>
+        </div>
+
+        <div class="de-dp-actions">
+          <button class="de-dp-btn de-dp-btn--outline" (click)="goOneLine()">VIEW ONE-LINE</button>
+          <button class="de-dp-btn de-dp-btn--primary">EDIT ASSET</button>
+        </div>
+
+        <div class="de-dp-section">QUICK ACTIONS</div>
+        <div class="de-quick-grid">
+          <div class="de-qa-item"><i class="fa fa-pencil"></i> Add As-Built Correction</div>
+          <div class="de-qa-item"><i class="fa fa-plus"></i> Add Asset</div>
+          <div class="de-qa-item"><i class="fa fa-upload"></i> Upload Document</div>
+          <div class="de-qa-item"><i class="fa fa-camera"></i> Upload Photo</div>
+          <div class="de-qa-item"><i class="fa fa-exclamation-triangle"></i> Create Issue</div>
+          <div class="de-qa-item"><i class="fa fa-random"></i> Engineering Request</div>
+          <div class="de-qa-full"><i class="fa fa-download"></i> Export Network (PDF)</div>
+        </div>
+      </div>
+      <ng-template #noSelection>
+        <div class="de-no-selection">
+          <i class="fa fa-sitemap"></i>
+          <span>Select an asset to view details</span>
+        </div>
+      </ng-template>
+    </div>
+  </div>
+</div>
+
+<ng-template #deLoading>
+  <div class="de-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div>
+</ng-template>

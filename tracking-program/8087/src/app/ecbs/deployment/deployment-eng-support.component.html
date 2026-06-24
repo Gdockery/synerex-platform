@@ -1,0 +1,109 @@
+<div class="es-page" *ngIf="!loading; else esLoad">
+  <div class="es-header">
+    <div class="es-header-left">
+      <div class="es-header-top">
+        <span class="es-title">Engineering Support</span>
+        <span class="es-badge es-badge--{{ statusClass(depStatus) }}">{{ depStatus }}</span>
+      </div>
+      <div class="es-subtitle">{{ siteName }} &bull; Deployment ID: {{ depNumber }}</div>
+    </div>
+    <div class="es-header-right">
+      <span class="es-sync"><i class="fa fa-refresh"></i> Synced: {{ syncedAt }}</span>
+      <button class="es-icon-btn"><i class="fa fa-bell-o"></i></button>
+    </div>
+  </div>
+
+  <div class="es-kpi-strip">
+    <div class="es-kpi"><div class="es-kpi-val">{{ requests.length }}</div><div class="es-kpi-lbl">Total Requests</div></div>
+    <div class="es-kpi"><div class="es-kpi-val es-kpi-val--amber">{{ openCount }}</div><div class="es-kpi-lbl">Open</div></div>
+    <div class="es-kpi"><div class="es-kpi-val es-kpi-val--blue">{{ inProgressCount }}</div><div class="es-kpi-lbl">In Progress</div></div>
+    <div class="es-kpi"><div class="es-kpi-val es-kpi-val--green">{{ resolvedCount }}</div><div class="es-kpi-lbl">Resolved</div></div>
+    <div class="es-kpi"><div class="es-kpi-val">{{ closedCount }}</div><div class="es-kpi-lbl">Closed</div></div>
+  </div>
+
+  <div class="es-create-form" *ngIf="showCreate">
+    <div class="es-cf-row">
+      <input class="es-input" placeholder="Request subject*" [(ngModel)]="newRequest.subject" />
+      <select class="es-select" [(ngModel)]="newRequest.category">
+        <option *ngFor="let c of CATEGORIES" [value]="c">{{ c }}</option>
+      </select>
+      <select class="es-select" [(ngModel)]="newRequest.priority">
+        <option *ngFor="let p of PRIORITIES" [value]="p">{{ p }}</option>
+      </select>
+      <button class="es-save-btn" (click)="createRequest()" [disabled]="saving">{{ saving ? 'Creating...' : 'Submit' }}</button>
+      <button class="es-cancel-btn" (click)="showCreate = false">Cancel</button>
+    </div>
+    <textarea class="es-textarea" placeholder="Describe the request..." [(ngModel)]="newRequest.description" rows="2"></textarea>
+  </div>
+
+  <div class="es-body">
+    <div class="es-left">
+      <div class="es-filter-bar">
+        <select class="es-select" [(ngModel)]="filterStatus">
+          <option value="">All Statuses</option>
+          <option *ngFor="let s of STATUSES" [value]="s">{{ s }}</option>
+        </select>
+        <button class="es-new-btn" (click)="showCreate = !showCreate"><i class="fa fa-plus"></i> New Request</button>
+      </div>
+
+      <div class="es-list">
+        <div class="es-item" *ngFor="let req of filtered" [class.selected]="selected?.id === req.id" (click)="select(req)">
+          <div class="es-item-top">
+            <span class="es-item-id">{{ req.request_number || ('ES-' + req.id) }}</span>
+            <span class="es-status-dot es-status--{{ statusClass(req.status) }}">{{ req.status || 'Open' }}</span>
+          </div>
+          <div class="es-item-subject">{{ req.subject || req.title }}</div>
+          <div class="es-item-meta">
+            <span class="es-cat-tag">{{ req.category || '—' }}</span>
+            <span class="es-pri-tag es-pri--{{ priorityClass(req.priority) }}">{{ req.priority || 'Medium' }}</span>
+            <span class="es-item-date">{{ req.created_at ? (req.created_at | date:'MMM d') : '—' }}</span>
+          </div>
+        </div>
+        <div class="es-empty" *ngIf="filtered.length === 0">
+          <i class="fa fa-wrench"></i>
+          <span>No engineering support requests yet</span>
+          <button class="es-new-btn" (click)="showCreate = true"><i class="fa fa-plus"></i> Create First Request</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="es-right" *ngIf="selected; else noSel">
+      <div class="es-dp-id">{{ selected.request_number || ('ES-' + selected.id) }}
+        <span class="es-status-dot es-status--{{ statusClass(selected.status) }}">{{ selected.status }}</span>
+      </div>
+      <div class="es-dp-subject">{{ selected.subject || selected.title }}</div>
+      <div class="es-dp-rows">
+        <div class="es-dp-row"><span>Category</span><span class="es-cat-tag">{{ selected.category || '—' }}</span></div>
+        <div class="es-dp-row"><span>Priority</span><span class="es-pri-tag es-pri--{{ priorityClass(selected.priority) }}">{{ selected.priority }}</span></div>
+        <div class="es-dp-row"><span>Description</span></div>
+        <div class="es-dp-desc">{{ selected.description || '—' }}</div>
+        <div class="es-dp-row"><span>Created</span><span>{{ selected.created_at ? (selected.created_at | date:'medium') : '—' }}</span></div>
+      </div>
+      <div class="es-dp-section">CONVERSATION</div>
+      <div class="es-conv">
+        <div class="es-msg" *ngFor="let msg of (selected.messages || [])">
+          <div class="es-msg-sender">{{ msg.sender || 'You' }}</div>
+          <div class="es-msg-text">{{ msg.message }}</div>
+          <div class="es-msg-time">{{ msg.created_at ? (msg.created_at | date:'short') : '—' }}</div>
+        </div>
+        <div class="es-conv-empty" *ngIf="!(selected.messages?.length)">No messages yet.</div>
+      </div>
+      <div class="es-msg-box">
+        <textarea class="es-msg-input" rows="2" placeholder="Type a message..." [(ngModel)]="messageText"></textarea>
+        <button class="es-msg-send" (click)="sendMessage()">Send</button>
+      </div>
+      <div class="es-dp-section">QUICK ACTIONS</div>
+      <div class="es-qa-grid">
+        <div class="es-qa-item"><i class="fa fa-upload"></i> Upload File / Photo</div>
+        <div class="es-qa-item"><i class="fa fa-pencil"></i> Request Drawing Update</div>
+        <div class="es-qa-item"><i class="fa fa-exclamation-triangle"></i> Add To Issues</div>
+        <div class="es-qa-item"><i class="fa fa-arrow-up"></i> Escalate Request</div>
+        <div class="es-qa-full"><i class="fa fa-times-circle"></i> Close Request</div>
+      </div>
+    </div>
+    <ng-template #noSel>
+      <div class="es-no-sel"><i class="fa fa-wrench"></i><span>Select a request to view details</span></div>
+    </ng-template>
+  </div>
+</div>
+<ng-template #esLoad><div class="es-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div></ng-template>

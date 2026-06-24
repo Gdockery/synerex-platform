@@ -42,10 +42,17 @@ export class DeploymentDevicesComponent implements OnInit {
     private api: ApiRequestService,
   ) {}
 
+  depName = '';
+  depStatus = '';
+  dep: any = null;
+  summary: any = {};
+  syncedAt = '';
+
   ngOnInit() {
-    this.route.params.subscribe((p: any) => {
+    this.route.parent!.params.subscribe((p: any) => {
       this.depId = Number(p['id']);
       this.load();
+      this._loadDep();
     });
     this.route.queryParams.subscribe((q: any) => {
       if (q['device']) {
@@ -53,6 +60,83 @@ export class DeploymentDevicesComponent implements OnInit {
       }
     });
   }
+
+  _loadDep() {
+    this.api.get('/api/dep/deployments/' + this.depId).subscribe({
+      next: (r: any) => {
+        this.dep = r && r.response ? r.response : r;
+        this.summary = this.dep.summary || {};
+        this.syncedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+        this.depName = this.dep.deployment_name || '—';
+        this.depStatus = this.dep.status || '';
+      },
+      error: () => {}
+    });
+  }
+
+  get siteName(): string {
+    return (this.dep && this.dep.site_info && this.dep.site_info.name) ||
+           (this.dep && this.dep.project_info && this.dep.project_info.name) || '—';
+  }
+  get depNumber(): string { return (this.dep && (this.dep.deployment_number || this.dep.id)) || '—'; }
+  get utility(): string { return (this.dep && this.dep.site_info && this.dep.site_info.utility) || '—'; }
+
+  get kpiNotInstalled(): number {
+    return this.devices.filter(d => d.status === 'Pending' || !d.status).length;
+  }
+  get kpiOpenIssues(): number { return (this.summary && this.summary.open_issues) || 0; }
+
+  get deviceSummaryByType(): any[] {
+    const counts: {[k:string]: {total: number, installed: number}} = {};
+    for (const d of this.devices) {
+      const t = d.device_type || 'Other';
+      if (!counts[t]) counts[t] = { total: 0, installed: 0 };
+      counts[t].total++;
+      if (['Installed','CT Verified','Communications Verified','Commissioned'].includes(d.status)) {
+        counts[t].installed++;
+      }
+    }
+    return Object.entries(counts).map(([type, c]) => ({
+      type,
+      ...c,
+      pct: c.total ? Math.round(c.installed / c.total * 100) : 0,
+    }));
+  }
+
+  typeIcon(type: string): string {
+    if (!type) return 'fa-circle-o';
+    const t = (type || '').toLowerCase();
+    if (t === 'apf') return 'fa-microchip';
+    if (t === 'gateway') return 'fa-wifi';
+    if (t === 'meter') return 'fa-tachometer';
+    if (t === 'ct') return 'fa-retweet';
+    if (t === 'breaker') return 'fa-bolt';
+    return 'fa-circle-o';
+  }
+
+  typeIconClass(type: string): string {
+    const t = (type || '').toLowerCase();
+    if (t === 'apf') return 'blue';
+    if (t === 'gateway') return 'green';
+    if (t === 'meter') return 'purple';
+    if (t === 'ct') return 'amber';
+    return 'dim';
+  }
+
+  statusColorDot(status: string): string {
+    if (!status) return 'dot-amber';
+    const sl = status.toLowerCase();
+    if (sl === 'commissioned') return 'dot-green';
+    if (sl === 'in progress') return 'dot-blue';
+    if (['installed','ct verified','communications verified'].includes(sl)) return 'dot-teal';
+    if (sl === 'failed') return 'dot-red';
+    return 'dot-amber';
+  }
+
+  goOneLine() { this.router.navigate(['/ecbs/deployment', this.depId, 'one-line']); }
+  goPhotos() { this.router.navigate(['/ecbs/deployment', this.depId, 'photos']); }
+  goEngineering() { this.router.navigate(['/ecbs/deployment', this.depId, 'engineering-support']); }
+  goDocuments() { this.router.navigate(['/ecbs/deployment', this.depId, 'documents']); }
 
   load() {
     this.loading = true;

@@ -1,0 +1,103 @@
+<div class="dc-page" *ngIf="!loading; else dcLoad">
+  <div class="dc-header">
+    <div class="dc-header-top">
+      <span class="dc-title">Documents</span>
+      <span class="dc-badge">{{ depStatus }}</span>
+    </div>
+    <div class="dc-subtitle">{{ siteName }} &bull; Deployment ID: {{ depNumber }}</div>
+  </div>
+  <div class="dc-kpi-strip">
+    <div class="dc-kpi"><div class="dc-kpi-val">{{ documents.length }}</div><div class="dc-kpi-lbl">Total Documents</div></div>
+    <div class="dc-kpi"><div class="dc-kpi-val dc-kpi-val--blue">{{ drawingCount }}</div><div class="dc-kpi-lbl">Drawings</div></div>
+    <div class="dc-kpi"><div class="dc-kpi-val dc-kpi-val--green">{{ manualCount }}</div><div class="dc-kpi-lbl">Manuals</div></div>
+    <div class="dc-kpi"><div class="dc-kpi-val dc-kpi-val--purple">{{ reportCount }}</div><div class="dc-kpi-lbl">Reports</div></div>
+  </div>
+  <div class="dc-body">
+    <div class="dc-folders">
+      <div class="dc-folder" *ngFor="let f of FOLDERS" [class.active]="activeFolder === f.key" (click)="activeFolder = f.key">
+        <i class="fa" [ngClass]="f.icon"></i><span>{{ f.label }}</span>
+      </div>
+      <div class="dc-folder-divider"></div>
+      <div class="dc-folder dc-add-folder"><i class="fa fa-plus"></i><span>Add Category</span></div>
+    </div>
+    <div class="dc-main">
+      <div class="dc-toolbar">
+        <div class="dc-search-wrap">
+          <i class="fa fa-search dc-search-icon"></i>
+          <input class="dc-search" placeholder="Search documents..." [(ngModel)]="search" />
+        </div>
+        <select class="dc-select" [(ngModel)]="filterCategory">
+          <option value="">All Categories</option>
+          <option *ngFor="let c of CATEGORIES" [value]="c">{{ c }}</option>
+        </select>
+        <button class="dc-upload-btn"><i class="fa fa-upload"></i> Upload Document</button>
+      </div>
+      <div class="dc-table-wrap">
+        <table class="dc-table">
+          <thead><tr>
+            <th>Document Name</th>
+            <th>Category</th>
+            <th>Version</th>
+            <th>Status</th>
+            <th>Uploaded By</th>
+            <th>Upload Date</th>
+            <th>Actions</th>
+          </tr></thead>
+          <tbody>
+            <tr *ngFor="let d of filtered" [class.selected]="selected?.id === d.id" (click)="select(d)">
+              <td>
+                <div class="dc-doc-name">
+                  <i class="fa" [ngClass]="docIcon(d.category)" class="dc-doc-icon dc-icon--{{ categoryClass(d.category) }}"></i>
+                  {{ d.document_name || d.name || 'Untitled' }}
+                  <span class="dc-field-critical" *ngIf="d.field_critical">Field Critical</span>
+                </div>
+              </td>
+              <td><span class="dc-cat-badge dc-cat--{{ categoryClass(d.category) }}">{{ d.category || 'Other' }}</span></td>
+              <td>{{ d.version || 'v1' }}</td>
+              <td><span class="dc-status" [class.dc-status--active]="d.is_current_version !== false">{{ d.status || 'Active' }}</span></td>
+              <td>{{ d.uploaded_by_name || '—' }}</td>
+              <td class="dc-date">{{ d.uploaded_at ? (d.uploaded_at | date:'MMM d, yyyy') : '—' }}</td>
+              <td>
+                <div class="dc-row-actions">
+                  <button class="dc-row-btn" (click)="openDoc(d)" title="Open"><i class="fa fa-external-link"></i></button>
+                  <button class="dc-row-btn" title="Download"><i class="fa fa-download"></i></button>
+                  <button class="dc-row-btn" title="More"><i class="fa fa-ellipsis-v"></i></button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="filtered.length === 0">
+              <td colspan="7" class="dc-empty">
+                <i class="fa fa-folder-open-o"></i> No documents found
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="dc-right" *ngIf="selected">
+      <div class="dc-dp-title">DOCUMENT DETAILS</div>
+      <div class="dc-dp-name">{{ selected.document_name || selected.name }}</div>
+      <div class="dc-dp-rows">
+        <div class="dc-dp-row"><span>Type</span><span>{{ selected.category || '—' }}</span></div>
+        <div class="dc-dp-row"><span>Version</span><span>{{ selected.version || 'v1' }}</span></div>
+        <div class="dc-dp-row"><span>Status</span><span>{{ selected.status || 'Active' }}</span></div>
+        <div class="dc-dp-row"><span>Uploaded By</span><span>{{ selected.uploaded_by_name || '—' }}</span></div>
+        <div class="dc-dp-row"><span>Date</span><span>{{ selected.uploaded_at ? (selected.uploaded_at | date:'medium') : '—' }}</span></div>
+      </div>
+      <div class="dc-dp-preview"><i class="fa" [ngClass]="docIcon(selected.category)" style="font-size:36px;color:#4b5563;"></i></div>
+      <div class="dc-dp-actions">
+        <button class="dc-dp-btn dc-dp-btn--primary" (click)="openDoc(selected)"><i class="fa fa-external-link"></i> Open</button>
+        <button class="dc-dp-btn dc-dp-btn--outline"><i class="fa fa-download"></i> Download</button>
+      </div>
+      <div class="dc-dp-section">ACTIONS</div>
+      <div class="dc-qa-list">
+        <div class="dc-qa-item"><i class="fa fa-share"></i> Share</div>
+        <div class="dc-qa-item"><i class="fa fa-star-o"></i> Add To Favorites</div>
+        <div class="dc-qa-item"><i class="fa fa-upload"></i> Upload New Version</div>
+        <div class="dc-qa-item"><i class="fa fa-pencil"></i> Request Drawing Update</div>
+        <div class="dc-qa-item"><i class="fa fa-paperclip"></i> Add To Engineering Request</div>
+      </div>
+    </div>
+  </div>
+</div>
+<ng-template #dcLoad><div class="dc-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div></ng-template>

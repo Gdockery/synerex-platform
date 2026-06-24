@@ -20,7 +20,7 @@ export class DeploymentMaterialsComponent implements OnInit {
   constructor(private route: ActivatedRoute, private router: Router, private api: ApiRequestService) {}
 
   ngOnInit() {
-    this.route.params.subscribe((p: any) => {
+    this.route.parent!.params.subscribe((p: any) => {
       this.depId = Number(p['id']);
       this.load();
     });

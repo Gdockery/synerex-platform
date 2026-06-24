@@ -24,7 +24,7 @@ export class DeploymentActiveComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnInit() {
-    this.route.params.subscribe((p: any) => {
+    this.route.parent!.params.subscribe((p: any) => {
       this.depId = Number(p['id']);
       this.load();
     });

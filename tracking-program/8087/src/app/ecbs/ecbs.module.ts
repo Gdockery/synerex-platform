@@ -36,6 +36,12 @@ import { DeploymentCommissioningComponent } from './deployment/deployment-commis
 import { DeploymentCloseoutComponent }      from './deployment/deployment-closeout.component';
 import { DeploymentPhotosComponent }        from './deployment/deployment-photos.component';
 import { DeploymentMaterialsComponent }     from './deployment/deployment-materials.component';
+import { DeploymentLayoutComponent }        from './deployment/deployment-layout.component';
+import { DeploymentPreComponent }           from './deployment/deployment-pre.component';
+import { DeploymentElectricalComponent }    from './deployment/deployment-electrical.component';
+import { DeploymentOneLineComponent }       from './deployment/deployment-oneline.component';
+import { DeploymentEngSupportComponent }    from './deployment/deployment-eng-support.component';
+import { DeploymentDocumentsComponent }     from './deployment/deployment-documents.component';
 import { BarcodeScannerComponent }          from '../shared/barcode-scanner/barcode-scanner.component';
 
 @NgModule({
@@ -77,6 +83,12 @@ import { BarcodeScannerComponent }          from '../shared/barcode-scanner/barc
     DeploymentCloseoutComponent,
     DeploymentPhotosComponent,
     DeploymentMaterialsComponent,
+    DeploymentLayoutComponent,
+    DeploymentPreComponent,
+    DeploymentElectricalComponent,
+    DeploymentOneLineComponent,
+    DeploymentEngSupportComponent,
+    DeploymentDocumentsComponent,
     BarcodeScannerComponent,
   ],
 })

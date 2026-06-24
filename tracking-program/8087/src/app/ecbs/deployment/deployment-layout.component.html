@@ -1,0 +1,96 @@
+<div class="dl-wrap">
+  <!-- Sidebar -->
+  <nav class="dl-sidebar">
+
+    <div class="dl-logo-area">
+      <div class="dl-logo-box">
+        <img src="/assets/images/XecoLogo_Original_640px.png" alt="Synerex" class="dl-logo-img" />
+      </div>
+      <div class="dl-logo-text">
+        <span class="dl-logo-title">Synerex</span>
+        <span class="dl-logo-sub">DEPLOYMENT APP</span>
+      </div>
+    </div>
+
+    <ul class="dl-nav">
+      <li [class.active]="isActive('pre-deployment')" (click)="go('pre-deployment')">
+        <i class="fa fa-check-square-o"></i><span>Pre-Deployment</span>
+      </li>
+      <li [class.active]="isActive('active')" (click)="go('active')">
+        <i class="fa fa-home"></i><span>Active Deployment</span>
+      </li>
+      <li [class.active]="isActive('electrical-network')" (click)="go('electrical-network')">
+        <i class="fa fa-sitemap"></i><span>Electrical Network</span>
+      </li>
+      <li [class.active]="isActive('one-line')" (click)="go('one-line')">
+        <i class="fa fa-file-text-o"></i><span>One-Line Drawing</span>
+      </li>
+      <li [class.active]="isActive('devices')" (click)="go('devices')">
+        <i class="fa fa-microchip"></i><span>Devices</span>
+      </li>
+      <li [class.active]="isActive('photos')" (click)="go('photos')">
+        <i class="fa fa-camera"></i><span>Photos</span>
+      </li>
+      <li [class.active]="isActive('issues')" (click)="go('issues')">
+        <i class="fa fa-exclamation-triangle"></i><span>Issues</span>
+        <span class="dl-badge" *ngIf="openIssues > 0">{{ openIssues }}</span>
+      </li>
+      <li [class.active]="isActive('engineering-support')" (click)="go('engineering-support')">
+        <i class="fa fa-wrench"></i><span>Engineering Support</span>
+      </li>
+      <li [class.active]="isActive('documents')" (click)="go('documents')">
+        <i class="fa fa-folder-open-o"></i><span>Documents</span>
+      </li>
+      <li [class.active]="isActive('commissioning')" (click)="go('commissioning')">
+        <i class="fa fa-check-circle-o"></i><span>Commissioning</span>
+      </li>
+      <li [class.active]="isActive('closeout')" (click)="go('closeout')">
+        <i class="fa fa-archive"></i><span>Closeout Package</span>
+      </li>
+    </ul>
+
+    <div class="dl-donut-section">
+      <div class="dl-donut-label">Deployment Progress</div>
+      <div class="dl-donut-wrap" [style.background]="donutBg">
+        <div class="dl-donut-hole">
+          <span class="dl-donut-pct">{{ progressPct }}%</span>
+        </div>
+      </div>
+      <div class="dl-legend">
+        <div class="dl-legend-item">
+          <span class="dl-dot dl-dot--green"></span>
+          <span>Complete</span>
+          <span class="dl-leg-val">{{ installedCount }}/{{ totalDevices }}</span>
+        </div>
+        <div class="dl-legend-item">
+          <span class="dl-dot dl-dot--blue"></span>
+          <span>In Progress</span>
+          <span class="dl-leg-val">{{ inProgressCount }}/{{ totalDevices }}</span>
+        </div>
+        <div class="dl-legend-item">
+          <span class="dl-dot dl-dot--amber"></span>
+          <span>Pending</span>
+          <span class="dl-leg-val">{{ pendingCount }}/{{ totalDevices }}</span>
+        </div>
+        <div class="dl-legend-item">
+          <span class="dl-dot dl-dot--dark"></span>
+          <span>Not Started</span>
+          <span class="dl-leg-val">{{ notStartedCount }}/{{ totalDevices }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dl-user">
+      <div class="dl-user-avatar">{{ userInitials }}</div>
+      <div class="dl-user-info">
+        <span class="dl-user-name">{{ userName }}</span>
+        <span class="dl-user-role">{{ userRole }}</span>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Content -->
+  <main class="dl-content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

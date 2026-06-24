@@ -1,0 +1,268 @@
+<div class="ol-page" *ngIf="!loading; else olLoading">
+
+  <!-- Header -->
+  <div class="ol-header">
+    <div class="ol-header-left">
+      <div>
+        <div class="ol-header-top">
+          <span class="ol-title">One-Line Drawing</span>
+          <span class="ol-badge ol-badge--{{ statusClass(depStatus) }}">{{ depStatus }}</span>
+        </div>
+        <div class="ol-subtitle">{{ siteName }}</div>
+        <div class="ol-meta-row">
+          <span class="ol-meta">Deployment ID: {{ depNumber }}</span>
+          <span class="ol-meta" *ngIf="utility !== '—'">Utility: {{ utility }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="ol-header-right">
+      <span class="ol-sync"><i class="fa fa-refresh"></i> Synced: {{ syncedAt }}</span>
+      <button class="ol-icon-btn"><i class="fa fa-bell-o"></i></button>
+      <button class="ol-icon-btn"><i class="fa fa-question-circle-o"></i></button>
+      <button class="ol-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="ol-kpi-strip">
+    <div class="ol-kpi-card">
+      <i class="fa fa-th ol-kpi-icon ol-kpi-icon--blue"></i>
+      <div class="ol-kpi-body">
+        <span class="ol-kpi-label">Total Panels</span>
+        <span class="ol-kpi-val">{{ totalPanels }}</span>
+        <span class="ol-kpi-sub">100% identified</span>
+      </div>
+    </div>
+    <div class="ol-kpi-card">
+      <i class="fa fa-check-circle ol-kpi-icon ol-kpi-icon--green"></i>
+      <div class="ol-kpi-body">
+        <span class="ol-kpi-label">Panels Installed</span>
+        <span class="ol-kpi-val ol-kpi-val--green">{{ panelsInstalled }}/{{ totalPanels }}</span>
+        <span class="ol-kpi-sub">{{ totalPanels ? (panelsInstalled / totalPanels * 100 | number:'1.0-0') + '%' : '0%' }}</span>
+      </div>
+    </div>
+    <div class="ol-kpi-card">
+      <i class="fa fa-clock-o ol-kpi-icon ol-kpi-icon--blue"></i>
+      <div class="ol-kpi-body">
+        <span class="ol-kpi-label">Devices Installed</span>
+        <span class="ol-kpi-val ol-kpi-val--blue">{{ devicesInstalled }}/{{ totalDevices }}</span>
+        <span class="ol-kpi-sub">{{ totalDevices ? (devicesInstalled / totalDevices * 100 | number:'1.0-0') + '%' : '72%' }}</span>
+      </div>
+    </div>
+    <div class="ol-kpi-card">
+      <i class="fa fa-exclamation-triangle ol-kpi-icon" [class.ol-kpi-icon--amber]="openIssues > 0" [class.ol-kpi-icon--dim]="!openIssues"></i>
+      <div class="ol-kpi-body">
+        <span class="ol-kpi-label">Open Issues</span>
+        <span class="ol-kpi-val" [class.ol-kpi-val--amber]="openIssues > 0">{{ openIssues }}</span>
+        <span class="ol-kpi-sub ol-kpi-sub--link" *ngIf="openIssues > 0">VIEW ISSUES</span>
+      </div>
+    </div>
+    <div class="ol-kpi-card">
+      <i class="fa fa-file-text-o ol-kpi-icon ol-kpi-icon--purple"></i>
+      <div class="ol-kpi-body">
+        <span class="ol-kpi-label">Drawings</span>
+        <span class="ol-kpi-val ol-kpi-val--purple">{{ totalDrawings }}</span>
+        <span class="ol-kpi-sub ol-kpi-sub--link">VIEW DOCUMENTS</span>
+      </div>
+    </div>
+    <div class="ol-kpi-card">
+      <i class="fa fa-check-circle-o ol-kpi-icon ol-kpi-icon--green"></i>
+      <div class="ol-kpi-body">
+        <span class="ol-kpi-label">Approval Status</span>
+        <span class="ol-kpi-val ol-kpi-val--green" style="font-size:14px;">Approved</span>
+        <span class="ol-kpi-sub">May 10, 2025</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="ol-body">
+    <!-- Left: Viewer area -->
+    <div class="ol-viewer-area">
+
+      <!-- Viewer toolbar -->
+      <div class="ol-viewer-toolbar">
+        <div class="ol-vtb-left">
+          <button class="ol-vtb-btn ol-vtb-btn--active"><i class="fa fa-eye"></i> VIEW</button>
+          <button class="ol-vtb-btn"><i class="fa fa-pencil"></i> MARKUP</button>
+          <button class="ol-vtb-btn ol-vtb-icon"><i class="fa fa-search-minus"></i></button>
+          <button class="ol-vtb-btn ol-vtb-icon"><i class="fa fa-search-plus"></i></button>
+          <button class="ol-vtb-btn ol-vtb-icon"><i class="fa fa-expand"></i></button>
+          <span class="ol-zoom-sel">100% ▾</span>
+        </div>
+        <div class="ol-vtb-right">
+          <button class="ol-vtb-btn ol-vtb-icon"><i class="fa fa-download"></i></button>
+          <button class="ol-vtb-btn ol-vtb-icon"><i class="fa fa-print"></i></button>
+          <button class="ol-vtb-btn ol-vtb-btn--info">
+            <i class="fa fa-info-circle"></i> DRAWING INFO
+          </button>
+        </div>
+      </div>
+
+      <!-- Diagram canvas -->
+      <div class="ol-canvas">
+        <!-- Rendered one-line network diagram -->
+        <div class="ol-diagram">
+          <!-- Status legend -->
+          <div class="ol-status-legend">
+            <div class="ol-sl-title">STATUS LEGEND</div>
+            <div class="ol-sl-item"><span class="ol-sl-dot ol-sl-dot--green"></span> Commissioned</div>
+            <div class="ol-sl-item"><span class="ol-sl-dot ol-sl-dot--blue"></span> In Progress</div>
+            <div class="ol-sl-item"><span class="ol-sl-dot ol-sl-dot--amber"></span> Pending</div>
+            <div class="ol-sl-item"><span class="ol-sl-dot ol-sl-dot--dim"></span> Not Started</div>
+            <div class="ol-sl-item"><span class="ol-sl-dot ol-sl-dot--green ol-sl-dot--wifi"></span> Online</div>
+            <div class="ol-sl-item"><span class="ol-sl-dot ol-sl-dot--dim ol-sl-dot--dashed"></span> Future / Spare</div>
+          </div>
+
+          <!-- Network hierarchy drawing -->
+          <div class="ol-net-wrap">
+            <div class="ol-net-row ol-net-row--center">
+              <div class="ol-net-node ol-net-node--utility">
+                <div class="ol-net-label">UTILITY SERVICE</div>
+                <div class="ol-net-sub">CFE • 13.8 kV</div>
+              </div>
+            </div>
+            <div class="ol-vline"></div>
+            <div class="ol-net-row ol-net-row--center">
+              <div class="ol-net-node ol-net-node--tx">
+                <div class="ol-net-label">MAIN TRANSFORMER</div>
+                <div class="ol-net-sub">T1 - 2500 kVA • 13.8 kV / 480V</div>
+              </div>
+            </div>
+            <div class="ol-vline"></div>
+            <div class="ol-net-row ol-net-row--center">
+              <div class="ol-net-node ol-net-node--sw">
+                <div class="ol-net-label">MAIN SWITCHGEAR</div>
+                <div class="ol-net-sub">MSB-1 • 480V, 2500 A</div>
+              </div>
+            </div>
+            <div class="ol-hline"></div>
+            <div class="ol-net-row ol-net-row--panels">
+              <div class="ol-panel-col">
+                <div class="ol-net-node ol-net-node--panel">
+                  <div class="ol-net-label">FEEDER A</div>
+                  <div class="ol-net-sub">PANEL PA • 480V</div>
+                </div>
+                <div class="ol-vline ol-vline--sm"></div>
+                <div class="ol-dev ol-dev--green">
+                  <div class="ol-dev-name">APF-1</div>
+                  <div class="ol-dev-sub">150A</div>
+                  <div class="ol-dev-status">COMMISSIONED</div>
+                </div>
+                <div class="ol-dev ol-dev--blue">
+                  <div class="ol-dev-name">APF-2</div>
+                  <div class="ol-dev-sub">150A</div>
+                  <div class="ol-dev-status">IN PROGRESS</div>
+                </div>
+                <div class="ol-loads">LOADS</div>
+              </div>
+              <div class="ol-panel-col">
+                <div class="ol-net-node ol-net-node--panel">
+                  <div class="ol-net-label">FEEDER B</div>
+                  <div class="ol-net-sub">PANEL PB • 480V</div>
+                </div>
+                <div class="ol-vline ol-vline--sm"></div>
+                <div class="ol-dev ol-dev--dim">
+                  <div class="ol-dev-name">METER-1</div>
+                  <div class="ol-dev-sub">200A</div>
+                  <div class="ol-dev-status">COMMISSIONED</div>
+                </div>
+                <div class="ol-loads">LOADS</div>
+              </div>
+              <div class="ol-panel-col">
+                <div class="ol-net-node ol-net-node--panel">
+                  <div class="ol-net-label">FEEDER C</div>
+                  <div class="ol-net-sub">PANEL PC • 480V</div>
+                </div>
+                <div class="ol-vline ol-vline--sm"></div>
+                <div class="ol-dev ol-dev--green">
+                  <div class="ol-dev-name">GATEWAY-1</div>
+                  <div class="ol-dev-sub"></div>
+                  <div class="ol-dev-status">ONLINE</div>
+                </div>
+                <div class="ol-loads">LOADS</div>
+              </div>
+              <div class="ol-panel-col">
+                <div class="ol-net-node ol-net-node--panel">
+                  <div class="ol-net-label">FEEDER D</div>
+                  <div class="ol-net-sub">PANEL PD • 480V</div>
+                </div>
+                <div class="ol-vline ol-vline--sm"></div>
+                <div class="ol-dev ol-dev--amber">
+                  <div class="ol-dev-name">APF-3</div>
+                  <div class="ol-dev-sub">150A</div>
+                  <div class="ol-dev-status">PENDING</div>
+                </div>
+                <div class="ol-loads">LOADS</div>
+              </div>
+              <div class="ol-panel-col">
+                <div class="ol-net-node ol-net-node--panel ol-net-node--future">
+                  <div class="ol-net-label">SPARE</div>
+                  <div class="ol-net-sub">SPACE FUTURE • 480V</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom footer bar -->
+        <div class="ol-canvas-footer">
+          <span>Drawing: {{ currentDoc?.name || '—' }}</span>
+          <span>Revision: {{ currentDoc ? '2' : '—' }}</span>
+          <span>Last Updated: May 10, 2025 by Engineering</span>
+          <button class="ol-rev-link">View Revision History</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: Legend + Documents + Quick Actions -->
+    <div class="ol-right">
+      <!-- Device Legend -->
+      <div class="ol-right-section">
+        <div class="ol-right-title">DEVICE LEGEND ({{ totalDeviceLegend }})</div>
+        <div class="ol-legend-items">
+          <div class="ol-leg-item" *ngFor="let leg of deviceLegend">
+            <span class="ol-leg-box"></span>
+            <span class="ol-leg-type">{{ leg.type }}</span>
+            <span class="ol-leg-count">○ {{ leg.count }}</span>
+          </div>
+        </div>
+        <button class="ol-view-all">VIEW ALL DEVICES</button>
+      </div>
+
+      <!-- Drawing Documents -->
+      <div class="ol-right-section">
+        <div class="ol-right-title">DRAWING DOCUMENTS ({{ drawingDocs.length }})</div>
+        <div class="ol-doc-list">
+          <div class="ol-doc-item" *ngFor="let doc of drawingDocs" [class.current]="doc.current">
+            <i class="fa fa-file-pdf-o" style="color:#ef4444;"></i>
+            <div class="ol-doc-info">
+              <div class="ol-doc-name">{{ doc.name }}</div>
+              <div class="ol-doc-date">{{ doc.date }}</div>
+            </div>
+            <button class="ol-doc-menu"><i class="fa fa-ellipsis-v"></i></button>
+          </div>
+        </div>
+        <button class="ol-view-all">VIEW ALL DOCUMENTS</button>
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="ol-right-section">
+        <div class="ol-right-title">QUICK ACTIONS</div>
+        <div class="ol-qa-grid">
+          <div class="ol-qa-item"><i class="fa fa-pencil"></i> Add Markup</div>
+          <div class="ol-qa-item"><i class="fa fa-sticky-note-o"></i> Add Note</div>
+          <div class="ol-qa-item"><i class="fa fa-upload"></i> Upload Drawing</div>
+          <div class="ol-qa-item"><i class="fa fa-code-fork"></i> Compare Revisions</div>
+          <div class="ol-qa-item"><i class="fa fa-refresh"></i> Request Change</div>
+          <div class="ol-qa-item" (click)="goEngineering()"><i class="fa fa-wrench"></i> Engineering Support</div>
+        </div>
+        <button class="ol-export-btn"><i class="fa fa-download"></i> Export Drawing (PDF)</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<ng-template #olLoading>
+  <div class="ol-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div>
+</ng-template>

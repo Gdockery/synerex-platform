@@ -43,6 +43,19 @@ export class AppComponent implements OnInit {
     if (this.isFieldMode || window.innerWidth < 600) {
       this._opened = false;
     }
+
+    // Hide main platform sidebar when viewing a specific deployment (any role)
+    this.router.events.subscribe(event => {
+      if (event instanceof NavigationEnd) {
+        const onDepDetail = /\/ecbs\/deployment\/\d+/.test(event.urlAfterRedirects);
+        if (onDepDetail && !this.isFieldMode) {
+          this.isFieldMode = true;
+          this._opened = false;
+        } else if (!onDepDetail && role !== 14) {
+          this.isFieldMode = false;
+        }
+      }
+    });
     this.globalNotificationService.subscribe();
     this.whitelabelService.getBrandName().subscribe(brandName => {
       this.brandName = brandName;

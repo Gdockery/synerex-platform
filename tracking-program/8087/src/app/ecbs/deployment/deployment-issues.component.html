@@ -1,73 +1,292 @@
-<div class="diss-page">
-  <div class="diss-topbar">
-    <button class="diss-back fa fa-arrow-left" (click)="goBack()"></button>
-    <h2>Issues</h2>
-    <div class="diss-topbar-right">
-      <select class="diss-select" [(ngModel)]="filterPriority"><option value="">All Priorities</option><option *ngFor="let p of PRIORITIES" [value]="p">{{ p }}</option></select>
-      <select class="diss-select" [(ngModel)]="filterStatus"><option value="">All Status</option><option *ngFor="let s of STATUSES" [value]="s">{{ s }}</option></select>
-      <button class="diss-btn-add" (click)="showCreate = !showCreate"><span class="fa fa-plus"></span> Log Issue</button>
-    </div>
-  </div>
+<div class="is-page" *ngIf="!loading; else isLoading">
 
-  <div class="diss-kpi-row">
-    <div class="diss-kpi"><span class="diss-kpi-val">{{ kpiOpen }}</span><span class="diss-kpi-lbl">Open</span></div>
-    <div class="diss-kpi diss-kpi-red"><span class="diss-kpi-val">{{ kpiHigh }}</span><span class="diss-kpi-lbl">High / Critical</span></div>
-    <div class="diss-kpi diss-kpi-green"><span class="diss-kpi-val">{{ kpiResolved }}</span><span class="diss-kpi-lbl">Resolved</span></div>
-    <div class="diss-kpi"><span class="diss-kpi-val">{{ kpiTotal }}</span><span class="diss-kpi-lbl">Total</span></div>
-  </div>
-
-  <div class="diss-create-form" *ngIf="showCreate">
-    <h4>Log Issue</h4>
-    <div class="diss-form-grid">
-      <div class="diss-form-group diss-span2"><label>Title</label><input class="diss-input" [(ngModel)]="newIssue.title" placeholder="Brief issue description"/></div>
-      <div class="diss-form-group"><label>Priority</label><select class="diss-input" [(ngModel)]="newIssue.priority"><option *ngFor="let p of PRIORITIES" [value]="p">{{ p }}</option></select></div>
-      <div class="diss-form-group"><label>Impact Level</label><select class="diss-input" [(ngModel)]="newIssue.impact_level"><option *ngFor="let imp of IMPACTS" [value]="imp">{{ imp }}</option></select></div>
-      <div class="diss-form-group diss-span2"><label>Description</label><textarea class="diss-input diss-textarea" [(ngModel)]="newIssue.description" rows="3" placeholder="Details, location, steps to reproduce..."></textarea></div>
-    </div>
-    <div class="diss-form-actions">
-      <button class="diss-btn-primary" (click)="createIssue()" [disabled]="saving || !newIssue.title">{{ saving ? 'Saving...' : 'Log Issue' }}</button>
-      <button class="diss-btn-ghost" (click)="showCreate = false">Cancel</button>
-    </div>
-  </div>
-
-  <div class="diss-split">
-    <div class="diss-list-panel">
-      <div class="diss-loading" *ngIf="loading"><span class="fa fa-spinner fa-spin"></span></div>
-      <div class="diss-empty" *ngIf="!loading && filtered.length === 0">No issues logged. Great work!</div>
-      <div class="diss-issue-row" *ngFor="let iss of filtered" [class.diss-selected]="selected && selected.id === iss.id" (click)="select(iss)">
-        <div class="diss-row-top">
-          <span class="diss-num">{{ iss.issue_number || '#' + iss.id }}</span>
-          <span class="diss-pri-badge" [ngClass]="priorityClass(iss.priority)">{{ iss.priority }}</span>
-          <span class="diss-sts-badge" [class.sts-resolved]="iss.status === 'Resolved'" [class.sts-open]="iss.status === 'Open'">{{ iss.status }}</span>
+  <!-- Header -->
+  <div class="is-header">
+    <div class="is-header-left">
+      <div>
+        <div class="is-header-top">
+          <span class="is-title">Issues</span>
+          <span class="is-badge is-badge--{{ statusClass(depStatus) }}">{{ depStatus }}</span>
         </div>
-        <div class="diss-row-title">{{ iss.title }}</div>
-        <div class="diss-row-impact">
-          <span class="diss-impact-badge" [ngClass]="impactClass(iss.impact_level)">{{ iss.impact_level }}</span>
-          <span class="diss-row-date">{{ fmtDate(iss.createdAt) }}</span>
+        <div class="is-subtitle">{{ siteName }}</div>
+        <div class="is-meta-row">
+          <span class="is-meta">Deployment ID: {{ depNumber }}</span>
+          <span class="is-meta" *ngIf="utility !== '—'">Utility: {{ utility }}</span>
         </div>
       </div>
     </div>
+    <div class="is-header-right">
+      <span class="is-sync"><i class="fa fa-refresh"></i> Synced: {{ syncedAt }}</span>
+      <button class="is-icon-btn"><i class="fa fa-bell-o"></i></button>
+      <button class="is-icon-btn"><i class="fa fa-question-circle-o"></i></button>
+      <button class="is-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
+    </div>
+  </div>
 
-    <div class="diss-detail-panel" *ngIf="selected">
-      <div class="diss-detail-header">
-        <span class="diss-detail-num">{{ selected.issue_number || '#' + selected.id }}</span>
-        <h3>{{ selected.title }}</h3>
+  <!-- KPI Strip -->
+  <div class="is-kpi-strip">
+    <div class="is-kpi-card">
+      <i class="fa fa-exclamation-triangle is-kpi-icon" [class.is-kpi-icon--red]="openCount > 0" [class.is-kpi-icon--dim]="!openCount"></i>
+      <div class="is-kpi-body">
+        <span class="is-kpi-label">Open Issues</span>
+        <span class="is-kpi-val" [class.is-kpi-val--red]="openCount > 0">{{ openCount }}</span>
+        <span class="is-kpi-sub">{{ issues.length ? (openCount / issues.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
-      <div class="diss-badges-row">
-        <span class="diss-pri-badge" [ngClass]="priorityClass(selected.priority)">{{ selected.priority }}</span>
-        <span class="diss-impact-badge" [ngClass]="impactClass(selected.impact_level)">{{ selected.impact_level }}</span>
+    </div>
+    <div class="is-kpi-card">
+      <i class="fa fa-clock-o is-kpi-icon is-kpi-icon--amber"></i>
+      <div class="is-kpi-body">
+        <span class="is-kpi-label">In Progress</span>
+        <span class="is-kpi-val is-kpi-val--amber">{{ inProgressCount }}</span>
+        <span class="is-kpi-sub">{{ issues.length ? (inProgressCount / issues.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
-      <p class="diss-description">{{ selected.description || 'No description.' }}</p>
-      <div class="diss-detail-meta">
-        <div><span class="diss-meta-lbl">Created</span> {{ fmtDate(selected.createdAt) }}</div>
-        <div *ngIf="selected.resolved_at"><span class="diss-meta-lbl">Resolved</span> {{ fmtDate(selected.resolved_at) }}</div>
+    </div>
+    <div class="is-kpi-card">
+      <i class="fa fa-info-circle is-kpi-icon is-kpi-icon--blue"></i>
+      <div class="is-kpi-body">
+        <span class="is-kpi-label">Pending OEM</span>
+        <span class="is-kpi-val is-kpi-val--blue">{{ pendingOemCount }}</span>
+        <span class="is-kpi-sub">{{ issues.length ? (pendingOemCount / issues.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
-      <div class="diss-status-actions">
-        <span class="diss-meta-lbl">Update Status:</span>
-        <button class="diss-sts-btn" *ngFor="let s of STATUSES" [class.active]="selected.status === s" (click)="updateStatus(selected, s)">{{ s }}</button>
+    </div>
+    <div class="is-kpi-card">
+      <i class="fa fa-check-circle is-kpi-icon is-kpi-icon--green"></i>
+      <div class="is-kpi-body">
+        <span class="is-kpi-label">Resolved</span>
+        <span class="is-kpi-val is-kpi-val--green">{{ resolvedCount }}</span>
+        <span class="is-kpi-sub">{{ issues.length ? (resolvedCount / issues.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
+      </div>
+    </div>
+    <div class="is-kpi-card">
+      <i class="fa fa-check-circle-o is-kpi-icon is-kpi-icon--green"></i>
+      <div class="is-kpi-body">
+        <span class="is-kpi-label">SLA Compliance</span>
+        <span class="is-kpi-val is-kpi-val--green">{{ slaCompliance }}%</span>
+        <span class="is-kpi-sub">On Track</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create Issue Form -->
+  <div class="is-create-form" *ngIf="showCreate">
+    <div class="is-cf-row">
+      <input class="is-input" placeholder="Issue title*" [(ngModel)]="newIssue.title" />
+      <select class="is-select" [(ngModel)]="newIssue.priority">
+        <option *ngFor="let p of PRIORITIES" [value]="p">{{ p }}</option>
+      </select>
+      <select class="is-select" [(ngModel)]="newIssue.category">
+        <option *ngFor="let c of CATEGORIES" [value]="c">{{ c }}</option>
+      </select>
+      <button class="is-save-btn" (click)="createIssue()" [disabled]="saving">
+        {{ saving ? 'Creating...' : 'Create' }}
+      </button>
+      <button class="is-cancel-btn" (click)="showCreate = false">Cancel</button>
+    </div>
+    <textarea class="is-textarea" placeholder="Describe the issue..." [(ngModel)]="newIssue.description" rows="2"></textarea>
+  </div>
+
+  <!-- Body -->
+  <div class="is-body">
+    <!-- Left: Filter + Table + Analytics -->
+    <div class="is-left">
+
+      <!-- Filter Bar -->
+      <div class="is-filter-bar">
+        <button class="is-filter-btn"><i class="fa fa-filter"></i> FILTERS</button>
+        <select class="is-select" [(ngModel)]="filterStatus">
+          <option value="">All Statuses</option>
+          <option *ngFor="let s of STATUSES" [value]="s">{{ s }}</option>
+        </select>
+        <select class="is-select" [(ngModel)]="filterPriority">
+          <option value="">All Priorities</option>
+          <option *ngFor="let p of PRIORITIES" [value]="p">{{ p }}</option>
+        </select>
+        <select class="is-select" [(ngModel)]="filterCategory">
+          <option value="">All Categories</option>
+          <option *ngFor="let c of CATEGORIES" [value]="c">{{ c }}</option>
+        </select>
+        <div class="is-search-wrap">
+          <i class="fa fa-search is-search-icon"></i>
+          <input class="is-search" placeholder="Search issues..." [(ngModel)]="search" />
+        </div>
+        <button class="is-create-btn" (click)="showCreate = !showCreate">
+          <i class="fa fa-plus"></i> CREATE ISSUE
+        </button>
+      </div>
+
+      <!-- Issues Table -->
+      <div class="is-table-wrap">
+        <table class="is-table">
+          <thead>
+            <tr>
+              <th>Issue ID</th>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Assigned To</th>
+              <th>Location</th>
+              <th>Created On</th>
+              <th>SLA</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let issue of filtered" [class.selected]="selected?.id === issue.id" (click)="select(issue)">
+              <td class="is-cell-id">{{ issue.issue_number || ('ISS-' + issue.id) }}</td>
+              <td class="is-cell-title">{{ issue.title }}</td>
+              <td><span class="is-cat-badge">{{ issue.category || 'Device' }}</span></td>
+              <td><span class="is-pri-badge is-pri--{{ priorityClass(issue.priority) }}">{{ issue.priority || 'Medium' }}</span></td>
+              <td><span class="is-status-badge is-status--{{ statusClass(issue.status) }}">{{ issue.status || 'Open' }}</span></td>
+              <td>{{ issue.assigned_to_name || '—' }}</td>
+              <td>{{ issue.location || '—' }}</td>
+              <td class="is-date">{{ issue.created_at ? (issue.created_at | date:'MMM d, yyyy') : '—' }}</td>
+              <td class="is-sla">{{ issue.sla_due || '—' }}</td>
+              <td>
+                <div class="is-row-actions">
+                  <button class="is-row-btn" title="View"><i class="fa fa-eye"></i></button>
+                  <button class="is-row-btn" title="More"><i class="fa fa-ellipsis-v"></i></button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="filtered.length === 0">
+              <td colspan="10" class="is-empty">
+                <i class="fa fa-check-circle"></i> No issues match the current filter
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="is-table-footer">
+          <span>Showing 1 to {{ filtered.length }} of {{ issues.length }} issues</span>
+          <div class="is-pages">
+            <button class="is-page-btn">‹</button>
+            <button class="is-page-btn is-page-btn--active">1</button>
+            <button class="is-page-btn">2</button>
+            <button class="is-page-btn">3</button>
+            <button class="is-page-btn">›</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Analytics row -->
+      <div class="is-analytics">
+        <div class="is-analytics-card">
+          <div class="is-an-title">ISSUES BY CATEGORY</div>
+          <div class="is-cat-list">
+            <div class="is-cat-item" *ngFor="let c of issuesByCategory">
+              <div class="is-cat-row">
+                <span class="is-cat-name">{{ c.cat }}</span>
+                <span class="is-cat-cnt">{{ c.cnt }}</span>
+                <span class="is-cat-pct">{{ c.pct }}%</span>
+              </div>
+              <div class="is-cat-bar-wrap"><div class="is-cat-bar" [style.width.%]="c.pct"></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="is-analytics-card">
+          <div class="is-an-title">AGING OF OPEN ISSUES</div>
+          <div class="is-aging">
+            <div class="is-age-item">
+              <span class="is-age-lbl">Overdue</span>
+              <span class="is-age-val is-age-val--red">{{ agingBuckets.overdue }}</span>
+            </div>
+            <div class="is-age-item">
+              <span class="is-age-lbl">1-2 Days</span>
+              <span class="is-age-val is-age-val--amber">{{ agingBuckets.d1to2 }}</span>
+            </div>
+            <div class="is-age-item">
+              <span class="is-age-lbl">3-7 Days</span>
+              <span class="is-age-val is-age-val--blue">{{ agingBuckets.d3to7 }}</span>
+            </div>
+            <div class="is-age-item">
+              <span class="is-age-lbl">&gt; 7 Days</span>
+              <span class="is-age-val is-age-val--green">{{ agingBuckets.gt7 }}</span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="diss-detail-empty" *ngIf="!selected"><span class="fa fa-flag"></span><p>Select an issue to view details</p></div>
+    <!-- Right: Issue Detail Panel -->
+    <div class="is-right">
+      <div class="is-detail" *ngIf="selected; else noSel">
+        <div class="is-dp-id">{{ selected.issue_number || ('ISS-' + selected.id) }}
+          <span class="is-dp-status-dot">● {{ selected.status || 'Open' }}</span>
+        </div>
+        <div class="is-dp-title">{{ selected.title }}</div>
+
+        <div class="is-dp-rows">
+          <div class="is-dp-row">
+            <span>Category</span>
+            <span class="is-cat-badge">{{ selected.category || 'Device' }}</span>
+          </div>
+          <div class="is-dp-row">
+            <span>Priority</span>
+            <span class="is-pri-badge is-pri--{{ priorityClass(selected.priority) }}">{{ selected.priority || 'Medium' }}</span>
+          </div>
+          <div class="is-dp-row">
+            <span>Location</span>
+            <span>{{ selected.location || '—' }}</span>
+          </div>
+          <div class="is-dp-row">
+            <span>Description</span>
+          </div>
+          <div class="is-dp-description">{{ selected.description || '—' }}</div>
+          <div class="is-dp-row"><span>Assigned To</span><span>{{ selected.assigned_to_name || '—' }}</span></div>
+          <div class="is-dp-row"><span>Created On</span><span>{{ selected.created_at ? (selected.created_at | date:'MMM d, yyyy h:mm a') : '—' }}</span></div>
+          <div class="is-dp-row"><span>SLA Status</span><span class="is-sla-txt">{{ selected.sla_due || '—' }}</span></div>
+          <div class="is-dp-row"><span>Due Date</span><span class="is-sla-txt">{{ selected.due_date || '—' }}</span></div>
+        </div>
+
+        <!-- Activity Timeline -->
+        <div class="is-dp-section">ACTIVITY TIMELINE</div>
+        <div class="is-timeline" *ngIf="selected.activity?.length; else noActivity">
+          <div class="is-tl-item" *ngFor="let act of selected.activity">
+            <div class="is-tl-dot"></div>
+            <div class="is-tl-content">
+              <div class="is-tl-time">{{ act.time || '—' }}</div>
+              <div class="is-tl-text">{{ act.text }}</div>
+              <div class="is-tl-by">{{ act.by }}</div>
+            </div>
+          </div>
+        </div>
+        <ng-template #noActivity>
+          <div class="is-tl-empty">No activity yet</div>
+        </ng-template>
+        <button class="is-tl-more">View Full Activity</button>
+
+        <!-- Comment Box -->
+        <div class="is-comment-box">
+          <textarea class="is-comment-input" rows="2"
+            placeholder="Add a comment..." [(ngModel)]="commentText"></textarea>
+          <button class="is-comment-send" (click)="addComment()">Send</button>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="is-dp-section">QUICK ACTIONS</div>
+        <div class="is-qa-grid">
+          <div class="is-qa-item"><i class="fa fa-pencil"></i> Add Note</div>
+          <div class="is-qa-item"><i class="fa fa-user"></i> Reassign Issue</div>
+          <div class="is-qa-item"><i class="fa fa-camera"></i> Upload Photo</div>
+          <div class="is-qa-item"><i class="fa fa-paperclip"></i> Attach Document</div>
+          <div class="is-qa-item" (click)="updateStatus('In Progress')"><i class="fa fa-refresh"></i> Change Status</div>
+          <div class="is-qa-item"><i class="fa fa-arrow-up"></i> Escalate Issue</div>
+        </div>
+
+        <button class="is-resolve-btn" (click)="resolveIssue()" *ngIf="selected.status !== 'Resolved'">
+          <i class="fa fa-check-circle"></i> RESOLVE ISSUE
+        </button>
+      </div>
+      <ng-template #noSel>
+        <div class="is-no-sel">
+          <i class="fa fa-exclamation-triangle"></i>
+          <span>Select an issue to view details</span>
+        </div>
+      </ng-template>
+    </div>
   </div>
 </div>
+
+<ng-template #isLoading>
+  <div class="is-loading"><i class="fa fa-spinner fa-spin"></i> Loading issues...</div>
+</ng-template>

@@ -1,0 +1,148 @@
+<div class="dp-page" *ngIf="!loading; else dpLoading">
+
+  <!-- Header -->
+  <div class="dp-header">
+    <div class="dp-header-left">
+      <div>
+        <div class="dp-header-top">
+          <span class="dp-title">Pre-Deployment</span>
+          <span class="dp-badge" [ngClass]="readinessClass">{{ readinessLabel }}</span>
+        </div>
+        <div class="dp-subtitle">{{ siteName }}</div>
+        <div class="dp-meta-row">
+          <span class="dp-meta-item">Deployment ID: {{ depNumber }}</span>
+          <span class="dp-meta-item" *ngIf="utility !== '—'">Utility: {{ utility }}</span>
+        </div>
+      </div>
+    </div>
+    <div class="dp-header-right">
+      <span class="dp-sync"><i class="fa fa-refresh"></i> Synced {{ syncedAt }}</span>
+      <button class="dp-icon-btn"><i class="fa fa-bell-o"></i></button>
+      <button class="dp-icon-btn"><i class="fa fa-question-circle-o"></i></button>
+      <button class="dp-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
+    </div>
+  </div>
+
+  <!-- KPI Strip -->
+  <div class="dp-kpi-strip">
+    <div class="dp-kpi-card">
+      <i class="fa fa-check-circle dp-kpi-icon dp-kpi-icon--green"></i>
+      <div class="dp-kpi-body">
+        <span class="dp-kpi-label">Complete</span>
+        <span class="dp-kpi-val dp-kpi-val--green">{{ completeItems }}/{{ totalItems }}</span>
+        <span class="dp-kpi-pct">{{ readinessScore }}%</span>
+      </div>
+    </div>
+    <div class="dp-kpi-card">
+      <i class="fa fa-exclamation-triangle dp-kpi-icon dp-kpi-icon--amber"></i>
+      <div class="dp-kpi-body">
+        <span class="dp-kpi-label">Missing</span>
+        <span class="dp-kpi-val dp-kpi-val--amber">{{ missingItems }}/{{ totalItems }}</span>
+        <span class="dp-kpi-pct">{{ missingItems ? (missingItems / totalItems * 100 | number:'1.0-0') + '%' : '0%' }}</span>
+      </div>
+    </div>
+    <div class="dp-kpi-card">
+      <i class="fa fa-clock-o dp-kpi-icon dp-kpi-icon--blue"></i>
+      <div class="dp-kpi-body">
+        <span class="dp-kpi-label">In Progress</span>
+        <span class="dp-kpi-val dp-kpi-val--blue">{{ inProgressItems }}/{{ totalItems }}</span>
+        <span class="dp-kpi-pct">{{ inProgressItems ? (inProgressItems / totalItems * 100 | number:'1.0-0') + '%' : '0%' }}</span>
+      </div>
+    </div>
+    <div class="dp-kpi-card">
+      <i class="fa fa-minus-circle dp-kpi-icon dp-kpi-icon--dim"></i>
+      <div class="dp-kpi-body">
+        <span class="dp-kpi-label">Not Required</span>
+        <span class="dp-kpi-val">0/{{ totalItems }}</span>
+        <span class="dp-kpi-pct">0%</span>
+      </div>
+    </div>
+    <div class="dp-kpi-card">
+      <i class="fa fa-times-circle dp-kpi-icon" [class.dp-kpi-icon--red]="blockedItems > 0" [class.dp-kpi-icon--dim]="!blockedItems"></i>
+      <div class="dp-kpi-body">
+        <span class="dp-kpi-label">Blocked</span>
+        <span class="dp-kpi-val" [class.dp-kpi-val--red]="blockedItems > 0">{{ blockedItems }}/{{ totalItems }}</span>
+        <span class="dp-kpi-pct" [class.dp-kpi-pct--red]="blockedItems > 0">{{ blockedItems > 0 ? (blockedItems / totalItems * 100 | number:'1.0-0') + '%' : '0%' }}</span>
+      </div>
+    </div>
+    <div class="dp-kpi-card dp-kpi-card--meta">
+      <div class="dp-kpi-meta-line">Last Updated</div>
+      <div class="dp-kpi-meta-date">{{ syncedAt }}</div>
+      <button class="dp-refresh-btn" (click)="load()"><i class="fa fa-refresh"></i> Refresh</button>
+    </div>
+  </div>
+
+  <!-- Body: sections grid + issues panel -->
+  <div class="dp-body">
+    <div class="dp-sections-grid">
+      <div class="dp-section-card" *ngFor="let s of sections">
+        <div class="dp-sec-header">
+          <span class="dp-sec-num">{{ s.num }}</span>
+          <i class="fa" [ngClass]="s.icon"></i>
+          <span class="dp-sec-title">{{ s.title }}</span>
+          <span class="dp-sec-score" [class.dp-sec-score--ok]="sectionScore(s) === 100">{{ sectionScore(s) }}%</span>
+        </div>
+        <div class="dp-sec-items">
+          <div class="dp-sec-item" *ngFor="let item of s.items" [ngClass]="'item-' + itemClass(item.status)">
+            <i class="fa" [ngClass]="itemIcon(item.status)"></i>
+            <span class="dp-item-label">{{ item.label }}</span>
+            <span class="dp-item-value" *ngIf="item.value">{{ item.value }}</span>
+          </div>
+        </div>
+        <div class="dp-sec-footer">
+          <button class="dp-sec-btn" *ngIf="s.num === 1">Edit</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 2">View Package</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 3">View Details</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 4">Edit</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 5">View</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 6">Edit</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 7">View Details</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 8">Upload Document</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Readiness Issues Panel -->
+    <div class="dp-issues-panel">
+      <div class="dp-ip-header">
+        <span>Readiness Issues ({{ readinessIssues.length }})</span>
+      </div>
+      <div class="dp-ip-body">
+        <div class="dp-ip-item" *ngFor="let issue of readinessIssues" [ngClass]="'issue-' + issueClass(issue.status)">
+          <div class="dp-ip-icon">
+            <i class="fa" [ngClass]="itemIcon(issue.status)"></i>
+          </div>
+          <div class="dp-ip-detail">
+            <div class="dp-ip-title">{{ issue.label }}</div>
+            <div class="dp-ip-sub">{{ issue.section }}</div>
+          </div>
+          <button class="dp-ip-view">View &rsaquo;</button>
+        </div>
+        <div class="dp-ip-empty" *ngIf="readinessIssues.length === 0">
+          <i class="fa fa-check-circle"></i>
+          <span>All readiness checks passed!</span>
+        </div>
+      </div>
+      <button class="dp-ip-all" *ngIf="readinessIssues.length > 0">View All Issues</button>
+    </div>
+  </div>
+
+  <!-- Footer Action Bar -->
+  <div class="dp-footer">
+    <span class="dp-footer-hint">All required sections must be complete to start the Active Deployment.</span>
+    <div class="dp-footer-actions">
+      <button class="dp-footer-btn dp-footer-btn--ghost"><i class="fa fa-plus"></i> Add Readiness Issue</button>
+      <button class="dp-footer-btn dp-footer-btn--ghost"><i class="fa fa-comment"></i> Message Project Team</button>
+      <button class="dp-footer-btn dp-footer-btn--ghost"><i class="fa fa-print"></i> Print Readiness Report</button>
+      <button class="dp-footer-btn dp-footer-btn--start"
+        [disabled]="blockedItems > 0 && readinessScore < 90"
+        (click)="startDeployment()">
+        &rsaquo; START ACTIVE DEPLOYMENT
+      </button>
+    </div>
+  </div>
+</div>
+
+<ng-template #dpLoading>
+  <div class="dp-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div>
+</ng-template>
