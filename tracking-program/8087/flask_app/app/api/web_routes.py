@@ -119,7 +119,7 @@ def _get_client_name_for_user(user):
     if not user or not user.client:
         return None
     try:
-        from app.db.db import get_session as _gs
+        from app.db.request_session import get_session as _gs
         from app.models.client import Client
         client = _gs().query(Client).get(user.client)
         return client.name if client else None
