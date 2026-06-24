@@ -84,7 +84,7 @@ export class DeploymentPhotosComponent implements OnInit {
       if (this.search) {
         const q = this.search.toLowerCase();
         const name = (p.description || p.device_name || '').toLowerCase();
-        if (!name.indexOf(q) >= 0) return false;
+        if (name.indexOf(q) < 0) return false;
       }
       return true;
     });

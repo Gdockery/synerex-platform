@@ -76,7 +76,7 @@ export class DeploymentIssuesComponent implements OnInit {
       if (this.search) {
         const q = this.search.toLowerCase();
         const txt = ((i.title || '') + (i.description || '') + (i.issue_number || '')).toLowerCase();
-        if (!txt.indexOf(q) >= 0) return false;
+        if (txt.indexOf(q) < 0) return false;
       }
       return true;
     });
