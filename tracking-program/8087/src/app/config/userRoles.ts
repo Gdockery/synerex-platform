@@ -1,5 +1,5 @@
 /**
- * ECBS OS role definitions.
+ * ECBS Intelligence Platform role definitions.
  * Matches app/helpers/roles.py on the backend.
  *
  * id            = role integer stored in user.role (DB)
@@ -58,9 +58,12 @@ export let USER_ROLES = [
     displayName: 'Executive',
     minCreatorRole: 9,
   }, {
-    // Phase 1 addition — ECBS OS Read Only role
     id: 13,
     displayName: 'Read Only',
     minCreatorRole: 9,
+  }, {
+    id: 14,
+    displayName: 'Project Manager',
+    minCreatorRole: 8,
   }
 ];

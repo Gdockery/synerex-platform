@@ -21,7 +21,6 @@ POST   /api/digital-twin/from-project/<project_id>
     needed, then materialises meter → switchgear → bus assets and 'feeds'
     relationships. Idempotent: returns existing twin_id if already seeded.
 """
-from time import time
 
 from flask import Blueprint, request
 from flask_login import login_required, current_user
@@ -32,15 +31,12 @@ from app.models.asset import Asset
 from app.models.asset_relationship import AssetRelationship
 from app.models.site import Site
 from app.services.audit import audit
+from app.helpers.time_utils import now_ms as _now
 
 dt_bp = Blueprint("digital_twin", __name__, url_prefix="/api/digital-twin")
 
 # Roles allowed to move a twin to approved/locked
 _ENGINEERING_ROLES = {3, 8, 9}
-
-
-def _now():
-    return int(time() * 1000)
 
 
 def _twin_dict(t: DigitalTwin) -> dict:

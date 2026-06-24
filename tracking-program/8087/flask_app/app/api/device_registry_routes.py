@@ -17,7 +17,6 @@ PATCH  /api/device-registry/<id>/commissioning/<test_id> update test outcome
 NOTE: Does NOT touch /api/meter, /api/gateway, /api/switch, /api/repeater.
       Those routes and tables remain unchanged (Angular depends on them).
 """
-from time import time
 
 from flask import Blueprint, request
 from flask_login import login_required, current_user
@@ -27,14 +26,11 @@ from app.models.device_registry import DeviceRegistry, DEVICE_TYPES, DEVICE_STAT
 from app.models.commissioning_test import CommissioningTest, COMMISSIONING_OUTCOMES
 from app.services.audit import audit
 from app.helpers.roles import (
+from app.helpers.time_utils import now_ms as _now
     WRITE_ROLES, ENGINEERING_ROLES, DEPLOYMENT_ROLES, ADMIN_ROLES, require_roles
 )
 
 device_reg_bp = Blueprint("device_registry", __name__, url_prefix="/api/device-registry")
-
-
-def _now():
-    return int(time() * 1000)
 
 
 def _dev_dict(d: DeviceRegistry) -> dict:

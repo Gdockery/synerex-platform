@@ -25,7 +25,6 @@ PUT    /api/alert-rules/<id>        Update rule
 DELETE /api/alert-rules/<id>        Soft-delete rule
 POST   /api/alert-rules/<id>/test   Test rule notification
 """
-import time as _time
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 
@@ -38,6 +37,7 @@ from app.models.alarm import (
     SEVERITY_LOW, SEVERITY_INFORMATION,
 )
 from app.helpers.roles import ADMIN_ROLES, ENGINEERING_ROLES, require_roles
+from app.helpers.time_utils import now_ms as _now_ms
 
 alarm_bp = Blueprint("alarms", __name__, url_prefix="")
 
@@ -53,10 +53,6 @@ _VALID_STATUSES = {
     STATUS_NEW, STATUS_ACKNOWLEDGED, STATUS_ASSIGNED,
     STATUS_IN_PROGRESS, STATUS_RESOLVED, STATUS_CLOSED,
 }
-
-
-def _now_ms() -> int:
-    return int(_time.time() * 1000)
 
 
 def _project_id_from_request() -> int | None:

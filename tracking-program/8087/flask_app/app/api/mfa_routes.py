@@ -14,7 +14,6 @@ Flow for a new MFA enrollment:
 Requires: pyotp  (pip install pyotp)
 """
 import secrets
-from time import time
 
 from flask import Blueprint, request, session
 from flask_login import login_required, current_user
@@ -22,12 +21,9 @@ from flask_login import login_required, current_user
 from app.db import get_session
 from app.models.user_mfa import UserMfa, MFA_REQUIRED_ROLES
 from app.services.audit import audit
+from app.helpers.time_utils import now_ms as _now
 
 mfa_bp = Blueprint("mfa", __name__, url_prefix="/api/mfa")
-
-
-def _now():
-    return int(time() * 1000)
 
 
 def _get_or_create_mfa_row(sess, user_id: int) -> UserMfa:

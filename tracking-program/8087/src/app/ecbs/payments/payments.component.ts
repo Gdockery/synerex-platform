@@ -1,3 +1,4 @@
+import { fmtCurrency as fmt } from '../../shared/helpers/ecbs-format.helpers';
 import { Component, OnInit } from '@angular/core';
 import { ApiRequestService } from '../../api/api-request.service';
 import { CurrentUserService } from '../../shared/user/currentUser.service';
@@ -64,16 +65,11 @@ export class PaymentsComponent implements OnInit {
     return '$' + avg.toLocaleString(undefined, { maximumFractionDigits: 0 });
   }
 
-  private fmt(n: number): string {
-    if (!n) return '$0';
-    if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
-    if (n >= 1000)    return '$' + Math.round(n / 1000) + 'K';
-    return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  }
+
 
   get kpis() {
     return [
-      { label: 'PAYMENTS THIS PERIOD (MTD)', value: this.fmt(this.totalPaymentsAmount), change: this.payments.length ? String(this.payments.length) + ' payments' : 'No payments received', dir: 'neutral', color: '#4caf50', icon: 'fa-dollar' },
+      { label: 'PAYMENTS THIS PERIOD (MTD)', value: fmt(this.totalPaymentsAmount), change: this.payments.length ? String(this.payments.length) + ' payments' : 'No payments received', dir: 'neutral', color: '#4caf50', icon: 'fa-dollar' },
       { label: 'PAYMENTS COUNT (MTD)', value: String(this.payments.length), change: '', dir: 'neutral', color: '#29b6f6', icon: 'fa-list' },
       { label: 'AVERAGE PAYMENT AMOUNT', value: this.avgPaymentAmount, change: '', dir: 'neutral', color: '#ce93d8', icon: 'fa-bar-chart' },
       { label: 'ON-TIME PAYMENT RATE', value: this.onTimeRate, change: '', dir: this.payments.length ? 'up' : 'neutral', color: '#ff7043', icon: 'fa-clock-o' },

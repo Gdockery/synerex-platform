@@ -17,7 +17,6 @@ GET  /api/current-balance/baseline-compare  CBI vs approved Phase-6 baseline
          Reads from meterdata (Phase 5) and current_balance_metrics (new table).
          Optionally tags results with baseline_id from Phase 6.
 """
-import time as _time
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from sqlalchemy import text
@@ -35,16 +34,13 @@ from app.services.current_balance_engine import (
 )
 from app.helpers.roles import ENGINEERING_ROLES, ADMIN_ROLES, require_roles
 from app.helpers.decorators import require_active_license
+from app.helpers.time_utils import now_ms as _now_ms
 
 _CBI_WRITE_ROLES = ENGINEERING_ROLES | ADMIN_ROLES
 
 current_balance_bp = Blueprint("current_balance", __name__, url_prefix="/api/current-balance")
 
 _PAGE_SIZE_MAX = 2000
-
-
-def _now_ms():
-    return int(_time.time() * 1000)
 
 
 # ── Access helpers ────────────────────────────────────────────────────────────

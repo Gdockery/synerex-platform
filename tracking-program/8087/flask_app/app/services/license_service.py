@@ -136,58 +136,6 @@ def check_seat_available(org_id: str, program_id: str = "tracking") -> tuple:
     return True, license_id, None
 
 
-def get_license_entitlements(org_id: str, program_id: str = "tracking") -> Optional[dict]:
-    """
-    Fetch the full entitlements dict for an org's active license.
-    Returns { features: [...], limits: {...} } or None if no active license.
-    Cached for 5 minutes to reduce License Service calls.
-    """
-    result = _call_license_api("GET", f"/api/licenses/check-feature?org_id={org_id}&program_id={program_id}")
-    if not result or not result.get("valid"):
-        return None
-    return result.get("entitlements") or {}
-
-
-def check_feature(org_id: str, feature: str, program_id: str = "tracking") -> bool:
-    """
-    Return True if the org's active license for the given program includes the named feature.
-    Fails open (returns True) if the License Service is unreachable.
-    """
-    if not org_id:
-        return True  # Fail open
-    result = _call_license_api(
-        "GET",
-        f"/api/licenses/check-feature?org_id={org_id}&program_id={program_id}&feature={feature}"
-    )
-    if result is None:
-        return True  # Fail open — License Service unreachable
-    if not result.get("valid"):
-        return False  # No active license
-    return bool(result.get("has_feature", False))
-
-
-def get_limit(org_id: str, limit_name: str, program_id: str = "tracking") -> Optional[int]:
-    """
-    Return the numeric value of a license limit for an org (e.g. meter_limit, seat_limit, project_limit).
-    Returns None if no active license or limit not set (meaning unlimited).
-    """
-    if not org_id:
-        return None
-    result = _call_license_api(
-        "GET",
-        f"/api/licenses/check-feature?org_id={org_id}&program_id={program_id}&limit={limit_name}"
-    )
-    if not result or not result.get("valid"):
-        return None
-    val = result.get("limit_value")
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (TypeError, ValueError):
-        return None
-
-
 def get_license_entitlements(org_id: str, program_id: str = "tracking") -> dict:
     """
     Fetch full entitlements for an org's active license.
@@ -239,3 +187,6 @@ def get_limit(org_id: str, limit_name: str, program_id: str = "tracking") -> Opt
         return int(val)
     except (TypeError, ValueError):
         return None
+
+# Alias for backwards compatibility
+check_feature = has_feature

@@ -28,7 +28,6 @@ White-Label Branding™:
   GET  /api/oem/branding/<org_id>         Get OEM branding
   PUT  /api/oem/branding/<org_id>         Update OEM branding
 """
-import time as _time
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 
@@ -37,12 +36,9 @@ from app.models.meter_license import MeterLicense, LICENSE_STATES
 from app.models.oem import Oem
 from app.models.oem_branding import OemBranding
 from app.models.royalty import Royalty, ROYALTY_STATUS_PAID, ROYALTY_STATUS_INVOICED
+from app.helpers.time_utils import now_ms as _now_ms
 
 commercial_bp = Blueprint("commercial", __name__, url_prefix="")
-
-
-def _now_ms() -> int:
-    return int(_time.time() * 1000)
 
 
 def _is_super_admin() -> bool:

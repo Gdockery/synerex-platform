@@ -10,9 +10,20 @@ module.exports.constants = {
     'CLIENT_USER': 1,
     'CLIENT_ADMIN': 2,
     'CLIENT_MANAGER': 3,
+    'CLIENT_FINANCE': 4,
+    'ENGINEERING': 5,
+    'OPERATIONS': 6,
     'ACCOUNT_MANAGER': 7,
+    'PLATFORM_ADMIN': 8,
+    'OEM_ADMIN': 9,
+    'OEM_USER': 10,
+    'INSTALLER': 11,
+    'EXECUTIVE': 12,
+    'READ_ONLY': 13,
+    'PROJECT_MANAGER': 14,
+    // Legacy aliases kept for backwards compatibility
     'XECO_USER': 4,
-    'XECO_ADMIN': 8
+    'XECO_ADMIN': 8,
   },
 
   METER_ALERT_TYPES: {

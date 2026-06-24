@@ -13,7 +13,6 @@ Endpoints:
   POST /api/meter-license/<id>/suspend     → state=suspended, suspended_at=now
   POST /api/meter-license/<id>/reactivate  → state=active
 """
-from time import time
 
 from flask import Blueprint, request
 from flask_login import login_required, current_user
@@ -21,12 +20,9 @@ from flask_login import login_required, current_user
 from app.db import get_session
 from app.models.meter_license import MeterLicense, LICENSE_STATES
 from app.services.audit import audit
+from app.helpers.time_utils import now_ms as _now
 
 license_bp = Blueprint("meter_license", __name__, url_prefix="/api/meter-license")
-
-
-def _now():
-    return int(time() * 1000)
 
 
 def _require_admin():

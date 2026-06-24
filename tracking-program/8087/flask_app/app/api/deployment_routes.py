@@ -28,7 +28,6 @@ POST   /api/deployment/<id>/activation          certify (All Checks Clear™)
 """
 import os
 import secrets
-from time import time
 
 from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_login import login_required, current_user
@@ -41,14 +40,11 @@ from app.models.engineering_review import EngineeringReview, REVIEW_DECISIONS
 from app.models.site_activation import SiteActivation
 from app.services.audit import audit
 from app.helpers.roles import (
+from app.helpers.time_utils import now_ms as _now
     WRITE_ROLES, ENGINEERING_ROLES, DEPLOYMENT_ROLES, ADMIN_ROLES, require_roles
 )
 
 deployment_bp = Blueprint("deployment", __name__, url_prefix="/api/deployment")
-
-
-def _now():
-    return int(time() * 1000)
 
 
 # ─── Serialisers ─────────────────────────────────────────────────────────────

@@ -6,7 +6,6 @@ OEM Admins (role 9) can read their own record.
 
 Blueprints prefix: /api/oem
 """
-from time import time
 
 from flask import Blueprint, request
 from flask_login import login_required, current_user
@@ -14,12 +13,9 @@ from flask_login import login_required, current_user
 from app.db import get_session
 from app.models.oem import Oem
 from app.services.audit import audit
+from app.helpers.time_utils import now_ms as _now
 
 oem_bp = Blueprint("oem", __name__, url_prefix="/api/oem")
-
-
-def _now():
-    return int(time() * 1000)
 
 
 def _require_super_admin():

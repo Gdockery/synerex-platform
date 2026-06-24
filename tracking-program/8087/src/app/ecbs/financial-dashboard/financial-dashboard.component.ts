@@ -1,3 +1,4 @@
+import { fmtCurrency as fmt } from '../../shared/helpers/ecbs-format.helpers';
 import { Component, OnInit } from '@angular/core';
 import { Router } from '@angular/router';
 import { ApiRequestService } from '../../api/api-request.service';
@@ -53,12 +54,7 @@ export class FinancialDashboardComponent implements OnInit {
   get roi(): number          { return this.savingsData?.roi          || this.roiData?.roi          || 0; }
   get payback(): number      { return this.savingsData?.payback      || this.roiData?.payback      || 0; }
 
-  private fmt(n: number, prefix = '$'): string {
-    if (!n) return '—';
-    if (n >= 1000000) return prefix + (n / 1000000).toFixed(2) + 'M';
-    if (n >= 1000)    return prefix + (n / 1000).toFixed(1) + 'K';
-    return prefix + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  }
+
 
   get kpis() {
     return [
@@ -70,7 +66,7 @@ export class FinancialDashboardComponent implements OnInit {
       },
       {
         label: 'PROJECT COST',
-        value: this.projectCost ? this.fmt(this.projectCost) : '—',
+        value: this.projectCost ? fmt(this.projectCost) : '—',
         change: this.projectCost ? 'Contract value' : 'Not entered',
         dir: 'neutral', color: '#29b6f6', icon: 'fa-percent',
       },
@@ -82,8 +78,8 @@ export class FinancialDashboardComponent implements OnInit {
       },
       {
         label: 'ECBS SAVINGS (MTD)',
-        value: this.mtdSavings ? this.fmt(this.mtdSavings) : '—',
-        change: this.annualSavings ? this.fmt(this.annualSavings) + '/yr — EM&V verified' : 'Loading…',
+        value: this.mtdSavings ? fmt(this.mtdSavings) : '—',
+        change: this.annualSavings ? fmt(this.annualSavings) + '/yr — EM&V verified' : 'Loading…',
         dir: this.mtdSavings > 0 ? 'up' : 'neutral', color: '#00e676', icon: 'fa-leaf',
       },
       {

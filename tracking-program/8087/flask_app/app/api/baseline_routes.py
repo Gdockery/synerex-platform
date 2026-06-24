@@ -24,7 +24,6 @@ POST   /api/baseline/version-forward          create next version from a locked 
 [COMPAT] /api/emv/push-baseline unchanged — EMV program unaffected.
          project.active_emv_analysis_id unchanged.
 """
-from time import time
 
 import logging
 
@@ -38,14 +37,11 @@ from app.models.baseline import Baseline, BASELINE_STATUSES, BASELINE_TEST_TYPES
 from app.models.emv_analysis import EmvAnalysis
 from app.services.audit import audit
 from app.helpers.roles import ENGINEERING_ROLES, ADMIN_ROLES, require_roles
+from app.helpers.time_utils import now_ms as _now
 
 _BASELINE_WRITE_ROLES = ENGINEERING_ROLES | ADMIN_ROLES
 
 baseline_bp = Blueprint("baseline", __name__, url_prefix="/api/baseline")
-
-
-def _now():
-    return int(time() * 1000)
 
 
 # ── Serialiser ────────────────────────────────────────────────────────────────

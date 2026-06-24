@@ -11,7 +11,6 @@ GET    /api/asset/<id>/relationships    get edges (parent + child)
 POST   /api/asset/relationship          add relationship edge
 DELETE /api/asset/relationship/<rel_id> remove edge
 """
-from time import time
 
 from flask import Blueprint, request
 from flask_login import login_required, current_user
@@ -21,12 +20,9 @@ from app.models.asset import Asset, ASSET_TYPES, ASSET_STATUSES
 from app.models.asset_relationship import AssetRelationship, RELATIONSHIP_TYPES
 from app.models.site import Site
 from app.services.audit import audit
+from app.helpers.time_utils import now_ms as _now
 
 asset_bp = Blueprint("asset", __name__, url_prefix="/api/asset")
-
-
-def _now():
-    return int(time() * 1000)
 
 
 def _asset_dict(a: Asset) -> dict:

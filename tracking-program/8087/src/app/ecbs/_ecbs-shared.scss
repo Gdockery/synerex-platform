@@ -1,0 +1,105 @@
+/**
+ * Shared ECBS Intelligence Platform component styles.
+ * @import this partial in ECBS component SCSS files instead of
+ * repeating the page-chrome, button, and card patterns.
+ */
+@import '../../../scss/vars';
+
+// ── Page chrome ────────────────────────────────────────────────────────────
+
+.ecbs-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.page-title-block {
+  h1 { margin: 0; font-size: 22px; font-weight: 700; color: #e8edf5; }
+  p  { margin: 4px 0 0; font-size: 12px; color: #546e7a; }
+}
+
+.page-actions { display: flex; gap: 8px; }
+
+// ── Shared button variants ──────────────────────────────────────────────────
+
+.btn-ecbs {
+  padding: 8px 14px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  .fa { font-size: 11px; }
+}
+
+.btn-primary  { background: $ecbs-green; color: $ecbs-bg; }
+.btn-outline  {
+  background: transparent;
+  border: 1px solid #1a2a3a;
+  color: #8899a6;
+  &:hover { border-color: #29b6f6; color: #29b6f6; }
+}
+
+// ── KPI card ───────────────────────────────────────────────────────────────
+
+@mixin ecbs-kpi-grid($cols: 6) {
+  display: grid;
+  grid-template-columns: repeat($cols, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+  @media (max-width: 1400px) { grid-template-columns: repeat(3, 1fr); }
+  @media (max-width: 900px)  { grid-template-columns: repeat(2, 1fr); }
+}
+
+.ecbs-kpi-card {
+  background: $ecbs-card-bg;
+  border: 1px solid $ecbs-card-border;
+  border-radius: 6px;
+  padding: 14px 12px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ecbs-kpi-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.ecbs-kpi-label { font-size: 9px; font-weight: 700; color: #546e7a; letter-spacing: 0.6px; }
+.ecbs-kpi-big   { font-size: 22px; font-weight: 800; color: #e8edf5; line-height: 1.1; }
+.ecbs-kpi-unit  { font-size: 13px; font-weight: 400; color: #8899a6; }
+.ecbs-kpi-delta { font-size: 10px; color: #546e7a; .fa { margin-right: 3px; } }
+
+.ecbs-delta-up   { color: #ef5350; }
+.ecbs-delta-down { color: #00e676; }
+.ecbs-delta-warn { color: #ffd740; }
+
+// ── Data card / panel ──────────────────────────────────────────────────────
+
+.ecbs-card {
+  background: $ecbs-card-bg;
+  border: 1px solid $ecbs-card-border;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.ecbs-card-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #546e7a;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}

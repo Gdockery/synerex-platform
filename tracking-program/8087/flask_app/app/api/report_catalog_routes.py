@@ -17,7 +17,6 @@ PUT    /api/report-schedules/<id>       Update schedule
 DELETE /api/report-schedules/<id>       Disable/delete schedule
 POST   /api/reports/schedule            Create schedule (spec alias)
 """
-import time as _time
 from pathlib import Path
 
 from flask import Blueprint, Response, jsonify, request, send_file, current_app
@@ -36,10 +35,6 @@ report_catalog_bp = Blueprint("report_catalog", __name__, url_prefix="")
 
 _WRITE_ROLES = ENGINEERING_ROLES | ADMIN_ROLES
 _ADMIN_ROLES = ADMIN_ROLES
-
-
-def _now_ms() -> int:
-    return int(_time.time() * 1000)
 
 
 def _project_id() -> int | None:
@@ -313,6 +308,7 @@ def _next_run_ms(frequency: str) -> int:
 
 
 from datetime import timezone
+from app.helpers.time_utils import now_ms as _now_ms
 
 
 @report_catalog_bp.route("/api/report-schedules")

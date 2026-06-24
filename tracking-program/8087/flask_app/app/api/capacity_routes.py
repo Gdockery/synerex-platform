@@ -19,7 +19,6 @@ GET  /api/capacity/transformer/<id> Single-transformer burden analysis
 
 [COMPAT] Does NOT touch /api/meter, /api/pq-data, /api/current-balance, or /api/baseline.
 """
-import time as _time
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 
@@ -27,29 +26,15 @@ from app.db import get_session
 from app.models.capacity_intelligence import CapacityIntelligence, capacity_health_rating
 from app.helpers.roles import ENGINEERING_ROLES, ADMIN_ROLES, require_roles
 from app.helpers.decorators import require_active_license
+from app.helpers.time_utils import now_ms as _now_ms
+from app.helpers.project_access import org_can_access_project as _can_access_project
 
 capacity_bp = Blueprint("capacity", __name__, url_prefix="/api/capacity")
 
 _WRITE_ROLES = ENGINEERING_ROLES | ADMIN_ROLES
 
 
-def _now_ms():
-    return int(_time.time() * 1000)
 
-
-def _can_access_project(sess, project_id: int) -> bool:
-    from sqlalchemy import text
-    role = getattr(current_user, "role", 0)
-    if role == 8:
-        return True
-    org = getattr(current_user, "org_id", None)
-    if not org:
-        return False
-    row = sess.execute(
-        text("SELECT id FROM project WHERE id=:pid AND org_id=:org AND isDeleted=0"),
-        {"pid": project_id, "org": org},
-    ).fetchone()
-    return row is not None
 
 
 def _ci_dict(row: CapacityIntelligence) -> dict:

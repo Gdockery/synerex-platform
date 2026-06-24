@@ -1,3 +1,4 @@
+import { fmtCurrency as fmt } from '../../shared/helpers/ecbs-format.helpers';
 import { Component, OnInit } from '@angular/core';
 import { ApiRequestService } from '../../api/api-request.service';
 import { CurrentUserService } from '../../shared/user/currentUser.service';
@@ -74,21 +75,16 @@ export class InvoicingComponent implements OnInit {
     return this.invoices.filter(i => i.status === 'Overdue').reduce((s, i) => s + (i.amount || 0), 0);
   }
 
-  private fmt(n: number): string {
-    if (!n) return '$0';
-    if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
-    if (n >= 1000)    return '$' + Math.round(n / 1000) + 'K';
-    return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  }
+
 
   get kpis() {
     return [
       { label: 'INVOICES CREATED', value: String(this.invoices.length), change: '', dir: 'neutral', color: '#29b6f6' },
-      { label: 'TOTAL INVOICED', value: this.fmt(this.totalInvoiced), change: this.projectCost ? '30/30/40 of $' + this.projectCost.toLocaleString(undefined, {maximumFractionDigits:0}) : 'Enter project cost', dir: 'neutral', color: '#4caf50' },
-      { label: 'OUTSTANDING', value: this.fmt(this.totalOutstanding), change: '', dir: 'neutral', color: '#ffd740' },
-      { label: 'OVERDUE', value: this.fmt(this.totalOverdue), change: '', dir: 'neutral', color: '#ef5350' },
+      { label: 'TOTAL INVOICED', value: fmt(this.totalInvoiced), change: this.projectCost ? '30/30/40 of $' + this.projectCost.toLocaleString(undefined, {maximumFractionDigits:0}) : 'Enter project cost', dir: 'neutral', color: '#4caf50' },
+      { label: 'OUTSTANDING', value: fmt(this.totalOutstanding), change: '', dir: 'neutral', color: '#ffd740' },
+      { label: 'OVERDUE', value: fmt(this.totalOverdue), change: '', dir: 'neutral', color: '#ef5350' },
       { label: 'AVG DAYS TO PAY', value: '—', change: 'No paid invoices', dir: 'neutral', color: '#ce93d8' },
-      { label: 'PAID THIS MONTH', value: this.fmt(this.totalPaid), change: '', dir: 'neutral', color: '#00e676' },
+      { label: 'PAID THIS MONTH', value: fmt(this.totalPaid), change: '', dir: 'neutral', color: '#00e676' },
     ];
   }
 

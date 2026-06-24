@@ -1,3 +1,4 @@
+import { fmtCurrency as fmt } from '../../shared/helpers/ecbs-format.helpers';
 import { Component, OnInit } from '@angular/core';
 import { ApiRequestService } from '../../api/api-request.service';
 import { CurrentUserService } from '../../shared/user/currentUser.service';
@@ -63,21 +64,16 @@ export class ProfitabilityComponent implements OnInit {
     return Math.round(this.recoveredKva * 65);
   }
 
-  private fmt(n: number): string {
-    if (!n) return '$0';
-    if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
-    if (n >= 1000)    return '$' + Math.round(n / 1000) + 'K';
-    return '$' + n.toLocaleString(undefined, { maximumFractionDigits: 0 });
-  }
+
 
   get kpis() {
     return [
       { label: 'TOTAL REVENUE (MTD)', value: '$0', change: 'No invoices paid', dir: 'neutral', color: '#4caf50', icon: 'fa-dollar' },
       { label: 'GROSS MARGIN (MTD)', value: '—', change: 'Enter project cost', dir: 'neutral', color: '#29b6f6', icon: 'fa-percent' },
       { label: 'NET MARGIN (MTD)', value: '—', change: 'Enter project cost', dir: 'neutral', color: '#ce93d8', icon: 'fa-percent' },
-      { label: 'ECBS SAVINGS™ (MTD)', value: this.fmt(this.mtdSavings), change: this.fmt(this.annualSavings) + '/yr — EM&V verified', dir: this.mtdSavings > 0 ? 'up' : 'neutral', color: '#00e676', icon: 'fa-leaf' },
+      { label: 'ECBS SAVINGS™ (MTD)', value: fmt(this.mtdSavings), change: fmt(this.annualSavings) + '/yr — EM&V verified', dir: this.mtdSavings > 0 ? 'up' : 'neutral', color: '#00e676', icon: 'fa-leaf' },
       { label: 'ROI', value: this.roi ? this.roi.toFixed(1) + '%' : '—', change: this.payback ? 'Payback: ' + this.payback.toFixed(1) + ' yrs' : '', dir: this.roi > 0 ? 'up' : 'neutral', color: '#ffd740', icon: 'fa-bar-chart' },
-      { label: 'LIFETIME SAVINGS (10 YR)', value: this.fmt(this.lifetimeSavings), change: '', dir: this.lifetimeSavings > 0 ? 'up' : 'neutral', color: '#ff7043', icon: 'fa-line-chart' },
+      { label: 'LIFETIME SAVINGS (10 YR)', value: fmt(this.lifetimeSavings), change: '', dir: this.lifetimeSavings > 0 ? 'up' : 'neutral', color: '#ff7043', icon: 'fa-line-chart' },
     ];
   }
 

@@ -11,7 +11,6 @@ POST   /api/site/from-project/<project_id>
     Convenience: create a Site seeded from an existing Project record.
     Returns existing site_id if the project already has one.
 """
-from time import time
 
 from flask import Blueprint, request
 from flask_login import login_required, current_user
@@ -20,12 +19,9 @@ from app.db import get_session
 from app.models.site import Site, SITE_STATUSES
 from app.models.project import Project
 from app.services.audit import audit
+from app.helpers.time_utils import now_ms as _now
 
 site_bp = Blueprint("site", __name__, url_prefix="/api/site")
-
-
-def _now():
-    return int(time() * 1000)
 
 
 def _org_id():

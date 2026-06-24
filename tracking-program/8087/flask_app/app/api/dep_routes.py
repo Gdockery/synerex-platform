@@ -60,16 +60,12 @@ Events:
   GET    /api/dep/deployments/:id/events       list event log
 """
 import os
-from time import time
 from flask import Blueprint, jsonify, request
 from flask_login import login_required, current_user
 from app.extensions import db
+from app.helpers.time_utils import now_ms as _now
 
 dep_bp = Blueprint("dep", __name__, url_prefix="/api/dep")
-
-
-def _now():
-    return int(time() * 1000)
 
 
 def _col(tbl):
