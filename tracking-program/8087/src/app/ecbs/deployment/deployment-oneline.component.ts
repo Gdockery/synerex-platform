@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ApiRequestService } from '../../shared/api/apiRequest.service';
+import { ApiRequestService } from '../../api/api-request.service';
 
 @Component({
   selector: 'app-deployment-oneline',
@@ -81,7 +81,7 @@ export class DeploymentOneLineComponent implements OnInit {
       counts[t] = (counts[t] || 0) + 1;
     }
     if (Object.keys(counts).length) {
-      this.deviceLegend = Object.entries(counts).map(([type, count]) => ({ type, count }));
+      this.deviceLegend = Object.keys(counts).map(type => ({ type, count: counts[type] }));
     }
   }
 

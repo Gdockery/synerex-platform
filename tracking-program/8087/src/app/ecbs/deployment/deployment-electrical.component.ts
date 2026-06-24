@@ -1,6 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { ApiRequestService } from '../../shared/api/apiRequest.service';
+import { ApiRequestService } from '../../api/api-request.service';
 
 @Component({
   selector: 'app-deployment-electrical',
