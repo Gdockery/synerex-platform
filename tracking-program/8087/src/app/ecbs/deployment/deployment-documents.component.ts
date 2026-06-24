@@ -70,7 +70,7 @@ export class DeploymentDocumentsComponent implements OnInit {
       if (this.activeFolder !== 'all' && d.folder !== this.activeFolder) return false;
       if (this.search) {
         const q = this.search.toLowerCase();
-        if (!(d.document_name || '').toLowerCase().includes(q)) return false;
+        if (!(d.document_name || '').toLowerCase().indexOf(q) >= 0) return false;
       }
       return true;
     });

@@ -92,15 +92,15 @@ export class DeploymentDevicesComponent implements OnInit {
       const t = d.device_type || 'Other';
       if (!counts[t]) counts[t] = { total: 0, installed: 0 };
       counts[t].total++;
-      if (['Installed','CT Verified','Communications Verified','Commissioned'].includes(d.status)) {
+      const doneStatuses = ['Installed','CT Verified','Communications Verified','Commissioned'];
+      if (doneStatuses.indexOf(d.status) >= 0) {
         counts[t].installed++;
       }
     }
-    return Object.entries(counts).map(([type, c]) => ({
-      type,
-      ...c,
-      pct: c.total ? Math.round(c.installed / c.total * 100) : 0,
-    }));
+    return Object.keys(counts).map(type => {
+      const c = counts[type];
+      return { type, total: c.total, installed: c.installed, pct: c.total ? Math.round(c.installed / c.total * 100) : 0 };
+    });
   }
 
   typeIcon(type: string): string {
@@ -128,7 +128,7 @@ export class DeploymentDevicesComponent implements OnInit {
     const sl = status.toLowerCase();
     if (sl === 'commissioned') return 'dot-green';
     if (sl === 'in progress') return 'dot-blue';
-    if (['installed','ct verified','communications verified'].includes(sl)) return 'dot-teal';
+    if (['installed','ct verified','communications verified'].indexOf(sl) >= 0) return 'dot-teal';
     if (sl === 'failed') return 'dot-red';
     return 'dot-amber';
   }

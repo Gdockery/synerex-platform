@@ -76,7 +76,7 @@ export class DeploymentIssuesComponent implements OnInit {
       if (this.search) {
         const q = this.search.toLowerCase();
         const txt = ((i.title || '') + (i.description || '') + (i.issue_number || '')).toLowerCase();
-        if (!txt.includes(q)) return false;
+        if (!txt.indexOf(q) >= 0) return false;
       }
       return true;
     });
@@ -99,9 +99,10 @@ export class DeploymentIssuesComponent implements OnInit {
       counts[c] = (counts[c] || 0) + 1;
     }
     const total = this.issues.length || 1;
-    return Object.entries(counts).map(([cat, cnt]) => ({
-      cat, cnt, pct: Math.round(cnt / total * 100)
-    })).sort((a,b) => b.cnt - a.cnt);
+    return Object.keys(counts).map(cat => {
+      const cnt = counts[cat];
+      return { cat, cnt, pct: Math.round(cnt / total * 100) };
+    }).sort((a,b) => b.cnt - a.cnt);
   }
 
   // Aging buckets (mock since we may not have SLA data)
