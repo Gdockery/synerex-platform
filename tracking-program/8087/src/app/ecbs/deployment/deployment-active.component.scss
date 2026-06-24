@@ -1,94 +1,536 @@
-$bg: #0d1117; $panel: #161b22; $border: #30363d; $text: #e0e0e0; $sub: #546e7a; $blue: #00b0ff; $green: #00e676; $yellow: #ffd740; $red: #f44336;
+$bg-dark:   #0d1117;
+$bg-card:   #161b22;
+$bg-card2:  #1c2330;
+$border:    #30363d;
+$text:      #e0e0e0;
+$text-dim:  #8b949e;
+$accent:    #00b0ff;
+$green:     #00e676;
+$yellow:    #ffb300;
+$red:       #ef5350;
 
-.dep-active-page { padding: 20px; background: $bg; min-height: 100vh; color: $text; }
-.dep-loading-full { display: flex; align-items: center; justify-content: center; height: 60vh; color: $sub; font-size: 18px; .fa { margin-right: 10px; font-size: 24px; } }
-
-/* Header */
-.dep-active-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 12px; }
-.dep-active-hinfo { display: flex; align-items: center; gap: 16px; }
-.dep-back { font-size: 18px; color: $sub; cursor: pointer; padding: 8px; &:hover { color: $blue; } }
-.dep-active-num { font-size: 12px; color: $sub; font-family: monospace; font-weight: 600; }
-.dep-active-name { margin: 4px 0 0; font-size: 22px; font-weight: 700; color: #fff; }
-.dep-active-hright { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.dep-status-chip { padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; background: #1e2a3a; color: $sub;
-  &.chip-active { background: #0d2137; color: $blue; }
-  &.chip-warn { background: #2a2000; color: $yellow; }
-  &.chip-ok { background: #0d2e1a; color: $green; }
-}
-.dep-btn-primary { background: $blue; color: #000; border: none; border-radius: 8px; padding: 10px 20px; font-size: 14px; font-weight: 600; cursor: pointer; min-height: 44px; .fa { margin-right: 6px; } &:hover { background: #29b6f6; } }
-
-/* Safety banner */
-.dep-safety-banner { background: rgba(244,67,54,0.15); border: 1px solid $red; border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; color: $red; font-weight: 600; .fa { margin-right: 8px; } a { color: $red; text-decoration: underline; cursor: pointer; margin-left: 12px; } }
-
-/* KPI row */
-.dep-kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
-.dep-kpi-card { background: $panel; border: 1px solid $border; border-radius: 10px; padding: 18px; position: relative; overflow: hidden;
-  &.dep-kpi-warn { border-color: $yellow; }
-  &.dep-kpi-danger { border-color: $red; }
-}
-.dep-kpi-val { font-size: 28px; font-weight: 700; color: #fff; }
-.dep-kpi-of { font-size: 16px; color: $sub; font-weight: 400; }
-.dep-kpi-label { font-size: 12px; color: $sub; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-.dep-kpi-icon { position: absolute; right: 16px; top: 50%; transform: translateY(-50%); font-size: 32px; color: rgba(255,255,255,0.05); }
-
-/* Main grid */
-.dep-main-grid { display: grid; grid-template-columns: 1fr 380px; gap: 16px; }
-.dep-main-left, .dep-main-right { display: flex; flex-direction: column; gap: 16px; }
-.dep-panel { background: $panel; border: 1px solid $border; border-radius: 10px; padding: 20px; }
-.dep-panel-mt { }
-.dep-panel-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; color: $sub; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
-  .fa { color: $blue; }
-}
-.dep-panel-badge { margin-left: auto; background: #1e2a3a; color: $blue; padding: 2px 8px; border-radius: 10px; font-size: 11px; }
-
-/* Work list */
-.dep-work-list { display: flex; flex-direction: column; gap: 2px; }
-.dep-work-item { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 8px; cursor: pointer; &:hover { background: rgba(255,255,255,0.04); } }
-.dep-work-icon { font-size: 16px; color: $sub; width: 20px; text-align: center; }
-.dep-work-info { flex: 1; }
-.dep-work-name { font-size: 14px; color: $text; font-weight: 500; }
-.dep-work-loc { font-size: 12px; color: $sub; margin-top: 2px; }
-.dep-work-status { font-size: 11px; padding: 2px 8px; border-radius: 8px; font-weight: 600;
-  &.sv-pending { background: #1e2a3a; color: $sub; }
-  &.sv-progress { background: #0d2137; color: $blue; }
-  &.sv-installed { background: #1a2e0d; color: $green; }
-  &.sv-commissioned { background: #0d2e1a; color: $green; }
-}
-.dep-work-empty { text-align: center; padding: 24px; color: $sub; }
-.dep-all-done-icon { font-size: 32px; color: $green; display: block; margin-bottom: 8px; }
-
-/* Activity */
-.dep-activity-list { }
-.dep-activity-row { display: flex; gap: 12px; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
-  &:last-child { border: none; }
-}
-.dep-activity-time { font-size: 12px; color: $sub; width: 50px; flex-shrink: 0; padding-top: 1px; }
-.dep-activity-label { font-size: 13px; color: $text; }
-.dep-activity-empty { color: $sub; font-size: 13px; padding: 8px 0; }
-
-/* Donut */
-.dep-progress-panel { }
-.dep-donut-wrap { display: flex; align-items: center; gap: 24px; padding: 8px 0; }
-.dep-donut { width: 120px; height: 120px; flex-shrink: 0; }
-.dep-donut-legend { display: flex; flex-direction: column; gap: 12px; }
-.dep-legend-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: $sub; strong { color: $text; margin-left: 4px; } }
-.dep-legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
-  &.dot-commissioned { background: $green; }
-  &.dot-progress { background: $blue; }
-  &.dot-pending { background: $border; }
+// ── Page shell ─────────────────────────────────────────────────────────────
+.da-page {
+  background: $bg-dark;
+  min-height: 100vh;
+  color: $text;
+  display: flex;
+  flex-direction: column;
+  padding-bottom: 80px;
 }
 
-/* Quick access */
-.dep-quick-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.dep-quick-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 8px; background: #0d1117; border: 1px solid $border; border-radius: 10px; cursor: pointer; font-size: 12px; color: $sub; text-align: center; min-height: 80px; justify-content: center;
-  &:hover { border-color: $blue; color: $text; }
+.da-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  color: $text-dim;
+  font-size: 16px;
+  gap: 10px;
 }
-.dep-quick-icon { font-size: 22px; color: $blue;
-  &.dep-quick-warn { color: $yellow; }
-}
-.dep-quick-badge { background: $red; color: #fff; border-radius: 10px; padding: 1px 6px; font-size: 10px; margin-left: 4px; }
 
-@media (max-width: 900px) {
-  .dep-main-grid { grid-template-columns: 1fr; }
-  .dep-kpi-row { grid-template-columns: repeat(2, 1fr); }
+// ── Header ─────────────────────────────────────────────────────────────────
+.da-header {
+  background: $bg-card;
+  border-bottom: 1px solid $border;
+  padding: 16px 24px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.da-header-left {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.da-back {
+  background: none;
+  border: 1px solid $border;
+  color: $text-dim;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 4px;
+  &:hover { color: $text; border-color: $accent; }
+}
+
+.da-header-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.da-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+}
+
+.da-status-badge {
+  padding: 3px 10px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  &.badge-pending   { background: $border; color: $text-dim; }
+  &.badge-warning   { background: rgba($yellow, 0.18); color: $yellow; }
+  &.badge-progress  { background: rgba($accent, 0.18); color: $accent; }
+  &.badge-active    { background: rgba($green, 0.18); color: $green; }
+  &.badge-hold      { background: rgba($red, 0.18); color: $red; }
+}
+
+.da-subtitle {
+  font-size: 15px;
+  color: $text-dim;
+  margin-bottom: 6px;
+}
+
+.da-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: $text-dim;
+}
+.da-meta-item { color: $text; }
+.da-meta-sep  { color: $text-dim; margin: 0 2px; }
+
+.da-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+  padding-top: 4px;
+}
+
+.da-sync {
+  font-size: 12px;
+  color: $text-dim;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  .fa { color: $accent; }
+}
+
+.da-icon-btn {
+  position: relative;
+  background: none;
+  border: 1px solid $border;
+  color: $text-dim;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  &:hover { color: $text; border-color: $accent; }
+}
+
+.da-badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: $red;
+  color: #fff;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 5px;
+  min-width: 16px;
+  text-align: center;
+}
+
+// ── KPI Bar ────────────────────────────────────────────────────────────────
+.da-kpi-bar {
+  display: flex;
+  gap: 12px;
+  padding: 16px 24px;
+  overflow-x: auto;
+}
+
+.da-kpi-card {
+  background: $bg-card;
+  border: 1px solid $border;
+  border-radius: 10px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 160px;
+  flex: 1;
+  cursor: pointer;
+  transition: border-color 0.15s;
+  &:hover { border-color: $accent; }
+  &.da-kpi-card--warn:hover { border-color: $yellow; }
+  &.da-kpi-card--danger:hover { border-color: $red; }
+}
+
+.da-kpi-icon {
+  font-size: 20px;
+  color: $accent;
+  margin-top: 2px;
+  .da-kpi-card--warn &  { color: $yellow; }
+  .da-kpi-card--danger & { color: $red; }
+}
+
+.da-kpi-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.da-kpi-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.2;
+}
+
+.da-kpi-label {
+  font-size: 11px;
+  color: $text-dim;
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.da-kpi-link {
+  font-size: 11px;
+  color: $accent;
+  font-weight: 600;
+  margin-top: 4px;
+  .da-kpi-card--warn &  { color: $yellow; }
+  .da-kpi-card--danger & { color: $red; }
+}
+
+.da-kpi-pct-bar {
+  height: 3px;
+  background: $border;
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.da-kpi-pct-fill {
+  height: 100%;
+  background: $green;
+  border-radius: 2px;
+  transition: width 0.4s;
+  &.da-kpi-pct-fill--blue { background: $accent; }
+}
+
+// ── Main Grid ──────────────────────────────────────────────────────────────
+.da-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+  padding: 0 24px 16px;
+}
+
+.da-col {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+// ── Cards ──────────────────────────────────────────────────────────────────
+.da-card {
+  background: $bg-card;
+  border: 1px solid $border;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.da-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.da-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: $text-dim;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  .fa { color: $accent; }
+}
+
+.da-badge-pill {
+  background: $bg-card2;
+  border: 1px solid $border;
+  border-radius: 20px;
+  padding: 2px 10px;
+  font-size: 11px;
+  color: $accent;
+  font-weight: 600;
+}
+
+// ── Task list ──────────────────────────────────────────────────────────────
+.da-task-list { display: flex; flex-direction: column; gap: 10px; }
+
+.da-task-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: $green;
+  font-size: 14px;
+  padding: 12px 0;
+}
+.da-task-done-icon { font-size: 20px; }
+
+.da-task-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: $bg-card2;
+  border-radius: 6px;
+  border: 1px solid $border;
+}
+
+.da-task-check {
+  font-size: 16px;
+  &.task-done     { color: $green; }
+  &.task-progress { color: $accent; }
+  &.task-pending  { color: $text-dim; }
+}
+
+.da-task-info { flex: 1; min-width: 0; }
+.da-task-name { font-size: 13px; color: $text; font-weight: 500; }
+.da-task-loc  { font-size: 11px; color: $text-dim; margin-top: 2px; }
+
+.da-task-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  &.task-done     { background: rgba($green, 0.15); color: $green; }
+  &.task-progress { background: rgba($accent, 0.15); color: $accent; }
+  &.task-pending  { background: $border; color: $text-dim; }
+}
+
+.da-link-btn {
+  background: none;
+  border: none;
+  color: $accent;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 4px 0;
+  &:hover { text-decoration: underline; }
+}
+
+// ── Activity ───────────────────────────────────────────────────────────────
+.da-activity-list { display: flex; flex-direction: column; gap: 8px; }
+
+.da-activity-empty { color: $text-dim; font-size: 13px; padding: 8px 0; }
+
+.da-activity-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+}
+.da-activity-time { color: $text-dim; font-size: 12px; min-width: 52px; font-variant-numeric: tabular-nums; }
+.da-activity-dot  { font-size: 6px; color: $accent; }
+.da-activity-text { color: $text; }
+
+// ── Site Info ──────────────────────────────────────────────────────────────
+.da-info-grid { display: flex; flex-direction: column; gap: 8px; }
+
+.da-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13px;
+  border-bottom: 1px solid rgba($border, 0.5);
+  padding-bottom: 8px;
+  &:last-child { border-bottom: none; padding-bottom: 0; }
+}
+.da-info-label { color: $text-dim; flex-shrink: 0; }
+.da-info-val   { color: $text; text-align: right; }
+
+// ── Milestones ─────────────────────────────────────────────────────────────
+.da-milestone-list { display: flex; flex-direction: column; gap: 12px; }
+
+.da-milestone-row { display: flex; flex-direction: column; gap: 5px; }
+
+.da-milestone-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.da-milestone-label  { flex: 1; color: $text; }
+.da-milestone-counts { color: $text-dim; font-size: 12px; }
+.da-milestone-pct    { color: $text-dim; font-size: 12px; min-width: 34px; text-align: right; }
+
+.da-milestone-bar {
+  height: 4px;
+  background: $border;
+  border-radius: 2px;
+  overflow: hidden;
+}
+.da-milestone-fill {
+  height: 100%;
+  background: $accent;
+  border-radius: 2px;
+  transition: width 0.4s;
+  &.da-milestone-fill--done { background: $green; }
+}
+
+// ── Progress donut ─────────────────────────────────────────────────────────
+.da-card--progress { }
+
+.da-progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.da-donut {
+  width: 110px;
+  height: 110px;
+  flex-shrink: 0;
+}
+.da-donut-track { stroke: $border; }
+.da-donut-fill  { stroke: $accent; stroke-linecap: round; transition: stroke-dashoffset 0.5s; }
+.da-donut-pct   { font-size: 20px; font-weight: 700; fill: #fff; }
+
+.da-progress-legend { display: flex; flex-direction: column; gap: 8px; font-size: 13px; color: $text; }
+
+.da-legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  strong { margin-left: auto; }
+}
+.da-legend-dot {
+  width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0;
+  &.da-legend-dot--green { background: $green; }
+  &.da-legend-dot--blue  { background: $accent; }
+  &.da-legend-dot--grey  { background: $text-dim; }
+}
+
+// ── Health list ────────────────────────────────────────────────────────────
+.da-health-list { display: flex; flex-direction: column; gap: 10px; }
+
+.da-health-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba($border, 0.5);
+  &:last-child { border-bottom: none; }
+}
+.da-health-icon  { color: $accent; width: 16px; text-align: center; }
+.da-health-label { flex: 1; color: $text-dim; }
+.da-health-val   { color: $text; font-weight: 500; }
+.health-ok      { color: $green !important; }
+.health-warn    { color: $yellow !important; }
+.health-danger  { color: $red !important; }
+
+.da-health-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+  &.dot-green  { background: $green; }
+  &.dot-yellow { background: $yellow; }
+  &.dot-red    { background: $red; }
+}
+
+// ── Quick Actions ──────────────────────────────────────────────────────────
+.da-quick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.da-quick-btn {
+  background: $bg-card2;
+  border: 1px solid $border;
+  border-radius: 8px;
+  padding: 12px 10px;
+  color: $text;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  transition: border-color 0.15s, background 0.15s;
+  .fa { font-size: 18px; color: $accent; }
+  &:hover { border-color: $accent; background: rgba($accent, 0.06); }
+}
+
+// ── Footer action bar ──────────────────────────────────────────────────────
+.da-footer-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: $bg-card;
+  border-top: 1px solid $border;
+  padding: 14px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  z-index: 100;
+}
+
+.da-footer-note {
+  font-size: 12px;
+  color: $text-dim;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  .fa { color: $accent; }
+}
+
+.da-continue-btn {
+  background: $green;
+  color: #000;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  letter-spacing: 0.04em;
+  transition: background 0.15s;
+  &:hover { background: darken($green, 8%); }
+  &.da-continue-btn--done { background: $border; color: $text-dim; cursor: default; }
+}
+
+// ── Responsive ─────────────────────────────────────────────────────────────
+@media (max-width: 1100px) {
+  .da-grid { grid-template-columns: 1fr 1fr; }
+  .da-col:last-child { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+}
+
+@media (max-width: 720px) {
+  .da-grid { grid-template-columns: 1fr; }
+  .da-col:last-child { grid-column: auto; display: flex; }
+  .da-kpi-bar { flex-wrap: wrap; }
+  .da-kpi-card { min-width: 140px; }
+  .da-footer-bar { flex-direction: column; align-items: stretch; }
+  .da-continue-btn { justify-content: center; }
 }

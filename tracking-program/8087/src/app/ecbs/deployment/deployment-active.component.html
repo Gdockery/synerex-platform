@@ -1,158 +1,283 @@
-<div class="dep-active-page" *ngIf="dep">
+<div class="da-page" *ngIf="!loading; else loadingTpl">
 
-  <!-- Header -->
-  <div class="dep-active-header">
-    <div class="dep-active-hinfo">
-      <a class="dep-back fa fa-arrow-left" routerLink="/ecbs/deployment"></a>
+  <!-- ── Top Header ─────────────────────────────────────────────────────── -->
+  <div class="da-header">
+    <div class="da-header-left">
+      <button class="da-back" (click)="goBack()">
+        <span class="fa fa-arrow-left"></span>
+      </button>
       <div>
-        <div class="dep-active-num">{{ depNumber }}</div>
-        <h1 class="dep-active-name">{{ depName }}</h1>
+        <div class="da-header-top">
+          <span class="da-title">Active Deployment</span>
+          <span class="da-status-badge" [ngClass]="statusBadgeClass(depStatus)">{{ statusLabel(depStatus) }}</span>
+        </div>
+        <div class="da-subtitle">{{ projectName }}</div>
+        <div class="da-meta-row">
+          <span class="da-meta-item"><strong>{{ depNumber }}</strong></span>
+          <span class="da-meta-sep">•</span>
+          <span class="da-meta-item" *ngIf="siteUtility !== '—'">Utility: {{ siteUtility }}</span>
+          <span class="da-meta-sep" *ngIf="siteUtility !== '—'">•</span>
+          <span class="da-meta-item" *ngIf="startedLabel !== '—'">Started: {{ startedLabel }}</span>
+          <span class="da-meta-sep" *ngIf="startedLabel !== '—'">•</span>
+          <span class="da-meta-item" *ngIf="pmName !== '—'">Project Manager: {{ pmName }}</span>
+          <span class="da-meta-sep" *ngIf="pmName !== '—' && fieldLeadName !== '—'">•</span>
+          <span class="da-meta-item" *ngIf="fieldLeadName !== '—'">Field Lead: {{ fieldLeadName }}</span>
+        </div>
       </div>
     </div>
-    <div class="dep-active-hright">
-      <span class="dep-status-chip" [class.chip-active]="depStatus==='installing'" [class.chip-warn]="depStatus==='on_hold'" [class.chip-ok]="depStatus==='activated'">
-        {{ statusLabel(depStatus) }}
-      </span>
-      <button class="dep-btn-primary" *ngIf="depStatus==='not_started' || depStatus==='scheduled'" (click)="startDeployment()">
-        <span class="fa fa-play"></span> Start Deployment
-      </button>
-      <button class="dep-btn-primary" *ngIf="depStatus==='installing' || depStatus==='commissioning'" (click)="continueDeployment()">
-        <span class="fa fa-chevron-right"></span> Continue
-      </button>
+    <div class="da-header-right">
+      <span class="da-sync"><span class="fa fa-refresh"></span> Synced: {{ syncedAt }}</span>
+      <button class="da-icon-btn" (click)="go('issues')"><span class="fa fa-bell"></span><span class="da-badge" *ngIf="openIssues">{{ openIssues }}</span></button>
     </div>
   </div>
 
-  <!-- Safety Hold Banner -->
-  <div class="dep-safety-banner" *ngIf="safetyHolds > 0">
-    <span class="fa fa-exclamation-triangle"></span>
-    STOP WORK — {{ safetyHolds }} active safety hold(s). All work must pause.
-    <a (click)="go('safety')">View Safety Holds</a>
+  <!-- ── KPI Bar ────────────────────────────────────────────────────────── -->
+  <div class="da-kpi-bar">
+    <div class="da-kpi-card" (click)="go('devices')">
+      <span class="da-kpi-icon fa fa-microchip"></span>
+      <div class="da-kpi-body">
+        <div class="da-kpi-value">{{ installedCount }} / {{ totalDevices }}</div>
+        <div class="da-kpi-label">Devices Installed</div>
+        <div class="da-kpi-pct-bar"><div class="da-kpi-pct-fill" [style.width.%]="totalDevices ? (installedCount / totalDevices * 100) : 0"></div></div>
+      </div>
+    </div>
+    <div class="da-kpi-card" (click)="go('commissioning')">
+      <span class="da-kpi-icon fa fa-check-circle"></span>
+      <div class="da-kpi-body">
+        <div class="da-kpi-value">{{ commissionedCount }} / {{ totalDevices }}</div>
+        <div class="da-kpi-label">Commissioned</div>
+        <div class="da-kpi-pct-bar"><div class="da-kpi-pct-fill da-kpi-pct-fill--blue" [style.width.%]="totalDevices ? (commissionedCount / totalDevices * 100) : 0"></div></div>
+      </div>
+    </div>
+    <div class="da-kpi-card da-kpi-card--warn" (click)="go('issues')">
+      <span class="da-kpi-icon fa fa-exclamation-triangle"></span>
+      <div class="da-kpi-body">
+        <div class="da-kpi-value">{{ openIssues }}</div>
+        <div class="da-kpi-label">Open Issues</div>
+        <div class="da-kpi-link" *ngIf="openIssues">VIEW ISSUES</div>
+      </div>
+    </div>
+    <div class="da-kpi-card" (click)="go('photos')">
+      <span class="da-kpi-icon fa fa-camera"></span>
+      <div class="da-kpi-body">
+        <div class="da-kpi-value">{{ photosCount }}</div>
+        <div class="da-kpi-label">Photos Uploaded</div>
+        <div class="da-kpi-link" *ngIf="photosCount">VIEW PHOTOS</div>
+      </div>
+    </div>
+    <div class="da-kpi-card da-kpi-card--danger" *ngIf="safetyHolds > 0">
+      <span class="da-kpi-icon fa fa-shield"></span>
+      <div class="da-kpi-body">
+        <div class="da-kpi-value">{{ safetyHolds }}</div>
+        <div class="da-kpi-label">Safety Holds</div>
+        <div class="da-kpi-link">VIEW HOLDS</div>
+      </div>
+    </div>
+    <div class="da-kpi-card" *ngIf="safetyHolds === 0">
+      <span class="da-kpi-icon fa fa-shield"></span>
+      <div class="da-kpi-body">
+        <div class="da-kpi-value">0</div>
+        <div class="da-kpi-label">Safety Holds</div>
+      </div>
+    </div>
   </div>
 
-  <!-- KPI cards -->
-  <div class="dep-kpi-row">
-    <div class="dep-kpi-card">
-      <div class="dep-kpi-val">{{ installedCount }} <span class="dep-kpi-of">/ {{ totalDevices }}</span></div>
-      <div class="dep-kpi-label">Devices Installed</div>
-      <div class="dep-kpi-icon fa fa-check-circle"></div>
-    </div>
-    <div class="dep-kpi-card">
-      <div class="dep-kpi-val">{{ commissionedCount }} <span class="dep-kpi-of">/ {{ totalDevices }}</span></div>
-      <div class="dep-kpi-label">Commissioned</div>
-      <div class="dep-kpi-icon fa fa-bolt"></div>
-    </div>
-    <div class="dep-kpi-card" [class.dep-kpi-warn]="openIssues > 0">
-      <div class="dep-kpi-val">{{ openIssues }}</div>
-      <div class="dep-kpi-label">Open Issues</div>
-      <div class="dep-kpi-icon fa fa-flag"></div>
-    </div>
-    <div class="dep-kpi-card" [class.dep-kpi-danger]="safetyHolds > 0">
-      <div class="dep-kpi-val">{{ safetyHolds }}</div>
-      <div class="dep-kpi-label">Safety Holds</div>
-      <div class="dep-kpi-icon fa fa-shield"></div>
-    </div>
-  </div>
+  <!-- ── Main Grid ──────────────────────────────────────────────────────── -->
+  <div class="da-grid">
 
-  <!-- Main two-panel -->
-  <div class="dep-main-grid">
+    <!-- Left column -->
+    <div class="da-col">
 
-    <!-- Left: Today's Work + Activity -->
-    <div class="dep-main-left">
-
-      <!-- Today's Work -->
-      <div class="dep-panel">
-        <div class="dep-panel-title">
-          <span class="fa fa-list-ul"></span> Today's Work
-          <span class="dep-panel-badge">{{ pendingDevices.length }} remaining</span>
+      <!-- Today's Work Plan -->
+      <div class="da-card">
+        <div class="da-card-header">
+          <span class="da-card-title"><span class="fa fa-list-ul"></span> TODAY'S WORK</span>
+          <span class="da-badge-pill">{{ todayTasks.length }} REMAINING</span>
         </div>
-        <div class="dep-work-list" *ngIf="pendingDevices.length > 0">
-          <div class="dep-work-item" *ngFor="let d of pendingDevices" (click)="go('devices')">
-            <div class="dep-work-icon fa" [class.fa-circle-o]="d.status==='Pending'" [class.fa-dot-circle-o]="d.status==='In Progress'"></div>
-            <div class="dep-work-info">
-              <div class="dep-work-name">{{ d.device_name || d.planned_label || ('Device #' + d.id) }}</div>
-              <div class="dep-work-loc">{{ d.location || d.device_type || '—' }}</div>
+        <div class="da-task-list">
+          <div class="da-task-empty" *ngIf="todayTasks.length === 0">
+            <span class="fa fa-check-circle da-task-done-icon"></span>
+            <span>All devices commissioned!</span>
+          </div>
+          <div class="da-task-row" *ngFor="let d of todayTasks">
+            <div class="da-task-check" [ngClass]="deviceStatusClass(d.status)">
+              <span class="fa" [ngClass]="d.status === 'Commissioned' ? 'fa-check-square' : 'fa-square-o'"></span>
             </div>
-            <span class="dep-work-status" [ngClass]="statusClass(d.status)">{{ d.status }}</span>
+            <div class="da-task-info">
+              <div class="da-task-name">{{ d.device_label || d.device_type || ('Device #' + d.id) }}</div>
+              <div class="da-task-loc" *ngIf="d.location">{{ d.location }}</div>
+            </div>
+            <span class="da-task-badge" [ngClass]="deviceStatusClass(d.status)">{{ deviceStatusLabel(d.status) }}</span>
           </div>
-        </div>
-        <div class="dep-work-empty" *ngIf="pendingDevices.length === 0">
-          <span class="fa fa-check-circle dep-all-done-icon"></span>
-          All devices commissioned!
+          <button class="da-link-btn" *ngIf="devices.length > 5" (click)="go('devices')">VIEW FULL WORK PLAN</button>
         </div>
       </div>
 
-      <!-- Last Activity -->
-      <div class="dep-panel dep-panel-mt">
-        <div class="dep-panel-title"><span class="fa fa-history"></span> Last Activity</div>
-        <div class="dep-activity-list">
-          <div class="dep-activity-row" *ngFor="let e of events">
-            <div class="dep-activity-time">{{ fmtTs(e.ts) }}</div>
-            <div class="dep-activity-label">{{ fmtEvent(e) }}</div>
+      <!-- Recent Activity -->
+      <div class="da-card">
+        <div class="da-card-header">
+          <span class="da-card-title"><span class="fa fa-history"></span> RECENT ACTIVITY</span>
+        </div>
+        <div class="da-activity-list">
+          <div class="da-activity-empty" *ngIf="events.length === 0">No activity yet.</div>
+          <div class="da-activity-row" *ngFor="let e of events">
+            <span class="da-activity-time">{{ fmtTs(e.ts) }}</span>
+            <span class="da-activity-dot fa fa-circle"></span>
+            <span class="da-activity-text">{{ eventLabel(e.event_type) }}</span>
           </div>
-          <div class="dep-activity-empty" *ngIf="events.length === 0">No activity yet.</div>
         </div>
       </div>
+
     </div>
 
-    <!-- Right: Progress + Quick Access + Site Info -->
-    <div class="dep-main-right">
+    <!-- Center column -->
+    <div class="da-col">
 
-      <!-- Progress donut -->
-      <div class="dep-panel dep-progress-panel">
-        <div class="dep-panel-title"><span class="fa fa-pie-chart"></span> Deployment Progress</div>
-        <div class="dep-donut-wrap">
-          <svg viewBox="0 0 120 120" class="dep-donut">
-            <circle cx="60" cy="60" r="52" fill="none" stroke="#1e2a3a" stroke-width="12"/>
-            <circle cx="60" cy="60" r="52" fill="none" stroke="#00b0ff" stroke-width="12"
-              stroke-linecap="round"
+      <!-- Site Information -->
+      <div class="da-card">
+        <div class="da-card-header">
+          <span class="da-card-title"><span class="fa fa-file-text-o"></span> SITE INFORMATION</span>
+        </div>
+        <div class="da-info-grid">
+          <div class="da-info-row"><span class="da-info-label">Project</span><span class="da-info-val">{{ projectName }}</span></div>
+          <div class="da-info-row" *ngIf="siteName !== projectName"><span class="da-info-label">Site</span><span class="da-info-val">{{ siteName }}</span></div>
+          <div class="da-info-row" *ngIf="siteAddress !== '—'"><span class="da-info-label">Address</span><span class="da-info-val">{{ siteAddress }}</span></div>
+          <div class="da-info-row" *ngIf="siteUtility !== '—'"><span class="da-info-label">Utility</span><span class="da-info-val">{{ siteUtility }}</span></div>
+          <div class="da-info-row" *ngIf="startedLabel !== '—'"><span class="da-info-label">Start Date</span><span class="da-info-val">{{ startedLabel }}</span></div>
+          <div class="da-info-row" *ngIf="estCompletionLabel !== '—'"><span class="da-info-label">Est. Completion</span><span class="da-info-val">{{ estCompletionLabel }}</span></div>
+          <div class="da-info-row" *ngIf="pmName !== '—'"><span class="da-info-label">Project Manager</span><span class="da-info-val">{{ pmName }}</span></div>
+          <div class="da-info-row" *ngIf="fieldLeadName !== '—'"><span class="da-info-label">Field Lead</span><span class="da-info-val">{{ fieldLeadName }}</span></div>
+        </div>
+      </div>
+
+      <!-- Next Milestones -->
+      <div class="da-card">
+        <div class="da-card-header">
+          <span class="da-card-title"><span class="fa fa-flag-o"></span> NEXT MILESTONES</span>
+        </div>
+        <div class="da-milestone-list">
+          <div class="da-milestone-row" *ngFor="let m of milestones">
+            <div class="da-milestone-top">
+              <span class="da-milestone-label">{{ m.label }}</span>
+              <span class="da-milestone-counts">{{ m.current }} / {{ m.total }}</span>
+              <span class="da-milestone-pct">{{ m.pct }}%</span>
+            </div>
+            <div class="da-milestone-bar"><div class="da-milestone-fill" [style.width.%]="m.pct" [ngClass]="m.pct === 100 ? 'da-milestone-fill--done' : ''"></div></div>
+          </div>
+          <button class="da-link-btn" (click)="go('devices')">VIEW ALL MILESTONES</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right column -->
+    <div class="da-col">
+
+      <!-- Deployment Progress -->
+      <div class="da-card da-card--progress">
+        <div class="da-card-header">
+          <span class="da-card-title"><span class="fa fa-pie-chart"></span> DEPLOYMENT PROGRESS</span>
+        </div>
+        <div class="da-progress-wrap">
+          <svg class="da-donut" viewBox="0 0 120 120">
+            <circle class="da-donut-track" cx="60" cy="60" r="52" fill="none" stroke-width="10"/>
+            <circle class="da-donut-fill" cx="60" cy="60" r="52" fill="none" stroke-width="10"
               [attr.stroke-dasharray]="donutCircumference"
               [attr.stroke-dashoffset]="donutOffset"
               transform="rotate(-90 60 60)"/>
-            <text x="60" y="60" text-anchor="middle" dy="0.35em" fill="#fff" font-size="22" font-weight="700">{{ progressPct }}%</text>
+            <text x="60" y="60" class="da-donut-pct" text-anchor="middle" dominant-baseline="central">{{ progressPct }}%</text>
           </svg>
-          <div class="dep-donut-legend">
-            <div class="dep-legend-row"><span class="dep-legend-dot dot-commissioned"></span>Commissioned <strong>{{ commissionedCount }}</strong></div>
-            <div class="dep-legend-row"><span class="dep-legend-dot dot-progress"></span>In Progress <strong>{{ inProgressCount }}</strong></div>
-            <div class="dep-legend-row"><span class="dep-legend-dot dot-pending"></span>Pending <strong>{{ pendingCount }}</strong></div>
+          <div class="da-progress-legend">
+            <div class="da-legend-row"><span class="da-legend-dot da-legend-dot--green"></span>Commissioned <strong>{{ commissionedCount }}</strong></div>
+            <div class="da-legend-row"><span class="da-legend-dot da-legend-dot--blue"></span>In Progress <strong>{{ inProgressCount }}</strong></div>
+            <div class="da-legend-row"><span class="da-legend-dot da-legend-dot--grey"></span>Pending <strong>{{ pendingCount }}</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deployment Health -->
+      <div class="da-card">
+        <div class="da-card-header">
+          <span class="da-card-title"><span class="fa fa-heartbeat"></span> DEPLOYMENT HEALTH</span>
+        </div>
+        <div class="da-health-list">
+          <div class="da-health-row">
+            <span class="fa fa-wifi da-health-icon"></span>
+            <span class="da-health-label">Communications</span>
+            <span class="da-health-val" [ngClass]="devicesReporting === totalDevices && totalDevices > 0 ? 'health-ok' : 'health-warn'">
+              {{ devicesReporting === totalDevices && totalDevices > 0 ? 'All Online' : (devicesReporting + ' / ' + totalDevices) }}
+            </span>
+            <span class="da-health-dot" [ngClass]="devicesReporting === totalDevices && totalDevices > 0 ? 'dot-green' : 'dot-yellow'"></span>
+          </div>
+          <div class="da-health-row">
+            <span class="fa fa-microchip da-health-icon"></span>
+            <span class="da-health-label">Devices Reporting</span>
+            <span class="da-health-val">{{ devicesReporting }} / {{ totalDevices }} Reporting</span>
+            <span class="da-health-dot" [ngClass]="devicesReporting === totalDevices && totalDevices > 0 ? 'dot-green' : 'dot-yellow'"></span>
+          </div>
+          <div class="da-health-row">
+            <span class="fa fa-exclamation-triangle da-health-icon"></span>
+            <span class="da-health-label">Active Alarms</span>
+            <span class="da-health-val" [ngClass]="safetyHolds > 0 ? 'health-danger' : 'health-ok'">{{ safetyHolds }}</span>
+            <span class="da-health-dot" [ngClass]="safetyHolds > 0 ? 'dot-red' : 'dot-green'"></span>
+          </div>
+          <div class="da-health-row">
+            <span class="fa fa-clock-o da-health-icon"></span>
+            <span class="da-health-label">Last Synced</span>
+            <span class="da-health-val">{{ syncedAt }}</span>
+            <span class="da-health-dot dot-green"></span>
           </div>
         </div>
       </div>
 
       <!-- Quick Access -->
-      <div class="dep-panel dep-panel-mt">
-        <div class="dep-panel-title"><span class="fa fa-th-large"></span> Quick Access</div>
-        <div class="dep-quick-grid">
-          <div class="dep-quick-btn" (click)="go('devices')">
-            <span class="fa fa-microchip dep-quick-icon"></span>
-            <span>Devices</span>
-          </div>
-          <div class="dep-quick-btn" (click)="go('issues')">
-            <span class="fa fa-flag dep-quick-icon" [class.dep-quick-warn]="openIssues > 0"></span>
-            <span>Issues <span *ngIf="openIssues > 0" class="dep-quick-badge">{{ openIssues }}</span></span>
-          </div>
-          <div class="dep-quick-btn" (click)="go('photos')">
-            <span class="fa fa-camera dep-quick-icon"></span>
-            <span>Photos</span>
-          </div>
-          <div class="dep-quick-btn" (click)="go('commissioning')">
-            <span class="fa fa-bolt dep-quick-icon"></span>
-            <span>Commissioning</span>
-          </div>
-          <div class="dep-quick-btn" (click)="go('materials')">
-            <span class="fa fa-cubes dep-quick-icon"></span>
-            <span>Materials</span>
-          </div>
-          <div class="dep-quick-btn" (click)="go('closeout')">
-            <span class="fa fa-file-text-o dep-quick-icon"></span>
-            <span>Closeout</span>
-          </div>
+      <div class="da-card">
+        <div class="da-card-header">
+          <span class="da-card-title"><span class="fa fa-th"></span> QUICK ACTIONS</span>
+        </div>
+        <div class="da-quick-grid">
+          <button class="da-quick-btn" (click)="go('devices')">
+            <span class="fa fa-microchip"></span><span>Go to Devices</span>
+          </button>
+          <button class="da-quick-btn" (click)="go('issues')">
+            <span class="fa fa-exclamation-triangle"></span><span>Create Issue</span>
+          </button>
+          <button class="da-quick-btn" (click)="go('photos')">
+            <span class="fa fa-camera"></span><span>Upload Photos</span>
+          </button>
+          <button class="da-quick-btn" (click)="go('materials')">
+            <span class="fa fa-cube"></span><span>Materials</span>
+          </button>
+          <button class="da-quick-btn" (click)="go('commissioning')">
+            <span class="fa fa-bolt"></span><span>Commissioning</span>
+          </button>
+          <button class="da-quick-btn" (click)="go('closeout')">
+            <span class="fa fa-file-text-o"></span><span>Closeout</span>
+          </button>
         </div>
       </div>
 
     </div>
   </div>
+
+  <!-- ── Bottom Action Bar ──────────────────────────────────────────────── -->
+  <div class="da-footer-bar">
+    <span class="da-footer-note"><span class="fa fa-info-circle"></span> Keep your device statuses and photos up to date for accurate progress tracking.</span>
+    <button class="da-continue-btn" *ngIf="depStatus === 'not_started'" (click)="startDeployment()">
+      <span class="fa fa-play"></span> START DEPLOYMENT
+    </button>
+    <button class="da-continue-btn" *ngIf="depStatus !== 'not_started' && depStatus !== 'activated' && depStatus !== 'closed'" (click)="continueDeployment()">
+      CONTINUE DEPLOYMENT <span class="fa fa-chevron-right"></span>
+    </button>
+    <button class="da-continue-btn da-continue-btn--done" *ngIf="depStatus === 'activated' || depStatus === 'closed'">
+      <span class="fa fa-check-circle"></span> DEPLOYMENT COMPLETE
+    </button>
+  </div>
+
 </div>
 
-<div class="dep-loading-full" *ngIf="loading">
-  <span class="fa fa-spinner fa-spin"></span> Loading deployment...
-</div>
+<ng-template #loadingTpl>
+  <div class="da-loading">
+    <span class="fa fa-spinner fa-spin"></span> Loading deployment...
+  </div>
+</ng-template>

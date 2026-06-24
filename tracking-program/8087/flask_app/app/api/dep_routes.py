@@ -262,10 +262,53 @@ def create_deployment():
 @dep_bp.route("/deployments/<int:dep_id>", methods=["GET"])
 @login_required
 def get_deployment(dep_id):
+    from sqlalchemy import text as _text
     dep = _tbl_get("deployment", dep_id)
     if not dep:
         return jsonify({"error": "Not found"}), 404
     dep["summary"] = _dep_summary(dep_id)
+
+    # Enrich with site info
+    if dep.get("site_id"):
+        site = db.session.execute(
+            _text("SELECT name, address, city, state, zip, utility, status FROM site WHERE id=:s AND is_deleted=0 LIMIT 1"),
+            {"s": dep["site_id"]}
+        ).fetchone()
+        if site:
+            dep["site_info"] = {
+                "name": site[0], "address": site[1], "city": site[2],
+                "state": site[3], "zip": site[4], "utility": site[5], "status": site[6],
+            }
+
+    # Enrich with project info
+    if dep.get("project_id"):
+        proj = db.session.execute(
+            _text("SELECT name, location, startDate FROM project WHERE id=:p AND isDeleted=0 LIMIT 1"),
+            {"p": dep["project_id"]}
+        ).fetchone()
+        if proj:
+            dep["project_info"] = {"name": proj[0], "location": proj[1], "start_date": proj[2]}
+
+    # PM and field lead names
+    for uid_key, name_key in [("project_manager_id", "pm_name"), ("field_lead_id", "field_lead_name")]:
+        uid = dep.get(uid_key)
+        if uid:
+            u = db.session.execute(
+                _text("SELECT firstName, lastName, email FROM user WHERE id=:u LIMIT 1"),
+                {"u": uid}
+            ).fetchone()
+            if u:
+                first, last, email = u[0] or "", u[1] or "", u[2] or ""
+                dep[name_key] = f"{first} {last}".strip() or email
+        else:
+            dep[name_key] = None
+
+    # Photos count
+    dep["photos_count"] = db.session.execute(
+        _text("SELECT COUNT(*) FROM dep_photo WHERE deployment_id=:d"),
+        {"d": dep_id}
+    ).scalar() or 0
+
     return jsonify({"response": dep})
 
 
