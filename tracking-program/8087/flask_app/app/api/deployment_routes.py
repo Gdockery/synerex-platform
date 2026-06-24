@@ -39,8 +39,8 @@ from app.models.site_discovery import SiteDiscovery
 from app.models.engineering_review import EngineeringReview, REVIEW_DECISIONS
 from app.models.site_activation import SiteActivation
 from app.services.audit import audit
-from app.helpers.roles import (
 from app.helpers.time_utils import now_ms as _now
+from app.helpers.roles import (
     WRITE_ROLES, ENGINEERING_ROLES, DEPLOYMENT_ROLES, ADMIN_ROLES, require_roles
 )
 

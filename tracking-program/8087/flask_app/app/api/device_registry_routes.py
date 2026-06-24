@@ -25,8 +25,8 @@ from app.db import get_session
 from app.models.device_registry import DeviceRegistry, DEVICE_TYPES, DEVICE_STATUSES
 from app.models.commissioning_test import CommissioningTest, COMMISSIONING_OUTCOMES
 from app.services.audit import audit
-from app.helpers.roles import (
 from app.helpers.time_utils import now_ms as _now
+from app.helpers.roles import (
     WRITE_ROLES, ENGINEERING_ROLES, DEPLOYMENT_ROLES, ADMIN_ROLES, require_roles
 )
 
