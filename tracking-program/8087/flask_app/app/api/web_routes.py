@@ -210,6 +210,7 @@ def _project_to_dict(p, include_meters=False, sess=None):
         "currencyExchangeRate": getattr(p, "currencyExchangeRate", None),
         "activeEmvAnalysisId": getattr(p, "active_emv_analysis_id", None),
         "location": getattr(p, "location", None),
+        "releaseStatus": bool(getattr(p, "release_status", False)),
     }
     if include_meters:
         sess = sess or get_session()

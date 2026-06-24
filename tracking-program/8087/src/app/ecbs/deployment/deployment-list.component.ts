@@ -18,6 +18,11 @@ export class DeploymentListComponent implements OnInit {
   creating = false;
   canCreate = false;
 
+  // Field-mode project picker (role 14)
+  isFieldMode = false;
+  assignedProjects: any[] = [];
+  projectSelected = false;
+
   constructor(
     private api: ApiRequestService,
     private userService: CurrentUserService,
@@ -27,11 +32,31 @@ export class DeploymentListComponent implements OnInit {
   ngOnInit() {
     const role = Number(this.userService.user && this.userService.user.role || 0);
     this.canCreate = role !== 14;
-    var p = this.userService.user && this.userService.user.selectedProject;
-    if (p) {
-      this.projectId = p.id;
-      this.projectName = p.name ? p.name.toString() : '';
+    this.isFieldMode = role === 14;
+
+    if (this.isFieldMode) {
+      // For role 14: pull released projects from bootstrap data and pick automatically
+      const allProjects = (this.userService.user && (this.userService.user as any).projects) || [];
+      this.assignedProjects = allProjects.filter((p: any) => p.releaseStatus);
+      if (this.assignedProjects.length === 1) {
+        this.selectFieldProject(this.assignedProjects[0]);
+      } else {
+        this.loading = false;
+      }
+    } else {
+      const p = this.userService.user && this.userService.user.selectedProject;
+      if (p) {
+        this.projectId = p.id;
+        this.projectName = p.name ? p.name.toString() : '';
+      }
+      this.load();
     }
+  }
+
+  selectFieldProject(p: any) {
+    this.projectId = p.id;
+    this.projectName = p.name ? p.name.toString() : '';
+    this.projectSelected = true;
     this.load();
   }
 

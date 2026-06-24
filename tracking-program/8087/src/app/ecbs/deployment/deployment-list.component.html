@@ -5,12 +5,29 @@
       <img src="/images/synerex_logo_white.png" class="dep-list-logo" alt="Synerex" />
       <div>
         <h1>Deployment App</h1>
-        <p class="dep-list-sub">{{ projectName || 'Select a project' }}</p>
+        <p class="dep-list-sub">{{ projectName || (isFieldMode && assignedProjects.length === 0 ? 'No projects assigned' : 'Select a project') }}</p>
       </div>
     </div>
     <button class="dep-btn-primary" *ngIf="canCreate" (click)="showCreate = true">
       <span class="fa fa-plus"></span> New Deployment
     </button>
+  </div>
+
+  <!-- Role-14 project picker: shown when multiple released projects are assigned -->
+  <div class="dep-project-picker" *ngIf="isFieldMode && !projectSelected">
+    <div *ngIf="assignedProjects.length === 0" class="dep-no-projects">
+      <img src="/images/synerex_logo_white.png" class="dep-empty-logo" alt="Synerex" />
+      <p>No released projects have been assigned to you yet.<br>Contact your administrator.</p>
+    </div>
+    <div *ngIf="assignedProjects.length > 1">
+      <p class="dep-picker-label">Select a project to continue</p>
+      <div class="dep-picker-cards">
+        <div class="dep-picker-card" *ngFor="let p of assignedProjects" (click)="selectFieldProject(p)">
+          <span class="dep-picker-name">{{ p.name }}</span>
+          <span class="fa fa-chevron-right dep-picker-arrow"></span>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="dep-create-card" *ngIf="showCreate && canCreate">
