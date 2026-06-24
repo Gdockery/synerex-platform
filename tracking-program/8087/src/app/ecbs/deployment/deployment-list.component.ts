@@ -16,6 +16,7 @@ export class DeploymentListComponent implements OnInit {
   showCreate = false;
   newName = '';
   creating = false;
+  canCreate = false;
 
   constructor(
     private api: ApiRequestService,
@@ -24,6 +25,8 @@ export class DeploymentListComponent implements OnInit {
   ) {}
 
   ngOnInit() {
+    const role = Number(this.userService.user && this.userService.user.role || 0);
+    this.canCreate = role !== 14;
     var p = this.userService.user && this.userService.user.selectedProject;
     if (p) {
       this.projectId = p.id;

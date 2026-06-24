@@ -8,12 +8,12 @@
         <p class="dep-list-sub">{{ projectName || 'Select a project' }}</p>
       </div>
     </div>
-    <button class="dep-btn-primary" (click)="showCreate = true">
+    <button class="dep-btn-primary" *ngIf="canCreate" (click)="showCreate = true">
       <span class="fa fa-plus"></span> New Deployment
     </button>
   </div>
 
-  <div class="dep-create-card" *ngIf="showCreate">
+  <div class="dep-create-card" *ngIf="showCreate && canCreate">
     <h3>New Deployment</h3>
     <div class="dep-create-row">
       <input class="dep-input" [(ngModel)]="newName" placeholder="Deployment name (e.g. Ochsner Ortho Phase 1)" />
@@ -31,7 +31,7 @@
   <div class="dep-empty" *ngIf="!loading && deployments.length === 0">
     <span class="fa fa-rocket dep-empty-icon"></span>
     <p>No deployments yet for this project.</p>
-    <button class="dep-btn-primary" (click)="showCreate = true">Create First Deployment</button>
+    <button class="dep-btn-primary" *ngIf="canCreate" (click)="showCreate = true">Create First Deployment</button>
   </div>
 
   <div class="dep-cards" *ngIf="!loading && deployments.length > 0">
