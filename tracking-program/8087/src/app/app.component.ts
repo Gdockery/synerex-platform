@@ -1,10 +1,11 @@
-import {Component, OnInit, ViewContainerRef, ViewEncapsulation, ViewChild} from '@angular/core';
+import {Component, Inject, OnInit, ViewContainerRef, ViewEncapsulation, ViewChild} from '@angular/core';
 import {CurrentUserService} from "./shared/user/currentUser.service";
 import {RouterTitleService} from "./shared/routerTitle.service";
 import {NavigationCancel, NavigationEnd, NavigationError, NavigationStart, Router} from "@angular/router";
 import {NgProgressComponent} from "ngx-progressbar";
 import {GlobalNotificationService} from "./shared/globalNotification.service";
 import {WhitelabelService} from "./shared/services/whitelabel.service";
+import {APP_CONFIG, IAppConfig} from "./config/app.config";
 
 @Component({
   selector: 'sd-app',
@@ -17,6 +18,7 @@ export class AppComponent implements OnInit {
 	public _opened: boolean = true;
 	public brandName: string = 'Synerex';
 	public lastUpdated: string = '';
+	public isFieldMode: boolean = false;
 
 	private _refreshTimer: any;
 	
@@ -27,7 +29,8 @@ export class AppComponent implements OnInit {
     vcr: ViewContainerRef, routerTitleService: RouterTitleService,
     private router: Router,
     public globalNotificationService: GlobalNotificationService,
-    private whitelabelService: WhitelabelService
+    private whitelabelService: WhitelabelService,
+    @Inject(APP_CONFIG) private config: IAppConfig
   ) {
     router.events.subscribe((event) => {
       this.navigationInterceptor(event);
@@ -35,7 +38,9 @@ export class AppComponent implements OnInit {
   }
 
   public ngOnInit() {
-    if(window.innerWidth < 600) {
+    const role = Number((this.config.locals && this.config.locals.user && this.config.locals.user.role) || 0);
+    this.isFieldMode = (role === 14);
+    if (this.isFieldMode || window.innerWidth < 600) {
       this._opened = false;
     }
     this.globalNotificationService.subscribe();

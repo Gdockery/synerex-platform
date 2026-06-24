@@ -25,3 +25,11 @@
   overflow-y: auto !important;
   overflow-x: hidden !important;
 }
+
+// Field mode (role 14 — Project Manager): full-screen deployment-only view
+.field-mode-root {
+  width: 100%;
+  min-height: 100vh;
+  background: #0a0f1a;
+  overflow-y: auto;
+}

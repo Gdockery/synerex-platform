@@ -1,39 +1,47 @@
 <ng-progress id="progressIndicator" [color]="'#00e676'"></ng-progress>
 
-<ng-sidebar-container [animate]="false" style="height: 100vh;">
-
-  <ng-sidebar
-    [(opened)]="_opened"
-    [mode]="'push'"
-    [dock]="true"
-    [dockedSize]="'50px'"
-    [animate]="false">
-    <sd-navbar (notify)='_toggleSidebar()'></sd-navbar>
-  </ng-sidebar>
-
-  <div class="page-content" ng-sidebar-content>
-    <sd-toolbar></sd-toolbar>
-    <div class="ecbs-page-body">
-      <router-outlet></router-outlet>
-    </div>
+<ng-container *ngIf="isFieldMode; else fullPlatform">
+  <div class="field-mode-root">
+    <router-outlet></router-outlet>
   </div>
+</ng-container>
 
-</ng-sidebar-container>
+<ng-template #fullPlatform>
+  <ng-sidebar-container [animate]="false" style="height: 100vh;">
 
-<p-confirmDialog icon="fa fa-question-circle" width="425"></p-confirmDialog>
+    <ng-sidebar
+      [(opened)]="_opened"
+      [mode]="'push'"
+      [dock]="true"
+      [dockedSize]="'50px'"
+      [animate]="false">
+      <sd-navbar (notify)='_toggleSidebar()'></sd-navbar>
+    </ng-sidebar>
 
-<footer class="ecbs-footer">
-  <span class="ecbs-footer-copy">
-    © 2026 Synerex Laboratories, LLC. All Rights Reserved.
-    uBillTRACKER and uBill4CAST are Trademarks of Synerex Laboratories, LLC.
-  </span>
-  <span class="ecbs-footer-links">
-    <a href="#">Privacy Policy</a>
-    <a href="#">Terms of Service</a>
-    <a href="#">Support</a>
-  </span>
-  <span class="ecbs-footer-live">
-    <span class="live-dot-sm"></span>
-    Data updated: {{ lastUpdated }}
-  </span>
-</footer>
+    <div class="page-content" ng-sidebar-content>
+      <sd-toolbar></sd-toolbar>
+      <div class="ecbs-page-body">
+        <router-outlet></router-outlet>
+      </div>
+    </div>
+
+  </ng-sidebar-container>
+
+  <p-confirmDialog icon="fa fa-question-circle" width="425"></p-confirmDialog>
+
+  <footer class="ecbs-footer">
+    <span class="ecbs-footer-copy">
+      © 2026 Synerex Laboratories, LLC. All Rights Reserved.
+      uBillTRACKER and uBill4CAST are Trademarks of Synerex Laboratories, LLC.
+    </span>
+    <span class="ecbs-footer-links">
+      <a href="#">Privacy Policy</a>
+      <a href="#">Terms of Service</a>
+      <a href="#">Support</a>
+    </span>
+    <span class="ecbs-footer-live">
+      <span class="live-dot-sm"></span>
+      Data updated: {{ lastUpdated }}
+    </span>
+  </footer>
+</ng-template>

@@ -325,6 +325,9 @@ def login():
     if _wants_json_response():
         return {"status": "success"}
     base = current_app.config.get("APPLICATION_ROOT", "") or ""
+    # Project Manager (role 14): send straight to the deployment app — no full platform access
+    if getattr(user, "role", None) == 14:
+        return redirect(f"{base}/#/ecbs/deployment" if base else "/#/ecbs/deployment")
     # Admin-level roles (2, 8, 9, 10): redirect to /#/project/pipeline so deselectProject()
     # is called on init, clearing any stale localStorage project selection.
     if getattr(user, "role", None) in (2, 8, 9, 10):
