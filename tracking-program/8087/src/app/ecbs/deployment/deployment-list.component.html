@@ -2,7 +2,7 @@
 
   <div class="dep-list-header">
     <div class="dep-list-title">
-      <span class="dep-list-icon fa fa-rocket"></span>
+      <img src="/images/synerex_logo_white.png" class="dep-list-logo" alt="Synerex" />
       <div>
         <h1>Deployment App</h1>
         <p class="dep-list-sub">{{ projectName || 'Select a project' }}</p>
@@ -29,7 +29,7 @@
   </div>
 
   <div class="dep-empty" *ngIf="!loading && deployments.length === 0">
-    <span class="fa fa-rocket dep-empty-icon"></span>
+    <img src="/images/synerex_logo_white.png" class="dep-empty-logo" alt="Synerex" />
     <p>No deployments yet for this project.</p>
     <button class="dep-btn-primary" *ngIf="canCreate" (click)="showCreate = true">Create First Deployment</button>
   </div>

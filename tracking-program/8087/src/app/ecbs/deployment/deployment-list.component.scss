@@ -122,3 +122,18 @@
   &.status-online   { background: #0d2e1a; color: #00e676; }
   &.status-offline  { background: #2a0d0d; color: #f44336; }
 }
+
+.dep-list-logo {
+  height: 36px;
+  width: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.dep-empty-logo {
+  height: 48px;
+  width: auto;
+  object-fit: contain;
+  opacity: 0.35;
+  margin-bottom: 8px;
+}
