@@ -210,6 +210,23 @@
         <div class="onp-row" *ngIf="selectedNode.bus_id">
           <span class="onp-key">Bus ID</span><span class="onp-val">{{ selectedNode.bus_id }}</span>
         </div>
+        <div class="onp-device" *ngIf="selectedNode.device_id">
+          <span class="onp-key">Linked Device</span>
+          <span class="onp-device-chip">
+            <i class="fa fa-microchip"></i>
+            {{ deviceLabel(selectedNode) }}
+            <span class="onp-serial" *ngIf="deviceSerial(selectedNode)">{{ deviceSerial(selectedNode) }}</span>
+          </span>
+        </div>
+        <div class="onp-device-unlinked" *ngIf="editMode && !selectedNode.device_id">
+          <button class="ol-btn ol-btn-link-sm" (click)="openDevicePicker(selectedNode)">
+            <i class="fa fa-link"></i> Link Device
+          </button>
+        </div>
+        <button *ngIf="editMode && selectedNode.device_id" class="ol-btn ol-btn-unlink-sm"
+                (click)="unlinkDevice(selectedNode)">
+          <i class="fa fa-unlink"></i> Unlink
+        </button>
         <div class="onp-notes" *ngIf="selectedNode.notes">{{ selectedNode.notes }}</div>
       </div>
 
@@ -224,6 +241,15 @@
           <span class="onl-placed-dot" *ngIf="isPlaced(n)" title="Unit placed"></span>
           <span class="onl-type">{{ n.type }}</span>
           <span class="onl-label">{{ n.label }}</span>
+          <span class="onl-device-chip" *ngIf="n.device_id" [title]="deviceLabel(n)">
+            <i class="fa fa-microchip"></i>
+          </span>
+          <button *ngIf="editMode && !isLocked(n) && !n.device_id"
+                  class="onl-link-btn"
+                  (click)="openDevicePicker(n, $event)"
+                  title="Link device">
+            <i class="fa fa-link"></i>
+          </button>
           <button *ngIf="editMode && !isLocked(n)"
                   class="onl-del"
                   (click)="deleteNode(n, $event)"
@@ -276,12 +302,49 @@
           <label>Notes</label>
           <textarea [(ngModel)]="newNode.notes" rows="2" placeholder="Optional notes"></textarea>
         </div>
+        <div class="form-row">
+          <label>Link Physical Device <span class="form-optional">(optional)</span></label>
+          <select [(ngModel)]="newNode.device_id">
+            <option [ngValue]="null">-- None --</option>
+            <option *ngFor="let d of availableDevices" [ngValue]="d.id">
+              {{ d.planned_label || d.device_name || d.device_type }} {{ d.expected_serial ? '(S/N: ' + d.expected_serial + ')' : '' }}
+            </option>
+          </select>
+        </div>
       </div>
       <div class="ol-modal-footer">
         <button class="ol-btn ol-btn-cancel" (click)="closeAddModal()">Cancel</button>
         <button class="ol-btn ol-btn-save" (click)="confirmAddNode()">
           <i class="fa fa-plus"></i> Add Node
         </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Device Picker Modal -->
+  <div class="ol-modal-backdrop" *ngIf="showDevicePicker" (click)="closeDevicePicker()">
+    <div class="ol-modal" (click)="$event.stopPropagation()">
+      <div class="ol-modal-header">
+        <span>Link Physical Device</span>
+        <button class="ol-modal-close" (click)="closeDevicePicker()"><i class="fa fa-times"></i></button>
+      </div>
+      <div class="ol-modal-body">
+        <p class="picker-hint">Select the physical device installed at <strong>{{ devicePickerNode?.label }}</strong>:</p>
+        <div class="device-pick-list">
+          <div class="device-pick-row" (click)="assignDevice(null)">
+            <span class="dp-type">None</span>
+            <span class="dp-label">Unlink / No device</span>
+          </div>
+          <div *ngFor="let d of availableDevices"
+               class="device-pick-row"
+               (click)="assignDevice(d.id)">
+            <span class="dp-type">{{ d.device_type }}</span>
+            <span class="dp-label">{{ d.planned_label || d.device_name }}</span>
+            <span class="dp-serial" *ngIf="d.expected_serial">{{ d.expected_serial }}</span>
+            <span class="dp-status" [ngClass]="statusClass(d.status)">{{ d.status }}</span>
+          </div>
+          <div class="dp-empty" *ngIf="!availableDevices.length">No unlinked devices in this deployment.</div>
+        </div>
       </div>
     </div>
   </div>

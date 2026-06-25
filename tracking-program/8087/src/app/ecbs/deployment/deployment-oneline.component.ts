@@ -17,6 +17,7 @@ export interface TwinNode {
   bus_id?: string;
   notes?: string;
   extra?: any;
+  device_id?: number | null;   // linked deployment device id (stored in extra.device_id)
 }
 
 export interface TwinSvgNode extends TwinNode {
@@ -104,13 +105,18 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
   // Add node modal
   showAddModal  = false;
   newNode = {
-    type:      'circuit',
-    label:     '',
-    amp_rating: null as number | null,
-    kva_rating: null as number | null,
-    notes:     '',
+    type:        'circuit',
+    label:       '',
+    amp_rating:  null as number | null,
+    kva_rating:  null as number | null,
+    notes:       '',
+    device_id:   null as number | null,
   };
   readonly addableTypes = ADDABLE_TYPES;
+
+  // Device-link picker (used in edit mode node detail)
+  showDevicePicker  = false;
+  devicePickerNode: TwinNode | null = null;
 
   constructor(
     private route:  ActivatedRoute,
@@ -212,19 +218,20 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
     let extra = a.extra;
     if (typeof extra === 'string') { try { extra = JSON.parse(extra); } catch (e) { extra = {}; } }
     return {
-      dbId:      a.id,
-      id:        a.asset_uid || String(a.id),
-      type:      a.asset_type || a.type || 'unknown',
-      label:     a.name || a.label || a.asset_uid || 'Asset',
-      rated_kva: a.kva_rating  || a.rated_kva  || null,
+      dbId:       a.id,
+      id:         a.asset_uid || String(a.id),
+      type:       a.asset_type || a.type || 'unknown',
+      label:      a.name || a.label || a.asset_uid || 'Asset',
+      rated_kva:  a.kva_rating  || a.rated_kva  || null,
       amp_rating: a.amp_rating || null,
       voltage_in:  a.voltage_primary  || a.voltage_in  || null,
       voltage_out: a.voltage_secondary || a.voltage_out || null,
-      used_kva:  a.used_kva || 0,
-      status:    a.status   || 'active',
-      bus_id:    a.bus_id   || null,
-      notes:     a.notes    || null,
-      extra:     extra      || null,
+      used_kva:   a.used_kva || 0,
+      status:     a.status   || 'active',
+      bus_id:     a.bus_id   || null,
+      notes:      a.notes    || null,
+      extra:      extra      || null,
+      device_id:  (extra && extra.device_id != null) ? +extra.device_id : null,
     };
   }
 
@@ -453,6 +460,7 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
   confirmAddNode() {
     if (!this.newNode.label.trim()) { alert('Please enter a name for the node.'); return; }
     const tempId = this._tempIdCounter--;
+    const devId  = this.newNode.device_id || null;
     const node: TwinNode = {
       dbId:       tempId,
       id:         'new-' + (-tempId),
@@ -461,7 +469,8 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
       amp_rating: this.newNode.amp_rating || null,
       rated_kva:  this.newNode.kva_rating || null,
       status:     'planned',
-      extra:      {},
+      extra:      devId ? { device_id: devId } : {},
+      device_id:  devId,
     };
 
     // Place at center, user can drag to position
@@ -509,6 +518,54 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
 
   get placedCount(): number {
     return this.twinNodes.filter(n => this.isPlaced(n)).length;
+  }
+
+  // ── Device link (assign a physical device to a node) ─────────────────────
+
+  /** All devices that have a device_id means they are already linked (to prevent double-linking) */
+  get availableDevices(): any[] {
+    const linked = this.twinNodes
+      .filter(n => n.device_id != null)
+      .map(n => n.device_id);
+    return this.devices.filter(function(d) { return linked.indexOf(d.id) < 0; });
+  }
+
+  deviceLabel(n: TwinNode): string {
+    if (!n.device_id) return '';
+    const dev = this.devices.filter(function(d) { return d.id === n.device_id; })[0];
+    if (!dev) return '#' + n.device_id;
+    return dev.planned_label || dev.device_name || dev.device_type || ('#' + n.device_id);
+  }
+
+  deviceSerial(n: TwinNode): string {
+    if (!n.device_id) return '';
+    const dev = this.devices.filter(function(d) { return d.id === n.device_id; })[0];
+    return (dev && dev.expected_serial) ? dev.expected_serial : '';
+  }
+
+  openDevicePicker(n: TwinNode, event?: Event) {
+    if (event) { event.stopPropagation(); }
+    this.devicePickerNode = n;
+    this.showDevicePicker = true;
+  }
+
+  closeDevicePicker() { this.showDevicePicker = false; this.devicePickerNode = null; }
+
+  assignDevice(devId: number | null) {
+    const n = this.devicePickerNode;
+    if (!n) return;
+    n.device_id = devId;
+    n.extra     = Object.assign({}, n.extra || {}, { device_id: devId });
+    this.dirty  = true;
+    this.closeDevicePicker();
+  }
+
+  unlinkDevice(n: TwinNode, event?: Event) {
+    if (event) { event.stopPropagation(); }
+    n.device_id = null;
+    n.extra     = Object.assign({}, n.extra || {});
+    delete n.extra.device_id;
+    this.dirty  = true;
   }
 
   private _handleConnect(n: TwinNode) {
