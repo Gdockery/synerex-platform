@@ -287,32 +287,42 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
     if (xfmr)    result.push(mkNode(xfmr,    390, 115, []));
 
     const swgBadges = swg ? this._containsChildren(swg.dbId) : [];
-    if (swg) placed[swg.dbId] = true;
+    if (swg) result.push(mkNode(swg, 390, 190, swgBadges));
 
-    if (gen) result.push(mkNode(gen, 685, 220));
-    if (ats) result.push(mkNode(ats, 685, 295));
+    if (gen) result.push(mkNode(gen, 700, 190));
+    if (ats) result.push(mkNode(ats, 700, 270));
 
     const genAtsIds = [gen && gen.dbId, ats && ats.dbId].filter(x => !!x);
-    const swgChildIds = swg ? this._feedsChildren(swg.dbId) : [];
+
+    // Children of the switchgear (or direct children of xfmr if no swg)
+    const parentId = swg ? swg.dbId : (xfmr ? xfmr.dbId : null);
+    const swgChildIds = parentId ? this._feedsChildren(parentId) : [];
     const childNodes = swgChildIds.map(id => byId[id])
       .filter(n => n && genAtsIds.indexOf(n.dbId) < 0);
 
-    const circuits = childNodes.filter(n => n.type === 'circuit');
-    const panels   = childNodes.filter(n => n.type === 'panel');
-
-    const row1Count = circuits.length;
-    const row1Start = 60, row1End = 620;
+    // Row 1: direct children of switchgear (circuits, panels, apf, s600, etc.)
+    const row1Nodes = childNodes;
+    const row1Count = row1Nodes.length;
+    const row1Start = 60, row1End = 680;
     const row1Step  = row1Count > 1 ? (row1End - row1Start) / (row1Count - 1) : 0;
     const self = this;
-    circuits.forEach(function(n, i) {
-      result.push(mkNode(n, row1Start + i * row1Step, 248, self._containsChildren(n.dbId)));
+    row1Nodes.forEach(function(n, i) {
+      result.push(mkNode(n, row1Start + i * row1Step, 310, self._containsChildren(n.dbId)));
     });
 
-    const row2Count = panels.length;
-    const row2Start = row1Start + 30, row2End = row1End - 30;
+    // Row 2: children of row-1 nodes (sub-panels, devices, etc.) not already placed
+    const row2Nodes: TwinNode[] = [];
+    row1Nodes.forEach(function(n) {
+      self._feedsChildren(n.dbId).forEach(function(cid) {
+        const child = byId[cid];
+        if (child && !placed[child.dbId]) { row2Nodes.push(child); }
+      });
+    });
+    const row2Count = row2Nodes.length;
+    const row2Start = row1Start + 20, row2End = row1End - 20;
     const row2Step  = row2Count > 1 ? (row2End - row2Start) / (row2Count - 1) : 0;
-    panels.forEach(function(n, i) {
-      result.push(mkNode(n, row2Start + i * row2Step, 350, []));
+    row2Nodes.forEach(function(n, i) {
+      result.push(mkNode(n, row2Start + i * row2Step, 400, []));
     });
 
     // Unplaced nodes (new/disconnected): row at y=430
