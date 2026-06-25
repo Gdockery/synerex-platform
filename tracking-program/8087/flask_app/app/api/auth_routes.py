@@ -49,6 +49,7 @@ def load_user(user_id):
         return None
 
 
+@auth_bp.route("/tracking/login", methods=["GET"])
 @auth_bp.route("/login", methods=["GET"])
 def show_login_page():
     from app.api.web_routes import _get_brand_name
@@ -105,6 +106,7 @@ def _wants_json_response():
     )
 
 
+@auth_bp.route("/tracking/login", methods=["POST"])
 @auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json(silent=True) or {}
@@ -376,6 +378,7 @@ def _set_org_id_in_session(user):
         logger.debug("org_id: client id=%s has no org_id", user.client)
 
 
+@auth_bp.route("/tracking/logout")
 @auth_bp.route("/logout")
 def logout():
     # Capture role BEFORE clearing session
