@@ -2,7 +2,7 @@
 
   <div class="dep-list-header">
     <div class="dep-list-title">
-      <img src="/images/synerex_logo_white.png" class="dep-list-logo" alt="Synerex" />
+      <img src="/assets/images/synerex_logo_white.png" class="dep-list-logo" alt="Synerex" />
       <div>
         <h1>Deployment App</h1>
         <p class="dep-list-sub">{{ projectName || (isFieldMode && assignedProjects.length === 0 ? 'No projects assigned' : 'Select a project') }}</p>
@@ -16,7 +16,7 @@
   <!-- Role-14 project picker: shown when multiple released projects are assigned -->
   <div class="dep-project-picker" *ngIf="isFieldMode && !projectSelected">
     <div *ngIf="assignedProjects.length === 0" class="dep-no-projects">
-      <img src="/images/synerex_logo_white.png" class="dep-empty-logo" alt="Synerex" />
+      <img src="/assets/images/synerex_logo_white.png" class="dep-empty-logo" alt="Synerex" />
       <p>No released projects have been assigned to you yet.<br>Contact your administrator.</p>
     </div>
     <div *ngIf="assignedProjects.length > 1">
@@ -47,7 +47,7 @@
   </div>
 
   <div class="dep-empty" *ngIf="!loading && deployments.length === 0">
-    <img src="/images/synerex_logo_white.png" class="dep-empty-logo" alt="Synerex" />
+    <img src="/assets/images/synerex_logo_white.png" class="dep-empty-logo" alt="Synerex" />
     <p>No deployments yet for this project.</p>
     <button class="dep-btn-primary" *ngIf="canCreate" (click)="showCreate = true">Create First Deployment</button>
   </div>
