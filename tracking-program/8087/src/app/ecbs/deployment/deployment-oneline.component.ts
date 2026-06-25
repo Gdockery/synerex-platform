@@ -454,7 +454,7 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
 
   // ── Add node ─────────────────────────────────────────────────────────────
 
-  openAddModal() { this.showAddModal = true; this.newNode = { type: 'circuit', label: '', amp_rating: null, kva_rating: null, notes: '' }; }
+  openAddModal() { this.showAddModal = true; this.newNode = { type: 'circuit', label: '', amp_rating: null, kva_rating: null, notes: '', device_id: null }; }
   closeAddModal() { this.showAddModal = false; }
 
   confirmAddNode() {
