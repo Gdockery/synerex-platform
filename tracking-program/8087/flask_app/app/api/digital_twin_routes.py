@@ -515,3 +515,132 @@ def _safe_float(v):
         return float(v) if v not in (None, "", "N/A") else None
     except (TypeError, ValueError):
         return None
+
+
+# ─── Deployment App: save full edited topology ────────────────────────────────
+
+@dt_bp.route("/<int:twin_id>/save-topology", methods=["POST"])
+@login_required
+def save_topology(twin_id: int):
+    """Save the full edited asset+relationship graph from the deployment one-line editor.
+
+    Body:
+      assets         – list of asset dicts (id>0 = update, id<0 or absent = create)
+      relationships  – list of relationship dicts
+      deleted_asset_ids – list of existing asset ids to soft-delete
+      deleted_rel_ids   – list of existing relationship ids to hard-delete
+    """
+    from app.models.asset import Asset
+    from app.models.asset_relationship import AssetRelationship
+
+    sess = get_session()
+    twin = sess.query(DigitalTwin).filter_by(id=twin_id, is_deleted=False).first()
+    if not twin:
+        return {"error": "Not found"}, 404
+
+    body             = request.get_json(force=True, silent=True) or {}
+    assets_in        = body.get("assets", [])
+    rels_in          = body.get("relationships", [])
+    del_asset_ids    = [int(x) for x in body.get("deleted_asset_ids", []) if x and int(x) > 0]
+    del_rel_ids      = [int(x) for x in body.get("deleted_rel_ids",  []) if x and int(x) > 0]
+    now              = _now()
+
+    # 1. Soft-delete removed assets
+    for aid in del_asset_ids:
+        a = sess.query(Asset).filter_by(id=aid, digital_twin_id=twin_id).first()
+        if a:
+            a.is_deleted = True
+            a.updatedAt  = now
+
+    # 2. Hard-delete removed relationships
+    for rid in del_rel_ids:
+        r = sess.query(AssetRelationship).filter_by(id=rid, digital_twin_id=twin_id).first()
+        if r:
+            sess.delete(r)
+
+    # 3. Upsert assets; build temp_id → real_id map for new assets
+    id_map = {}  # {temp_negative_id: real_db_id}
+    for a_data in assets_in:
+        raw_id = a_data.get("id")
+        aid    = int(raw_id) if raw_id is not None else None
+
+        def _ef(field):
+            return a_data[field] if field in a_data else None
+
+        if aid and aid > 0:
+            # Update existing asset
+            a = sess.query(Asset).filter_by(id=aid, digital_twin_id=twin_id, is_deleted=False).first()
+            if a:
+                for f in ("name", "asset_type", "asset_uid", "kva_rating", "amp_rating",
+                          "voltage_primary", "voltage_secondary", "bus_id", "notes", "status", "extra"):
+                    if f in a_data:
+                        setattr(a, f, a_data[f])
+                a.updatedAt = now
+        else:
+            # Create new asset
+            a = Asset(
+                site_id        = twin.site_id,
+                org_id         = twin.org_id,
+                digital_twin_id= twin_id,
+                asset_type     = a_data.get("asset_type", "circuit"),
+                name           = a_data.get("name", "New Asset"),
+                asset_uid      = a_data.get("asset_uid"),
+                kva_rating     = _safe_float(a_data.get("kva_rating")),
+                amp_rating     = _safe_float(a_data.get("amp_rating")),
+                voltage_primary   = _safe_float(a_data.get("voltage_primary")),
+                voltage_secondary = _safe_float(a_data.get("voltage_secondary")),
+                bus_id         = a_data.get("bus_id"),
+                notes          = a_data.get("notes"),
+                status         = a_data.get("status", "planned"),
+                extra          = a_data.get("extra") or {},
+                is_deleted     = False,
+                createdAt      = now,
+                updatedAt      = now,
+            )
+            sess.add(a)
+            sess.flush()  # get the real id immediately
+            if aid and aid < 0:
+                id_map[aid] = a.id
+
+    # 4. Upsert relationships (resolve temp ids)
+    def _resolve(v):
+        v = int(v) if v is not None else None
+        return id_map.get(v, v)
+
+    existing_rel_ids = {
+        r.id for r in sess.query(AssetRelationship).filter_by(digital_twin_id=twin_id).all()
+    }
+    for r_data in rels_in:
+        rid    = r_data.get("id")
+        rid    = int(rid) if rid else None
+        parent = _resolve(r_data.get("parent_asset_id"))
+        child  = _resolve(r_data.get("child_asset_id"))
+        rtype  = r_data.get("relationship_type", "feeds")
+
+        if not parent or not child:
+            continue
+
+        if rid and rid in existing_rel_ids:
+            r = sess.query(AssetRelationship).filter_by(id=rid).first()
+            if r:
+                r.relationship_type = rtype
+        else:
+            # Avoid duplicate feeds edges
+            dup = sess.query(AssetRelationship).filter_by(
+                digital_twin_id=twin_id,
+                parent_asset_id=parent,
+                child_asset_id=child,
+                relationship_type=rtype,
+            ).first()
+            if not dup:
+                sess.add(AssetRelationship(
+                    digital_twin_id  = twin_id,
+                    parent_asset_id  = parent,
+                    child_asset_id   = child,
+                    relationship_type= rtype,
+                    createdAt        = now,
+                    updatedAt        = now,
+                ))
+
+    sess.commit()
+    return {"data": _build_snapshot(sess, twin_id), "id_map": id_map}

@@ -1,11 +1,10 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy, HostListener } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
 import { ApiRequestService } from '../../api/api-request.service';
 
-// ── Same interfaces & layout engine as digital-twin.component.ts ─────────────
-
+// ── Interfaces (same as digital-twin.component.ts) ───────────────────────────
 export interface TwinNode {
-  dbId: number;
+  dbId: number;      // positive = real DB id; negative = temp (unsaved new node)
   id: string;
   type: string;
   label: string;
@@ -14,10 +13,8 @@ export interface TwinNode {
   voltage_in?: number;
   voltage_out?: number;
   used_kva?: number;
-  utilization_pct?: number;
   status?: string;
   bus_id?: string;
-  drawing_ref?: string;
   notes?: string;
   extra?: any;
 }
@@ -28,41 +25,94 @@ export interface TwinSvgNode extends TwinNode {
   badges: TwinNode[];
 }
 
+export interface TwinRel {
+  id?: number;
+  parent_asset_id: number;
+  child_asset_id: number;
+  relationship_type: string;
+}
+
+// Downstream-editable types (utility_service and transformer are locked)
+const LOCKED_TYPES = ['utility_service', 'transformer'];
+
+const ADDABLE_TYPES = [
+  { type: 'circuit',     label: 'Circuit / Feeder',  icon: 'fa-minus' },
+  { type: 'panel',       label: 'Panel',              icon: 'fa-th' },
+  { type: 'apf',         label: 'ECBS / APF',         icon: 'fa-bolt' },
+  { type: 'generator',   label: 'Generator',          icon: 'fa-industry' },
+  { type: 'ats',         label: 'ATS',                icon: 'fa-random' },
+  { type: 'mcc',         label: 'MCC',                icon: 'fa-cubes' },
+  { type: 'load',        label: 'Load',               icon: 'fa-plug' },
+  { type: 'pq_meter',   label: 'PQ Meter',           icon: 'fa-tachometer' },
+];
+
 @Component({
   selector: 'app-deployment-oneline',
   templateUrl: './deployment-oneline.component.html',
   styleUrls: ['./deployment-oneline.component.scss'],
 })
-export class DeploymentOneLineComponent implements OnInit {
-  depId = 0;
+export class DeploymentOneLineComponent implements OnInit, OnDestroy {
+  depId   = 0;
   dep: any = null;
-  loading = true;
+  loading     = true;
   twinLoading = true;
-  syncedAt = '';
+  syncedAt    = '';
   summary: any = {};
 
-  // Digital twin data (same tables as main platform)
-  twinNodes: TwinNode[] = [];
-  relationships: any[] = [];
+  // Twin data
+  twinId   = 0;
+  twinNodes: TwinNode[]  = [];
+  relationships: TwinRel[] = [];
   twinConfigured = false;
 
-  // Deployment devices (for legend)
-  devices: any[] = [];
-  deviceLegend: { type: string; count: number }[] = [];
+  // Position map: dbId → {x, y} — populated from asset.extra, updated by drag
+  posMap: {[dbId: number]: {x: number; y: number}} = {};
 
-  // Drawing documents
+  // Deployment devices for legend
+  devices: any[]   = [];
+  deviceLegend: {type: string; count: number}[] = [];
   drawingDocs: any[] = [];
 
-  // Node click
+  // Node click/detail
   selectedNode: TwinNode | null = null;
 
-  // Exposed for template — ECBS badges on bus bar
+  // Exposed for template
   _busBadges: TwinNode[] = [];
 
+  // ── Edit mode state ───────────────────────────────────────────────────────
+  editMode = false;
+  dirty    = false;
+  saving   = false;
+  saveMsg  = '';
+
+  // Deletion tracking
+  deletedAssetIds: number[] = [];
+  deletedRelIds:   number[] = [];
+  _tempIdCounter   = -1;   // counts down for new nodes
+
+  // Drag state
+  private _dragging: TwinNode | null = null;
+  private _dragOffsetSvg = {x: 0, y: 0};  // cursor offset from node center in SVG coords
+
+  // Connect mode
+  connectMode   = false;
+  connectSource: TwinNode | null = null;
+
+  // Add node modal
+  showAddModal  = false;
+  newNode = {
+    type:      'circuit',
+    label:     '',
+    amp_rating: null as number | null,
+    kva_rating: null as number | null,
+    notes:     '',
+  };
+  readonly addableTypes = ADDABLE_TYPES;
+
   constructor(
-    private route: ActivatedRoute,
+    private route:  ActivatedRoute,
     private router: Router,
-    private api: ApiRequestService,
+    private api:    ApiRequestService,
   ) {}
 
   ngOnInit() {
@@ -72,31 +122,32 @@ export class DeploymentOneLineComponent implements OnInit {
     });
   }
 
+  ngOnDestroy() {}
+
+  // ── Data loading ─────────────────────────────────────────────────────────
+
   load() {
     this.loading = true;
     this.twinLoading = true;
-    this.api.get(`/api/dep/deployments/${this.depId}`).subscribe({
+    this.api.get('/api/dep/deployments/' + this.depId).subscribe({
       next: (r: any) => {
-        this.dep = r && r.response ? r.response : r;
+        this.dep     = r && r.response ? r.response : r;
         this.summary = this.dep.summary || {};
         this.syncedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        this.loading = false;
-        // Load twin using the deployment's project_id
+        this.loading  = false;
         const pid = this.dep.project_id || (this.dep.project_info && this.dep.project_info.id);
         if (pid) { this._loadTwin(pid); } else { this.twinLoading = false; }
       },
       error: () => { this.loading = false; this.twinLoading = false; }
     });
-
-    this.api.get(`/api/dep/deployments/${this.depId}/devices`).subscribe({
+    this.api.get('/api/dep/deployments/' + this.depId + '/devices').subscribe({
       next: (r: any) => {
         this.devices = Array.isArray(r && r.response ? r.response : r) ? (r.response || r) : [];
         this._buildLegend();
       },
       error: () => {}
     });
-
-    this.api.get(`/api/dep/deployments/${this.depId}/documents`).subscribe({
+    this.api.get('/api/dep/deployments/' + this.depId + '/documents').subscribe({
       next: (r: any) => {
         this.drawingDocs = Array.isArray(r && r.response ? r.response : r) ? (r.response || r) : [];
       },
@@ -105,18 +156,17 @@ export class DeploymentOneLineComponent implements OnInit {
   }
 
   private _loadTwin(projectId: number) {
-    this.api.get(`/api/digital-twin/?project_id=${projectId}`).subscribe({
+    this.api.get('/api/digital-twin/?project_id=' + projectId).subscribe({
       next: (r: any) => {
         const twins: any[] = r && r.data ? r.data : [];
         if (twins.length > 0) {
-          this._loadTwinSnapshot(twins[0].id);
+          this.twinId = twins[0].id;
+          this._loadTwinSnapshot(this.twinId);
         } else {
-          // Fall back to capacity assets
-          this.api.get(`/api/capacity/assets?project_id=${projectId}`).subscribe({
+          this.api.get('/api/capacity/assets?project_id=' + projectId).subscribe({
             next: (r2: any) => {
               const raw: any[] = r2 && r2.data ? r2.data : (r2 && r2.assets ? r2.assets : []);
-              this.twinNodes = raw.map(a => this._mapAsset(a));
-              this.twinConfigured = this.twinNodes.length > 0;
+              this._applyAssets(raw, []);
               this.twinLoading = false;
             },
             error: () => { this.twinLoading = false; }
@@ -128,42 +178,54 @@ export class DeploymentOneLineComponent implements OnInit {
   }
 
   private _loadTwinSnapshot(twinId: number) {
-    this.api.get(`/api/digital-twin/${twinId}`).subscribe({
+    this.api.get('/api/digital-twin/' + twinId).subscribe({
       next: (r: any) => {
         const snap = r && r.data && r.data.snapshot ? r.data.snapshot : {};
-        const assets: any[] = snap.assets || [];
-        this.relationships = snap.relationships || [];
-        this.twinNodes = assets.map(a => this._mapAsset(a));
-        this.twinConfigured = this.twinNodes.length > 0;
+        this._applyAssets(snap.assets || [], snap.relationships || []);
         this.twinLoading = false;
       },
       error: () => { this.twinLoading = false; }
     });
   }
 
+  private _applyAssets(assets: any[], rels: any[]) {
+    this.relationships = rels.map(function(r: any) {
+      return { id: r.id, parent_asset_id: r.parent_asset_id, child_asset_id: r.child_asset_id,
+               relationship_type: r.relationship_type };
+    });
+    this.twinNodes = assets.map(a => this._mapAsset(a));
+    // Initialise posMap from extra.x / extra.y
+    this.posMap = {};
+    for (const n of this.twinNodes) {
+      const ex = n.extra || {};
+      if (ex.x != null && ex.y != null) {
+        this.posMap[n.dbId] = { x: +ex.x, y: +ex.y };
+      }
+    }
+    this.twinConfigured = this.twinNodes.length > 0;
+  }
+
   _mapAsset(a: any): TwinNode {
     let extra = a.extra;
     if (typeof extra === 'string') { try { extra = JSON.parse(extra); } catch (e) { extra = {}; } }
     return {
-      dbId:            a.id,
-      id:              a.asset_uid || String(a.id),
-      type:            a.asset_type || a.type || 'unknown',
-      label:           a.name || a.label || a.asset_uid || 'Asset',
-      rated_kva:       a.kva_rating || a.rated_kva || null,
-      amp_rating:      a.amp_rating || null,
-      voltage_in:      a.voltage_primary || a.voltage_in || null,
-      voltage_out:     a.voltage_secondary || a.voltage_out || null,
-      used_kva:        a.used_kva || 0,
-      utilization_pct: a.utilization_pct || null,
-      status:          a.status || 'active',
-      bus_id:          a.bus_id || null,
-      drawing_ref:     a.drawing_ref || null,
-      notes:           a.notes || null,
-      extra:           extra || null,
+      dbId:      a.id,
+      id:        a.asset_uid || String(a.id),
+      type:      a.asset_type || a.type || 'unknown',
+      label:     a.name || a.label || a.asset_uid || 'Asset',
+      rated_kva: a.kva_rating  || a.rated_kva  || null,
+      amp_rating: a.amp_rating || null,
+      voltage_in:  a.voltage_primary  || a.voltage_in  || null,
+      voltage_out: a.voltage_secondary || a.voltage_out || null,
+      used_kva:  a.used_kva || 0,
+      status:    a.status   || 'active',
+      bus_id:    a.bus_id   || null,
+      notes:     a.notes    || null,
+      extra:     extra      || null,
     };
   }
 
-  // ── Relationship helpers (same as digital-twin.component.ts) ─────────────
+  // ── SVG layout (uses posMap when available) ───────────────────────────────
 
   private get _nodeByDbId(): {[id: number]: TwinNode} {
     const m: {[id: number]: TwinNode} = {};
@@ -171,7 +233,7 @@ export class DeploymentOneLineComponent implements OnInit {
     return m;
   }
 
-  private _feedsChildren(parentDbId: number): number[] {
+  _feedsChildren(parentDbId: number): number[] {
     return this.relationships
       .filter(r => r.parent_asset_id === parentDbId && r.relationship_type === 'feeds')
       .map(r => r.child_asset_id);
@@ -185,28 +247,33 @@ export class DeploymentOneLineComponent implements OnInit {
       .filter(n => !!n);
   }
 
-  // ── SVG layout tree (same algorithm as digital-twin.component.ts) ─────────
-
   get svgNodes(): TwinSvgNode[] {
     if (!this.twinNodes.length) return [];
 
-    const byId = this._nodeByDbId;
+    const byId   = this._nodeByDbId;
     const placed: {[dbId: number]: boolean} = {};
     const result: TwinSvgNode[] = [];
 
-    const mkNode = (n: TwinNode, x: number, y: number, badges?: TwinNode[]): TwinSvgNode => {
+    const mkNode = (n: TwinNode, defX: number, defY: number, badges?: TwinNode[]): TwinSvgNode => {
       placed[n.dbId] = true;
-      return Object.assign({}, n, { x: x, y: y, badges: badges || [] });
+      const pos = this.posMap[n.dbId];
+      return Object.assign({}, n, {
+        x: pos ? pos.x : defX,
+        y: pos ? pos.y : defY,
+        badges: badges || [],
+      });
     };
 
-    const utility = this.twinNodes.filter(n => n.type === 'utility_service')[0] || null;
-    const xfmr    = this.twinNodes.filter(n => n.type === 'transformer')[0] || null;
-    const swg     = this.twinNodes.filter(n => n.type === 'switchgear')[0] || null;
-    const gen     = this.twinNodes.filter(n => n.type === 'generator')[0] || null;
-    const ats     = this.twinNodes.filter(n => n.type === 'ats')[0] || null;
+    const find = (type: string) => this.twinNodes.filter(n => n.type === type)[0] || null;
+
+    const utility = find('utility_service');
+    const xfmr    = find('transformer');
+    const swg     = find('switchgear');
+    const gen     = find('generator');
+    const ats     = find('ats');
 
     if (utility) result.push(mkNode(utility, 390, 44));
-    if (xfmr)    result.push(mkNode(xfmr, 390, 115, []));
+    if (xfmr)    result.push(mkNode(xfmr,    390, 115, []));
 
     const swgBadges = swg ? this._containsChildren(swg.dbId) : [];
     if (swg) placed[swg.dbId] = true;
@@ -214,21 +281,20 @@ export class DeploymentOneLineComponent implements OnInit {
     if (gen) result.push(mkNode(gen, 685, 220));
     if (ats) result.push(mkNode(ats, 685, 295));
 
-    const genAtsIds = [gen && gen.dbId, ats && ats.dbId].filter(function(x) { return !!x; });
+    const genAtsIds = [gen && gen.dbId, ats && ats.dbId].filter(x => !!x);
     const swgChildIds = swg ? this._feedsChildren(swg.dbId) : [];
-    const childNodes = swgChildIds.map(function(id) { return byId[id]; })
-      .filter(function(n) { return n && genAtsIds.indexOf(n.dbId) < 0; });
+    const childNodes = swgChildIds.map(id => byId[id])
+      .filter(n => n && genAtsIds.indexOf(n.dbId) < 0);
 
-    const circuits = childNodes.filter(function(n) { return n.type === 'circuit'; });
-    const panels   = childNodes.filter(function(n) { return n.type === 'panel'; });
+    const circuits = childNodes.filter(n => n.type === 'circuit');
+    const panels   = childNodes.filter(n => n.type === 'panel');
 
     const row1Count = circuits.length;
     const row1Start = 60, row1End = 620;
     const row1Step  = row1Count > 1 ? (row1End - row1Start) / (row1Count - 1) : 0;
     const self = this;
     circuits.forEach(function(n, i) {
-      const badges = self._containsChildren(n.dbId);
-      result.push(mkNode(n, row1Start + i * row1Step, 248, badges));
+      result.push(mkNode(n, row1Start + i * row1Step, 248, self._containsChildren(n.dbId)));
     });
 
     const row2Count = panels.length;
@@ -238,48 +304,312 @@ export class DeploymentOneLineComponent implements OnInit {
       result.push(mkNode(n, row2Start + i * row2Step, 350, []));
     });
 
+    // Unplaced nodes (new/disconnected): row at y=430
+    let unplacedX = 60;
+    this.twinNodes.forEach(n => {
+      if (!placed[n.dbId]) {
+        result.push(mkNode(n, unplacedX, 430, []));
+        unplacedX += 100;
+      }
+    });
+
     this._busBadges = swgBadges;
     return result;
   }
 
-  // ── Node click ───────────────────────────────────────────────────────────
+  // ── Edit mode ─────────────────────────────────────────────────────────────
 
-  selectNode(n: TwinNode) { this.selectedNode = n; }
+  toggleEdit() {
+    if (this.editMode) {
+      if (this.dirty) {
+        if (!confirm('Discard unsaved changes?')) return;
+      }
+      this._exitEdit();
+    } else {
+      this.editMode    = true;
+      this.dirty       = false;
+      this.connectMode = false;
+      this.connectSource = null;
+      this.selectedNode  = null;
+    }
+  }
+
+  private _exitEdit() {
+    this.editMode      = false;
+    this.dirty         = false;
+    this.connectMode   = false;
+    this.connectSource = null;
+    this._dragging     = null;
+    this.deletedAssetIds = [];
+    this.deletedRelIds   = [];
+    this.showAddModal    = false;
+  }
+
+  isLocked(n: TwinNode): boolean {
+    return LOCKED_TYPES.indexOf(n.type) >= 0;
+  }
+
+  // ── Drag (mouse + touch unified) ─────────────────────────────────────────
+
+  onNodePointerDown(event: MouseEvent | TouchEvent, n: TwinNode) {
+    if (!this.editMode || this.isLocked(n)) return;
+    if (this.connectMode) { this._handleConnect(n); return; }
+    event.preventDefault();
+    event.stopPropagation();
+    const pt = this._clientXY(event);
+    const sv = this._toSvg(pt.x, pt.y);
+    const pos = this.posMap[n.dbId] || this._defaultPos(n);
+    this._dragging = n;
+    this._dragOffsetSvg = { x: sv.x - pos.x, y: sv.y - pos.y };
+    if (!this.posMap[n.dbId]) { this.posMap[n.dbId] = { x: pos.x, y: pos.y }; }
+  }
+
+  @HostListener('mousemove', ['$event'])
+  @HostListener('touchmove', ['$event'])
+  onPointerMove(event: MouseEvent | TouchEvent) {
+    if (!this._dragging) return;
+    event.preventDefault();
+    const pt = this._clientXY(event);
+    const sv = this._toSvg(pt.x, pt.y);
+    const nx = Math.max(10, Math.min(770, sv.x - this._dragOffsetSvg.x));
+    const ny = Math.max(10, Math.min(480, sv.y - this._dragOffsetSvg.y));
+    this.posMap[this._dragging.dbId] = { x: nx, y: ny };
+    this.dirty = true;
+  }
+
+  @HostListener('mouseup')
+  @HostListener('touchend')
+  onPointerUp() {
+    if (this._dragging) {
+      // Write final position into the node's extra so it round-trips correctly
+      const n = this._dragging;
+      const pos = this.posMap[n.dbId];
+      if (pos) {
+        n.extra = Object.assign({}, n.extra || {}, { x: pos.x, y: pos.y });
+      }
+      this._dragging = null;
+    }
+  }
+
+  private _defaultPos(n: TwinNode): {x: number; y: number} {
+    const found = this.svgNodes.filter(s => s.dbId === n.dbId)[0];
+    return found ? { x: found.x, y: found.y } : { x: 390, y: 300 };
+  }
+
+  private _clientXY(e: MouseEvent | TouchEvent): {x: number; y: number} {
+    if ((e as TouchEvent).changedTouches) {
+      const t = (e as TouchEvent).changedTouches[0];
+      return { x: t.clientX, y: t.clientY };
+    }
+    return { x: (e as MouseEvent).clientX, y: (e as MouseEvent).clientY };
+  }
+
+  private _toSvg(clientX: number, clientY: number): {x: number; y: number} {
+    const el = document.querySelector('.ol-canvas svg') as SVGSVGElement;
+    if (!el) return { x: 390, y: 245 };
+    const rect = el.getBoundingClientRect();
+    return {
+      x: (clientX - rect.left) / rect.width  * 780,
+      y: (clientY - rect.top)  / rect.height * 490,
+    };
+  }
+
+  // ── Delete node ───────────────────────────────────────────────────────────
+
+  deleteNode(n: TwinNode, event?: Event) {
+    if (event) { event.stopPropagation(); }
+    if (this.isLocked(n)) return;
+    if (!confirm('Delete "' + n.label + '"?')) return;
+
+    // Remove from twinNodes
+    this.twinNodes = this.twinNodes.filter(function(x) { return x.dbId !== n.dbId; });
+
+    // Track for server deletion (only real DB records)
+    if (n.dbId > 0) { this.deletedAssetIds.push(n.dbId); }
+
+    // Remove and track deleted relationships
+    const toDelete = this.relationships.filter(function(r) {
+      return r.parent_asset_id === n.dbId || r.child_asset_id === n.dbId;
+    });
+    toDelete.forEach(r => { if (r.id && r.id > 0) { this.deletedRelIds.push(r.id); } });
+    this.relationships = this.relationships.filter(function(r) {
+      return r.parent_asset_id !== n.dbId && r.child_asset_id !== n.dbId;
+    });
+
+    delete this.posMap[n.dbId];
+    if (this.selectedNode && this.selectedNode.dbId === n.dbId) { this.selectedNode = null; }
+    this.dirty = true;
+  }
+
+  // ── Add node ─────────────────────────────────────────────────────────────
+
+  openAddModal() { this.showAddModal = true; this.newNode = { type: 'circuit', label: '', amp_rating: null, kva_rating: null, notes: '' }; }
+  closeAddModal() { this.showAddModal = false; }
+
+  confirmAddNode() {
+    if (!this.newNode.label.trim()) { alert('Please enter a name for the node.'); return; }
+    const tempId = this._tempIdCounter--;
+    const node: TwinNode = {
+      dbId:       tempId,
+      id:         'new-' + (-tempId),
+      type:       this.newNode.type,
+      label:      this.newNode.label.trim(),
+      amp_rating: this.newNode.amp_rating || null,
+      rated_kva:  this.newNode.kva_rating || null,
+      status:     'planned',
+      extra:      {},
+    };
+
+    // Place at center, user can drag to position
+    this.posMap[tempId] = { x: 390, y: 350 };
+    this.twinNodes = this.twinNodes.concat([node]);
+
+    // Auto-connect to switchgear if circuit or panel
+    const swg = this.twinNodes.filter(n => n.type === 'switchgear')[0] || null;
+    if (swg && (node.type === 'circuit' || node.type === 'panel' || node.type === 'mcc')) {
+      this.relationships = this.relationships.concat([{
+        parent_asset_id:   swg.dbId,
+        child_asset_id:    tempId,
+        relationship_type: 'feeds',
+      }]);
+    }
+
+    this.dirty = true;
+    this.showAddModal = false;
+  }
+
+  // ── Connect mode ──────────────────────────────────────────────────────────
+
+  toggleConnect() {
+    this.connectMode   = !this.connectMode;
+    this.connectSource = null;
+  }
+
+  private _handleConnect(n: TwinNode) {
+    if (!this.connectSource) {
+      this.connectSource = n;
+    } else {
+      if (this.connectSource.dbId !== n.dbId) {
+        // Avoid duplicate
+        const dup = this.relationships.filter(r =>
+          r.parent_asset_id === this.connectSource!.dbId &&
+          r.child_asset_id  === n.dbId
+        )[0];
+        if (!dup) {
+          this.relationships = this.relationships.concat([{
+            parent_asset_id:   this.connectSource.dbId,
+            child_asset_id:    n.dbId,
+            relationship_type: 'feeds',
+          }]);
+          this.dirty = true;
+        }
+      }
+      this.connectSource = null;
+      this.connectMode   = false;
+    }
+  }
+
+  // ── Save ──────────────────────────────────────────────────────────────────
+
+  save() {
+    if (!this.twinId) { alert('No digital twin to save to. Set up the project twin first.'); return; }
+    this.saving  = true;
+    this.saveMsg = '';
+
+    // Bake current posMap into each node's extra before sending
+    const assets = this.twinNodes.map(n => {
+      const pos = this.posMap[n.dbId] || {};
+      return {
+        id:           n.dbId > 0 ? n.dbId : null,
+        asset_type:   n.type,
+        name:         n.label,
+        amp_rating:   n.amp_rating,
+        kva_rating:   n.rated_kva,
+        status:       n.status || 'planned',
+        notes:        n.notes,
+        extra:        Object.assign({}, n.extra || {}, pos.x != null ? { x: pos.x, y: pos.y } : {}),
+        // carry temp id for id_map resolution
+        _temp_id:     n.dbId < 0 ? n.dbId : undefined,
+      };
+    });
+
+    const body = {
+      assets:           assets,
+      relationships:    this.relationships,
+      deleted_asset_ids: this.deletedAssetIds,
+      deleted_rel_ids:   this.deletedRelIds,
+    };
+
+    this.api.post('/api/digital-twin/' + this.twinId + '/save-topology', body).subscribe({
+      next: (r: any) => {
+        this.saving  = false;
+        this.saveMsg = 'Saved';
+        this.dirty   = false;
+        this.deletedAssetIds = [];
+        this.deletedRelIds   = [];
+        // Reload fresh snapshot from server
+        this._loadTwinSnapshot(this.twinId);
+        setTimeout(() => { this.saveMsg = ''; }, 3000);
+      },
+      error: () => {
+        this.saving  = false;
+        this.saveMsg = 'Save failed';
+        setTimeout(() => { this.saveMsg = ''; }, 4000);
+      }
+    });
+  }
+
+  // ── Node click (view mode) ────────────────────────────────────────────────
+
+  selectNode(n: TwinNode) {
+    if (this.connectMode) { this._handleConnect(n); return; }
+    this.selectedNode = (this.selectedNode && this.selectedNode.dbId === n.dbId) ? null : n;
+  }
+
   closeNode() { this.selectedNode = null; }
 
-  // ── SVG helpers ──────────────────────────────────────────────────────────
+  // ── SVG helpers ───────────────────────────────────────────────────────────
 
   shortLabel(label: string, max: number): string {
     if (!label) return '';
     return label.length > max ? label.substring(0, max - 1) + '\u2026' : label;
   }
 
-  // ── Derived getters ──────────────────────────────────────────────────────
+  isConnectSource(n: TwinNode): boolean {
+    return this.connectMode && !!this.connectSource && this.connectSource.dbId === n.dbId;
+  }
 
-  get depName(): string { return (this.dep && this.dep.deployment_name) || '\u2014'; }
+  nodeEditStroke(n: TwinNode): string {
+    if (this.isConnectSource(n))  return '#ff9800';
+    if (this.selectedNode && this.selectedNode.dbId === n.dbId) return '#00e676';
+    if (this.isLocked(n)) return '#29b6f6';
+    return '#546e7a';
+  }
+
+  // ── Derived getters ───────────────────────────────────────────────────────
+
+  get depName(): string  { return (this.dep && this.dep.deployment_name) || '\u2014'; }
   get depStatus(): string { return (this.dep && this.dep.status) || ''; }
   get depNumber(): string { return (this.dep && (this.dep.deployment_number || this.dep.id)) || '\u2014'; }
   get siteName(): string {
     return (this.dep && this.dep.site_info && this.dep.site_info.name) ||
            (this.dep && this.dep.project_info && this.dep.project_info.name) || '\u2014';
   }
-  get utility(): string { return (this.dep && this.dep.site_info && this.dep.site_info.utility) || ''; }
+  get utility(): string  { return (this.dep && this.dep.site_info && this.dep.site_info.utility) || ''; }
 
   get devicesInstalled(): number { return (this.summary && this.summary.installed) || 0; }
-  get totalDevices(): number { return (this.summary && this.summary.total_devices) || 0; }
-  get openIssues(): number { return (this.summary && this.summary.open_issues) || 0; }
-  get totalDrawings(): number { return this.drawingDocs.length; }
+  get totalDevices(): number     { return (this.summary && this.summary.total_devices) || 0; }
+  get openIssues(): number       { return (this.summary && this.summary.open_issues) || 0; }
+  get totalDrawings(): number    { return this.drawingDocs.length; }
   get totalDeviceLegend(): number { return this.deviceLegend.reduce(function(a, b) { return a + b.count; }, 0); }
   get currentDoc(): any { return this.drawingDocs.filter(function(d) { return d.current; })[0] || this.drawingDocs[0] || null; }
 
-  // Total panels = circuit + panel type nodes in the twin
   get totalPanels(): number {
     return this.twinNodes.filter(function(n) {
       return n.type === 'circuit' || n.type === 'panel' || n.type === 'switchgear';
     }).length;
   }
 
-  // Transformer label from twin
   get transformerLabel(): string {
     const x = this.twinNodes.filter(function(n) { return n.type === 'transformer'; })[0];
     if (!x) return '';
@@ -315,14 +645,14 @@ export class DeploymentOneLineComponent implements OnInit {
     if (!s) return 'dim';
     const sl = s.toLowerCase();
     if (sl === 'commissioned' || sl === 'approved' || sl === 'active') return 'green';
-    if (sl === 'in progress' || sl === 'in_progress') return 'blue';
+    if (sl === 'in progress'  || sl === 'in_progress') return 'blue';
     if (sl === 'pending') return 'amber';
-    if (sl === 'failed' || sl === 'rejected') return 'red';
+    if (sl === 'failed'  || sl === 'rejected') return 'red';
     return 'dim';
   }
 
-  goDevices()      { this.router.navigate(['/ecbs/deployment', this.depId, 'devices']); }
-  goEngineering()  { this.router.navigate(['/ecbs/deployment', this.depId, 'engineering-support']); }
-  goDocuments()    { this.router.navigate(['/ecbs/deployment', this.depId, 'documents']); }
-  goIssues()       { this.router.navigate(['/ecbs/deployment', this.depId, 'issues']); }
+  goDevices()     { this.router.navigate(['/ecbs/deployment', this.depId, 'devices']); }
+  goEngineering() { this.router.navigate(['/ecbs/deployment', this.depId, 'engineering-support']); }
+  goDocuments()   { this.router.navigate(['/ecbs/deployment', this.depId, 'documents']); }
+  goIssues()      { this.router.navigate(['/ecbs/deployment', this.depId, 'issues']); }
 }

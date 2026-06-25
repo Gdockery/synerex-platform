@@ -1,330 +1,278 @@
-<div class="ol-page" *ngIf="!loading; else olLoading">
+<div class="ol-page">
 
-  <!-- Header -->
-  <div class="ol-header">
-    <div class="ol-header-left">
-      <div>
-        <div class="ol-header-top">
-          <span class="ol-title">One-Line Drawing</span>
-          <span class="ol-badge ol-badge--{{ statusClass(depStatus) }}">{{ depStatus }}</span>
-        </div>
-        <div class="ol-subtitle">{{ siteName }}</div>
-        <div class="ol-meta-row">
-          <span class="ol-meta">Deployment ID: {{ depNumber }}</span>
-          <span class="ol-meta" *ngIf="utility">Utility: {{ utility }}</span>
-          <span class="ol-meta ol-twin-status" [class.active]="twinStatus==='Active'" [class.draft]="twinStatus==='Draft'">
-            <i class="fa fa-circle" style="font-size:7px;margin-right:4px;"></i>Twin: {{ twinStatus }}
-          </span>
-        </div>
-      </div>
+  <!-- KPI row -->
+  <div class="ol-kpi-row" *ngIf="!loading">
+    <div class="ol-kpi-card">
+      <div class="kpi-label">Deployment</div>
+      <div class="kpi-value">{{ depNumber }}</div>
     </div>
-    <div class="ol-header-right">
-      <span class="ol-sync"><i class="fa fa-refresh"></i> Synced: {{ syncedAt }}</span>
-      <button class="ol-icon-btn"><i class="fa fa-bell-o"></i></button>
-      <button class="ol-icon-btn"><i class="fa fa-question-circle-o"></i></button>
+    <div class="ol-kpi-card">
+      <div class="kpi-label">Site</div>
+      <div class="kpi-value">{{ siteName }}</div>
+    </div>
+    <div class="ol-kpi-card">
+      <div class="kpi-label">Network Nodes</div>
+      <div class="kpi-value">{{ twinNodes.length }}</div>
+    </div>
+    <div class="ol-kpi-card">
+      <div class="kpi-label">Transformer</div>
+      <div class="kpi-value">{{ transformerLabel || '&mdash;' }}</div>
+    </div>
+    <div class="ol-kpi-card">
+      <div class="kpi-label">Twin Status</div>
+      <div class="kpi-value"><span class="ol-twin-status" [ngClass]="statusClass(twinStatus)">{{ twinStatus }}</span></div>
+    </div>
+    <div class="ol-kpi-card">
+      <div class="kpi-label">Open Issues</div>
+      <div class="kpi-value">{{ openIssues }}</div>
     </div>
   </div>
 
-  <!-- KPI Strip -->
-  <div class="ol-kpi-strip">
-    <div class="ol-kpi-card">
-      <i class="fa fa-sitemap ol-kpi-icon ol-kpi-icon--blue"></i>
-      <div class="ol-kpi-body">
-        <span class="ol-kpi-label">Twin Nodes</span>
-        <span class="ol-kpi-val">{{ twinNodes.length || 0 }}</span>
-        <span class="ol-kpi-sub">{{ totalPanels }} panel/circuits</span>
-      </div>
-    </div>
-    <div class="ol-kpi-card">
-      <i class="fa fa-check-circle ol-kpi-icon ol-kpi-icon--green"></i>
-      <div class="ol-kpi-body">
-        <span class="ol-kpi-label">Devices Installed</span>
-        <span class="ol-kpi-val ol-kpi-val--green">{{ devicesInstalled }}/{{ totalDevices }}</span>
-        <span class="ol-kpi-sub">{{ totalDevices ? (devicesInstalled / totalDevices * 100 | number:'1.0-0') + '%' : '0%' }} complete</span>
-      </div>
-    </div>
-    <div class="ol-kpi-card">
-      <i class="fa fa-exclamation-triangle ol-kpi-icon" [class.ol-kpi-icon--amber]="openIssues > 0" [class.ol-kpi-icon--dim]="!openIssues"></i>
-      <div class="ol-kpi-body">
-        <span class="ol-kpi-label">Open Issues</span>
-        <span class="ol-kpi-val" [class.ol-kpi-val--amber]="openIssues > 0">{{ openIssues }}</span>
-        <span class="ol-kpi-sub ol-kpi-sub--link" *ngIf="openIssues > 0" (click)="goIssues()">VIEW ISSUES</span>
-      </div>
-    </div>
-    <div class="ol-kpi-card">
-      <i class="fa fa-file-text-o ol-kpi-icon ol-kpi-icon--purple"></i>
-      <div class="ol-kpi-body">
-        <span class="ol-kpi-label">Drawings</span>
-        <span class="ol-kpi-val ol-kpi-val--purple">{{ totalDrawings }}</span>
-        <span class="ol-kpi-sub ol-kpi-sub--link" (click)="goDocuments()">VIEW DOCUMENTS</span>
-      </div>
-    </div>
-    <div class="ol-kpi-card">
-      <i class="fa fa-bolt ol-kpi-icon ol-kpi-icon--amber"></i>
-      <div class="ol-kpi-body">
-        <span class="ol-kpi-label">Transformer</span>
-        <span class="ol-kpi-val" style="font-size:13px;">{{ transformerLabel || 'Not set' }}</span>
-        <span class="ol-kpi-sub">From digital twin</span>
-      </div>
-    </div>
-    <div class="ol-kpi-card">
-      <i class="fa fa-plug ol-kpi-icon" [class.ol-kpi-icon--green]="twinStatus==='Active'" [class.ol-kpi-icon--dim]="twinStatus!=='Active'"></i>
-      <div class="ol-kpi-body">
-        <span class="ol-kpi-label">Twin Status</span>
-        <span class="ol-kpi-val" [class.ol-kpi-val--green]="twinStatus==='Active'" style="font-size:14px;">{{ twinStatus }}</span>
-        <span class="ol-kpi-sub">{{ twinNodes.length }} assets loaded</span>
-      </div>
-    </div>
+  <!-- Edit toolbar -->
+  <div class="ol-edit-bar" *ngIf="!twinLoading && twinConfigured">
+    <ng-container *ngIf="!editMode">
+      <button class="ol-btn ol-btn-edit" (click)="toggleEdit()">
+        <i class="fa fa-pencil"></i> Edit Diagram
+      </button>
+    </ng-container>
+    <ng-container *ngIf="editMode">
+      <button class="ol-btn ol-btn-add" (click)="openAddModal()">
+        <i class="fa fa-plus"></i> Add Node
+      </button>
+      <button class="ol-btn" [ngClass]="connectMode ? 'ol-btn-connect-active' : 'ol-btn-connect'" (click)="toggleConnect()">
+        <i class="fa fa-link"></i> {{ connectMode ? 'Tap target to connect' : 'Connect' }}
+      </button>
+      <button class="ol-btn ol-btn-save" (click)="save()" [disabled]="saving || !dirty">
+        <i class="fa" [ngClass]="saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
+        {{ saving ? 'Saving...' : 'Save' }}
+      </button>
+      <span class="ol-save-msg" *ngIf="saveMsg">{{ saveMsg }}</span>
+      <span class="ol-dirty-badge" *ngIf="dirty && !saving">Unsaved changes</span>
+      <button class="ol-btn ol-btn-cancel" (click)="toggleEdit()">
+        <i class="fa fa-times"></i> Exit Edit
+      </button>
+    </ng-container>
+    <span class="ol-hint" *ngIf="editMode && !connectMode">
+      <i class="fa fa-info-circle"></i> Drag nodes to reposition &bull; Tap &times; to delete
+    </span>
+    <span class="ol-hint connect-hint" *ngIf="connectMode">
+      Tap source node, then tap target node to draw a connection.
+    </span>
   </div>
 
-  <!-- Body -->
+  <!-- Main body -->
   <div class="ol-body">
-    <!-- Diagram -->
-    <div class="ol-viewer-area">
-      <div class="ol-viewer-toolbar">
-        <div class="ol-vtb-left">
-          <button class="ol-vtb-btn ol-vtb-btn--active"><i class="fa fa-eye"></i> VIEW</button>
-          <button class="ol-vtb-btn ol-vtb-icon"><i class="fa fa-search-minus"></i></button>
-          <button class="ol-vtb-btn ol-vtb-icon"><i class="fa fa-search-plus"></i></button>
-          <button class="ol-vtb-btn ol-vtb-icon"><i class="fa fa-expand"></i></button>
-        </div>
-        <div class="ol-vtb-right">
-          <span *ngIf="twinConfigured" style="font-size:11px;color:#00e676;margin-right:8px;">
-            <i class="fa fa-check-circle"></i> Live Digital Twin
-          </span>
-          <button class="ol-vtb-btn ol-vtb-icon"><i class="fa fa-download"></i></button>
-          <button class="ol-vtb-btn ol-vtb-icon"><i class="fa fa-print"></i></button>
-        </div>
+
+    <!-- SVG canvas -->
+    <div class="ol-canvas">
+
+      <!-- Loading -->
+      <div class="ol-twin-loading" *ngIf="twinLoading">
+        <i class="fa fa-spinner fa-spin fa-2x"></i>
+        <span>Loading diagram&hellip;</span>
       </div>
 
-      <div class="ol-canvas">
-        <div *ngIf="twinLoading" class="ol-twin-loading">
-          <i class="fa fa-spinner fa-spin"></i> Loading digital twin...
-        </div>
+      <!-- No twin configured -->
+      <ng-container *ngIf="!twinLoading && !twinConfigured">
+        <ng-container *ngTemplateOutlet="noTwin"></ng-container>
+      </ng-container>
 
-        <!-- SVG - same rendering engine as Digital Twin in main platform -->
-        <svg *ngIf="!twinLoading" class="dt-svg" viewBox="0 0 780 490" preserveAspectRatio="xMidYMid meet">
-          <defs>
-            <pattern id="ol-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-              <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#1a2a3a" stroke-width="0.5"/>
-            </pattern>
-            <filter id="ol-glow">
-              <feGaussianBlur stdDeviation="2.5" result="coloredBlur"/>
-              <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-            <filter id="ol-glow-g">
-              <feGaussianBlur stdDeviation="3" result="cb"/>
-              <feMerge><feMergeNode in="cb"/><feMergeNode in="SourceGraphic"/></feMerge>
-            </filter>
-          </defs>
-          <rect width="100%" height="100%" fill="url(#ol-grid)"/>
+      <!-- SVG diagram -->
+      <svg *ngIf="!twinLoading && twinConfigured"
+           viewBox="0 0 780 490"
+           preserveAspectRatio="xMidYMid meet"
+           class="dt-svg"
+           [class.edit-mode]="editMode">
 
-          <ng-container *ngIf="svgNodes.length > 0; else noTwin">
+        <defs>
+          <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L6,3 z" fill="#455a64"/>
+          </marker>
+        </defs>
 
-            <!-- UTILITY -->
-            <ng-container *ngFor="let n of svgNodes">
-              <ng-container *ngIf="n.type==='utility_service'">
-                <text [attr.x]="n.x" [attr.y]="n.y-22" text-anchor="middle" fill="#8899a6" font-size="9" letter-spacing="0.08em">UTILITY FEED</text>
-                <g filter="url(#ol-glow)" style="cursor:pointer;" (click)="selectNode(n)">
-                  <circle [attr.cx]="n.x" [attr.cy]="n.y" r="21" fill="#0a1628" stroke="#29b6f6" stroke-width="2"/>
-                  <text [attr.x]="n.x" [attr.y]="n.y+5" text-anchor="middle" fill="#29b6f6" font-size="15" font-weight="700">~</text>
-                </g>
-                <text [attr.x]="n.x" [attr.y]="n.y+36" text-anchor="middle" fill="#29b6f6" font-size="8">{{ shortLabel(n.label, 20) }}</text>
-                <line [attr.x1]="n.x" [attr.y1]="n.y+21" [attr.x2]="n.x" y2="96" stroke="#29b6f6" stroke-width="2.5"/>
+        <!-- Connection lines -->
+        <g class="dt-edges">
+          <ng-container *ngFor="let n of svgNodes">
+            <ng-container *ngFor="let childId of _feedsChildren(n.dbId)">
+              <ng-container *ngFor="let c of svgNodes">
+                <line *ngIf="c.dbId === childId"
+                      [attr.x1]="n.x" [attr.y1]="n.y + 20"
+                      [attr.x2]="c.x" [attr.y2]="c.y - 20"
+                      stroke="#455a64" stroke-width="1.5"
+                      marker-end="url(#arrow)"/>
               </ng-container>
             </ng-container>
-
-            <!-- TRANSFORMER -->
-            <ng-container *ngFor="let n of svgNodes">
-              <ng-container *ngIf="n.type==='transformer'">
-                <text [attr.x]="n.x" [attr.y]="n.y-14" text-anchor="middle" fill="#8899a6" font-size="9">{{ shortLabel(n.label, 22) }}</text>
-                <text [attr.x]="n.x" [attr.y]="n.y-4"  text-anchor="middle" fill="#29b6f6" font-size="8">{{ n.rated_kva ? (n.rated_kva | number:'1.0-0') + ' kVA' : '' }}</text>
-                <g filter="url(#ol-glow)" style="cursor:pointer;" (click)="selectNode(n)">
-                  <circle [attr.cx]="n.x" [attr.cy]="n.y+8"  r="14" fill="#0a1628" stroke="#29b6f6" stroke-width="2"/>
-                  <circle [attr.cx]="n.x" [attr.cy]="n.y+22" r="14" fill="#0a1628" stroke="#29b6f6" stroke-width="2"/>
-                </g>
-                <line [attr.x1]="n.x" [attr.y1]="n.y+36" [attr.x2]="n.x" y2="167" stroke="#29b6f6" stroke-width="2.5"/>
-              </ng-container>
-            </ng-container>
-
-            <!-- MAIN BUS -->
-            <text x="390" y="162" text-anchor="middle" fill="#29b6f6" font-size="9" font-weight="700" letter-spacing="0.1em">480V MAIN BUS</text>
-            <rect x="42" y="167" width="694" height="7" rx="3" fill="#29b6f6" opacity="0.7" filter="url(#ol-glow)"/>
-
-            <!-- ECBS badges on bus -->
-            <ng-container *ngFor="let badge of _busBadges; let bi = index">
-              <g filter="url(#ol-glow-g)" style="cursor:pointer;" (click)="selectNode(badge)">
-                <rect [attr.x]="310+bi*80" y="155" width="74" height="18" rx="4"
-                  fill="rgba(0,230,118,0.12)" stroke="#00e676" stroke-width="1"/>
-                <text [attr.x]="347+bi*80" y="167" text-anchor="middle" fill="#00e676" font-size="7" font-weight="700">
-                  &#9889; {{ shortLabel(badge.label, 12) }}
-                </text>
-              </g>
-            </ng-container>
-
-            <!-- GENERATOR + ATS -->
-            <ng-container *ngFor="let n of svgNodes">
-              <ng-container *ngIf="n.type==='generator'">
-                <line [attr.x1]="n.x" [attr.y1]="n.y+22" [attr.x2]="n.x" [attr.y2]="n.y+48" stroke="#ffd740" stroke-width="1.5"/>
-                <rect [attr.x]="n.x-38" [attr.y]="n.y-16" width="76" height="36" rx="5"
-                  fill="#0a1628" stroke="#ffd740" stroke-width="1.5" style="cursor:pointer;" (click)="selectNode(n)"/>
-                <text [attr.x]="n.x" [attr.y]="n.y+1"  text-anchor="middle" fill="#ffd740" font-size="8" font-weight="700">GEN</text>
-                <text [attr.x]="n.x" [attr.y]="n.y+12" text-anchor="middle" fill="#8899a6" font-size="7">{{ n.rated_kva ? (n.rated_kva|number:'1.0-0')+' kVA' : shortLabel(n.label,12) }}</text>
-              </ng-container>
-              <ng-container *ngIf="n.type==='ats'">
-                <line [attr.x1]="n.x" [attr.y1]="n.y+18" x2="736" y2="170" stroke="#ffd740" stroke-width="1.5" stroke-dasharray="5 3"/>
-                <rect [attr.x]="n.x-38" [attr.y]="n.y-14" width="76" height="32" rx="5"
-                  fill="#0a1628" stroke="#ffd740" stroke-width="1.5" style="cursor:pointer;" (click)="selectNode(n)"/>
-                <text [attr.x]="n.x" [attr.y]="n.y+2"  text-anchor="middle" fill="#ffd740" font-size="8" font-weight="700">ATS</text>
-                <text [attr.x]="n.x" [attr.y]="n.y+12" text-anchor="middle" fill="#8899a6" font-size="7">{{ n.amp_rating ? (n.amp_rating|number:'1.0-0')+'A' : '' }}</text>
-              </ng-container>
-            </ng-container>
-
-            <!-- CIRCUITS (row 1 off bus) -->
-            <ng-container *ngFor="let n of svgNodes">
-              <ng-container *ngIf="n.type==='circuit'">
-                <line [attr.x1]="n.x" y1="174" [attr.x2]="n.x" [attr.y2]="n.y-18" stroke="#546e7a" stroke-width="1.5"/>
-                <rect [attr.x]="n.x-40" [attr.y]="n.y-18" width="82" height="42" rx="5"
-                  [attr.fill]="selectedNode && selectedNode.dbId===n.dbId ? 'rgba(84,110,122,0.22)' : '#0a1628'"
-                  [attr.stroke]="selectedNode && selectedNode.dbId===n.dbId ? '#00e676' : '#546e7a'"
-                  [attr.stroke-width]="selectedNode && selectedNode.dbId===n.dbId ? 2 : 1.5"
-                  style="cursor:pointer;" (click)="selectNode(n)"/>
-                <text [attr.x]="n.x" [attr.y]="n.y-3" text-anchor="middle" fill="#e0e6ed" font-size="7.5" font-weight="700">{{ shortLabel(n.label, 13) }}</text>
-                <text [attr.x]="n.x" [attr.y]="n.y+8" text-anchor="middle" fill="#8899a6" font-size="7">{{ n.amp_rating ? (n.amp_rating|number:'1.0-0')+'A' : '--' }}</text>
-                <ng-container *ngFor="let badge of n.badges; let bi = index">
-                  <rect [attr.x]="n.x-30+bi*32" [attr.y]="n.y+16" width="28" height="12" rx="3"
-                    fill="rgba(0,230,118,0.15)" stroke="#00e676" stroke-width="0.8"
-                    style="cursor:pointer;" (click)="selectNode(badge)"/>
-                  <text [attr.x]="n.x-16+bi*32" [attr.y]="n.y+25" text-anchor="middle" fill="#00e676" font-size="6" font-weight="700">&#9889;APF</text>
-                </ng-container>
-              </ng-container>
-            </ng-container>
-
-            <!-- PANELS (row 2) -->
-            <ng-container *ngFor="let n of svgNodes">
-              <ng-container *ngIf="n.type==='panel'">
-                <line [attr.x1]="n.x" y1="174" [attr.x2]="n.x" [attr.y2]="n.y-14" stroke="#7b1fa2" stroke-width="1.5" stroke-dasharray="4 3"/>
-                <rect [attr.x]="n.x-38" [attr.y]="n.y-14" width="78" height="36" rx="5"
-                  [attr.fill]="selectedNode && selectedNode.dbId===n.dbId ? 'rgba(171,71,188,0.18)' : 'rgba(123,31,162,0.07)'"
-                  [attr.stroke]="selectedNode && selectedNode.dbId===n.dbId ? '#00e676' : '#ab47bc'"
-                  [attr.stroke-width]="selectedNode && selectedNode.dbId===n.dbId ? 2 : 1.5"
-                  style="cursor:pointer;" (click)="selectNode(n)"/>
-                <text [attr.x]="n.x" [attr.y]="n.y+1"  text-anchor="middle" fill="#ce93d8" font-size="7.5" font-weight="700">{{ shortLabel(n.label, 13) }}</text>
-                <text [attr.x]="n.x" [attr.y]="n.y+11" text-anchor="middle" fill="#8899a6" font-size="7">{{ n.amp_rating ? (n.amp_rating|number:'1.0-0')+'A' : '--' }}</text>
-              </ng-container>
-            </ng-container>
-
           </ng-container>
+        </g>
 
-          <ng-template #noTwin>
-            <rect x="240" y="180" width="300" height="100" rx="10"
-              fill="rgba(84,110,122,0.06)" stroke="#1a2a3a" stroke-width="1.5" stroke-dasharray="6 4"/>
-            <text x="390" y="225" text-anchor="middle" fill="#546e7a" font-size="13">No Digital Twin configured</text>
-            <text x="390" y="248" text-anchor="middle" fill="#546e7a" font-size="10">Contact engineering to set up the one-line</text>
-          </ng-template>
+        <!-- Nodes -->
+        <g class="dt-nodes">
+          <g *ngFor="let n of svgNodes"
+             [class.node-locked]="isLocked(n)"
+             [class.node-draggable]="editMode && !isLocked(n)"
+             [class.node-connect-source]="isConnectSource(n)"
+             (mousedown)="onNodePointerDown($event, n)"
+             (touchstart)="onNodePointerDown($event, n)"
+             (click)="selectNode(n)">
 
-          <!-- SVG legend -->
-          <circle cx="106" cy="479" r="4" fill="#29b6f6"/>
-          <text x="114" y="483" fill="#546e7a" font-size="7">Utility/Xfmr</text>
-          <circle cx="175" cy="479" r="4" fill="#ffd740"/>
-          <text x="183" y="483" fill="#546e7a" font-size="7">Gen/ATS</text>
-          <circle cx="236" cy="479" r="4" fill="#00e676"/>
-          <text x="244" y="483" fill="#546e7a" font-size="7">ECBS/APF</text>
-          <circle cx="300" cy="479" r="4" fill="#ab47bc"/>
-          <text x="308" y="483" fill="#546e7a" font-size="7">Panel</text>
-          <circle cx="348" cy="479" r="4" fill="#546e7a"/>
-          <text x="356" y="483" fill="#546e7a" font-size="7">Circuit</text>
-          <text x="410" y="483" fill="#546e7a" font-size="7">Click any node to view details</text>
-        </svg>
+            <!-- Shadow -->
+            <rect [attr.x]="n.x - 51" [attr.y]="n.y - 22"
+                  width="102" height="44" rx="6"
+                  fill="rgba(0,0,0,0.18)" transform="translate(2,2)"/>
 
-        <!-- Node detail panel -->
-        <div *ngIf="selectedNode" class="ol-node-panel">
-          <div class="ol-node-panel-header">
-            <span class="ol-node-type-badge">{{ selectedNode.type | uppercase }}</span>
-            <span class="ol-node-close fa fa-times" (click)="closeNode()"></span>
-          </div>
-          <div class="ol-node-panel-body">
-            <div class="ol-node-field"><span class="ol-nf-label">Name</span><span class="ol-nf-val">{{ selectedNode.label }}</span></div>
-            <div class="ol-node-field" *ngIf="selectedNode.rated_kva"><span class="ol-nf-label">Rated kVA</span><span class="ol-nf-val">{{ selectedNode.rated_kva | number:'1.0-0' }} kVA</span></div>
-            <div class="ol-node-field" *ngIf="selectedNode.amp_rating"><span class="ol-nf-label">Amp Rating</span><span class="ol-nf-val">{{ selectedNode.amp_rating | number:'1.0-0' }} A</span></div>
-            <div class="ol-node-field" *ngIf="selectedNode.voltage_in"><span class="ol-nf-label">Voltage In</span><span class="ol-nf-val">{{ selectedNode.voltage_in }} V</span></div>
-            <div class="ol-node-field" *ngIf="selectedNode.voltage_out"><span class="ol-nf-label">Voltage Out</span><span class="ol-nf-val">{{ selectedNode.voltage_out }} V</span></div>
-            <div class="ol-node-field" *ngIf="selectedNode.status"><span class="ol-nf-label">Status</span><span class="ol-nf-val">{{ selectedNode.status }}</span></div>
-            <div class="ol-node-field" *ngIf="selectedNode.notes"><span class="ol-nf-label">Notes</span><span class="ol-nf-val">{{ selectedNode.notes }}</span></div>
-          </div>
-        </div>
+            <!-- Card background -->
+            <rect [attr.x]="n.x - 51" [attr.y]="n.y - 22"
+                  width="102" height="44" rx="6"
+                  [attr.fill]="selectedNode && selectedNode.dbId === n.dbId ? '#1a3a2a' : '#1c2a35'"
+                  [attr.stroke]="nodeEditStroke(n)"
+                  [attr.stroke-width]="editMode ? 2 : 1"/>
 
-        <div class="ol-canvas-footer">
-          <span>Drawing: {{ currentDoc?.name || 'None' }}</span>
-          <span>Twin: {{ twinStatus }}</span>
-          <span>{{ twinNodes.length }} nodes loaded</span>
-        </div>
-      </div>
+            <!-- Type label -->
+            <text [attr.x]="n.x" [attr.y]="n.y - 5" text-anchor="middle"
+                  font-size="9" fill="#b0bec5" font-family="sans-serif">{{ n.type | uppercase }}</text>
+            <!-- Node name -->
+            <text [attr.x]="n.x" [attr.y]="n.y + 9" text-anchor="middle"
+                  font-size="11" fill="#eceff1" font-family="sans-serif"
+                  font-weight="600">{{ shortLabel(n.label, 14) }}</text>
+            <!-- Amp rating -->
+            <text *ngIf="n.amp_rating" [attr.x]="n.x" [attr.y]="n.y + 20" text-anchor="middle"
+                  font-size="8" fill="#78909c" font-family="sans-serif">{{ n.amp_rating }}A</text>
+
+            <!-- Edit mode: delete button -->
+            <g *ngIf="editMode && !isLocked(n)"
+               class="node-delete-btn"
+               (click)="deleteNode(n, $event)">
+              <circle [attr.cx]="n.x + 45" [attr.cy]="n.y - 26"
+                      r="9" fill="#c62828"/>
+              <text [attr.x]="n.x + 45" [attr.y]="n.y - 22"
+                    text-anchor="middle" font-size="12" fill="white"
+                    font-family="sans-serif">×</text>
+            </g>
+
+            <!-- Badge (contained count) -->
+            <g *ngIf="n.badges && n.badges.length">
+              <rect [attr.x]="n.x + 32" [attr.y]="n.y - 22"
+                    width="18" height="13" rx="3" fill="#00897b"/>
+              <text [attr.x]="n.x + 41" [attr.y]="n.y - 12"
+                    text-anchor="middle" font-size="9" fill="white"
+                    font-family="sans-serif">{{ n.badges.length }}</text>
+            </g>
+          </g>
+        </g>
+      </svg>
     </div>
 
     <!-- Right panel -->
     <div class="ol-right">
-      <!-- Network node list -->
-      <div class="ol-right-section" *ngIf="twinNodes.length">
-        <div class="ol-right-title">NETWORK NODES ({{ twinNodes.length }})</div>
-        <div class="ol-node-list">
-          <div class="ol-node-item" *ngFor="let n of twinNodes" (click)="selectNode(n)"
-            [class.selected]="selectedNode && selectedNode.dbId === n.dbId">
-            <span class="ol-node-dot"
-              [style.background]="n.type==='utility_service'||n.type==='transformer' ? '#29b6f6' :
-                n.type==='generator'||n.type==='ats' ? '#ffd740' :
-                n.type==='ecbs' ? '#00e676' :
-                n.type==='panel' ? '#ab47bc' : '#546e7a'"></span>
-            <span class="ol-node-name">{{ n.label }}</span>
-            <span class="ol-node-type-tag">{{ n.type }}</span>
-          </div>
+
+      <!-- Node detail panel -->
+      <div class="ol-node-panel" *ngIf="selectedNode && !editMode">
+        <div class="onp-header">
+          <span class="onp-type">{{ selectedNode.type }}</span>
+          <button class="onp-close" (click)="closeNode()"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="onp-label">{{ selectedNode.label }}</div>
+        <div class="onp-row" *ngIf="selectedNode.amp_rating">
+          <span class="onp-key">Ampacity</span><span class="onp-val">{{ selectedNode.amp_rating }} A</span>
+        </div>
+        <div class="onp-row" *ngIf="selectedNode.rated_kva">
+          <span class="onp-key">Rating</span><span class="onp-val">{{ selectedNode.rated_kva }} kVA</span>
+        </div>
+        <div class="onp-row" *ngIf="selectedNode.voltage_in">
+          <span class="onp-key">Voltage (primary)</span><span class="onp-val">{{ selectedNode.voltage_in }} V</span>
+        </div>
+        <div class="onp-row" *ngIf="selectedNode.voltage_out">
+          <span class="onp-key">Voltage (secondary)</span><span class="onp-val">{{ selectedNode.voltage_out }} V</span>
+        </div>
+        <div class="onp-row" *ngIf="selectedNode.status">
+          <span class="onp-key">Status</span>
+          <span class="onp-val onp-status" [ngClass]="statusClass(selectedNode.status)">{{ selectedNode.status }}</span>
+        </div>
+        <div class="onp-row" *ngIf="selectedNode.bus_id">
+          <span class="onp-key">Bus ID</span><span class="onp-val">{{ selectedNode.bus_id }}</span>
+        </div>
+        <div class="onp-notes" *ngIf="selectedNode.notes">{{ selectedNode.notes }}</div>
+      </div>
+
+      <!-- Node list -->
+      <div class="ol-node-list">
+        <div class="onl-title">Network Nodes</div>
+        <div *ngFor="let n of twinNodes"
+             class="onl-row"
+             [class.selected]="selectedNode && selectedNode.dbId === n.dbId"
+             [class.edit-locked]="isLocked(n)"
+             (click)="selectNode(n)">
+          <span class="onl-type">{{ n.type }}</span>
+          <span class="onl-label">{{ n.label }}</span>
+          <button *ngIf="editMode && !isLocked(n)"
+                  class="onl-del"
+                  (click)="deleteNode(n, $event)"
+                  title="Delete node">
+            <i class="fa fa-times"></i>
+          </button>
+        </div>
+        <div class="onl-empty" *ngIf="!twinNodes.length">No nodes configured</div>
+      </div>
+
+      <!-- Device legend -->
+      <div class="ol-legend" *ngIf="deviceLegend.length">
+        <div class="legend-title">Devices on Site</div>
+        <div *ngFor="let d of deviceLegend" class="legend-row">
+          <span class="legend-type">{{ d.type }}</span>
+          <span class="legend-count">{{ d.count }}</span>
         </div>
       </div>
 
-      <!-- Device Legend -->
-      <div class="ol-right-section">
-        <div class="ol-right-title">DEVICE LEGEND ({{ totalDeviceLegend }})</div>
-        <div class="ol-legend-items">
-          <div class="ol-leg-item" *ngFor="let leg of deviceLegend">
-            <span class="ol-leg-box"></span>
-            <span class="ol-leg-type">{{ leg.type }}</span>
-            <span class="ol-leg-count">{{ leg.count }}</span>
-          </div>
-          <div *ngIf="!deviceLegend.length" style="font-size:11px;color:#546e7a;padding:8px 0;">No devices recorded yet</div>
-        </div>
-        <button class="ol-view-all" (click)="goDevices()">VIEW ALL DEVICES</button>
-      </div>
+    </div>
+  </div>
 
-      <!-- Drawing Documents -->
-      <div class="ol-right-section">
-        <div class="ol-right-title">DRAWING DOCUMENTS ({{ drawingDocs.length }})</div>
-        <div class="ol-doc-list">
-          <div class="ol-doc-item" *ngFor="let doc of drawingDocs" [class.current]="doc.current">
-            <i class="fa fa-file-pdf-o" style="color:#ef4444;"></i>
-            <div class="ol-doc-info">
-              <div class="ol-doc-name">{{ doc.name }}</div>
-              <div class="ol-doc-date">{{ doc.date }}</div>
-            </div>
-          </div>
-          <div *ngIf="!drawingDocs.length" style="font-size:11px;color:#546e7a;padding:8px 0;">No drawings uploaded yet</div>
-        </div>
-        <button class="ol-view-all" (click)="goDocuments()">VIEW ALL DOCUMENTS</button>
+  <!-- Add Node Modal -->
+  <div class="ol-modal-backdrop" *ngIf="showAddModal" (click)="closeAddModal()">
+    <div class="ol-modal" (click)="$event.stopPropagation()">
+      <div class="ol-modal-header">
+        <span>Add Network Node</span>
+        <button class="ol-modal-close" (click)="closeAddModal()"><i class="fa fa-times"></i></button>
       </div>
-
-      <!-- Quick Actions -->
-      <div class="ol-right-section">
-        <div class="ol-right-title">QUICK ACTIONS</div>
-        <div class="ol-qa-grid">
-          <div class="ol-qa-item" (click)="goDevices()"><i class="fa fa-microchip"></i> View Devices</div>
-          <div class="ol-qa-item" (click)="goDocuments()"><i class="fa fa-upload"></i> Upload Drawing</div>
-          <div class="ol-qa-item" (click)="goIssues()"><i class="fa fa-exclamation-triangle"></i> View Issues</div>
-          <div class="ol-qa-item" (click)="goEngineering()"><i class="fa fa-wrench"></i> Eng Support</div>
+      <div class="ol-modal-body">
+        <div class="form-row">
+          <label>Type</label>
+          <select [(ngModel)]="newNode.type">
+            <option *ngFor="let t of addableTypes" [value]="t.type">{{ t.label }}</option>
+          </select>
         </div>
+        <div class="form-row">
+          <label>Name / Label <span class="req">*</span></label>
+          <input type="text" [(ngModel)]="newNode.label" placeholder="e.g. Panel LP-1"/>
+        </div>
+        <div class="form-row">
+          <label>Amp Rating (A)</label>
+          <input type="number" [(ngModel)]="newNode.amp_rating" placeholder="e.g. 100"/>
+        </div>
+        <div class="form-row">
+          <label>kVA Rating</label>
+          <input type="number" [(ngModel)]="newNode.kva_rating" placeholder="e.g. 45"/>
+        </div>
+        <div class="form-row">
+          <label>Notes</label>
+          <textarea [(ngModel)]="newNode.notes" rows="2" placeholder="Optional notes"></textarea>
+        </div>
+      </div>
+      <div class="ol-modal-footer">
+        <button class="ol-btn ol-btn-cancel" (click)="closeAddModal()">Cancel</button>
+        <button class="ol-btn ol-btn-save" (click)="confirmAddNode()">
+          <i class="fa fa-plus"></i> Add Node
+        </button>
       </div>
     </div>
   </div>
+
 </div>
 
-<ng-template #olLoading>
-  <div class="ol-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div>
+<!-- No twin template -->
+<ng-template #noTwin>
+  <div class="ol-no-twin">
+    <i class="fa fa-sitemap fa-3x"></i>
+    <p>No digital twin configured for this project.</p>
+    <p class="dim">Set up the project twin in the ECBS Intelligence Platform first, then return here to edit the one-line drawing.</p>
+  </div>
 </ng-template>
