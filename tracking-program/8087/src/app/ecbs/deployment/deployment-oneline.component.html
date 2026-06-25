@@ -119,21 +119,21 @@
             <div class="ol-net-row ol-net-row--center">
               <div class="ol-net-node ol-net-node--utility">
                 <div class="ol-net-label">UTILITY SERVICE</div>
-                <div class="ol-net-sub">CFE • 13.8 kV</div>
+                <div class="ol-net-sub">{{ utility }}{{ voltage ? " • " + voltage : "" }}</div>
               </div>
             </div>
             <div class="ol-vline"></div>
             <div class="ol-net-row ol-net-row--center">
               <div class="ol-net-node ol-net-node--tx">
                 <div class="ol-net-label">MAIN TRANSFORMER</div>
-                <div class="ol-net-sub">T1 - 2500 kVA • 13.8 kV / 480V</div>
+                <div class="ol-net-sub">{{ transformer }}</div>
               </div>
             </div>
             <div class="ol-vline"></div>
             <div class="ol-net-row ol-net-row--center">
               <div class="ol-net-node ol-net-node--sw">
                 <div class="ol-net-label">MAIN SWITCHGEAR</div>
-                <div class="ol-net-sub">MSB-1 • 480V, 2500 A</div>
+                <div class="ol-net-sub">Main Switchgear • {{ voltage }}</div>
               </div>
             </div>
             <div class="ol-hline"></div>
@@ -141,16 +141,16 @@
               <div class="ol-panel-col">
                 <div class="ol-net-node ol-net-node--panel">
                   <div class="ol-net-label">FEEDER A</div>
-                  <div class="ol-net-sub">PANEL PA • 480V</div>
+                  <div class="ol-net-sub">Panel PA • {{ voltage }}</div>
                 </div>
                 <div class="ol-vline ol-vline--sm"></div>
                 <div class="ol-dev ol-dev--green">
-                  <div class="ol-dev-name">APF-1</div>
+                  <div class="ol-dev-name">{{ devices[0]?.device_id || "Device 1" }}</div>
                   <div class="ol-dev-sub">150A</div>
                   <div class="ol-dev-status">COMMISSIONED</div>
                 </div>
                 <div class="ol-dev ol-dev--blue">
-                  <div class="ol-dev-name">APF-2</div>
+                  <div class="ol-dev-name">{{ devices[1]?.device_id || "Device 2" }}</div>
                   <div class="ol-dev-sub">150A</div>
                   <div class="ol-dev-status">IN PROGRESS</div>
                 </div>
@@ -159,7 +159,7 @@
               <div class="ol-panel-col">
                 <div class="ol-net-node ol-net-node--panel">
                   <div class="ol-net-label">FEEDER B</div>
-                  <div class="ol-net-sub">PANEL PB • 480V</div>
+                  <div class="ol-net-sub">Panel PB • {{ voltage }}</div>
                 </div>
                 <div class="ol-vline ol-vline--sm"></div>
                 <div class="ol-dev ol-dev--dim">
@@ -172,7 +172,7 @@
               <div class="ol-panel-col">
                 <div class="ol-net-node ol-net-node--panel">
                   <div class="ol-net-label">FEEDER C</div>
-                  <div class="ol-net-sub">PANEL PC • 480V</div>
+                  <div class="ol-net-sub">Panel PC • {{ voltage }}</div>
                 </div>
                 <div class="ol-vline ol-vline--sm"></div>
                 <div class="ol-dev ol-dev--green">
@@ -185,7 +185,7 @@
               <div class="ol-panel-col">
                 <div class="ol-net-node ol-net-node--panel">
                   <div class="ol-net-label">FEEDER D</div>
-                  <div class="ol-net-sub">PANEL PD • 480V</div>
+                  <div class="ol-net-sub">Panel PD • {{ voltage }}</div>
                 </div>
                 <div class="ol-vline ol-vline--sm"></div>
                 <div class="ol-dev ol-dev--amber">

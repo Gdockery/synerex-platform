@@ -104,7 +104,7 @@
           <div class="de-net-row de-net-row--center">
             <div class="de-net-node de-net-node--utility" (click)="selectAsset(assets[0])">
               <div class="de-net-node-label">Utility Service</div>
-              <div class="de-net-node-sub">CFE • 13.8 kV</div>
+              <div class="de-net-node-sub">{{ utility }}{{ voltage ? " • " + voltage : "" }}</div>
             </div>
           </div>
           <div class="de-net-vline"></div>
@@ -112,7 +112,7 @@
           <div class="de-net-row de-net-row--center" *ngIf="assets[0]?.children?.length">
             <div class="de-net-node de-net-node--transformer" (click)="selectAsset(assets[0].children[0])">
               <div class="de-net-node-label">Main Transformer</div>
-              <div class="de-net-node-sub">T1 - 2500 kVA • 13.8 kV / 480V</div>
+              <div class="de-net-node-sub">{{ transformer }}</div>
             </div>
           </div>
           <div class="de-net-vline" *ngIf="assets[0]?.children?.length"></div>
@@ -120,7 +120,7 @@
           <div class="de-net-row de-net-row--center" *ngIf="assets[0]?.children[0]?.children?.length">
             <div class="de-net-node de-net-node--switchgear" (click)="selectAsset(assets[0].children[0].children[0])">
               <div class="de-net-node-label">Main Switchgear</div>
-              <div class="de-net-node-sub">MSB-1 • 480V</div>
+              <div class="de-net-node-sub">Main Switchgear • {{ voltage }}</div>
             </div>
           </div>
           <!-- Panels row -->
@@ -129,7 +129,7 @@
             <div class="de-net-panel-group" *ngFor="let panel of panels">
               <div class="de-net-node de-net-node--panel" (click)="selectAsset(panel)">
                 <div class="de-net-node-label">{{ panel.name }}</div>
-                <div class="de-net-node-sub">480V</div>
+                <div class="de-net-node-sub">{{ voltage || "480V" }}</div>
               </div>
               <div class="de-net-vline--sm" *ngIf="panel.children?.length"></div>
               <div class="de-net-devices-row" *ngIf="panel.children?.length">

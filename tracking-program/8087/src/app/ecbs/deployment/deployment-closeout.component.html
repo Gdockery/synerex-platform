@@ -50,7 +50,7 @@
       <div>
         <div class="co-kpi-val co-kv--green">{{ photosComplete }}</div>
         <div class="co-kpi-lbl">Photos Complete</div>
-        <div class="co-kpi-sub co-sub--green">100%</div>
+        <div class="co-kpi-sub" [class.co-sub--green]="photosComplete > 0">{{ photosComplete > 0 ? (photosComplete + " uploaded") : "None yet" }}</div>
       </div>
     </div>
     <div class="co-kpi">

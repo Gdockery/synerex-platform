@@ -141,7 +141,7 @@ export class DeploymentPreComponent implements OnInit {
           { label: 'Site Name', value: site ? site.name : '—', status: site ? 'ok' : 'missing' },
           { label: 'Address', value: site ? `${site.address}, ${site.city} ${site.state}` : '—', status: site ? 'ok' : 'missing' },
           { label: 'Utility', value: site ? site.utility : '—', status: site ? 'ok' : 'missing' },
-          { label: 'Service Voltage', value: site ? site.utility : '480V', status: 'ok' },
+          { label: 'Service Voltage', value: site ? (site.service_voltage || site.voltage || '—') : '—', status: site && (site.service_voltage || site.voltage) ? 'ok' : 'missing' },
         ]
       },
       {
@@ -168,39 +168,39 @@ export class DeploymentPreComponent implements OnInit {
       {
         num: 4, title: 'Site Access Verification', icon: 'fa-id-badge',
         items: [
-          { label: 'Site Contact Confirmed', status: 'ok' },
-          { label: 'Badge / Access Requirements', status: 'ok' },
-          { label: 'Parking / Staging', status: 'ok' },
-          { label: 'Escort Required', value: 'Yes', status: 'ok' },
-          { label: 'Security Check-In', status: 'ok' },
+          { label: 'Site Contact Confirmed', value: site && site.contact_name ? site.contact_name : '—', status: site && site.contact_name ? 'ok' : 'in_progress' },
+          { label: 'Badge / Access Requirements', value: '—', status: 'in_progress' },
+          { label: 'Parking / Staging', value: '—', status: 'in_progress' },
+          { label: 'Escort Required', value: '—', status: 'in_progress' },
+          { label: 'Security Check-In', value: '—', status: 'in_progress' },
         ]
       },
       {
         num: 5, title: 'Shutdown Verification', icon: 'fa-power-off',
         items: [
-          { label: 'Shutdown Required', value: 'Yes', status: 'ok' },
-          { label: 'Shutdown Approval Status', value: 'Approved', status: 'ok' },
-          { label: 'Approved Window', value: 'TBD', status: 'ok' },
-          { label: 'Approval Document', value: 'Attached', status: 'ok' },
+          { label: 'Shutdown Required', value: '—', status: 'in_progress' },
+          { label: 'Shutdown Approval Status', value: '—', status: 'in_progress' },
+          { label: 'Approved Window', value: '—', status: 'in_progress' },
+          { label: 'Approval Document', value: '—', status: 'in_progress' },
         ]
       },
       {
         num: 6, title: 'Tool Verification', icon: 'fa-wrench',
         items: [
-          { label: 'Torque Wrench', value: 'Available', status: 'ok' },
-          { label: 'Multimeter', value: 'Available', status: 'ok' },
-          { label: 'Label Printer', value: 'Available', status: 'ok' },
-          { label: 'Network Tester', value: 'Available', status: 'ok' },
-          { label: 'Hand Tools', value: 'Available', status: 'ok' },
+          { label: 'Torque Wrench', value: '—', status: 'in_progress' },
+          { label: 'Multimeter', value: '—', status: 'in_progress' },
+          { label: 'Label Printer', value: '—', status: 'in_progress' },
+          { label: 'Network Tester', value: '—', status: 'in_progress' },
+          { label: 'Hand Tools', value: '—', status: 'in_progress' },
         ]
       },
       {
         num: 7, title: 'Safety Verification', icon: 'fa-shield',
         items: [
-          { label: 'Arc Flash Study', value: 'Available', status: 'ok' },
-          { label: 'PPE Available', value: 'Yes', status: 'ok' },
-          { label: 'Lockout / Tagout Equipment', value: 'Available', status: 'ok' },
-          { label: 'Safety Training', value: 'In Progress', status: 'in_progress' },
+          { label: 'Arc Flash Study', value: '—', status: 'in_progress' },
+          { label: 'PPE Available', value: '—', status: 'in_progress' },
+          { label: 'Lockout / Tagout Equipment', value: '—', status: 'in_progress' },
+          { label: 'Safety Training', value: '—', status: 'in_progress' },
         ]
       },
       {

@@ -17,12 +17,7 @@ export class DeploymentOneLineComponent implements OnInit {
   summary: any = {};
   devices: any[] = [];
 
-  // Mock drawing documents
-  drawingDocs = [
-    { id: 1, name: 'Flex_Tijuana_OneLine_Rev2.pdf', date: 'May 10, 2025', current: true },
-    { id: 2, name: 'Flex_Tijuana_OneLine_Rev1.pdf', date: 'Apr 20, 2025', current: false },
-    { id: 3, name: 'Flex_Tijuana_SLD_Appendix.pdf', date: 'May 10, 2025', current: false },
-  ];
+  drawingDocs: any[] = [];
 
   // Device legend counts
   deviceLegend = [

@@ -27,14 +27,7 @@ export class DeploymentPhotosComponent implements OnInit {
     'Transformer', 'Issue', 'Commissioning'
   ];
 
-  // Mock photo albums
-  albums = [
-    { name: 'Installation Photos', count: 56, date: 'May 17, 2025' },
-    { name: 'Device Close-Ups', count: 28, date: 'May 16, 2025' },
-    { name: 'Panel Photos', count: 18, date: 'May 16, 2025' },
-    { name: 'CT Installations', count: 12, date: 'May 16, 2025' },
-    { name: 'Commissioning', count: 10, date: 'May 14, 2025' },
-  ];
+  albums: any[] = [];
 
   constructor(
     private route: ActivatedRoute,
@@ -57,6 +50,10 @@ export class DeploymentPhotosComponent implements OnInit {
         this.summary = this.dep.summary || {};
         this.syncedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
       },
+      error: () => {}
+    });
+    this.api.get('/api/dep/deployments/' + this.depId + '/photo-albums').subscribe({
+      next: (r: any) => { this.albums = (r && r.response ? r.response : []); },
       error: () => {}
     });
     this.api.get('/api/dep/deployments/' + this.depId + '/photos').subscribe({

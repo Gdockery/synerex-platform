@@ -55,41 +55,46 @@ export class DeploymentElectricalComponent implements OnInit {
 
   private _buildMockTree() {
     const devs = this.devices;
-    const apfs = devs.filter(d => d.device_type === 'APF');
-    const gws  = devs.filter(d => d.device_type === 'Gateway');
-    const mts  = devs.filter(d => d.device_type === 'Meter');
+    const site = (this.dep && this.dep.site_info) || {};
+    const voltage  = site.service_voltage || '480V';
+    const utility  = site.utility || 'Utility Service';
+    const transformer = site.transformer || 'Main Transformer';
 
-    this.assets = [
-      {
-        id: 'util-1', type: 'Utility Service', name: 'Utility Service', voltage: '13.8 kV', status: 'active',
-        expanded: true, depth: 0,
+    // Group devices by panel location to build hierarchy
+    const byPanel: {[k: string]: any[]} = {};
+    devs.forEach(d => {
+      const panel = d.panel_location || d.location || 'Other';
+      if (!byPanel[panel]) byPanel[panel] = [];
+      byPanel[panel].push(d);
+    });
+    const panels = Object.keys(byPanel).map((panelName, i) => ({
+      id: 'panel-' + i,
+      type: 'Panel',
+      name: panelName,
+      voltage: voltage,
+      rating: '—',
+      status: 'operational',
+      depth: 3,
+      expanded: false,
+      children: byPanel[panelName].slice(0, 5).map((d, j) => ({
+        ...d, id: 'dev-' + i + '-' + j, type: d.device_type, name: d.device_id || d.device_name || d.id,
+        depth: 4, children: [], expanded: false
+      }))
+    }));
+
+    this.assets = [{
+      id: 'util-1', type: 'Utility Service', name: utility, voltage: '—', status: 'active',
+      expanded: true, depth: 0,
+      children: [{
+        id: 'tx-1', type: 'Transformer', name: transformer, voltage: voltage, kva: '—', status: 'active',
+        depth: 1, expanded: true,
         children: [{
-          id: 'tx-1', type: 'Transformer', name: 'Main Transformer', voltage: '13.8 kV / 480V', kva: '2500 kVA', status: 'active',
-          depth: 1, expanded: true,
-          children: [{
-            id: 'sw-1', type: 'Switchgear', name: 'Main Switchgear (MSB-1)', voltage: '480V', rating: '2500 A', status: 'operational',
-            depth: 2, expanded: true,
-            children: [
-              { id: 'pa', type: 'Panel', name: 'Feeder A (Panel PA)', voltage: '480V', rating: '400 A', status: 'operational', depth: 3, expanded: false,
-                children: apfs.slice(0,2).map((d, i) => ({ ...d, id: `pa-d${i}`, type: d.device_type, name: d.device_name, depth: 4, children: [], expanded: false }))
-              },
-              { id: 'pb', type: 'Panel', name: 'Feeder B (Panel PB)', voltage: '480V', rating: '400 A', status: 'operational', depth: 3, expanded: false,
-                children: apfs.slice(2,4).map((d, i) => ({ ...d, id: `pb-d${i}`, type: d.device_type, name: d.device_name, depth: 4, children: [], expanded: false }))
-              },
-              { id: 'pc', type: 'Panel', name: 'Feeder C (Panel PC)', voltage: '480V', rating: '400 A', status: 'operational', depth: 3, expanded: false,
-                children: mts.slice(0,1).map((d, i) => ({ ...d, id: `pc-d${i}`, type: d.device_type, name: d.device_name, depth: 4, children: [], expanded: false }))
-              },
-              { id: 'pd', type: 'Panel', name: 'Feeder D (Panel PD)', voltage: '480V', rating: '400 A', status: 'operational', depth: 3, expanded: false,
-                children: [
-                  ...(gws.slice(0,1).map((d, i) => ({ ...d, id: `pd-gw${i}`, type: d.device_type, name: d.device_name, depth: 4, children: [], expanded: false }))),
-                  ...apfs.slice(4,6).map((d, i) => ({ ...d, id: `pd-d${i}`, type: d.device_type, name: d.device_name, depth: 4, children: [], expanded: false })),
-                ]
-              },
-            ]
-          }]
+          id: 'sw-1', type: 'Switchgear', name: 'Main Switchgear', voltage: voltage, rating: '—', status: 'operational',
+          depth: 2, expanded: true,
+          children: panels.length ? panels : [{ id: 'no-panels', type: 'Panel', name: 'No panels configured', voltage: '', rating: '', status: 'pending', depth: 3, expanded: false, children: [] }]
         }]
-      }
-    ];
+      }]
+    }];
   }
 
   get flatAssets(): any[] {
