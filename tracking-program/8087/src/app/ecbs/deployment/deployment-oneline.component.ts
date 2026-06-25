@@ -517,19 +517,19 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
     this.saveMsg = '';
 
     // Bake current posMap into each node's extra before sending
-    const assets = this.twinNodes.map(n => {
-      const pos = this.posMap[n.dbId] || {};
+    const self2 = this;
+    const assets = this.twinNodes.map(function(n) {
+      const pos: {x: number; y: number} | null = self2.posMap[n.dbId] || null;
+      const posExtra = pos ? { x: pos.x, y: pos.y } : {};
       return {
-        id:           n.dbId > 0 ? n.dbId : null,
-        asset_type:   n.type,
-        name:         n.label,
-        amp_rating:   n.amp_rating,
-        kva_rating:   n.rated_kva,
-        status:       n.status || 'planned',
-        notes:        n.notes,
-        extra:        Object.assign({}, n.extra || {}, pos.x != null ? { x: pos.x, y: pos.y } : {}),
-        // carry temp id for id_map resolution
-        _temp_id:     n.dbId < 0 ? n.dbId : undefined,
+        id:          n.dbId > 0 ? n.dbId : null,
+        asset_type:  n.type,
+        name:        n.label,
+        amp_rating:  n.amp_rating,
+        kva_rating:  n.rated_kva,
+        status:      n.status || 'planned',
+        notes:       n.notes,
+        extra:       Object.assign({}, n.extra || {}, posExtra),
       };
     });
 
