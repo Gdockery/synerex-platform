@@ -159,7 +159,7 @@
 
       <!-- Pagination -->
       <div class="es-pagination" *ngIf="totalPages > 1">
-        <span class="es-pg-info">Showing {{ (page-1)*pageSize+1 }} to {{ [page*pageSize, filtered.length] | min }} of {{ filtered.length }} requests</span>
+        <span class="es-pg-info">Showing {{ (page-1)*pageSize+1 }} to {{ page*pageSize < filtered.length ? page*pageSize : filtered.length }} of {{ filtered.length }} requests</span>
         <div class="es-pg-controls">
           <button class="es-pg-btn" (click)="page=page-1" [disabled]="page===1"><i class="fa fa-chevron-left"></i></button>
           <button class="es-pg-btn" *ngFor="let n of pageNumbers" [class.active]="n===page" (click)="page=n">{{ n }}</button>

@@ -73,7 +73,7 @@
     <div class="dc-main">
       <!-- Toolbar -->
       <div class="dc-toolbar">
-        <span class="dc-docs-count">DOCUMENTS <span class="dc-docs-showing">(Showing {{ (page-1)*pageSize+1 }}-{{ [page*pageSize, filtered.length] | min }} of {{ filtered.length }})</span></span>
+        <span class="dc-docs-count">DOCUMENTS <span class="dc-docs-showing">(Showing {{ (page-1)*pageSize+1 }}-{{ page*pageSize < filtered.length ? page*pageSize : filtered.length }} of {{ filtered.length }})</span></span>
         <div class="dc-search-wrap">
           <i class="fa fa-search dc-search-icon"></i>
           <input class="dc-search" placeholder="Search documents..." [(ngModel)]="search" (ngModelChange)="page=1" />

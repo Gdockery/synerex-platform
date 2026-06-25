@@ -129,7 +129,7 @@
         </table>
       </div>
       <div class="cm-table-footer">
-        <span class="cm-pg-info">Rows per page: {{ pageSize }} &nbsp; {{ (page-1)*pageSize+1 }}-{{ [page*pageSize,filtered.length] | min }} of {{ filtered.length }}</span>
+        <span class="cm-pg-info">Rows per page: {{ pageSize }} &nbsp; {{ (page-1)*pageSize+1 }}-{{ page*pageSize < filtered.length ? page*pageSize : filtered.length }} of {{ filtered.length }}</span>
         <div class="cm-pg-controls">
           <button class="cm-pg-btn" (click)="page=page-1" [disabled]="page===1"><i class="fa fa-chevron-left"></i></button>
           <button class="cm-pg-btn" (click)="page=page+1" [disabled]="page===totalPages"><i class="fa fa-chevron-right"></i></button>
