@@ -700,3 +700,27 @@ $accent: #22c55e;
   .ol-edit-bar { padding: 6px 10px; gap: 6px; }
   .ol-btn { padding: 5px 10px; font-size: 11px; }
 }
+
+// ─── Place mode button variants ───────────────────────────────────────────────
+.ol-btn-place {
+  border-color: #ab47bc;
+  color: #ab47bc;
+}
+.ol-btn-place-active {
+  background: rgba(171,71,188,.15);
+  border-color: #ab47bc;
+  color: #ce93d8;
+}
+
+// Hint colour for place mode
+.place-hint { color: #ab47bc; }
+
+// ─── Placed dot in node list ──────────────────────────────────────────────────
+.onl-placed-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 2px solid #22c55e;
+  display: inline-block;
+  flex-shrink: 0;
+}

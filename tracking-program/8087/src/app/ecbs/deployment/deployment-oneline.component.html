@@ -15,6 +15,10 @@
       <div class="kpi-value">{{ twinNodes.length }}</div>
     </div>
     <div class="ol-kpi-card">
+      <div class="kpi-label">Units Placed</div>
+      <div class="kpi-value">{{ placedCount }} / {{ twinNodes.length }}</div>
+    </div>
+    <div class="ol-kpi-card">
       <div class="kpi-label">Transformer</div>
       <div class="kpi-value">{{ transformerLabel || '&mdash;' }}</div>
     </div>
@@ -40,7 +44,10 @@
         <i class="fa fa-plus"></i> Add Node
       </button>
       <button class="ol-btn" [ngClass]="connectMode ? 'ol-btn-connect-active' : 'ol-btn-connect'" (click)="toggleConnect()">
-        <i class="fa fa-link"></i> {{ connectMode ? 'Tap target to connect' : 'Connect' }}
+        <i class="fa fa-link"></i> {{ connectMode ? 'Tap target to connect' : 'Wire' }}
+      </button>
+      <button class="ol-btn" [ngClass]="placeMode ? 'ol-btn-place-active' : 'ol-btn-place'" (click)="togglePlace()">
+        <i class="fa fa-map-marker"></i> {{ placeMode ? 'Tap node to place' : 'Mark Placed' }}
       </button>
       <button class="ol-btn ol-btn-save" (click)="save()" [disabled]="saving || !dirty">
         <i class="fa" [ngClass]="saving ? 'fa-spinner fa-spin' : 'fa-save'"></i>
@@ -52,11 +59,14 @@
         <i class="fa fa-times"></i> Exit Edit
       </button>
     </ng-container>
-    <span class="ol-hint" *ngIf="editMode && !connectMode">
+    <span class="ol-hint" *ngIf="editMode && !connectMode && !placeMode">
       <i class="fa fa-info-circle"></i> Drag nodes to reposition &bull; Tap &times; to delete
     </span>
     <span class="ol-hint connect-hint" *ngIf="connectMode">
-      Tap source node, then tap target node to draw a connection.
+      Tap source node, then tap target node to draw an electrical connection.
+    </span>
+    <span class="ol-hint place-hint" *ngIf="placeMode">
+      <i class="fa fa-circle-o"></i> Tap any node to toggle its 'unit placed' status (shown as a circle).
     </span>
   </div>
 
@@ -115,6 +125,15 @@
              (touchstart)="onNodePointerDown($event, n)"
              (click)="selectNode(n)">
 
+            <!-- Placed indicator: circle shown when a unit has been installed here -->
+            <circle *ngIf="isPlaced(n)"
+                    [attr.cx]="n.x" [attr.cy]="n.y"
+                    r="38"
+                    fill="none"
+                    stroke="#22c55e"
+                    stroke-width="2.5"
+                    stroke-dasharray="0"
+                    opacity="0.85"/>
             <!-- Shadow -->
             <rect [attr.x]="n.x - 51" [attr.y]="n.y - 22"
                   width="102" height="44" rx="6"
@@ -202,6 +221,7 @@
              [class.selected]="selectedNode && selectedNode.dbId === n.dbId"
              [class.edit-locked]="isLocked(n)"
              (click)="selectNode(n)">
+          <span class="onl-placed-dot" *ngIf="isPlaced(n)" title="Unit placed"></span>
           <span class="onl-type">{{ n.type }}</span>
           <span class="onl-label">{{ n.label }}</span>
           <button *ngIf="editMode && !isLocked(n)"

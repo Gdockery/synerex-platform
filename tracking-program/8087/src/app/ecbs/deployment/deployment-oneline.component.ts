@@ -94,9 +94,12 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
   private _dragging: TwinNode | null = null;
   private _dragOffsetSvg = {x: 0, y: 0};  // cursor offset from node center in SVG coords
 
-  // Connect mode
+  // Connect mode (draw electrical feeds edges)
   connectMode   = false;
   connectSource: TwinNode | null = null;
+
+  // Place mode — tap a node to toggle "unit placed here" (shown as circle)
+  placeMode = false;
 
   // Add node modal
   showAddModal  = false;
@@ -338,6 +341,7 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
     this.editMode      = false;
     this.dirty         = false;
     this.connectMode   = false;
+    this.placeMode     = false;
     this.connectSource = null;
     this._dragging     = null;
     this.deletedAssetIds = [];
@@ -478,11 +482,33 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
     this.showAddModal = false;
   }
 
-  // ── Connect mode ──────────────────────────────────────────────────────────
+  // ── Connect mode (draw electrical feeds wires) ───────────────────────────
 
   toggleConnect() {
     this.connectMode   = !this.connectMode;
     this.connectSource = null;
+    if (this.connectMode) { this.placeMode = false; }
+  }
+
+  // ── Place mode (mark where a unit is physically installed) ────────────────
+
+  togglePlace() {
+    this.placeMode = !this.placeMode;
+    if (this.placeMode) { this.connectMode = false; this.connectSource = null; }
+  }
+
+  isPlaced(n: TwinNode): boolean {
+    const ex = n.extra || {};
+    return !!ex.placed;
+  }
+
+  togglePlaced(n: TwinNode) {
+    n.extra = Object.assign({}, n.extra || {}, { placed: !this.isPlaced(n) });
+    this.dirty = true;
+  }
+
+  get placedCount(): number {
+    return this.twinNodes.filter(n => this.isPlaced(n)).length;
   }
 
   private _handleConnect(n: TwinNode) {
@@ -563,6 +589,7 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
 
   selectNode(n: TwinNode) {
     if (this.connectMode) { this._handleConnect(n); return; }
+    if (this.placeMode)   { this.togglePlaced(n);  return; }
     this.selectedNode = (this.selectedNode && this.selectedNode.dbId === n.dbId) ? null : n;
   }
 
