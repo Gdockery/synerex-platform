@@ -173,27 +173,6 @@
     <div class="da-col">
       <div class="da-card">
         <div class="da-card-hdr">
-          <span class="da-card-ttl"><span class="fa fa-heartbeat"></span> DEPLOYMENT PROGRESS</span>
-        </div>
-        <div class="da-donut-wrap">
-          <svg class="da-donut" viewBox="0 0 120 120">
-            <circle class="da-donut-track" cx="60" cy="60" r="52" fill="none" stroke-width="10"/>
-            <circle class="da-donut-seg" cx="60" cy="60" r="52" fill="none" stroke-width="10"
-              [attr.stroke-dasharray]="donutCircumference"
-              [attr.stroke-dashoffset]="donutOffset"
-              transform="rotate(-90 60 60)"/>
-            <text x="60" y="60" class="da-donut-txt" text-anchor="middle" dominant-baseline="central">{{ progressPct }}%</text>
-          </svg>
-          <div class="da-donut-legend">
-            <div class="da-leg-row"><span class="da-leg-dot dot-green"></span>Commissioned <strong>{{ commissionedCount }}</strong></div>
-            <div class="da-leg-row"><span class="da-leg-dot dot-blue"></span>In Progress <strong>{{ inProgressCount }}</strong></div>
-            <div class="da-leg-row"><span class="da-leg-dot dot-grey"></span>Pending <strong>{{ pendingCount }}</strong></div>
-          </div>
-        </div>
-      </div>
-
-      <div class="da-card">
-        <div class="da-card-hdr">
           <span class="da-card-ttl"><span class="fa fa-heartbeat"></span> DEPLOYMENT HEALTH</span>
         </div>
         <div class="da-health-list">

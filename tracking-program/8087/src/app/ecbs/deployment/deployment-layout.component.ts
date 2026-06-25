@@ -89,15 +89,32 @@ export class DeploymentLayoutComponent implements OnInit, OnDestroy {
     return Math.round(this.installedCount / this.totalDevices * 100);
   }
 
-  get donutBg(): string {
+  // SVG donut — r=45 → circumference ≈ 282.74
+  private readonly _circ = 2 * Math.PI * 45;
+
+  private _seg(pct: number): number {
+    return Math.max(0, Math.min(1, pct)) * this._circ;
+  }
+
+  get donutSegments(): Array<{color: string; dash: number; offset: number}> {
     const t = this.totalDevices || 1;
-    const c = this.installedCount / t * 100;
-    const ip = this.inProgressCount / t * 100;
-    const pd = this.pendingCount / t * 100;
-    const c2 = c + ip;
-    const c3 = c2 + pd;
-    if (c3 <= 0) return 'conic-gradient(#1f2937 0% 100%)';
-    return `conic-gradient(#22c55e 0% ${c}%, #3b82f6 ${c}% ${c2}%, #f59e0b ${c2}% ${c3}%, #1f2937 ${c3}% 100%)`;
+    const c  = this.installedCount / t;
+    const ip = this.inProgressCount / t;
+    const pd = this.pendingCount / t;
+    const ns = Math.max(0, 1 - c - ip - pd);
+    const segs = [
+      { color: '#22c55e', frac: c },
+      { color: '#3b82f6', frac: ip },
+      { color: '#f59e0b', frac: pd },
+      { color: '#1f2937', frac: ns },
+    ];
+    let off = 0;
+    return segs.map(s => {
+      const dash = this._seg(s.frac);
+      const seg = { color: s.color, dash, offset: -off };
+      off += dash;
+      return seg;
+    });
   }
 
   get userName(): string {

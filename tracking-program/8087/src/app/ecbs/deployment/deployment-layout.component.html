@@ -4,7 +4,7 @@
 
     <div class="dl-logo-area">
       <div class="dl-logo-box">
-        <img src="/assets/images/XecoLogo_Original_640px.png" alt="Synerex" class="dl-logo-img" />
+        <img src="/assets/images/synerex_logo_white.png" alt="Synerex" class="dl-logo-img" />
       </div>
       <div class="dl-logo-text">
         <span class="dl-logo-title">Synerex</span>
@@ -51,10 +51,25 @@
 
     <div class="dl-donut-section">
       <div class="dl-donut-label">Deployment Progress</div>
-      <div class="dl-donut-wrap" [style.background]="donutBg">
-        <div class="dl-donut-hole">
-          <span class="dl-donut-pct">{{ progressPct }}%</span>
-        </div>
+      <div class="dl-donut-wrap">
+        <svg viewBox="0 0 110 110" class="dl-donut-svg">
+          <!-- track -->
+          <circle cx="55" cy="55" r="45" fill="none" stroke="#1f2937" stroke-width="11"/>
+          <!-- segments -->
+          <circle *ngFor="let s of donutSegments"
+            cx="55" cy="55" r="45" fill="none"
+            [attr.stroke]="s.color"
+            stroke-width="11"
+            [attr.stroke-dasharray]="s.dash + ' ' + 283"
+            [attr.stroke-dashoffset]="s.offset"
+            stroke-linecap="butt"
+            transform="rotate(-90 55 55)"/>
+          <!-- center text -->
+          <text x="55" y="55" text-anchor="middle" dominant-baseline="central"
+            fill="#fff" font-size="16" font-weight="700" font-family="sans-serif">
+            {{ progressPct }}%
+          </text>
+        </svg>
       </div>
       <div class="dl-legend">
         <div class="dl-legend-item">
