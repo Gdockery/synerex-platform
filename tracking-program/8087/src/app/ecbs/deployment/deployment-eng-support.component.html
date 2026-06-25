@@ -1,109 +1,272 @@
 <div class="es-page" *ngIf="!loading; else esLoad">
+
+  <!-- Header -->
   <div class="es-header">
     <div class="es-header-left">
       <div class="es-header-top">
         <span class="es-title">Engineering Support</span>
-        <span class="es-badge es-badge--{{ statusClass(depStatus) }}">{{ depStatus }}</span>
+        <span class="es-badge" [ngClass]="statusClass(depStatus)">{{ depStatus }}</span>
       </div>
-      <div class="es-subtitle">{{ siteName }} &bull; Deployment ID: {{ depNumber }}</div>
+      <div class="es-subtitle">{{ siteName }}</div>
+      <div class="es-meta">Deployment ID: {{ depNumber }} &bull; Utility: {{ utility }} &bull; Voltage: {{ voltage }} &bull; Transformer: {{ transformer }}</div>
     </div>
     <div class="es-header-right">
-      <span class="es-sync"><i class="fa fa-refresh"></i> Synced: {{ syncedAt }}</span>
+      <span class="es-sync"><i class="fa fa-cloud-upload"></i> Synced: {{ syncedAt }}</span>
       <button class="es-icon-btn"><i class="fa fa-bell-o"></i></button>
+      <button class="es-icon-btn"><i class="fa fa-question-circle-o"></i></button>
+      <button class="es-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
     </div>
   </div>
 
+  <!-- KPI Strip -->
   <div class="es-kpi-strip">
-    <div class="es-kpi"><div class="es-kpi-val">{{ requests.length }}</div><div class="es-kpi-lbl">Total Requests</div></div>
-    <div class="es-kpi"><div class="es-kpi-val es-kpi-val--amber">{{ openCount }}</div><div class="es-kpi-lbl">Open</div></div>
-    <div class="es-kpi"><div class="es-kpi-val es-kpi-val--blue">{{ inProgressCount }}</div><div class="es-kpi-lbl">In Progress</div></div>
-    <div class="es-kpi"><div class="es-kpi-val es-kpi-val--green">{{ resolvedCount }}</div><div class="es-kpi-lbl">Resolved</div></div>
-    <div class="es-kpi"><div class="es-kpi-val">{{ closedCount }}</div><div class="es-kpi-lbl">Closed</div></div>
-  </div>
-
-  <div class="es-create-form" *ngIf="showCreate">
-    <div class="es-cf-row">
-      <input class="es-input" placeholder="Request subject*" [(ngModel)]="newRequest.subject" />
-      <select class="es-select" [(ngModel)]="newRequest.category">
-        <option *ngFor="let c of CATEGORIES" [value]="c">{{ c }}</option>
-      </select>
-      <select class="es-select" [(ngModel)]="newRequest.priority">
-        <option *ngFor="let p of PRIORITIES" [value]="p">{{ p }}</option>
-      </select>
-      <button class="es-save-btn" (click)="createRequest()" [disabled]="saving">{{ saving ? 'Creating...' : 'Submit' }}</button>
-      <button class="es-cancel-btn" (click)="showCreate = false">Cancel</button>
+    <div class="es-kpi">
+      <i class="fa fa-headphones es-kpi-icon es-kpi-icon--purple"></i>
+      <div>
+        <div class="es-kpi-val">{{ totalRequests }}</div>
+        <div class="es-kpi-lbl">Total Requests</div>
+        <div class="es-kpi-sub">100%</div>
+      </div>
     </div>
-    <textarea class="es-textarea" placeholder="Describe the request..." [(ngModel)]="newRequest.description" rows="2"></textarea>
+    <div class="es-kpi">
+      <i class="fa fa-check-circle es-kpi-icon es-kpi-icon--green"></i>
+      <div>
+        <div class="es-kpi-val es-kv--green">{{ resolvedCount }}</div>
+        <div class="es-kpi-lbl">Resolved</div>
+        <div class="es-kpi-sub es-sub--green">{{ resolvedPct }}%</div>
+      </div>
+    </div>
+    <div class="es-kpi">
+      <i class="fa fa-clock-o es-kpi-icon es-kpi-icon--blue"></i>
+      <div>
+        <div class="es-kpi-val es-kv--blue">{{ inProgressCount }}</div>
+        <div class="es-kpi-lbl">In Progress</div>
+        <div class="es-kpi-sub es-sub--blue">{{ inProgressPct }}%</div>
+      </div>
+    </div>
+    <div class="es-kpi">
+      <i class="fa fa-hourglass-half es-kpi-icon es-kpi-icon--amber"></i>
+      <div>
+        <div class="es-kpi-val es-kv--amber">{{ awaitingCount }}</div>
+        <div class="es-kpi-lbl">Awaiting Response</div>
+        <div class="es-kpi-sub es-sub--amber">{{ awaitingPct }}%</div>
+      </div>
+    </div>
+    <div class="es-kpi">
+      <i class="fa fa-exclamation-triangle es-kpi-icon es-kpi-icon--red"></i>
+      <div>
+        <div class="es-kpi-val es-kv--red">{{ highPriorityCount }}</div>
+        <div class="es-kpi-lbl">High Priority</div>
+        <div class="es-kpi-sub es-sub--red">{{ highPriorityPct }}%</div>
+      </div>
+    </div>
+    <div class="es-kpi">
+      <i class="fa fa-tachometer es-kpi-icon es-kpi-icon--green"></i>
+      <div>
+        <div class="es-kpi-val es-kv--green">{{ slaCompliant }}%</div>
+        <div class="es-kpi-lbl">SLA Compliance</div>
+        <div class="es-kpi-sub">On Track</div>
+      </div>
+    </div>
   </div>
 
+  <!-- Body -->
   <div class="es-body">
+
+    <!-- LEFT: filter + table + analytics -->
     <div class="es-left">
+
+      <!-- Filter bar -->
       <div class="es-filter-bar">
+        <i class="fa fa-filter es-filter-icon"></i>
         <select class="es-select" [(ngModel)]="filterStatus">
           <option value="">All Statuses</option>
           <option *ngFor="let s of STATUSES" [value]="s">{{ s }}</option>
         </select>
-        <button class="es-new-btn" (click)="showCreate = !showCreate"><i class="fa fa-plus"></i> New Request</button>
+        <select class="es-select" [(ngModel)]="filterPriority">
+          <option value="">All Priorities</option>
+          <option *ngFor="let p of PRIORITIES" [value]="p">{{ p }}</option>
+        </select>
+        <select class="es-select" [(ngModel)]="filterCategory">
+          <option value="">All Categories</option>
+          <option *ngFor="let c of CATEGORIES" [value]="c">{{ c }}</option>
+        </select>
+        <div class="es-search-wrap">
+          <i class="fa fa-search es-search-icon"></i>
+          <input class="es-search" placeholder="Search requests..." [(ngModel)]="search" />
+        </div>
+        <button class="es-new-btn" (click)="showCreate = !showCreate"><i class="fa fa-plus"></i> NEW REQUEST</button>
       </div>
 
-      <div class="es-list">
-        <div class="es-item" *ngFor="let req of filtered" [class.selected]="selected?.id === req.id" (click)="select(req)">
-          <div class="es-item-top">
-            <span class="es-item-id">{{ req.request_number || ('ES-' + req.id) }}</span>
-            <span class="es-status-dot es-status--{{ statusClass(req.status) }}">{{ req.status || 'Open' }}</span>
-          </div>
-          <div class="es-item-subject">{{ req.subject || req.title }}</div>
-          <div class="es-item-meta">
-            <span class="es-cat-tag">{{ req.category || '—' }}</span>
-            <span class="es-pri-tag es-pri--{{ priorityClass(req.priority) }}">{{ req.priority || 'Medium' }}</span>
-            <span class="es-item-date">{{ req.created_at ? (req.created_at | date:'MMM d') : '—' }}</span>
-          </div>
+      <!-- Create form -->
+      <div class="es-create-form" *ngIf="showCreate">
+        <div class="es-cf-row">
+          <input class="es-input es-input--lg" placeholder="Request subject / title..." [(ngModel)]="newReq.subject" />
         </div>
-        <div class="es-empty" *ngIf="filtered.length === 0">
-          <i class="fa fa-wrench"></i>
-          <span>No engineering support requests yet</span>
-          <button class="es-new-btn" (click)="showCreate = true"><i class="fa fa-plus"></i> Create First Request</button>
+        <div class="es-cf-row">
+          <select class="es-select" [(ngModel)]="newReq.category"><option value="">Category</option><option *ngFor="let c of CATEGORIES" [value]="c">{{ c }}</option></select>
+          <select class="es-select" [(ngModel)]="newReq.priority"><option *ngFor="let p of PRIORITIES" [value]="p">{{ p }}</option></select>
+          <input class="es-input" placeholder="Location / Panel..." [(ngModel)]="newReq.location" />
+        </div>
+        <textarea class="es-textarea" rows="2" placeholder="Describe the issue or request..." [(ngModel)]="newReq.description"></textarea>
+        <div class="es-cf-row es-cf-actions">
+          <button class="es-cancel-btn" (click)="showCreate = false">Cancel</button>
+          <button class="es-save-btn" (click)="createRequest()" [disabled]="creating || !newReq.subject">
+            {{ creating ? 'Submitting...' : 'Submit Request' }}
+          </button>
         </div>
       </div>
-    </div>
 
-    <div class="es-right" *ngIf="selected; else noSel">
-      <div class="es-dp-id">{{ selected.request_number || ('ES-' + selected.id) }}
-        <span class="es-status-dot es-status--{{ statusClass(selected.status) }}">{{ selected.status }}</span>
+      <!-- Table -->
+      <div class="es-table-wrap">
+        <table class="es-table">
+          <thead>
+            <tr>
+              <th>Request ID</th>
+              <th>Title</th>
+              <th>Category</th>
+              <th>Priority</th>
+              <th>Status</th>
+              <th>Assigned To</th>
+              <th>Created On</th>
+              <th>SLA</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let r of paged" (click)="select(r)" [class.selected]="selected?.id === r.id">
+              <td class="es-req-id">{{ r.request_id || r.id }}</td>
+              <td class="es-req-title">{{ r.subject || r.title }}</td>
+              <td><span class="es-cat-tag">{{ r.category || '—' }}</span></td>
+              <td><span class="es-pri" [ngClass]="priorityClass(r.priority)">{{ r.priority || '—' }}</span></td>
+              <td><span class="es-status" [ngClass]="statusClass(r.status)">{{ r.status || '—' }}</span></td>
+              <td class="es-assign">{{ r.assigned_to_name || r.assigned_to || '—' }}</td>
+              <td class="es-date">{{ r.created_at ? (r.created_at | date:'MMM d, h:mm a') : '—' }}</td>
+              <td><span class="es-sla" [ngClass]="slaClass(r)">{{ r.sla_label || r.sla_status || '—' }}</span></td>
+              <td>
+                <div class="es-row-actions">
+                  <button class="es-row-btn" title="View"><i class="fa fa-eye"></i></button>
+                  <button class="es-row-btn" title="More"><i class="fa fa-ellipsis-v"></i></button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="filtered.length === 0">
+              <td colspan="9" class="es-empty"><i class="fa fa-inbox"></i> No requests found</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Pagination -->
+      <div class="es-pagination" *ngIf="totalPages > 1">
+        <span class="es-pg-info">Showing {{ (page-1)*pageSize+1 }} to {{ [page*pageSize, filtered.length] | min }} of {{ filtered.length }} requests</span>
+        <div class="es-pg-controls">
+          <button class="es-pg-btn" (click)="page=page-1" [disabled]="page===1"><i class="fa fa-chevron-left"></i></button>
+          <button class="es-pg-btn" *ngFor="let n of pageNumbers" [class.active]="n===page" (click)="page=n">{{ n }}</button>
+          <button class="es-pg-btn" (click)="page=page+1" [disabled]="page===totalPages"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+
+      <!-- Analytics -->
+      <div class="es-analytics">
+        <div class="es-analytics-block">
+          <div class="es-analytics-title">REQUESTS BY CATEGORY</div>
+          <div class="es-cat-strip">
+            <div class="es-cat-item" *ngFor="let c of requestsByCategory">
+              <i class="fa es-cat-ic" [ngClass]="catIcon(c.cat)" [style.color]="catColor(c.cat)"></i>
+              <div class="es-cat-name">{{ c.cat }}</div>
+              <div class="es-cat-cnt">{{ c.cnt }}</div>
+              <div class="es-cat-bar-wrap"><div class="es-cat-bar" [style.width.%]="c.pct" [style.background]="catColor(c.cat)"></div></div>
+              <div class="es-cat-pct">{{ c.pct }}%</div>
+            </div>
+          </div>
+        </div>
+        <div class="es-analytics-block">
+          <div class="es-analytics-title">AVERAGE RESPONSE TIME</div>
+          <div class="es-resp-time">
+            <i class="fa fa-clock-o es-resp-icon"></i>
+            <span class="es-resp-val">—</span>
+          </div>
+          <div class="es-resp-goal">Goal: &lt; 4 hours</div>
+        </div>
+      </div>
+
+    </div><!-- /es-left -->
+
+    <!-- RIGHT: Request details -->
+    <div class="es-right" *ngIf="selected; else esNoSel">
+      <div class="es-dp-header">
+        <div class="es-dp-id">
+          {{ selected.request_id || selected.id }}
+          <span class="es-status es-status--float" [ngClass]="statusClass(selected.status)">{{ selected.status }}</span>
+        </div>
+        <div class="es-dp-title-lbl">REQUEST DETAILS</div>
       </div>
       <div class="es-dp-subject">{{ selected.subject || selected.title }}</div>
+
       <div class="es-dp-rows">
         <div class="es-dp-row"><span>Category</span><span class="es-cat-tag">{{ selected.category || '—' }}</span></div>
-        <div class="es-dp-row"><span>Priority</span><span class="es-pri-tag es-pri--{{ priorityClass(selected.priority) }}">{{ selected.priority }}</span></div>
-        <div class="es-dp-row"><span>Description</span></div>
-        <div class="es-dp-desc">{{ selected.description || '—' }}</div>
-        <div class="es-dp-row"><span>Created</span><span>{{ selected.created_at ? (selected.created_at | date:'medium') : '—' }}</span></div>
-      </div>
-      <div class="es-dp-section">CONVERSATION</div>
-      <div class="es-conv">
-        <div class="es-msg" *ngFor="let msg of (selected.messages || [])">
-          <div class="es-msg-sender">{{ msg.sender || 'You' }}</div>
-          <div class="es-msg-text">{{ msg.message }}</div>
-          <div class="es-msg-time">{{ msg.created_at ? (msg.created_at | date:'short') : '—' }}</div>
+        <div class="es-dp-row"><span>Priority</span><span class="es-pri" [ngClass]="priorityClass(selected.priority)">{{ selected.priority || '—' }}</span></div>
+        <div class="es-dp-row"><span>Status</span><span class="es-status" [ngClass]="statusClass(selected.status)">{{ selected.status || '—' }}</span></div>
+        <div class="es-dp-row"><span>Assigned To</span><span>{{ selected.assigned_to_name || selected.assigned_to || '—' }}</span></div>
+        <div class="es-dp-row"><span>Location</span><span>{{ selected.location || '—' }}</span></div>
+        <div class="es-dp-row"><span>Created On</span><span>{{ selected.created_at ? (selected.created_at | date:'MMM d, y h:mm a') : '—' }}</span></div>
+        <div class="es-dp-row" *ngIf="selected.sla_due_at">
+          <span>SLA Due</span>
+          <span [ngClass]="slaClass(selected)">{{ selected.sla_due_at | date:'MMM d, y h:mm a' }}</span>
         </div>
-        <div class="es-conv-empty" *ngIf="!(selected.messages?.length)">No messages yet.</div>
       </div>
+
+      <div class="es-dp-desc" *ngIf="selected.description">{{ selected.description }}</div>
+
+      <div class="es-dp-btns">
+        <button class="es-dp-btn es-dp-btn--outline">VIEW FULL CONVERSATION</button>
+        <button class="es-dp-btn es-dp-btn--primary">EDIT REQUEST</button>
+      </div>
+
+      <!-- Conversation -->
+      <div class="es-dp-section">CONVERSATION</div>
+      <div class="es-conv" *ngIf="selected.messages && selected.messages.length; else noMsgs">
+        <div class="es-msg" *ngFor="let m of selected.messages">
+          <div class="es-msg-sender">{{ m.sender_name || m.sender || 'Support' }}</div>
+          <div class="es-msg-text">{{ m.message || m.body }}</div>
+          <div class="es-msg-time">{{ m.created_at ? (m.created_at | date:'h:mm a') : '' }}</div>
+        </div>
+      </div>
+      <ng-template #noMsgs><div class="es-conv-empty">No messages yet.</div></ng-template>
+
       <div class="es-msg-box">
-        <textarea class="es-msg-input" rows="2" placeholder="Type a message..." [(ngModel)]="messageText"></textarea>
-        <button class="es-msg-send" (click)="sendMessage()">Send</button>
+        <textarea class="es-msg-input" rows="2" placeholder="Add a message..." [(ngModel)]="messageText"></textarea>
+        <button class="es-msg-send" (click)="sendMessage()" [disabled]="sending || !messageText">Send</button>
       </div>
+
+      <!-- Quick actions -->
       <div class="es-dp-section">QUICK ACTIONS</div>
       <div class="es-qa-grid">
-        <div class="es-qa-item"><i class="fa fa-upload"></i> Upload File / Photo</div>
-        <div class="es-qa-item"><i class="fa fa-pencil"></i> Request Drawing Update</div>
-        <div class="es-qa-item"><i class="fa fa-exclamation-triangle"></i> Add To Issues</div>
-        <div class="es-qa-item"><i class="fa fa-arrow-up"></i> Escalate Request</div>
-        <div class="es-qa-full"><i class="fa fa-times-circle"></i> Close Request</div>
+        <div class="es-qa-item"><i class="fa fa-comment-o"></i> Add Comment</div>
+        <div class="es-qa-item"><i class="fa fa-file-o"></i> Upload Document</div>
+        <div class="es-qa-item"><i class="fa fa-camera"></i> Upload Photo</div>
+        <div class="es-qa-item"><i class="fa fa-desktop"></i> Request Remote Session</div>
+        <div class="es-qa-item es-qa-full"><i class="fa fa-arrow-up"></i> Escalate Request</div>
+        <div class="es-qa-item es-qa-full"><i class="fa fa-flag"></i> Update Priority</div>
+      </div>
+
+      <!-- Support resources -->
+      <div class="es-dp-section">SUPPORT RESOURCES</div>
+      <div class="es-resources">
+        <div class="es-resource-item"><i class="fa fa-book"></i> Installation Guide - APF Series <i class="fa fa-external-link es-ext"></i></div>
+        <div class="es-resource-item"><i class="fa fa-wrench"></i> Troubleshooting - Power Issues <i class="fa fa-external-link es-ext"></i></div>
+        <div class="es-resource-item"><i class="fa fa-envelope-o"></i> Contact Synerex Engineering <i class="fa fa-external-link es-ext"></i></div>
       </div>
     </div>
-    <ng-template #noSel>
-      <div class="es-no-sel"><i class="fa fa-wrench"></i><span>Select a request to view details</span></div>
+
+    <ng-template #esNoSel>
+      <div class="es-no-sel">
+        <i class="fa fa-inbox"></i>
+        <span>Select a request to view details</span>
+      </div>
     </ng-template>
-  </div>
+
+  </div><!-- /es-body -->
 </div>
 <ng-template #esLoad><div class="es-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div></ng-template>

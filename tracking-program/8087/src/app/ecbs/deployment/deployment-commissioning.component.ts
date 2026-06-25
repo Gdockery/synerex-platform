@@ -8,123 +8,182 @@ import { ApiRequestService } from '../../api/api-request.service';
   styleUrls: ['./deployment-commissioning.component.scss'],
 })
 export class DeploymentCommissioningComponent implements OnInit {
-  depId: number = 0;
+  depId = 0;
+  dep: any = null;
   devices: any[] = [];
-  commRecords: any = {};
-  selected: any = null;
-  selectedComm: any = null;
+  commData: any[] = [];   // commissioning records per device
+  selected: any = null;  // selected device queue entry
   loading = true;
+  syncedAt = '';
 
-  readonly CHECKS = [
-    { key: 'pre_checks_done',   label: 'Pre-Installation Checks Complete' },
-    { key: 'power_up_done',     label: 'Device Powered Up Successfully' },
-    { key: 'comms_verified',    label: 'Communications Verified (Portal)' },
-    { key: 'portal_verified',   label: 'Portal Reading Data' },
-    { key: 'no_active_alarms',  label: 'No Active Alarms' },
-    { key: 'photos_complete',   label: 'Photos Complete' },
-    { key: 'docs_complete',     label: 'Documentation Complete' },
+  // filters
+  filterStatus = '';
+  filterType = '';
+  pageSize = 10;
+  page = 1;
+
+  // commissioning notes
+  notes: string[] = [];
+
+  readonly WORKFLOW_STEPS = [
+    { num: 1, label: 'Pre-Checks',       desc: 'Verify installation and CT orientation' },
+    { num: 2, label: 'Power-Up',         desc: 'Energize device and confirm status' },
+    { num: 3, label: 'Communications',   desc: 'Verify connectivity to gateway/network' },
+    { num: 4, label: 'Functional Tests', desc: 'Run performance and protection tests' },
+    { num: 5, label: 'Data Validation',  desc: 'Validate readings and parameters' },
+    { num: 6, label: 'Finalize',         desc: 'Complete, save report, and close' },
   ];
 
-  constructor(private route: ActivatedRoute, private router: Router, private api: ApiRequestService) {}
+  constructor(
+    private route: ActivatedRoute,
+    private router: Router,
+    private api: ApiRequestService,
+  ) {}
 
   ngOnInit() {
     this.route.parent!.params.subscribe((p: any) => {
-      this.depId = Number(p['id']);
+      this.depId = +p['id'];
       this.load();
     });
   }
 
   load() {
     this.loading = true;
+    this.api.get('/api/dep/deployments/' + this.depId).subscribe({
+      next: (r: any) => {
+        this.dep = r && r.response ? r.response : r;
+        this.syncedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      }, error: () => {}
+    });
     this.api.get('/api/dep/deployments/' + this.depId + '/devices').subscribe({
       next: (r: any) => {
-        this.devices = (r && r.response) ? r.response : [];
-        this.loadCommissioning();
+        const raw = r && r.response ? r.response : r;
+        this.devices = Array.isArray(raw) ? raw : [];
         this.loading = false;
       },
-      error: () => { this.loading = false; },
+      error: () => { this.loading = false; }
     });
-  }
-
-  loadCommissioning() {
     this.api.get('/api/dep/deployments/' + this.depId + '/commissioning').subscribe({
       next: (r: any) => {
-        var recs = (r && r.response) ? r.response : [];
-        this.commRecords = {};
-        for (var i = 0; i < recs.length; i++) {
-          this.commRecords[recs[i].device_id] = recs[i];
-        }
-        if (this.selected) {
-          this.selectedComm = this.commRecords[this.selected.id] || null;
-        }
+        const raw = r && r.response ? r.response : r;
+        this.commData = Array.isArray(raw) ? raw : [];
       },
+      error: () => {}
     });
   }
 
-  select(d: any) {
-    this.selected = d;
-    this.selectedComm = this.commRecords[d.id] || null;
-    if (!this.selectedComm) {
-      this.api.post('/api/dep/devices/' + d.id + '/commissioning', {}).subscribe({
-        next: (r: any) => {
-          if (r && r.response) {
-            this.commRecords[d.id] = r.response;
-            this.selectedComm = r.response;
-          }
-        },
-      });
-    }
+  // ── Header data ──────────────────────────────────────────────────────────
+  get siteName(): string {
+    return (this.dep && this.dep.site_info && this.dep.site_info.name) ||
+           (this.dep && this.dep.project_info && this.dep.project_info.name) || '—';
+  }
+  get depStatus(): string { return (this.dep && this.dep.status) || ''; }
+  get depNumber(): string { return (this.dep && (this.dep.deployment_number || this.dep.id)) || '—'; }
+  get utility(): string { return (this.dep && this.dep.site_info && this.dep.site_info.utility) || '—'; }
+  get voltage(): string { return (this.dep && this.dep.site_info && this.dep.site_info.service_voltage) || '—'; }
+
+  // ── KPI data ─────────────────────────────────────────────────────────────
+  get queueItems(): any[] {
+    // Merge device list with commissioning records
+    return this.devices.map(d => {
+      const commArr = this.commData.filter((c: any) => c.device_id === d.id);
+      const comm = commArr.length ? commArr[0] : {};
+      return { ...d, ...comm, _device: d };
+    });
   }
 
-  toggleCheck(key: string) {
-    if (!this.selectedComm) return;
-    var val = this.selectedComm[key] ? 0 : 1;
-    var update: any = {};
-    update[key] = val;
-    this.api.patch('/api/dep/commissioning/' + this.selectedComm.id, update).subscribe({
+  get commissionedCount(): number { return this.queueItems.filter(d => this.commStatus(d) === 'Commissioned').length; }
+  get inProgressCount(): number  { return this.queueItems.filter(d => this.commStatus(d) === 'In Progress').length; }
+  get pendingCount(): number     { return this.queueItems.filter(d => this.commStatus(d) === 'Pending').length; }
+  get failedCount(): number      { return this.queueItems.filter(d => this.commStatus(d) === 'Failed').length; }
+  get total(): number            { return this.queueItems.length; }
+
+  get commissionedPct(): number  { return this.total ? Math.round(this.commissionedCount / this.total * 100) : 0; }
+  get inProgressPct(): number    { return this.total ? Math.round(this.inProgressCount / this.total * 100) : 0; }
+  get pendingPct(): number       { return this.total ? Math.round(this.pendingCount / this.total * 100) : 0; }
+  get failedPct(): number        { return this.total ? Math.round(this.failedCount / this.total * 100) : 0; }
+  get readinessPct(): number     { return this.total ? Math.round((this.commissionedCount + this.inProgressCount * 0.5) / this.total * 100) : 0; }
+
+  // SVG donut for readiness
+  private readonly _circ = 2 * Math.PI * 45;
+  get readinessOffset(): number { return this._circ * (1 - this.readinessPct / 100); }
+
+  // ── Queue filtering ──────────────────────────────────────────────────────
+  get filtered(): any[] {
+    return this.queueItems.filter(d => {
+      if (this.filterStatus && this.commStatus(d) !== this.filterStatus) return false;
+      if (this.filterType && (d.device_type || '').toLowerCase() !== this.filterType.toLowerCase()) return false;
+      return true;
+    });
+  }
+
+  get paged(): any[] {
+    const s = (this.page - 1) * this.pageSize;
+    return this.filtered.slice(s, s + this.pageSize);
+  }
+
+  get totalPages(): number { return Math.ceil(this.filtered.length / this.pageSize); }
+
+  // ── Helpers ──────────────────────────────────────────────────────────────
+  commStatus(d: any): string {
+    if (d.commissioning_status) return d.commissioning_status;
+    const s = (d.status || '').toLowerCase();
+    if (s === 'commissioned') return 'Commissioned';
+    if (s === 'in progress')  return 'In Progress';
+    if (s === 'failed')       return 'Failed';
+    return 'Pending';
+  }
+
+  commProgress(d: any): number {
+    if (d.commissioning_progress !== undefined) return d.commissioning_progress;
+    const s = this.commStatus(d);
+    if (s === 'Commissioned') return 100;
+    if (s === 'In Progress')  return 50;
+    if (s === 'Failed')       return 25;
+    return 0;
+  }
+
+  statusClass(s: string): string {
+    const sl = (s || '').toLowerCase();
+    if (sl === 'commissioned') return 'cm-s--green';
+    if (sl === 'in progress')  return 'cm-s--blue';
+    if (sl === 'pending')      return 'cm-s--amber';
+    if (sl === 'failed')       return 'cm-s--red';
+    return 'cm-s--dim';
+  }
+
+  healthClass(h: string): string {
+    if ((h || '').toLowerCase() === 'good') return 'cm-h--green';
+    if ((h || '').toLowerCase() === 'warn') return 'cm-h--amber';
+    return 'cm-h--red';
+  }
+
+  workflowStepStatus(step: number): string {
+    if (!this.selected) return 'pending';
+    const prog = this.commProgress(this.selected);
+    const stepPct = (step / 6) * 100;
+    if (prog >= stepPct) return 'done';
+    if (prog >= stepPct - 16.7) return 'active';
+    return 'pending';
+  }
+
+  deviceTypes(): string[] {
+    const types: {[k:string]:boolean} = {};
+    this.devices.forEach(d => { if (d.device_type) types[d.device_type] = true; });
+    return Object.keys(types);
+  }
+
+  select(d: any) { this.selected = d; }
+
+  markCommissioned() {
+    if (!this.selected) return;
+    this.api.post('/api/dep/devices/' + this.selected.id + '/commission', {}).subscribe({
       next: (r: any) => {
-        if (r && r.response) {
-          this.commRecords[this.selectedComm.device_id] = r.response;
-          this.selectedComm = r.response;
-          this.loadCommissioning();
-        }
+        this.selected.status = 'Commissioned';
+        this.selected.commissioning_status = 'Commissioned';
+        this.selected.commissioning_progress = 100;
       },
+      error: () => {}
     });
   }
-
-  allChecked(): boolean {
-    if (!this.selectedComm) return false;
-    for (var i = 0; i < this.CHECKS.length; i++) {
-      if (!this.selectedComm[this.CHECKS[i].key]) return false;
-    }
-    return true;
-  }
-
-  checkedCount(): number {
-    if (!this.selectedComm) return 0;
-    var n = 0;
-    for (var i = 0; i < this.CHECKS.length; i++) {
-      if (this.selectedComm[this.CHECKS[i].key]) n++;
-    }
-    return n;
-  }
-
-  statusClass(d: any): string {
-    var comm = this.commRecords[d.id];
-    if (!comm) return 'sv-pending';
-    if (comm.status === 'Commissioned') return 'sv-commissioned';
-    if (comm.status === 'In Progress') return 'sv-progress';
-    return 'sv-pending';
-  }
-
-  get devicesDone(): number {
-    var n = 0;
-    for (var i = 0; i < this.devices.length; i++) {
-      var comm = this.commRecords[this.devices[i].id];
-      if (comm && comm.status === 'Commissioned') n++;
-    }
-    return n;
-  }
-
-  goBack() { this.router.navigate(['/ecbs/deployment', this.depId]); }
 }

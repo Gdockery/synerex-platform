@@ -1,124 +1,172 @@
-<div class="dclo-page">
-  <div class="dclo-topbar">
-    <button class="dclo-back fa fa-arrow-left" (click)="goBack()"></button>
-    <h2>Closeout Package</h2>
-    <div class="dclo-progress-chip">{{ complete }} / {{ total }} Complete</div>
-  </div>
+<div class="co-page" *ngIf="!loading; else coLoad">
 
-  <div class="dclo-progress-bar-wrap"><div class="dclo-progress-bar" [style.width.%]="progressPct" [class.bar-ready]="progressPct === 100"></div></div>
-
-  <div class="dclo-approved-banner" *ngIf="approved">
-    <span class="fa fa-check-circle"></span>
-    Deployment Released to Operations Successfully!
-  </div>
-
-  <div class="dclo-main">
-    <div class="dclo-req-list">
-      <div class="dclo-loading" *ngIf="loading"><span class="fa fa-spinner fa-spin"></span></div>
-      <div class="dclo-empty" *ngIf="!loading && requirements.length === 0">
-        No closeout requirements defined.
-        <p class="dclo-empty-hint">Closeout requirements are auto-generated when devices are commissioned.</p>
+  <!-- Header -->
+  <div class="co-header">
+    <div class="co-header-left">
+      <div class="co-header-top">
+        <span class="co-title">Closeout Package</span>
+        <span class="co-badge">{{ depStatus }}</span>
       </div>
-      <div class="dclo-req-row" *ngFor="let r of requirements" (click)="toggleRequirement(r)" [class.dclo-complete]="r.status === 'Complete'">
-        <div class="dclo-req-check"><span class="fa" [class.fa-check-square]="r.status === 'Complete'" [class.fa-square-o]="r.status !== 'Complete'"></span></div>
-        <div class="dclo-req-info">
-          <div class="dclo-req-name">{{ r.requirement_name }}</div>
-          <span class="dclo-req-cat" [ngClass]="catClass(r.category)">{{ r.category }}</span>
+      <div class="co-subtitle">{{ siteName }} &bull; {{ depNumber }}</div>
+      <div class="co-meta">Utility: {{ utility }} &bull; Voltage: {{ voltage }} &bull; Transformer: {{ transformer }}</div>
+    </div>
+    <div class="co-header-right">
+      <span class="co-sync"><i class="fa fa-cloud-upload"></i> Synced: {{ syncedAt }}</span>
+      <button class="co-icon-btn"><i class="fa fa-bell-o"></i></button>
+      <button class="co-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
+    </div>
+  </div>
+
+  <!-- KPI strip -->
+  <div class="co-kpi-strip">
+    <div class="co-kpi co-kpi--donut">
+      <div class="co-donut-wrap">
+        <svg viewBox="0 0 110 110" class="co-donut-svg">
+          <circle cx="55" cy="55" r="45" fill="none" stroke="#1f2937" stroke-width="11"/>
+          <circle cx="55" cy="55" r="45" fill="none" [attr.stroke]="statusColor" stroke-width="11"
+            [attr.stroke-dasharray]="(283 - donutOffset) + ' 283'"
+            stroke-dashoffset="0"
+            transform="rotate(-90 55 55)"/>
+          <text x="55" y="52" text-anchor="middle" fill="#fff" font-size="16" font-weight="700" font-family="sans-serif">{{ closeoutPct }}%</text>
+          <text x="55" y="65" text-anchor="middle" fill="#8b9ab0" font-size="8" font-family="sans-serif">COMPLETE</text>
+        </svg>
+      </div>
+      <div>
+        <div class="co-kpi-val">{{ closeoutPct }}%</div>
+        <div class="co-kpi-lbl">Closeout Completion</div>
+        <div class="co-kpi-sub" [style.color]="statusColor">{{ statusLabel }}</div>
+      </div>
+    </div>
+    <div class="co-kpi">
+      <i class="fa fa-microchip co-kpi-icon co-ki--blue"></i>
+      <div>
+        <div class="co-kpi-val co-kv--green">{{ devicesComplete }} / {{ devicesTotal }}</div>
+        <div class="co-kpi-lbl">Devices Complete</div>
+        <div class="co-kpi-sub co-sub--green">{{ devicesTotal > 0 ? (devicesComplete/devicesTotal*100 | number:'1.0-0') : 0 }}%</div>
+      </div>
+    </div>
+    <div class="co-kpi">
+      <i class="fa fa-camera co-kpi-icon co-ki--purple"></i>
+      <div>
+        <div class="co-kpi-val co-kv--green">{{ photosComplete }}</div>
+        <div class="co-kpi-lbl">Photos Complete</div>
+        <div class="co-kpi-sub co-sub--green">100%</div>
+      </div>
+    </div>
+    <div class="co-kpi">
+      <i class="fa fa-exclamation-triangle co-kpi-icon" [class.co-ki--amber]="openIssues>0" [class.co-ki--green]="openIssues===0"></i>
+      <div>
+        <div class="co-kpi-val" [class.co-kv--green]="openIssues===0" [class.co-kv--amber]="openIssues>0">{{ openIssues }}</div>
+        <div class="co-kpi-lbl">Open Issues</div>
+        <div class="co-kpi-sub" [class.co-sub--green]="openIssues===0">{{ openIssues === 0 ? '100%' : '' }}</div>
+      </div>
+    </div>
+    <div class="co-kpi">
+      <i class="fa fa-check-circle co-kpi-icon co-ki--green"></i>
+      <div>
+        <div class="co-kpi-val co-kv--green">{{ commissionedCount }} / {{ devicesTotal }}</div>
+        <div class="co-kpi-lbl">Commissioning Passed</div>
+        <div class="co-kpi-sub co-sub--green">{{ devicesTotal > 0 ? (commissionedCount/devicesTotal*100 | number:'1.0-0') : 0 }}%</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="co-body">
+
+    <!-- Requirements -->
+    <div class="co-requirements">
+      <div class="co-section-hdr"><span>CLOSEOUT REQUIREMENTS</span></div>
+      <div class="co-req-list">
+        <div class="co-req" *ngFor="let r of requirements">
+          <div class="co-req-icon">
+            <i class="fa" [ngClass]="reqIcon(r.status)" [ngClass]="reqStatusClass(r.status)"></i>
+          </div>
+          <div class="co-req-body">
+            <div class="co-req-label">{{ r.label }}</div>
+            <div class="co-req-desc">{{ r.desc }}</div>
+            <div class="co-req-progress" *ngIf="r.progress">{{ r.progress }}</div>
+          </div>
+          <div class="co-req-status" [ngClass]="reqStatusClass(r.status)">{{ r.status }}</div>
+          <i class="fa fa-chevron-right co-req-arrow"></i>
         </div>
-        <span class="dclo-req-status" [class.sts-complete]="r.status === 'Complete'" [class.sts-pending]="r.status !== 'Complete'">{{ r.status }}</span>
       </div>
     </div>
 
-    <div class="dclo-sidebar">
-
-      <!-- PM Sign-Off Card -->
-      <div class="dclo-pm-card" [class.dclo-pm-signed]="pmSigned">
-        <div class="dclo-pm-header">
-          <span class="fa" [class.fa-signature]="pmSigned" [class.fa-user-circle]="!pmSigned"></span>
-          <h4>Project Manager Sign-Off</h4>
+    <!-- Package Content -->
+    <div class="co-package">
+      <div class="co-section-hdr"><span>PACKAGE CONTENT</span></div>
+      <div class="co-pkg-list">
+        <div class="co-pkg-item" *ngFor="let p of pkgContent">
+          <i class="fa co-pkg-icon" [ngClass]="p.icon"></i>
+          <div class="co-pkg-info">
+            <div class="co-pkg-label">{{ p.label }}</div>
+            <div class="co-pkg-desc">{{ p.desc }}</div>
+          </div>
+          <div class="co-pkg-meta">
+            <div class="co-pkg-files">{{ p.files }} Files</div>
+            <div class="co-pkg-size">{{ p.size }}</div>
+          </div>
         </div>
+      </div>
+      <div class="co-pkg-total">
+        <span>Total Package Size</span>
+        <span class="co-pkg-total-val">{{ totalPackageSizeMB.toFixed(0) }} MB</span>
+      </div>
+    </div>
 
-        <!-- PM Signed state -->
-        <div class="dclo-pm-signed-info" *ngIf="pmSigned">
-          <span class="fa fa-check-circle dclo-pm-check"></span>
+    <!-- Status + Actions -->
+    <div class="co-status-col">
+
+      <!-- Package Status -->
+      <div class="co-status-card">
+        <div class="co-section-hdr"><span>PACKAGE STATUS</span></div>
+        <div class="co-status-badge" [style.border-color]="statusColor" [style.color]="statusColor">
+          <i class="fa fa-check-circle"></i>
           <div>
-            <div class="dclo-pm-signed-label">Signed Off</div>
-            <div class="dclo-pm-signed-date">{{ pmSignedBy }}</div>
-            <div class="dclo-pm-notes" *ngIf="dep && dep.pm_approval_notes">{{ dep.pm_approval_notes }}</div>
+            <div class="co-status-label">{{ statusLabel }}</div>
+            <div class="co-status-sub">All requirements nearly complete.</div>
           </div>
         </div>
-
-        <!-- PM Not Signed state -->
-        <div *ngIf="!pmSigned">
-          <p class="dclo-pm-desc">Deployment requires Project Manager approval before Release to Operations.</p>
-
-          <!-- Sign-off form -->
-          <div class="dclo-pm-form" *ngIf="showPmSignoff">
-            <div class="dclo-form-group">
-              <label>Type your full name to sign <span class="dclo-required">*</span></label>
-              <input class="dclo-pm-input" [(ngModel)]="pmSignature" placeholder="e.g. John Smith" autocomplete="off"/>
-            </div>
-            <div class="dclo-form-group">
-              <label>Approval notes (optional)</label>
-              <textarea class="dclo-pm-input dclo-pm-textarea" [(ngModel)]="pmNotes" rows="2" placeholder="Any notes for the record..."></textarea>
-            </div>
-            <div class="dclo-pm-actions">
-              <button class="dclo-btn-pm-sign" (click)="submitPmSignoff()" [disabled]="pmSigning || !pmSignature.trim()">
-                <span class="fa" [class.fa-check]="!pmSigning" [class.fa-spinner]="pmSigning" [class.fa-spin]="pmSigning"></span>
-                {{ pmSigning ? 'Signing...' : 'Sign Off' }}
-              </button>
-              <button class="dclo-btn-ghost" (click)="showPmSignoff = false">Cancel</button>
-            </div>
-          </div>
-
-          <button class="dclo-btn-pm" *ngIf="!showPmSignoff" (click)="showPmSignoff = true">
-            <span class="fa fa-pencil"></span> Sign Off as PM
-          </button>
-        </div>
-
-        <!-- Assign PM section (admin only) -->
-        <div class="dclo-assign-pm" *ngIf="pmEligibleUsers.length > 0">
-          <div class="dclo-assign-pm-toggle" (click)="showAssignPm = !showAssignPm">
-            <span class="fa fa-cog"></span>
-            {{ dep && dep.project_manager_id ? 'Change PM' : 'Assign PM' }}
-          </div>
-          <div class="dclo-assign-pm-form" *ngIf="showAssignPm">
-            <select class="dclo-pm-select" [(ngModel)]="selectedPmId">
-              <option [value]="0">Select project manager...</option>
-              <option *ngFor="let u of pmEligibleUsers" [value]="u.id">{{ u.name }} ({{ u.email }})</option>
-            </select>
-            <button class="dclo-btn-assign" (click)="assignPm()" [disabled]="assigningPm || !selectedPmId">
-              {{ assigningPm ? 'Assigning...' : 'Assign' }}
-            </button>
-          </div>
+        <div class="co-status-rows">
+          <div class="co-status-row"><i class="fa fa-calendar-o"></i><span>Generated</span><span>—</span></div>
+          <div class="co-status-row"><i class="fa fa-user-o"></i><span>Generated By</span><span>—</span></div>
+          <div class="co-status-row"><i class="fa fa-tag"></i><span>Package ID</span><span class="co-pkg-id">CLOSEOUT-{{ depNumber }}</span></div>
+          <div class="co-status-row"><i class="fa fa-database"></i><span>Package Size</span><span>{{ totalPackageSizeMB.toFixed(0) }} MB</span></div>
+          <div class="co-status-row"><i class="fa fa-code-fork"></i><span>Version</span><span>1.0</span></div>
         </div>
       </div>
 
-      <!-- Validation Card -->
-      <div class="dclo-validate-card">
-        <h4><span class="fa fa-check-circle"></span> Closeout Validation</h4>
-        <p>Run validation to check all requirements before releasing to operations.</p>
-        <button class="dclo-btn-validate" (click)="validate()" [disabled]="validating">
-          <span class="fa" [class.fa-search]="!validating" [class.fa-spinner]="validating" [class.fa-spin]="validating"></span>
-          {{ validating ? 'Validating...' : 'Run Validation' }}
-        </button>
-
-        <div class="dclo-validation-result" *ngIf="validation">
-          <div class="dclo-val-ok" *ngIf="validation.can_close">
-            <span class="fa fa-check-circle"></span> All checks passed — ready to approve!
-          </div>
-          <div class="dclo-val-fail" *ngIf="!validation.can_close">
-            <div class="dclo-val-msg">{{ validation.message }}</div>
-            <div class="dclo-blocker" *ngFor="let b of validation.blockers">
-              <span class="fa fa-times-circle"></span> {{ b.type }} <span *ngIf="b.count > 0">({{ b.count }})</span>
-            </div>
-          </div>
-          <button class="dclo-btn-approve" *ngIf="validation.can_close" (click)="approve()" [disabled]="approving">
-            <span class="fa fa-rocket"></span> {{ approving ? 'Approving...' : 'Release to Operations' }}
-          </button>
+      <!-- Includes -->
+      <div class="co-includes">
+        <div class="co-section-hdr"><span>INCLUDES</span></div>
+        <div class="co-inc-grid">
+          <span class="co-inc-tag co-inc--blue"><i class="fa fa-microchip"></i> Device Data</span>
+          <span class="co-inc-tag co-inc--purple"><i class="fa fa-camera"></i> Photos</span>
+          <span class="co-inc-tag co-inc--amber"><i class="fa fa-file-text-o"></i> Documents</span>
+          <span class="co-inc-tag co-inc--green"><i class="fa fa-clipboard"></i> Reports</span>
+          <span class="co-inc-tag co-inc--orange"><i class="fa fa-pencil"></i> Drawings</span>
+          <span class="co-inc-tag co-inc--teal"><i class="fa fa-check-square-o"></i> Sign-Offs</span>
         </div>
       </div>
 
-    </div>
-  </div>
+      <!-- Actions -->
+      <div class="co-actions">
+        <div class="co-section-hdr"><span>ACTIONS</span></div>
+        <div class="co-act-list">
+          <button class="co-act-btn co-act--outline" (click)="generateReport()" [disabled]="generating">
+            <i class="fa fa-file-pdf-o"></i> {{ generating ? 'Generating...' : 'Generate PDF Report' }}
+          </button>
+          <button class="co-act-btn co-act--outline"><i class="fa fa-file-archive-o"></i> Generate ZIP Package</button>
+          <div class="co-act-row">
+            <button class="co-act-btn co-act--green co-act--half"><i class="fa fa-paper-plane"></i> Submit For Approval</button>
+            <button class="co-act-btn co-act--outline co-act--half"><i class="fa fa-download"></i> Download Package</button>
+          </div>
+          <button class="co-act-btn co-act--outline"><i class="fa fa-rocket"></i> Release To Operations</button>
+        </div>
+      </div>
+
+    </div><!-- /co-status-col -->
+  </div><!-- /co-body -->
 </div>
+<ng-template #coLoad><div class="co-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div></ng-template>

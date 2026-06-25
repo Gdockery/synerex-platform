@@ -1,61 +1,257 @@
-<div class="dcom-page">
-  <div class="dcom-topbar">
-    <button class="dcom-back fa fa-arrow-left" (click)="goBack()"></button>
-    <h2>Commissioning</h2>
-    <div class="dcom-progress-summary">{{ devicesDone }} / {{ devices.length }} Commissioned</div>
-  </div>
+<div class="cm-page" *ngIf="!loading; else cmLoad">
 
-  <div class="dcom-split">
-    <div class="dcom-list-panel">
-      <div class="dcom-loading" *ngIf="loading"><span class="fa fa-spinner fa-spin"></span></div>
-      <div class="dcom-empty" *ngIf="!loading && devices.length === 0">No devices in this deployment.</div>
-      <div class="dcom-device-row" *ngFor="let d of devices"
-           [class.dcom-selected]="selected && selected.id === d.id"
-           (click)="select(d)">
-        <div class="dcom-row-left">
-          <div class="dcom-row-type">{{ d.device_type || 'APF' }}</div>
-          <div>
-            <div class="dcom-row-name">{{ d.device_name || d.planned_label || ('Device #' + d.id) }}</div>
-            <div class="dcom-row-loc">{{ d.location || '—' }}</div>
-          </div>
-        </div>
-        <span class="dcom-row-status" [ngClass]="statusClass(d)">
-          {{ commRecords[d.id] ? commRecords[d.id].status : 'Not Started' }}
-        </span>
+  <!-- Header -->
+  <div class="cm-header">
+    <div class="cm-header-left">
+      <div class="cm-header-top">
+        <span class="cm-title">Commissioning</span>
+        <span class="cm-badge">{{ depStatus }}</span>
       </div>
+      <div class="cm-subtitle">{{ siteName }} &bull; {{ depNumber }}</div>
+      <div class="cm-meta">Utility: {{ utility }} &bull; Voltage: {{ voltage }}</div>
     </div>
-
-    <div class="dcom-detail-panel" *ngIf="selected && selectedComm">
-      <div class="dcom-detail-header">
-        <h3>{{ selected.device_name || selected.planned_label }}</h3>
-        <div class="dcom-check-progress">{{ checkedCount() }} / {{ CHECKS.length }} checks</div>
-      </div>
-
-      <div class="dcom-progress-bar-wrap">
-        <div class="dcom-progress-bar" [style.width.%]="checkedCount() / CHECKS.length * 100"></div>
-      </div>
-
-      <div class="dcom-checklist">
-        <div class="dcom-check-row" *ngFor="let c of CHECKS" (click)="toggleCheck(c.key)" [class.dcom-checked]="selectedComm[c.key]">
-          <div class="dcom-check-box">
-            <span class="fa" [class.fa-check-square]="selectedComm[c.key]" [class.fa-square-o]="!selectedComm[c.key]"></span>
-          </div>
-          <span class="dcom-check-label">{{ c.label }}</span>
-        </div>
-      </div>
-
-      <div class="dcom-commissioned-banner" *ngIf="selectedComm.status === 'Commissioned'">
-        <span class="fa fa-check-circle"></span>
-        Device Commissioned Successfully
-      </div>
-      <div class="dcom-ready-hint" *ngIf="allChecked() && selectedComm.status !== 'Commissioned'">
-        All checks complete — commissioning will be saved automatically.
-      </div>
-    </div>
-
-    <div class="dcom-detail-empty" *ngIf="!selected">
-      <span class="fa fa-bolt"></span>
-      <p>Select a device to start commissioning workflow</p>
+    <div class="cm-header-right">
+      <span class="cm-sync"><i class="fa fa-cloud-upload"></i> Synced {{ syncedAt }}</span>
+      <button class="cm-icon-btn"><i class="fa fa-bell-o"></i></button>
+      <button class="cm-icon-btn"><i class="fa fa-ellipsis-h"></i></button>
     </div>
   </div>
+
+  <!-- KPI strip -->
+  <div class="cm-kpi-strip">
+    <div class="cm-kpi">
+      <i class="fa fa-check-circle cm-kpi-icon cm-ki--green"></i>
+      <div>
+        <div class="cm-kpi-val cm-kv--green">{{ commissionedCount }}</div>
+        <div class="cm-kpi-lbl">Commissioned</div>
+        <div class="cm-kpi-sub cm-sub--green">{{ commissionedPct }}%</div>
+      </div>
+    </div>
+    <div class="cm-kpi">
+      <i class="fa fa-clock-o cm-kpi-icon cm-ki--blue"></i>
+      <div>
+        <div class="cm-kpi-val cm-kv--blue">{{ inProgressCount }}</div>
+        <div class="cm-kpi-lbl">In Progress</div>
+        <div class="cm-kpi-sub cm-sub--blue">{{ inProgressPct }}%</div>
+      </div>
+    </div>
+    <div class="cm-kpi">
+      <i class="fa fa-hourglass-half cm-kpi-icon cm-ki--amber"></i>
+      <div>
+        <div class="cm-kpi-val cm-kv--amber">{{ pendingCount }}</div>
+        <div class="cm-kpi-lbl">Pending</div>
+        <div class="cm-kpi-sub cm-sub--amber">{{ pendingPct }}%</div>
+      </div>
+    </div>
+    <div class="cm-kpi">
+      <i class="fa fa-exclamation-circle cm-kpi-icon cm-ki--red"></i>
+      <div>
+        <div class="cm-kpi-val cm-kv--red">{{ failedCount }}</div>
+        <div class="cm-kpi-lbl">Failed / Issues</div>
+        <div class="cm-kpi-sub cm-sub--red">{{ failedPct }}%</div>
+      </div>
+    </div>
+    <div class="cm-kpi cm-kpi--donut">
+      <div class="cm-readiness-donut">
+        <svg viewBox="0 0 110 110" class="cm-donut-svg">
+          <circle cx="55" cy="55" r="45" fill="none" stroke="#1f2937" stroke-width="11"/>
+          <circle cx="55" cy="55" r="45" fill="none" stroke="#22c55e" stroke-width="11"
+            [attr.stroke-dasharray]="(283 - readinessOffset) + ' 283'"
+            stroke-dashoffset="0"
+            transform="rotate(-90 55 55)"/>
+          <text x="55" y="52" text-anchor="middle" fill="#fff" font-size="15" font-weight="700" font-family="sans-serif">{{ readinessPct }}%</text>
+          <text x="55" y="65" text-anchor="middle" fill="#8b9ab0" font-size="8" font-family="sans-serif">READY</text>
+        </svg>
+      </div>
+      <div class="cm-readiness-lbl">Commissioning<br>Readiness</div>
+    </div>
+  </div>
+
+  <!-- Main body -->
+  <div class="cm-body">
+
+    <!-- QUEUE -->
+    <div class="cm-queue">
+      <div class="cm-section-hdr">
+        <span>DEVICE COMMISSIONING QUEUE</span>
+        <div class="cm-queue-filters">
+          <div class="cm-search-wrap">
+            <i class="fa fa-search cm-search-icon"></i>
+          </div>
+          <select class="cm-select" [(ngModel)]="filterStatus">
+            <option value="">All Status</option>
+            <option value="Commissioned">Commissioned</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Pending">Pending</option>
+            <option value="Failed">Failed</option>
+          </select>
+          <select class="cm-select" [(ngModel)]="filterType">
+            <option value="">All Types</option>
+            <option *ngFor="let t of deviceTypes()" [value]="t">{{ t }}</option>
+          </select>
+          <button class="cm-icon-btn"><i class="fa fa-sliders"></i></button>
+        </div>
+      </div>
+      <div class="cm-table-wrap">
+        <table class="cm-table">
+          <thead><tr>
+            <th>Device</th><th>Type</th><th>Location</th><th>Status</th><th>Progress</th><th>Last Test</th><th>Actions</th>
+          </tr></thead>
+          <tbody>
+            <tr *ngFor="let d of paged" [class.selected]="selected?.id === d.id" (click)="select(d)">
+              <td class="cm-dev-id">{{ d.device_id || d.id }}</td>
+              <td class="cm-dev-type">{{ d.device_type || '—' }}</td>
+              <td class="cm-dev-loc">{{ d.location || d.panel_location || '—' }}</td>
+              <td><span class="cm-status" [ngClass]="statusClass(commStatus(d))">{{ commStatus(d) }}</span></td>
+              <td>
+                <div class="cm-prog-wrap">
+                  <div class="cm-prog-bar" [style.width.%]="commProgress(d)"
+                    [class.cm-prog--green]="commStatus(d)==='Commissioned'"
+                    [class.cm-prog--blue]="commStatus(d)==='In Progress'"
+                    [class.cm-prog--amber]="commStatus(d)==='Pending'"
+                    [class.cm-prog--red]="commStatus(d)==='Failed'"></div>
+                </div>
+                <span class="cm-prog-pct">{{ commProgress(d) }}%</span>
+              </td>
+              <td class="cm-date">{{ d.last_test_at ? (d.last_test_at | date:'MMM d, y h:mm a') : '—' }}</td>
+              <td>
+                <div class="cm-row-actions">
+                  <button class="cm-row-btn" title="View"><i class="fa fa-eye"></i></button>
+                  <button class="cm-row-btn" title="Download"><i class="fa fa-download"></i></button>
+                  <button class="cm-row-btn" title="More"><i class="fa fa-ellipsis-v"></i></button>
+                </div>
+              </td>
+            </tr>
+            <tr *ngIf="filtered.length === 0">
+              <td colspan="7" class="cm-empty">No devices in queue</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="cm-table-footer">
+        <span class="cm-pg-info">Rows per page: {{ pageSize }} &nbsp; {{ (page-1)*pageSize+1 }}-{{ [page*pageSize,filtered.length] | min }} of {{ filtered.length }}</span>
+        <div class="cm-pg-controls">
+          <button class="cm-pg-btn" (click)="page=page-1" [disabled]="page===1"><i class="fa fa-chevron-left"></i></button>
+          <button class="cm-pg-btn" (click)="page=page+1" [disabled]="page===totalPages"><i class="fa fa-chevron-right"></i></button>
+        </div>
+      </div>
+
+      <!-- Bottom strip: blockers + recent test results -->
+      <div class="cm-bottom-strip">
+        <div class="cm-blockers">
+          <div class="cm-section-hdr"><span>COMMISSIONING BLOCKERS</span></div>
+          <div class="cm-no-blockers">
+            <i class="fa fa-check-circle cm-bl-icon"></i>
+            <div><div class="cm-bl-title">No blockers</div><div class="cm-bl-sub">All requirements satisfied</div></div>
+          </div>
+        </div>
+        <div class="cm-recent-tests">
+          <div class="cm-section-hdr"><span>RECENT TEST RESULTS <span class="cm-latest-tag">Latest</span></span></div>
+          <div class="cm-test-results" *ngIf="selected && selected.latest_test; else noTests">
+            <div class="cm-test-item" *ngFor="let t of selected.latest_test | keyvalue">
+              <span class="cm-test-lbl">{{ t.key }}</span>
+              <span class="cm-test-val">{{ t.value }}</span>
+            </div>
+          </div>
+          <ng-template #noTests><div class="cm-empty cm-empty--sm">Run tests to see results here.</div></ng-template>
+        </div>
+      </div>
+    </div><!-- /cm-queue -->
+
+    <!-- WORKFLOW -->
+    <div class="cm-workflow">
+      <div class="cm-section-hdr"><span>COMMISSIONING WORKFLOW</span></div>
+      <div class="cm-steps">
+        <div class="cm-step" *ngFor="let step of WORKFLOW_STEPS" [ngClass]="'cm-step--' + workflowStepStatus(step.num)">
+          <div class="cm-step-num">
+            <span *ngIf="workflowStepStatus(step.num) !== 'done'">{{ step.num }}</span>
+            <i class="fa fa-check" *ngIf="workflowStepStatus(step.num) === 'done'"></i>
+          </div>
+          <div class="cm-step-info">
+            <div class="cm-step-label">{{ step.label }}</div>
+            <div class="cm-step-desc">{{ step.desc }}</div>
+          </div>
+        </div>
+      </div>
+      <div class="cm-notes-section">
+        <div class="cm-notes-hdr">COMMISSIONING NOTES</div>
+        <div class="cm-note" *ngFor="let note of notes">
+          <i class="fa fa-circle cm-note-dot"></i> {{ note }}
+        </div>
+        <div class="cm-note-empty" *ngIf="notes.length === 0">No notes recorded yet.</div>
+      </div>
+    </div>
+
+    <!-- SELECTED DEVICE -->
+    <div class="cm-device-panel" *ngIf="selected; else noDevice">
+      <div class="cm-section-hdr">
+        <span>SELECTED DEVICE</span>
+        <button class="cm-close-btn" (click)="selected=null"><i class="fa fa-times"></i></button>
+      </div>
+      <div class="cm-dev-name">{{ selected.device_id || selected.id }}</div>
+      <div class="cm-dev-sub">{{ selected.device_type }} &bull; {{ selected.location || selected.panel_location }}</div>
+
+      <div class="cm-dev-status-row">
+        <div class="cm-dev-stat-block">
+          <div class="cm-dev-stat-lbl">STATUS</div>
+          <span class="cm-status cm-status--lg" [ngClass]="statusClass(commStatus(selected))">{{ commStatus(selected) }}</span>
+        </div>
+        <div class="cm-dev-stat-block">
+          <div class="cm-dev-stat-lbl">PROGRESS</div>
+          <div class="cm-dev-prog-wrap">
+            <div class="cm-dev-prog-bar" [style.width.%]="commProgress(selected)"></div>
+          </div>
+          <span class="cm-dev-prog-pct">{{ commProgress(selected) }}%</span>
+        </div>
+      </div>
+
+      <div class="cm-section-hdr cm-section-hdr--sub"><span>DEVICE DETAILS</span></div>
+      <div class="cm-dev-details">
+        <div class="cm-dev-row"><span>Firmware</span><span>{{ selected.firmware || '—' }}</span></div>
+        <div class="cm-dev-row"><span>Serial Number</span><span>{{ selected.serial_number || '—' }}</span></div>
+        <div class="cm-dev-row"><span>Installed On</span><span>{{ selected.installed_at ? (selected.installed_at | date:'MMM d, y') : '—' }}</span></div>
+        <div class="cm-dev-row"><span>Status Since</span><span>{{ selected.status_since ? (selected.status_since | date:'MMM d, y h:mm a') : '—' }}</span></div>
+      </div>
+
+      <div class="cm-section-hdr cm-section-hdr--sub"><span>LATEST TEST RESULTS</span></div>
+      <div class="cm-dev-details" *ngIf="selected.latest_test; else noTestDetail">
+        <div class="cm-dev-row" *ngFor="let t of selected.latest_test | keyvalue">
+          <span>{{ t.key }}</span>
+          <span [class.cm-highlight]="t.key === 'Current Reduction'">{{ t.value }}</span>
+        </div>
+      </div>
+      <ng-template #noTestDetail><div class="cm-empty cm-empty--sm">No test results yet.</div></ng-template>
+      <a class="cm-view-report">View Full Test Report <i class="fa fa-arrow-right"></i></a>
+
+      <!-- Actions -->
+      <div class="cm-section-hdr cm-section-hdr--sub"><span>ACTIONS</span></div>
+      <div class="cm-dev-actions">
+        <button class="cm-act-btn cm-act-btn--primary"><i class="fa fa-play"></i> Run Next Test</button>
+        <button class="cm-act-btn cm-act-btn--outline"><i class="fa fa-history"></i> View Test History</button>
+        <button class="cm-act-btn cm-act-btn--outline"><i class="fa fa-pencil"></i> Add Manual Test Result</button>
+        <button class="cm-act-btn cm-act-btn--outline"><i class="fa fa-upload"></i> Upload Test Results</button>
+        <button class="cm-act-btn cm-act-btn--outline"><i class="fa fa-file-text-o"></i> Generate Commissioning Report</button>
+        <button class="cm-act-btn cm-act-btn--green" (click)="markCommissioned()"><i class="fa fa-check"></i> Mark as Commissioned</button>
+      </div>
+
+      <!-- Checklist -->
+      <div class="cm-section-hdr cm-section-hdr--sub"><span>COMMISSIONING CHECKLIST</span></div>
+      <div class="cm-checklist">
+        <div class="cm-check" *ngFor="let step of WORKFLOW_STEPS">
+          <i class="fa" [ngClass]="workflowStepStatus(step.num)==='done' ? 'fa-check-circle cm-chk--green' : (workflowStepStatus(step.num)==='active' ? 'fa-clock-o cm-chk--blue' : 'fa-circle-o cm-chk--dim')"></i>
+          <div class="cm-chk-info">
+            <span class="cm-chk-lbl">{{ step.label }}</span>
+            <span class="cm-chk-status" [ngClass]="workflowStepStatus(step.num)==='done' ? 'cm-chk-s--green' : (workflowStepStatus(step.num)==='active' ? 'cm-chk-s--blue' : 'cm-chk-s--dim')">
+              {{ workflowStepStatus(step.num)==='done' ? 'Completed' : (workflowStepStatus(step.num)==='active' ? 'In Progress' : 'Pending') }}
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <ng-template #noDevice>
+      <div class="cm-no-sel"><i class="fa fa-microchip"></i><span>Select a device to view commissioning details</span></div>
+    </ng-template>
+
+  </div><!-- /cm-body -->
 </div>
+<ng-template #cmLoad><div class="cm-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div></ng-template>
