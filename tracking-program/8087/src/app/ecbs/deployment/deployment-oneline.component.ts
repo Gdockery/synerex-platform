@@ -75,6 +75,10 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
   deviceLegend: {type: string; count: number}[] = [];
   drawingDocs: any[] = [];
 
+  // Physical switches from the `switch` table (actual XECO hardware)
+  switches: any[] = [];
+  switchesLoading = false;
+
   // Node click/detail
   selectedNode: TwinNode | null = null;
 
@@ -146,7 +150,10 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
         this.syncedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         this.loading  = false;
         const pid = this.dep.project_id || (this.dep.project_info && this.dep.project_info.id);
-        if (pid) { this._loadTwin(pid); } else { this.twinLoading = false; }
+        if (pid) {
+          this._loadTwin(pid);
+          this._loadSwitches(pid);
+        } else { this.twinLoading = false; }
       },
       error: () => { this.loading = false; this.twinLoading = false; }
     });
@@ -163,6 +170,30 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
       },
       error: () => {}
     });
+  }
+
+  private _loadSwitches(projectId: number) {
+    this.switchesLoading = true;
+    this.api.get('/api/switch?project=' + projectId).subscribe({
+      next: (r: any) => {
+        const raw = r && r.data ? r.data : (Array.isArray(r) ? r : []);
+        this.switches = raw.filter(function(s: any) { return !s.isDeleted; });
+        this.switchesLoading = false;
+      },
+      error: () => { this.switchesLoading = false; }
+    });
+  }
+
+  // Shape type helpers
+  switchShape(s: any): string {
+    // deviceType 0 = APF (triangle), everything else = Switch/600 (square)
+    return s.deviceType === 0 ? 'apf' : 's600';
+  }
+
+  switchOnline(s: any): boolean {
+    if (!s.lastCommunicatedAt) return false;
+    // Within last 10 minutes
+    return (Date.now() - s.lastCommunicatedAt) < 600000;
   }
 
   private _loadTwin(projectId: number) {
@@ -250,6 +281,12 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
       .map(r => r.child_asset_id);
   }
 
+  _containsIds(parentDbId: number): number[] {
+    return this.relationships
+      .filter(r => r.parent_asset_id === parentDbId && r.relationship_type === 'contains')
+      .map(r => r.child_asset_id);
+  }
+
   private _containsChildren(parentDbId: number): TwinNode[] {
     const byId = this._nodeByDbId;
     return this.relationships
@@ -300,37 +337,59 @@ export class DeploymentOneLineComponent implements OnInit, OnDestroy {
     const childNodes = swgChildIds.map(id => byId[id])
       .filter(n => n && genAtsIds.indexOf(n.dbId) < 0);
 
-    // Row 1: direct children of switchgear (circuits, panels, apf, s600, etc.)
+    // Row 1: direct feeds-children of switchgear (circuits, panels, etc.)
     const row1Nodes = childNodes;
     const row1Count = row1Nodes.length;
-    const row1Start = 60, row1End = 680;
+    const row1Start = 40, row1End = 720;
     const row1Step  = row1Count > 1 ? (row1End - row1Start) / (row1Count - 1) : 0;
     const self = this;
+    // Track x position per row1 node so contains-children align under them
+    const row1X: {[dbId: number]: number} = {};
     row1Nodes.forEach(function(n, i) {
-      result.push(mkNode(n, row1Start + i * row1Step, 310, self._containsChildren(n.dbId)));
+      const x = row1Count === 1 ? 390 : row1Start + i * row1Step;
+      row1X[n.dbId] = x;
+      result.push(mkNode(n, x, 300, []));  // no badge count — show as real nodes below
     });
 
-    // Row 2: children of row-1 nodes (sub-panels, devices, etc.) not already placed
-    const row2Nodes: TwinNode[] = [];
+    // Row 2a: feeds-children of row-1 nodes
+    const row2Feeds: TwinNode[] = [];
     row1Nodes.forEach(function(n) {
       self._feedsChildren(n.dbId).forEach(function(cid) {
         const child = byId[cid];
-        if (child && !placed[child.dbId]) { row2Nodes.push(child); }
+        if (child && !placed[child.dbId]) { row2Feeds.push(child); }
       });
     });
-    const row2Count = row2Nodes.length;
-    const row2Start = row1Start + 20, row2End = row1End - 20;
-    const row2Step  = row2Count > 1 ? (row2End - row2Start) / (row2Count - 1) : 0;
-    row2Nodes.forEach(function(n, i) {
-      result.push(mkNode(n, row2Start + i * row2Step, 400, []));
+    const r2fCount = row2Feeds.length;
+    const r2fStart = row1Start + 20, r2fEnd = row1End - 20;
+    const r2fStep  = r2fCount > 1 ? (r2fEnd - r2fStart) / (r2fCount - 1) : 0;
+    row2Feeds.forEach(function(n, i) {
+      result.push(mkNode(n, r2fStart + i * r2fStep, 400, []));
     });
 
-    // Unplaced nodes (new/disconnected): row at y=430
+    // Row 2b: contains-children of row-1 nodes (ECBS / APF units installed in circuits)
+    // Positioned directly below their parent circuit
+    const row2Contains: {node: TwinNode; parentX: number}[] = [];
+    row1Nodes.forEach(function(n) {
+      const cx = row1X[n.dbId] || 390;
+      self._containsChildren(n.dbId).forEach(function(child) {
+        if (!placed[child.dbId]) { row2Contains.push({node: child, parentX: cx}); }
+      });
+    });
+    // Also contains-children of switchgear itself
+    swgBadges.forEach(function(child) {
+      if (!placed[child.dbId]) { row2Contains.push({node: child, parentX: 390}); }
+    });
+    row2Contains.forEach(function(item) {
+      // Spread multiple contains-children of the same parent horizontally
+      result.push(mkNode(item.node, item.parentX, 400, []));
+    });
+
+    // Unplaced nodes (new/disconnected): floating row below everything
     let unplacedX = 60;
     this.twinNodes.forEach(n => {
       if (!placed[n.dbId]) {
-        result.push(mkNode(n, unplacedX, 430, []));
-        unplacedX += 100;
+        result.push(mkNode(n, unplacedX, 490, []));
+        unplacedX += 120;
       }
     });
 

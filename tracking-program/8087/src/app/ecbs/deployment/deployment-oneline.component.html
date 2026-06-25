@@ -89,7 +89,7 @@
 
       <!-- SVG diagram -->
       <svg *ngIf="!twinLoading && twinConfigured"
-           viewBox="0 0 780 520"
+           viewBox="0 0 780 530"
            preserveAspectRatio="xMidYMid meet"
            class="dt-svg"
            [class.edit-mode]="editMode">
@@ -98,18 +98,32 @@
           <marker id="arrow" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
             <path d="M0,0 L0,6 L6,3 z" fill="#455a64"/>
           </marker>
+          <marker id="arrow-teal" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
+            <path d="M0,0 L0,6 L6,3 z" fill="#26a69a"/>
+          </marker>
         </defs>
 
         <!-- Connection lines -->
         <g class="dt-edges">
           <ng-container *ngFor="let n of svgNodes">
+            <!-- Feeds edges (solid) -->
             <ng-container *ngFor="let childId of _feedsChildren(n.dbId)">
               <ng-container *ngFor="let c of svgNodes">
                 <line *ngIf="c.dbId === childId"
-                      [attr.x1]="n.x" [attr.y1]="n.y + 20"
-                      [attr.x2]="c.x" [attr.y2]="c.y - 20"
+                      [attr.x1]="n.x" [attr.y1]="n.y + 22"
+                      [attr.x2]="c.x" [attr.y2]="c.y - 30"
                       stroke="#455a64" stroke-width="1.5"
                       marker-end="url(#arrow)"/>
+              </ng-container>
+            </ng-container>
+            <!-- Contains edges (dashed — unit installed inside parent) -->
+            <ng-container *ngFor="let childId of _containsIds(n.dbId)">
+              <ng-container *ngFor="let c of svgNodes">
+                <line *ngIf="c.dbId === childId"
+                      [attr.x1]="n.x" [attr.y1]="n.y + 22"
+                      [attr.x2]="c.x" [attr.y2]="c.y - 30"
+                      stroke="#26a69a" stroke-width="1.5" stroke-dasharray="5,3"
+                      marker-end="url(#arrow-teal)"/>
               </ng-container>
             </ng-container>
           </ng-container>
@@ -227,6 +241,37 @@
             </ng-container>
           </g>
         </g>
+
+        <!-- ── Physical XECO switches overlay (below twin topology) ────── -->
+        <g class="dt-switches" *ngIf="switches.length">
+          <!-- Row label -->
+          <text x="20" y="480" font-size="9" fill="#546e7a" font-family="sans-serif"
+                text-transform="uppercase" letter-spacing="1">XECO MESH</text>
+          <ng-container *ngFor="let s of switches; let i = index">
+            <!-- APF (deviceType 0): triangle -->
+            <ng-container *ngIf="s.deviceType === 0">
+              <polygon [attr.points]="(50 + i*70)+',470 '+(50 + i*70 - 18)+',500 '+(50 + i*70 + 18)+',500'"
+                       [attr.fill]="switchOnline(s) ? '#162232' : '#0d1520'"
+                       [attr.stroke]="switchOnline(s) ? '#42a5f5' : '#37474f'"
+                       stroke-width="1.5"/>
+              <text [attr.x]="50 + i*70" y="516" text-anchor="middle"
+                    font-size="9" fill="#90a4ae" font-family="sans-serif">{{ s.name.length > 8 ? s.name.substring(0,7)+'...' : s.name }}</text>
+              <circle *ngIf="switchOnline(s)" [attr.cx]="50 + i*70 + 16" cy="472" r="4" fill="#22c55e"/>
+            </ng-container>
+            <!-- Switch/600 (deviceType 1+): square -->
+            <ng-container *ngIf="s.deviceType !== 0">
+              <rect [attr.x]="(50 + i*70) - 18" y="472" width="36" height="28" rx="3"
+                    [attr.fill]="switchOnline(s) ? '#162232' : '#0d1520'"
+                    [attr.stroke]="switchOnline(s) ? '#ffa726' : '#37474f'"
+                    stroke-width="1.5"/>
+              <text [attr.x]="50 + i*70" y="490" text-anchor="middle"
+                    font-size="9" fill="#ffa726" font-family="sans-serif" font-weight="700">S</text>
+              <text [attr.x]="50 + i*70" y="516" text-anchor="middle"
+                    font-size="9" fill="#90a4ae" font-family="sans-serif">{{ s.name.length > 8 ? s.name.substring(0,7)+'...' : s.name }}</text>
+              <circle *ngIf="switchOnline(s)" [attr.cx]="50 + i*70 + 16" cy="474" r="4" fill="#22c55e"/>
+            </ng-container>
+          </ng-container>
+        </g>
       </svg>
     </div>
 
@@ -277,6 +322,18 @@
           <i class="fa fa-unlink"></i> Unlink
         </button>
         <div class="onp-notes" *ngIf="selectedNode.notes">{{ selectedNode.notes }}</div>
+      </div>
+
+      <!-- Physical switches from XECO mesh -->
+      <div class="ol-switch-list" *ngIf="switches.length">
+        <div class="onl-title">XECO Switches ({{ switches.length }})</div>
+        <div *ngFor="let s of switches" class="onl-row sw-row">
+          <span class="sw-shape" [ngClass]="switchShape(s) === 'apf' ? 'sw-tri' : 'sw-sq'"></span>
+          <span class="onl-label">{{ s.name }}</span>
+          <span class="sw-status" [ngClass]="switchOnline(s) ? 'online' : 'offline'">
+            {{ switchOnline(s) ? '&#x25CF;' : '&#x25CB;' }}
+          </span>
+        </div>
       </div>
 
       <!-- Node list -->
