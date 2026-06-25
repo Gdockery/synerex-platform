@@ -37,14 +37,15 @@ export interface TwinRel {
 const LOCKED_TYPES = ['utility_service', 'transformer'];
 
 const ADDABLE_TYPES = [
-  { type: 'circuit',     label: 'Circuit / Feeder',  icon: 'fa-minus' },
-  { type: 'panel',       label: 'Panel',              icon: 'fa-th' },
-  { type: 'apf',         label: 'ECBS / APF',         icon: 'fa-bolt' },
-  { type: 'generator',   label: 'Generator',          icon: 'fa-industry' },
-  { type: 'ats',         label: 'ATS',                icon: 'fa-random' },
-  { type: 'mcc',         label: 'MCC',                icon: 'fa-cubes' },
-  { type: 'load',        label: 'Load',               icon: 'fa-plug' },
-  { type: 'pq_meter',   label: 'PQ Meter',           icon: 'fa-tachometer' },
+  { type: 'circuit',   label: 'Circuit / Feeder',  icon: 'fa-minus' },
+  { type: 'panel',     label: 'Panel',              icon: 'fa-th' },
+  { type: 'apf',       label: 'ECBS / APF',         icon: 'fa-bolt' },
+  { type: 's600',      label: 'XECO-600',           icon: 'fa-square' },
+  { type: 'generator', label: 'Generator',          icon: 'fa-industry' },
+  { type: 'ats',       label: 'ATS',                icon: 'fa-random' },
+  { type: 'mcc',       label: 'MCC',                icon: 'fa-cubes' },
+  { type: 'load',      label: 'Load',               icon: 'fa-plug' },
+  { type: 'pq_meter',  label: 'PQ Meter',           icon: 'fa-tachometer' },
 ];
 
 @Component({
