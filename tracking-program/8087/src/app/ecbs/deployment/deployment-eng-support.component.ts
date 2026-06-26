@@ -94,6 +94,14 @@ export class DeploymentEngSupportComponent implements OnInit {
     return this.totalRequests ? Math.round(met / this.totalRequests * 100) : 100;
   }
 
+  showSlaPanel = false;
+  toggleSlaPanel() { this.showSlaPanel = !this.showSlaPanel; }
+
+  focusMessage() {
+    const ta = document.querySelector('.es-msg-input') as HTMLTextAreaElement;
+    if (ta) { ta.focus(); ta.scrollIntoView({ behavior: 'smooth', block: 'center' }); }
+  }
+
   // ── Filtered list ────────────────────────────────────────────────────────
   get filtered(): any[] {
     return this.requests.filter(r => {

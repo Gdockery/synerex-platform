@@ -25,7 +25,7 @@
 
   <!-- KPI Strip -->
   <div class="dp-kpi-strip">
-    <div class="dp-kpi-card">
+    <div class="dp-kpi-card" (click)="scrollToChecklist()" style="cursor:pointer" title="Readiness checklist">
       <i class="fa fa-check-circle dp-kpi-icon dp-kpi-icon--green"></i>
       <div class="dp-kpi-body">
         <span class="dp-kpi-label">Complete</span>
@@ -33,7 +33,7 @@
         <span class="dp-kpi-pct">{{ readinessScore }}%</span>
       </div>
     </div>
-    <div class="dp-kpi-card">
+    <div class="dp-kpi-card" (click)="goToIssues()" style="cursor:pointer" title="View readiness issues">
       <i class="fa fa-exclamation-triangle dp-kpi-icon dp-kpi-icon--amber"></i>
       <div class="dp-kpi-body">
         <span class="dp-kpi-label">Missing</span>
@@ -41,7 +41,7 @@
         <span class="dp-kpi-pct">{{ missingItems ? (missingItems / totalItems * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="dp-kpi-card">
+    <div class="dp-kpi-card" (click)="scrollToChecklist()" style="cursor:pointer" title="In Progress items">
       <i class="fa fa-clock-o dp-kpi-icon dp-kpi-icon--blue"></i>
       <div class="dp-kpi-body">
         <span class="dp-kpi-label">In Progress</span>
@@ -49,7 +49,7 @@
         <span class="dp-kpi-pct">{{ inProgressItems ? (inProgressItems / totalItems * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="dp-kpi-card">
+    <div class="dp-kpi-card" (click)="goToIssues()" style="cursor:pointer" title="Blocked items">
       <i class="fa fa-times-circle dp-kpi-icon"
         [class.dp-kpi-icon--red]="blockedItems > 0"
         [class.dp-kpi-icon--dim]="!blockedItems"></i>

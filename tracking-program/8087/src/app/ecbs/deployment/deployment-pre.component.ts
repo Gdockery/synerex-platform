@@ -271,6 +271,11 @@ export class DeploymentPreComponent implements OnInit {
 
   printReport() { window.print(); }
 
+  scrollToChecklist() {
+    const el = document.querySelector('.dp-steps') || document.querySelector('.dp-kpi-strip');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   uploadReadinessDoc(event: any) {
     const file = event.target.files && event.target.files[0];
     if (!file) return;

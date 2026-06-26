@@ -17,15 +17,15 @@
     </div>
     <div class="de-header-right">
       <span class="de-sync"><i class="fa fa-refresh"></i> Synced: {{ syncedAt }}</span>
-      <button class="de-icon-btn"><i class="fa fa-bell-o"></i></button>
-      <button class="de-icon-btn"><i class="fa fa-question-circle-o"></i></button>
-      <button class="de-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
+      <button class="de-icon-btn" (click)="goIssues()" title="Issues"><i class="fa fa-bell-o"></i></button>
+      <button class="de-icon-btn" (click)="goEngineering()" title="Engineering Support"><i class="fa fa-question-circle-o"></i></button>
+      <button class="de-icon-btn" (click)="goOneLine()" title="View One-Line"><i class="fa fa-project-diagram"></i></button>
     </div>
   </div>
 
   <!-- KPI Strip -->
   <div class="de-kpi-strip">
-    <div class="de-kpi-card">
+    <div class="de-kpi-card" (click)="goDevices()" style="cursor:pointer" title="All Devices">
       <i class="fa fa-sitemap de-kpi-icon de-kpi-icon--blue"></i>
       <div class="de-kpi-body">
         <span class="de-kpi-label">Total Assets</span>
@@ -33,7 +33,7 @@
         <span class="de-kpi-sub">Asset Points</span>
       </div>
     </div>
-    <div class="de-kpi-card">
+    <div class="de-kpi-card" (click)="goDevices()" style="cursor:pointer" title="Installed Devices">
       <i class="fa fa-check-circle de-kpi-icon de-kpi-icon--green"></i>
       <div class="de-kpi-body">
         <span class="de-kpi-label">Devices Installed</span>
@@ -41,7 +41,7 @@
         <span class="de-kpi-sub">{{ totalDevices ? (installedCount / totalDevices * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="de-kpi-card">
+    <div class="de-kpi-card" (click)="goCommissioning()" style="cursor:pointer" title="Commissioning">
       <i class="fa fa-check-circle-o de-kpi-icon de-kpi-icon--blue"></i>
       <div class="de-kpi-body">
         <span class="de-kpi-label">Commissioned</span>
@@ -49,7 +49,7 @@
         <span class="de-kpi-sub">{{ totalDevices ? (commissionedCount / totalDevices * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="de-kpi-card">
+    <div class="de-kpi-card" (click)="goIssues()" style="cursor:pointer" title="Open Issues">
       <i class="fa fa-exclamation-triangle de-kpi-icon" [class.de-kpi-icon--amber]="openIssues > 0" [class.de-kpi-icon--dim]="!openIssues"></i>
       <div class="de-kpi-body">
         <span class="de-kpi-label">Open Issues</span>
@@ -57,7 +57,7 @@
         <span class="de-kpi-sub de-kpi-sub--link" *ngIf="openIssues > 0">VIEW ISSUES</span>
       </div>
     </div>
-    <div class="de-kpi-card">
+    <div class="de-kpi-card" (click)="goEngineering()" style="cursor:pointer" title="Engineering Requests">
       <i class="fa fa-random de-kpi-icon de-kpi-icon--purple"></i>
       <div class="de-kpi-body">
         <span class="de-kpi-label">Engineering Requests</span>
@@ -65,7 +65,7 @@
         <span class="de-kpi-sub de-kpi-sub--link">VIEW REQUESTS</span>
       </div>
     </div>
-    <div class="de-kpi-card">
+    <div class="de-kpi-card" (click)="goOneLine()" style="cursor:pointer" title="View One-Line">
       <i class="fa fa-heartbeat de-kpi-icon de-kpi-icon--green"></i>
       <div class="de-kpi-body">
         <span class="de-kpi-label">Health Status</span>
@@ -215,18 +215,18 @@
 
         <div class="de-dp-actions">
           <button class="de-dp-btn de-dp-btn--outline" (click)="goOneLine()">VIEW ONE-LINE</button>
-          <button class="de-dp-btn de-dp-btn--primary">EDIT ASSET</button>
+          <button class="de-dp-btn de-dp-btn--primary" (click)="editAsset(selectedAsset)">EDIT ASSET</button>
         </div>
 
         <div class="de-dp-section">QUICK ACTIONS</div>
         <div class="de-quick-grid">
-          <div class="de-qa-item"><i class="fa fa-pencil"></i> Add As-Built Correction</div>
-          <div class="de-qa-item"><i class="fa fa-plus"></i> Add Asset</div>
-          <div class="de-qa-item"><i class="fa fa-upload"></i> Upload Document</div>
-          <div class="de-qa-item"><i class="fa fa-camera"></i> Upload Photo</div>
-          <div class="de-qa-item"><i class="fa fa-exclamation-triangle"></i> Create Issue</div>
-          <div class="de-qa-item"><i class="fa fa-random"></i> Engineering Request</div>
-          <div class="de-qa-full"><i class="fa fa-download"></i> Export Network (PDF)</div>
+          <div class="de-qa-item" (click)="addAsBuilt(selectedAsset)"><i class="fa fa-pencil"></i> Add As-Built Correction</div>
+          <div class="de-qa-item" (click)="openAddAsset()"><i class="fa fa-plus"></i> Add Asset</div>
+          <label class="de-qa-item" style="cursor:pointer"><i class="fa fa-upload"></i> Upload Document<input type="file" style="display:none" (change)="uploadDocForAsset($event)"/></label>
+          <label class="de-qa-item" style="cursor:pointer"><i class="fa fa-camera"></i> Upload Photo<input type="file" accept="image/*" style="display:none" (change)="uploadPhotoForAsset($event)"/></label>
+          <div class="de-qa-item" (click)="goIssues()"><i class="fa fa-exclamation-triangle"></i> Create Issue</div>
+          <div class="de-qa-item" (click)="goEngineering()"><i class="fa fa-random"></i> Engineering Request</div>
+          <div class="de-qa-full" (click)="exportNetwork()"><i class="fa fa-download"></i> Export Network (PDF)</div>
         </div>
       </div>
       <ng-template #noSelection>

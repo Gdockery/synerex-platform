@@ -156,6 +156,61 @@ export class DeploymentElectricalComponent implements OnInit {
     return 'fa-circle-o';
   }
 
-  goDevices() { this.router.navigate(['/ecbs/deployment', this.depId, 'devices']); }
-  goOneLine() { this.router.navigate(['/ecbs/deployment', this.depId, 'one-line']); }
+  goDevices()       { this.router.navigate(['/ecbs/deployment', this.depId, 'devices']); }
+  goOneLine()       { this.router.navigate(['/ecbs/deployment', this.depId, 'one-line']); }
+  goIssues()        { this.router.navigate(['/ecbs/deployment', this.depId, 'issues']); }
+  goEngineering()   { this.router.navigate(['/ecbs/deployment', this.depId, 'engineering-support']); }
+  goCommissioning() { this.router.navigate(['/ecbs/deployment', this.depId, 'commissioning']); }
+
+  editAsset(asset?: any) {
+    const a = asset || this.selectedAsset;
+    if (!a) return;
+    alert('Edit Asset: ' + (a.name || a.device_name || a.label || a.type) + '\n(Full edit panel would open here with location, breaker, and CT fields)');
+  }
+
+  addAsBuilt(asset?: any) {
+    const a = asset || this.selectedAsset;
+    const name = a ? (a.name || a.device_name || 'this asset') : 'the network';
+    const note = prompt('Describe the as-built correction for ' + name + ':');
+    if (!note) return;
+    this.api.post('/api/dep/deployments/' + this.depId + '/as-built', { asset_id: a && a.id, note }).subscribe({
+      next: () => alert('As-built correction saved.'),
+      error: () => alert('Failed to save correction. Please try again.')
+    });
+  }
+
+  openAddAsset() {
+    // Navigate to devices screen where Add Device form is available
+    this.router.navigate(['/ecbs/deployment', this.depId, 'devices']);
+  }
+
+  uploadDocForAsset(event: any) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('deployment_id', String(this.depId));
+    if (this.selectedAsset && this.selectedAsset.id) fd.append('asset_id', String(this.selectedAsset.id));
+    this.api.post('/api/dep/documents/upload', fd).subscribe({
+      next: () => alert('Document uploaded successfully.'),
+      error: () => alert('Upload failed.')
+    });
+  }
+
+  uploadPhotoForAsset(event: any) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('deployment_id', String(this.depId));
+    if (this.selectedAsset && this.selectedAsset.id) fd.append('device_name', String(this.selectedAsset.name || this.selectedAsset.device_name || ''));
+    this.api.post('/api/dep/photos/upload', fd).subscribe({
+      next: () => { alert('Photo uploaded.'); },
+      error: () => alert('Upload failed.')
+    });
+  }
+
+  exportNetwork() {
+    window.open('/api/dep/deployments/' + this.depId + '/electrical-network/export', '_blank');
+  }
 }

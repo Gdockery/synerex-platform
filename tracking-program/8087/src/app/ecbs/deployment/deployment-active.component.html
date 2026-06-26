@@ -77,12 +77,12 @@
       </div>
     </div>
 
-    <div class="da-kpi" [class.da-kpi--danger]="safetyHolds > 0">
+    <div class="da-kpi" (click)="go('issues')" [class.da-kpi--danger]="safetyHolds > 0">
       <span class="da-kpi-icon fa fa-shield" [class.da-kpi-icon--red]="safetyHolds > 0" [class.da-kpi-icon--dim]="!safetyHolds"></span>
       <div class="da-kpi-body">
         <div class="da-kpi-val">{{ safetyHolds }}</div>
         <div class="da-kpi-lbl">SAFETY HOLDS</div>
-        <div class="da-kpi-link da-kpi-link--red" *ngIf="safetyHolds">VIEW HOLDS</div>
+        <div class="da-kpi-link da-kpi-link--red" *ngIf="safetyHolds" (click)="go('issues');$event.stopPropagation()">VIEW HOLDS</div>
       </div>
     </div>
 

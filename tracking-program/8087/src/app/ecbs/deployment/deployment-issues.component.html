@@ -17,9 +17,9 @@
     </div>
     <div class="is-header-right">
       <span class="is-sync"><i class="fa fa-refresh"></i> Synced: {{ syncedAt }}</span>
-      <button class="is-icon-btn"><i class="fa fa-bell-o"></i></button>
-      <button class="is-icon-btn"><i class="fa fa-question-circle-o"></i></button>
-      <button class="is-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
+      <button class="is-icon-btn" title="View Issues" (click)="filterKpi('Open')"><i class="fa fa-bell-o"></i></button>
+      <button class="is-icon-btn" title="Engineering Support" (click)="goEngineering()"><i class="fa fa-question-circle-o"></i></button>
+      <button class="is-icon-btn" title="Create Issue" (click)="showCreate=!showCreate"><i class="fa fa-plus"></i></button>
     </div>
   </div>
 
@@ -291,3 +291,69 @@
 <ng-template #isLoading>
   <div class="is-loading"><i class="fa fa-spinner fa-spin"></i> Loading issues...</div>
 </ng-template>
+
+
+<!-- Add Note Modal -->
+<div class="is-modal-backdrop" *ngIf="showAddNote" (click)="showAddNote=false">
+  <div class="is-modal" (click)="$event.stopPropagation()">
+    <div class="is-modal-hdr">
+      <span>Add Note to Issue</span>
+      <button class="is-modal-close" (click)="showAddNote=false"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="is-modal-body">
+      <textarea class="is-modal-ta" [(ngModel)]="noteText" placeholder="Enter your note — visible to all team members..." rows="4"></textarea>
+    </div>
+    <div class="is-modal-footer">
+      <button class="is-modal-btn is-modal-btn--outline" (click)="showAddNote=false">Cancel</button>
+      <button class="is-modal-btn is-modal-btn--primary" (click)="saveNote()" [disabled]="savingNote||!noteText">
+        {{ savingNote ? 'Saving...' : 'Save Note' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Reassign Issue Modal -->
+<div class="is-modal-backdrop" *ngIf="showReassign" (click)="showReassign=false">
+  <div class="is-modal" (click)="$event.stopPropagation()">
+    <div class="is-modal-hdr">
+      <span>Reassign Issue</span>
+      <button class="is-modal-close" (click)="showReassign=false"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="is-modal-body">
+      <p class="is-modal-desc">Assign this issue to a team member or department.</p>
+      <input class="is-modal-input" [(ngModel)]="reassignTo" placeholder="Name or email of new assignee..." />
+    </div>
+    <div class="is-modal-footer">
+      <button class="is-modal-btn is-modal-btn--outline" (click)="showReassign=false">Cancel</button>
+      <button class="is-modal-btn is-modal-btn--primary" (click)="submitReassign()" [disabled]="reassigning||!reassignTo">
+        {{ reassigning ? 'Reassigning...' : 'Reassign' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- SLA Panel -->
+<div class="is-sla-panel" *ngIf="showSlaPanel">
+  <div class="is-sla-hdr">
+    <span>SLA Compliance</span>
+    <button class="is-sla-close" (click)="showSlaPanel=false"><i class="fa fa-times"></i></button>
+  </div>
+  <div class="is-sla-rows">
+    <div class="is-sla-row is-sla-row--green">
+      <span><i class="fa fa-check-circle"></i> Within SLA</span>
+      <span class="is-sla-count">{{ slaWithin }}</span>
+    </div>
+    <div class="is-sla-row is-sla-row--amber">
+      <span><i class="fa fa-clock-o"></i> Due Today</span>
+      <span class="is-sla-count">{{ slaDueToday }}</span>
+    </div>
+    <div class="is-sla-row is-sla-row--red">
+      <span><i class="fa fa-exclamation-triangle"></i> Overdue</span>
+      <span class="is-sla-count">{{ slaOverdue }}</span>
+    </div>
+    <div class="is-sla-row is-sla-row--purple">
+      <span><i class="fa fa-arrow-up"></i> Escalated</span>
+      <span class="is-sla-count">{{ slaEscalated }}</span>
+    </div>
+  </div>
+</div>

@@ -133,3 +133,13 @@ $bg: #111827; $card: #1a2535; $border: rgba(255,255,255,.07); $text: #e5e7eb; $d
 .es-modal-btn { padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;
   &--primary{background:#3b82f6;border:none;color:#fff;&:disabled{opacity:.5;}}
   &--outline{background:none;border:1px solid #374151;color:#d1d5db;} }
+.es-sla-panel { position:fixed;top:80px;right:16px;width:280px;background:#1f2937;border:1px solid #374151;border-radius:10px;z-index:180;box-shadow:0 8px 24px rgba(0,0,0,.4); }
+.es-sla-hdr { display:flex;justify-content:space-between;align-items:center;padding:12px 14px;border-bottom:1px solid #374151;font-size:13px;font-weight:600;color:#e5e7eb; }
+.es-sla-close { background:none;border:none;color:#8b9ab0;cursor:pointer;font-size:14px; }
+.es-sla-rows { padding:10px;display:flex;flex-direction:column;gap:6px; }
+.es-sla-row { display:flex;justify-content:space-between;align-items:center;padding:8px 10px;border-radius:6px;font-size:12px;color:#d1d5db; }
+.es-sla--green { background:rgba(34,197,94,.1);color:#86efac; }
+.es-sla--amber { background:rgba(245,158,11,.1);color:#fcd34d; }
+.es-sla--red   { background:rgba(239,68,68,.1);color:#fca5a5; }
+.es-sla--blue  { background:rgba(59,130,246,.1);color:#93c5fd; }
+.es-sla-count  { font-weight:700;font-size:14px; }

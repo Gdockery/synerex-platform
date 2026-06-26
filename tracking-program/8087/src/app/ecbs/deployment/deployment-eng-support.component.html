@@ -60,12 +60,13 @@
         <div class="es-kpi-sub es-sub--red">{{ highPriorityPct }}%</div>
       </div>
     </div>
-    <div class="es-kpi" style="cursor:pointer">
+    <div class="es-kpi" style="cursor:pointer" (click)="toggleSlaPanel()">
       <i class="fa fa-tachometer es-kpi-icon es-kpi-icon--green"></i>
       <div>
         <div class="es-kpi-val es-kv--green">{{ slaCompliant }}%</div>
         <div class="es-kpi-lbl">SLA Compliance</div>
-        <div class="es-kpi-sub">On Track</div>
+        <div class="es-kpi-sub" *ngIf="!showSlaPanel">VIEW BREAKDOWN</div>
+        <div class="es-kpi-sub" *ngIf="showSlaPanel">HIDE PANEL</div>
       </div>
     </div>
   </div>
@@ -243,7 +244,7 @@
       <!-- Quick actions -->
       <div class="es-dp-section">QUICK ACTIONS</div>
       <div class="es-qa-grid">
-        <div class="es-qa-item" (click)="messageText=''" title="Focus message box"><i class="fa fa-comment-o"></i> Add Comment</div>
+        <div class="es-qa-item" (click)="focusMessage()"><i class="fa fa-comment-o"></i> Add Comment</div>
         <label class="es-qa-item" style="cursor:pointer"><i class="fa fa-file-o"></i> Upload Document<input type="file" style="display:none" (change)="uploadDocForRequest($event)"/></label>
         <label class="es-qa-item" style="cursor:pointer"><i class="fa fa-camera"></i> Upload Photo<input type="file" style="display:none" accept="image/*" (change)="uploadPhotoForRequest($event)"/></label>
         <div class="es-qa-item" (click)="addToIssues()"><i class="fa fa-exclamation-triangle"></i> Add To Issues</div>
@@ -290,3 +291,30 @@
 </div>
 
 <ng-template #esLoad><div class="es-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div></ng-template>
+
+
+<!-- SLA Compliance Breakdown Panel -->
+<div class="es-sla-panel" *ngIf="showSlaPanel">
+  <div class="es-sla-hdr">
+    <span><i class="fa fa-tachometer"></i> SLA Compliance Breakdown</span>
+    <button class="es-sla-close" (click)="showSlaPanel=false"><i class="fa fa-times"></i></button>
+  </div>
+  <div class="es-sla-rows">
+    <div class="es-sla-row es-sla--green">
+      <span><i class="fa fa-check-circle"></i> Within SLA</span>
+      <span class="es-sla-count">{{ slaCompliant }}%</span>
+    </div>
+    <div class="es-sla-row es-sla--amber">
+      <span><i class="fa fa-clock-o"></i> Awaiting Response</span>
+      <span class="es-sla-count">{{ awaitingCount }}</span>
+    </div>
+    <div class="es-sla-row es-sla--red">
+      <span><i class="fa fa-exclamation-triangle"></i> Overdue / Escalated</span>
+      <span class="es-sla-count">{{ requests.length - awaitingCount }}</span>
+    </div>
+    <div class="es-sla-row es-sla--blue">
+      <span><i class="fa fa-arrow-up"></i> High Priority</span>
+      <span class="es-sla-count">{{ highPriorityCount }}</span>
+    </div>
+  </div>
+</div>

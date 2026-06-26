@@ -51,7 +51,7 @@
         <div class="cm-kpi-sub cm-sub--red">{{ failedPct }}%</div>
       </div>
     </div>
-    <div class="cm-kpi cm-kpi--donut">
+    <div class="cm-kpi cm-kpi--donut" (click)="filterByKpi('')" style="cursor:pointer" title="Show all — click to clear filter">
       <div class="cm-readiness-donut">
         <svg viewBox="0 0 110 110" class="cm-donut-svg">
           <circle cx="55" cy="55" r="45" fill="none" stroke="#1f2937" stroke-width="11"/>
@@ -224,7 +224,7 @@
         </div>
       </div>
       <ng-template #noTestDetail><div class="cm-empty cm-empty--sm">No test results yet.</div></ng-template>
-      <a class="cm-view-report">View Full Test Report <i class="fa fa-arrow-right"></i></a>
+      <a class="cm-view-report" style="cursor:pointer" (click)="selected && viewTestHistory()">View Full Test Report <i class="fa fa-arrow-right"></i></a>
 
       <!-- Actions -->
       <div class="cm-section-hdr cm-section-hdr--sub"><span>ACTIONS</span></div>

@@ -15,11 +15,15 @@ export class DeploymentPhotosComponent implements OnInit {
   filterType = '';
   filterDevice = '';
   filterStatus = '';
+  filterVerification = '';
+  filterDateFrom = '';
+  filterDateTo = '';
   search = '';
   lightbox: any = null;
   dep: any = null;
   summary: any = {};
   syncedAt = '';
+  devices: any[] = [];
 
   readonly PHOTO_TYPES = [
     'Before Installation', 'After Installation', 'Nameplate',
@@ -68,6 +72,10 @@ export class DeploymentPhotosComponent implements OnInit {
     });
     this.api.get('/api/dep/deployments/' + this.depId + '/photo-albums').subscribe({
       next: (r: any) => { this.albums = (r && r.response ? r.response : []); },
+      error: () => {}
+    });
+    this.api.get('/api/dep/deployments/' + this.depId + '/devices').subscribe({
+      next: (r: any) => { this.devices = (r && r.response) ? r.response : []; },
       error: () => {}
     });
     this.api.get('/api/dep/deployments/' + this.depId + '/photos').subscribe({
@@ -139,6 +147,37 @@ export class DeploymentPhotosComponent implements OnInit {
 
   showFilters = false;
   toggleFilters() { this.showFilters = !this.showFilters; }
+
+  clearFilters() {
+    this.filterType = ''; this.filterDevice = ''; this.filterStatus = '';
+    this.filterVerification = ''; this.filterDateFrom = ''; this.filterDateTo = '';
+    this.search = '';
+  }
+
+  get devicesWithChecklist(): any[] {
+    const required = ['Overview', 'Nameplate', 'CT Installation', 'Wiring', 'Completed Install'];
+    return this.devices.map((d: any) => ({
+      name: d.device_name || d.name,
+      checklist: required.map(type => ({
+        type,
+        done: this.photos.some((p: any) => p.device_id === d.id && (p.photo_type || '').includes(type))
+      }))
+    })).filter(d => d.checklist.some((item: any) => !item.done));
+  }
+
+  uploadChecklistPhoto(event: any, device: any, item: any) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('deployment_id', String(this.depId));
+    fd.append('photo_type', item.type);
+    fd.append('device_name', device.name);
+    this.api.post('/api/dep/deployments/' + this.depId + '/photos/upload', fd).subscribe({
+      next: () => { item.done = true; this.load(); },
+      error: () => alert('Upload failed. Please try again.')
+    });
+  }
 
   onFilesSelected(event: any) {
     const files: FileList = event.target.files;

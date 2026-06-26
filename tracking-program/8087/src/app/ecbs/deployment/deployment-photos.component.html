@@ -57,7 +57,7 @@
         <span class="ph-kpi-sub ph-kpi-sub--link" *ngIf="missingPhotos > 0" (click)="filterKpi('missing');$event.stopPropagation()">VIEW MISSING</span>
       </div>
     </div>
-    <div class="ph-kpi-card">
+    <div class="ph-kpi-card" (click)="filterKpi('albums')" style="cursor:pointer">
       <i class="fa fa-folder-open ph-kpi-icon ph-kpi-icon--purple"></i>
       <div class="ph-kpi-body">
         <span class="ph-kpi-label">Photo Albums</span>
@@ -104,6 +104,33 @@
           <button class="ph-view-btn"><i class="fa fa-list"></i></button>
         </div>
         <span class="ph-sort">SORT: Newest First ▾</span>
+      </div>
+
+      <!-- Advanced Filters Panel -->
+      <div class="ph-adv-filters" *ngIf="showFilters">
+        <div class="ph-adv-row">
+          <label class="ph-adv-lbl">Device</label>
+          <select class="ph-select" [(ngModel)]="filterDevice">
+            <option value="">All Devices</option>
+            <option *ngFor="let d of devices" [value]="d.device_name">{{ d.device_name }}</option>
+          </select>
+        </div>
+        <div class="ph-adv-row">
+          <label class="ph-adv-lbl">Verification</label>
+          <select class="ph-select" [(ngModel)]="filterVerification">
+            <option value="">All</option>
+            <option value="Verified">Verified</option>
+            <option value="Pending">Pending Review</option>
+            <option value="Rejected">Rejected / Needs Retake</option>
+          </select>
+        </div>
+        <div class="ph-adv-row">
+          <label class="ph-adv-lbl">Date Range</label>
+          <input type="date" class="ph-date-input" [(ngModel)]="filterDateFrom" />
+          <span class="ph-adv-to">to</span>
+          <input type="date" class="ph-date-input" [(ngModel)]="filterDateTo" />
+        </div>
+        <button class="ph-adv-clear" (click)="clearFilters()"><i class="fa fa-times"></i> Clear Filters</button>
       </div>
 
       <!-- Photo Grid -->
@@ -274,3 +301,34 @@
 <ng-template #phLoading>
   <div class="ph-loading"><i class="fa fa-spinner fa-spin"></i> Loading photos...</div>
 </ng-template>
+
+
+<!-- Photo Checklist Modal -->
+<div class="ph-modal-backdrop" *ngIf="showPhotoChecklist" (click)="showPhotoChecklist=false">
+  <div class="ph-modal ph-modal--wide" (click)="$event.stopPropagation()">
+    <div class="ph-modal-hdr">
+      <span><i class="fa fa-check-square-o"></i> Photo Checklist</span>
+      <button (click)="showPhotoChecklist=false"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="ph-modal-body">
+      <p class="ph-modal-desc">Required photos for each device. Tap a missing item to open the camera/upload.</p>
+      <div *ngFor="let d of devicesWithChecklist" class="ph-cl-device">
+        <div class="ph-cl-device-hdr"><i class="fa fa-microchip"></i> {{ d.name }}</div>
+        <div class="ph-cl-items">
+          <div *ngFor="let item of d.checklist" class="ph-cl-item" [class.ph-cl-item--done]="item.done">
+            <i class="fa" [class.fa-check-circle]="item.done" [class.fa-circle-o]="!item.done"></i>
+            <span>{{ item.type }}</span>
+            <label *ngIf="!item.done" class="ph-cl-upload-lbl">
+              Upload
+              <input type="file" accept="image/*" style="display:none" (change)="uploadChecklistPhoto($event, d, item)" />
+            </label>
+          </div>
+        </div>
+      </div>
+      <div *ngIf="!devicesWithChecklist.length" class="ph-cl-empty">
+        <i class="fa fa-check-circle" style="color:#22c55e"></i>
+        <span>All required photos uploaded!</span>
+      </div>
+    </div>
+  </div>
+</div>

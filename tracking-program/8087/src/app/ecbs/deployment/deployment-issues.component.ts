@@ -38,6 +38,14 @@ export class DeploymentIssuesComponent implements OnInit {
   showSlaPanel = false;
   actionMsg = '';
 
+  // SLA computed properties
+  get slaWithin(): number { return this.issues.filter((i: any) => i.status !== 'Overdue' && i.status !== 'Escalated').length; }
+  get slaDueToday(): number { return this.issues.filter((i: any) => { const d = i.due_date ? new Date(i.due_date) : null; if (!d) return false; const today = new Date(); return d.toDateString() === today.toDateString(); }).length; }
+  get slaOverdue(): number { return this.issues.filter((i: any) => { const d = i.due_date ? new Date(i.due_date) : null; return d && d < new Date() && i.status !== 'Resolved'; }).length; }
+  get slaEscalated(): number { return this.issues.filter((i: any) => i.escalated || i.priority === 'Critical').length; }
+
+  goEngineering() { this.router.navigate(['/ecbs/deployment', this.depId, 'engineering-support']); }
+
   constructor(private route: ActivatedRoute, private router: Router, private api: ApiRequestService) {}
 
   ngOnInit() {
