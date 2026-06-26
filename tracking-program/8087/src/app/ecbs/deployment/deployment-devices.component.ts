@@ -359,6 +359,5 @@ export class DeploymentDevicesComponent implements OnInit {
   }
 
   goBack() { this.router.navigate(['/ecbs/deployment', this.depId]); }
-  goIssues() { this.router.navigate(['/ecbs/deployment', this.depId, 'issues']); }
   goCommissioning() { this.router.navigate(['/ecbs/deployment', this.depId, 'commissioning']); }
 }
