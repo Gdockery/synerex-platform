@@ -1,0 +1,447 @@
+<div class="ent-root">
+
+  <!-- ══ SIDEBAR ══ -->
+  <aside class="ent-sidebar">
+    <div class="ent-sb-logo">
+      <span class="ent-sb-ecbs">ECBS</span>
+      <span class="ent-sb-sub">INTELLIGENCE PLATFORM™</span>
+    </div>
+    <nav class="ent-sb-nav">
+      <a class="ent-sb-link ent-sb-link--active" (click)="nav('enterprise-dashboard')">
+        <i class="fa fa-th-large"></i> Enterprise Dashboard
+      </a>
+      <a class="ent-sb-link" (click)="nav('energy-dashboard')">
+        <i class="fa fa-line-chart"></i> Energy Dashboard
+      </a>
+      <a class="ent-sb-link" (click)="nav('capacity')">
+        <i class="fa fa-magic"></i> Capacity Intelligence
+      </a>
+      <a class="ent-sb-link" (click)="nav('digital-twin')">
+        <i class="fa fa-cube"></i> Digital Twin
+      </a>
+      <a class="ent-sb-link" (click)="nav('sites')">
+        <i class="fa fa-map-marker"></i> Sites
+      </a>
+      <a class="ent-sb-link" (click)="nav('transformers')">
+        <i class="fa fa-plug"></i> Transformers
+      </a>
+      <a class="ent-sb-link" (click)="nav('current-analysis')">
+        <i class="fa fa-bolt"></i> Current Analysis
+      </a>
+      <a class="ent-sb-link" (click)="nav('savings')">
+        <i class="fa fa-dollar"></i> Savings &amp; Forecast
+      </a>
+      <a class="ent-sb-link" (click)="nav('alarms')">
+        <i class="fa fa-bell-o"></i> Alarms &amp; Events
+        <span class="ent-sb-badge" *ngIf="alarmTotal > 0">{{ alarmTotal }}</span>
+      </a>
+      <a class="ent-sb-link" (click)="nav('reports')">
+        <i class="fa fa-file-text-o"></i> Reports
+      </a>
+      <a class="ent-sb-link" (click)="nav('devices')">
+        <i class="fa fa-microchip"></i> Devices
+      </a>
+      <a class="ent-sb-link" (click)="nav('settings')">
+        <i class="fa fa-cog"></i> Settings
+      </a>
+    </nav>
+
+    <div class="ent-sb-cbi">
+      <div class="ent-sb-cbi-label">ECBS Current<br>Balance Index™</div>
+      <div class="ent-sb-cbi-score">{{ cbiScore }}</div>
+      <div class="ent-sb-cbi-grade">A (Excellent)</div>
+      <div class="ent-sb-cbi-target">Target &gt; 90</div>
+      <a class="ent-sb-cbi-link" (click)="nav('current-analysis')">Learn More &rsaquo;</a>
+    </div>
+    <div class="ent-sb-footer">
+      &copy; {{ (new Date()).getFullYear() }} ECBS Intelligence Platform™<br>All rights reserved.
+    </div>
+  </aside>
+
+  <!-- ══ MAIN ══ -->
+  <main class="ent-main">
+
+    <!-- Top bar -->
+    <div class="ent-topbar">
+      <div class="ent-topbar-left">
+        <div class="ent-topbar-title">ECBS INTELLIGENCE PORTAL</div>
+        <div class="ent-topbar-sub">Enterprise Dashboard</div>
+      </div>
+      <div class="ent-topbar-right">
+        <div class="ent-date-ctrl">
+          <input type="date" class="ent-date-input" [(ngModel)]="dateFrom" (change)="onDateChange()">
+          <span class="ent-date-sep">–</span>
+          <input type="date" class="ent-date-input" [(ngModel)]="dateTo" (change)="onDateChange()">
+          <i class="fa fa-calendar ent-date-icon"></i>
+        </div>
+        <button class="ent-tb-icon" (click)="nav('alarms')" title="Alarms">
+          <i class="fa fa-bell-o"></i>
+          <span class="ent-tb-badge" *ngIf="alarmTotal > 0">{{ alarmTotal }}</span>
+        </button>
+        <button class="ent-tb-icon" title="Help"><i class="fa fa-question-circle-o"></i></button>
+        <div class="ent-tb-user" *ngIf="currentUser">
+          <div class="ent-tb-avatar">{{ (currentUser.firstName || currentUser.email || 'U')[0].toUpperCase() }}</div>
+          <div class="ent-tb-info">
+            <span class="ent-tb-name">{{ currentUser.firstName }} {{ currentUser.lastName }}</span>
+            <span class="ent-tb-role">Administrator</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI Strip -->
+    <div class="ent-kpi-strip">
+
+      <div class="ent-kpi ent-kpi--green">
+        <div class="ent-kpi-hdr">
+          <i class="fa fa-dollar ent-kpi-icon"></i>
+          <span class="ent-kpi-title">ANNUAL SAVINGS</span>
+        </div>
+        <div class="ent-kpi-val">{{ currency(annualSavings) }}</div>
+        <div class="ent-kpi-delta positive" *ngIf="annualSavings > 0">▲ 12.6% vs Last Month</div>
+        <div class="ent-kpi-spark">
+          <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
+            <polyline [attr.points]="sparkline(80,22)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="ent-kpi ent-kpi--blue">
+        <div class="ent-kpi-hdr">
+          <i class="fa fa-magic ent-kpi-icon"></i>
+          <span class="ent-kpi-title">CAPACITY RECOVERED</span>
+        </div>
+        <div class="ent-kpi-val">{{ kvaRecovered | number:'1.0-0' }} <span class="ent-kpi-unit">kVA</span></div>
+        <div class="ent-kpi-delta positive" *ngIf="kvaRecovered > 0">▲ 380 kVA vs Last Month</div>
+        <div class="ent-kpi-spark">
+          <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
+            <polyline [attr.points]="sparkline(80,22)" fill="none" stroke="#29b6f6" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="ent-kpi ent-kpi--green">
+        <div class="ent-kpi-hdr">
+          <i class="fa fa-bolt ent-kpi-icon"></i>
+          <span class="ent-kpi-title">AVG POWER FACTOR</span>
+        </div>
+        <div class="ent-kpi-val">{{ avgPf | number:'1.1-1' }}<span class="ent-kpi-unit">%</span></div>
+        <div class="ent-kpi-delta positive" *ngIf="avgPf > 0">▲ 13.2% vs Baseline</div>
+        <div class="ent-kpi-spark">
+          <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
+            <polyline [attr.points]="sparkline(80,22)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="ent-kpi ent-kpi--green">
+        <div class="ent-kpi-hdr">
+          <i class="fa fa-signal ent-kpi-icon"></i>
+          <span class="ent-kpi-title">THD REDUCTION</span>
+        </div>
+        <div class="ent-kpi-val">{{ avgThd | number:'1.1-1' }}<span class="ent-kpi-unit">%</span></div>
+        <div class="ent-kpi-delta positive" *ngIf="avgThd > 0">▼ 72% vs Baseline</div>
+        <div class="ent-kpi-spark">
+          <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
+            <polyline [attr.points]="sparkline(80,22)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+      <div class="ent-kpi" [class.ent-kpi--amber]="sitesAttention > 0" [class.ent-kpi--green]="sitesAttention === 0">
+        <div class="ent-kpi-hdr">
+          <i class="fa fa-exclamation-triangle ent-kpi-icon"></i>
+          <span class="ent-kpi-title">SITES REQUIRING ATTENTION</span>
+        </div>
+        <div class="ent-kpi-val" [style.color]="sitesAttention > 0 ? '#ffd740' : '#00e676'">{{ sitesAttention }}</div>
+        <a class="ent-kpi-viewalarms" (click)="nav('alarms')" *ngIf="sitesAttention > 0">View Alarms</a>
+      </div>
+
+      <div class="ent-kpi ent-kpi--blue">
+        <div class="ent-kpi-hdr">
+          <i class="fa fa-leaf ent-kpi-icon"></i>
+          <span class="ent-kpi-title">CO₂ REDUCTION</span>
+        </div>
+        <div class="ent-kpi-val">{{ co2Tons | number:'1.0-0' }}</div>
+        <div class="ent-kpi-sub">Tons / Year</div>
+        <div class="ent-kpi-spark">
+          <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
+            <polyline [attr.points]="sparkline(80,22)" fill="none" stroke="#29b6f6" stroke-width="1.5" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Row 2: Map | AI Summary | Network Health -->
+    <div class="ent-row ent-row-2">
+
+      <!-- Global Site Overview -->
+      <div class="ent-card ent-card--map">
+        <div class="ent-card-title">GLOBAL SITE OVERVIEW</div>
+        <div id="ent-map" class="ent-map-div"></div>
+        <div class="ent-map-legend">
+          <div class="ent-legend-item">
+            <span class="ent-legend-dot" style="background:#00e676"></span>
+            <span>Healthy ({{ healthySites }})</span>
+          </div>
+          <div class="ent-legend-item">
+            <span class="ent-legend-dot" style="background:#ffd740"></span>
+            <span>Warning ({{ warningSites }})</span>
+          </div>
+          <div class="ent-legend-item">
+            <span class="ent-legend-dot" style="background:#f44336"></span>
+            <span>Critical ({{ criticalSites }})</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Energy Summary -->
+      <div class="ent-card ent-card--ai">
+        <div class="ent-card-title">AI ENERGY SUMMARY</div>
+        <div class="ent-ai-body">
+          <div class="ent-ai-bot">
+            <i class="fa fa-android ent-ai-icon"></i>
+          </div>
+          <div class="ent-ai-status">{{ aiStatusText }}</div>
+          <div class="ent-ai-items">
+            <div *ngFor="let item of aiItems" class="ent-ai-item" [class.good]="item.good" [class.warn]="!item.good">
+              <span class="ent-ai-dot">{{ item.icon }}</span>
+              <span>{{ item.text }}</span>
+            </div>
+          </div>
+          <button class="ent-ai-btn" (click)="nav('savings')">View Full Report</button>
+        </div>
+      </div>
+
+      <!-- Network Health -->
+      <div class="ent-card ent-card--health">
+        <div class="ent-card-title">NETWORK HEALTH</div>
+        <div class="ent-nh-gauges">
+          <div class="ent-nh-gauge">
+            <svg viewBox="0 0 100 100" class="ent-gauge-svg">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="8"/>
+              <circle cx="50" cy="50" r="40" fill="none"
+                [attr.stroke]="gaugeColor(cbiScore)" stroke-width="8" stroke-linecap="round"
+                [attr.stroke-dasharray]="gaugeDash(cbiScore)" stroke-dashoffset="62.8"
+                style="transform:rotate(-90deg);transform-origin:50px 50px;transition:stroke-dasharray 1s"/>
+              <text x="50" y="47" text-anchor="middle" font-size="18" font-weight="700" fill="white">{{ cbiScore }}</text>
+              <text x="50" y="59" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.45)">/100</text>
+            </svg>
+            <div class="ent-nh-label">Current Balance<br>Index™</div>
+          </div>
+          <div class="ent-nh-gauge">
+            <svg viewBox="0 0 100 100" class="ent-gauge-svg">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="8"/>
+              <circle cx="50" cy="50" r="40" fill="none"
+                [attr.stroke]="gaugeColor(harmonicHealth)" stroke-width="8" stroke-linecap="round"
+                [attr.stroke-dasharray]="gaugeDash(harmonicHealth)" stroke-dashoffset="62.8"
+                style="transform:rotate(-90deg);transform-origin:50px 50px;transition:stroke-dasharray 1s"/>
+              <text x="50" y="47" text-anchor="middle" font-size="18" font-weight="700" fill="white">{{ harmonicHealth }}</text>
+              <text x="50" y="59" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.45)">/100</text>
+            </svg>
+            <div class="ent-nh-label">Harmonic<br>Health</div>
+          </div>
+          <div class="ent-nh-gauge">
+            <svg viewBox="0 0 100 100" class="ent-gauge-svg">
+              <circle cx="50" cy="50" r="40" fill="none" stroke="rgba(255,255,255,0.07)" stroke-width="8"/>
+              <circle cx="50" cy="50" r="40" fill="none"
+                [attr.stroke]="gaugeColor(assetHealth)" stroke-width="8" stroke-linecap="round"
+                [attr.stroke-dasharray]="gaugeDash(assetHealth)" stroke-dashoffset="62.8"
+                style="transform:rotate(-90deg);transform-origin:50px 50px;transition:stroke-dasharray 1s"/>
+              <text x="50" y="47" text-anchor="middle" font-size="18" font-weight="700" fill="white">{{ assetHealth }}</text>
+              <text x="50" y="59" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.45)">/100</text>
+            </svg>
+            <div class="ent-nh-label">Asset<br>Health</div>
+          </div>
+        </div>
+        <div class="ent-nh-overall">
+          <div class="ent-nh-overall-row">
+            <span>Overall Network Health</span>
+            <span [style.color]="gaugeColor(overallHealth)">{{ overallHealth }}%</span>
+          </div>
+          <div class="ent-nh-bar-track">
+            <div class="ent-nh-bar-fill" [style.width.%]="overallHealth" [style.background]="gaugeColor(overallHealth)"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 3: Savings Trend | Top Sites -->
+    <div class="ent-row ent-row-3">
+
+      <!-- Savings Trend -->
+      <div class="ent-card ent-card--trend">
+        <div class="ent-card-title">SAVINGS TREND (MONTHLY)</div>
+        <div *ngIf="!savingsTrend.length" class="ent-empty">Loading…</div>
+        <div *ngIf="savingsTrend.length" class="ent-trend-body">
+          <div class="ent-trend-ylabels">
+            <span>${{ (trendMax/1000).toFixed(0) }}K</span>
+            <span>${{ (trendMax/2000).toFixed(0) }}K</span>
+            <span>$0</span>
+          </div>
+          <div class="ent-trend-chart-wrap">
+            <svg class="ent-trend-svg" viewBox="0 0 500 130" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="entGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#00e676" stop-opacity="0.25"/>
+                  <stop offset="100%" stop-color="#00e676" stop-opacity="0.02"/>
+                </linearGradient>
+              </defs>
+              <line x1="0" y1="43" x2="500" y2="43" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+              <line x1="0" y1="86" x2="500" y2="86" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+              <polygon [attr.points]="'0,130 ' + trendPolyline(500,120) + ' 500,130'" fill="url(#entGrad)"/>
+              <polyline [attr.points]="trendPolyline(500,120)" fill="none" stroke="#00e676" stroke-width="2" stroke-linejoin="round"/>
+              <!-- Latest label -->
+              <ng-container *ngIf="savingsTrend.length">
+                <text x="480" [attr.y]="120-(savingsTrend[savingsTrend.length-1]?.value||0)/(trendMax||1)*110 - 6"
+                  text-anchor="end" font-size="9" fill="#00e676" font-weight="700">
+                  ${{ ((savingsTrend[savingsTrend.length-1]?.value||0)/1000).toFixed(0) }}K
+                </text>
+              </ng-container>
+            </svg>
+            <!-- X labels -->
+            <div class="ent-trend-xlabels">
+              <span *ngFor="let t of savingsTrend">{{ t.month || '' }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Top Sites by Annual Savings -->
+      <div class="ent-card ent-card--topsites">
+        <div class="ent-card-title">TOP SITES BY ANNUAL SAVINGS</div>
+        <table class="ent-sites-table">
+          <thead>
+            <tr><th>#</th><th>Site</th><th>Annual Savings</th><th>PF (Avg)</th><th>THD (Avg)</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of sites; let i=index">
+              <td class="ent-st-num">{{ i + 1 }}</td>
+              <td>{{ s.name }}</td>
+              <td class="green">{{ currency(s.annual_savings) }}</td>
+              <td>{{ s.avg_pf > 0 ? (s.avg_pf | number:'1.1-1') + '%' : '—' }}</td>
+              <td>{{ s.avg_thd > 0 ? (s.avg_thd | number:'1.1-1') + '%' : '—' }}</td>
+              <td>
+                <span class="ent-st-dot" [style.background]="s.status==='Healthy'?'#00e676':s.status==='Warning'?'#ffd740':'#f44336'"></span>
+                {{ s.status }}
+              </td>
+            </tr>
+            <tr *ngIf="!sites.length">
+              <td colspan="6" class="ent-st-empty">Loading…</td>
+            </tr>
+          </tbody>
+        </table>
+        <a class="ent-sites-viewall" (click)="nav('sites')">View All Sites</a>
+      </div>
+    </div>
+
+    <!-- Row 4: Transformer | Hidden Capacity | Losses | Device Health -->
+    <div class="ent-row ent-row-4">
+
+      <!-- Transformer Capacity -->
+      <div class="ent-card ent-card--xfmr">
+        <div class="ent-card-title">TRANSFORMER CAPACITY OVERVIEW</div>
+        <div class="ent-xfmr-body">
+          <div class="ent-xfmr-donut-wrap">
+            <svg viewBox="0 0 100 100" class="ent-xfmr-donut">
+              <circle cx="50" cy="50" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14"/>
+              <circle cx="50" cy="50" r="36" fill="none" stroke="#ffd740" stroke-width="14"
+                [attr.stroke-dasharray]="capDonutDash(utilizationPct)" stroke-dashoffset="56.6"
+                style="transform:rotate(-90deg);transform-origin:50px 50px"/>
+              <circle cx="50" cy="50" r="36" fill="none" stroke="#00e676" stroke-width="14"
+                [attr.stroke-dasharray]="capDonutDash(kvaRecovered / (totalInstalledKva||1) * 100)"
+                [attr.stroke-dashoffset]="56.6 - (utilizationPct/100*226.2)"
+                style="transform:rotate(-90deg);transform-origin:50px 50px"/>
+              <text x="50" y="47" text-anchor="middle" font-size="13" font-weight="700" fill="white">{{ utilizationPct }}%</text>
+              <text x="50" y="59" text-anchor="middle" font-size="6.5" fill="rgba(255,255,255,0.45)">LOADED</text>
+            </svg>
+          </div>
+          <div class="ent-xfmr-stats">
+            <div class="ent-xfmr-total">Total Transformer Capacity<br><strong>{{ kvaRecovered > 0 ? (totalInstalledKva | number:'1.0-0') : '—' }} kVA</strong></div>
+            <div class="ent-xfmr-row"><span class="ent-dot amber"></span><span>Currently Loaded</span><strong>{{ currentLoadKva | number:'1.0-0' }} kVA ({{ utilizationPct }}%)</strong></div>
+            <div class="ent-xfmr-row"><span class="ent-dot blue"></span><span>Available Capacity</span><strong>{{ availableKva | number:'1.0-0' }} kVA</strong></div>
+            <div class="ent-xfmr-row"><span class="ent-dot green"></span><span>Recovered Capacity</span><strong>{{ kvaRecovered | number:'1.0-0' }} kVA</strong></div>
+          </div>
+        </div>
+        <a class="ent-card-link" (click)="nav('transformers')">View Transformer Fleet</a>
+      </div>
+
+      <!-- Hidden Capacity Recovered -->
+      <div class="ent-card ent-card--hiddencap">
+        <div class="ent-card-title">HIDDEN CAPACITY RECOVERED</div>
+        <div class="ent-hc-hero">
+          <span class="ent-hc-val">{{ kvaRecovered | number:'1.0-0' }}</span>
+          <span class="ent-hc-unit">kVA</span>
+        </div>
+        <div class="ent-hc-equiv-label">Equivalent To:</div>
+        <div class="ent-hc-equivs">
+          <div class="ent-hc-item" *ngIf="equivMotors > 0"><i class="fa fa-cog"></i> {{ equivMotors }} New 50 HP Motors</div>
+          <div class="ent-hc-item" *ngIf="equivCnc > 0"><i class="fa fa-industry"></i> {{ equivCnc }} CNC Machines</div>
+          <div class="ent-hc-item" *ngIf="equivServers > 0"><i class="fa fa-server"></i> {{ equivServers }} Server Cabinets</div>
+          <div class="ent-hc-item green" *ngIf="deferredCapital > 0"><i class="fa fa-check-circle"></i> Deferred Upgrade {{ currency(deferredCapital) }}</div>
+        </div>
+        <a class="ent-card-link" (click)="nav('capacity')">View Details</a>
+      </div>
+
+      <!-- Network Losses Reduction -->
+      <div class="ent-card ent-card--losses">
+        <div class="ent-card-title">NETWORK LOSSES REDUCTION</div>
+        <div class="ent-losses-cols">
+          <div class="ent-losses-col">
+            <div class="ent-losses-lbl">Before ECBS</div>
+            <div class="ent-losses-val">{{ lossesBeforeKw | number:'1.1-1' }} <span class="ent-losses-unit">kW</span></div>
+            <div class="ent-losses-bar-track"><div class="ent-losses-bar" style="width:100%;background:#f44336"></div></div>
+          </div>
+          <div class="ent-losses-col">
+            <div class="ent-losses-lbl">After ECBS</div>
+            <div class="ent-losses-val">{{ lossesAfterKw | number:'1.1-1' }} <span class="ent-losses-unit">kW</span></div>
+            <div class="ent-losses-bar-track">
+              <div class="ent-losses-bar" [style.width.%]="lossesBeforeKw > 0 ? (lossesAfterKw/lossesBeforeKw*100) : 60" style="background:#00e676"></div>
+            </div>
+          </div>
+        </div>
+        <div class="ent-losses-badge">Reduction <span class="ent-losses-pct">{{ lossReductionPct }}%</span></div>
+        <a class="ent-card-link" (click)="nav('current-analysis')">View Loss Analysis</a>
+      </div>
+
+      <!-- Device Health -->
+      <div class="ent-card ent-card--devhealth">
+        <div class="ent-card-title">DEVICE HEALTH</div>
+        <div class="ent-dh-body">
+          <div class="ent-dh-donut-wrap">
+            <svg viewBox="0 0 80 80" class="ent-dh-donut">
+              <circle cx="40" cy="40" r="30" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="12"/>
+              <circle cx="40" cy="40" r="30" fill="none" stroke="#00e676" stroke-width="12"
+                [attr.stroke-dasharray]="devDonutDash(devHealthy)" stroke-dashoffset="47"
+                style="transform:rotate(-90deg);transform-origin:40px 40px"/>
+              <circle cx="40" cy="40" r="30" fill="none" stroke="#ffd740" stroke-width="12"
+                [attr.stroke-dasharray]="devDonutDash(devWarning)"
+                [attr.stroke-dashoffset]="47-(devHealthy/devTotal*188.5)"
+                style="transform:rotate(-90deg);transform-origin:40px 40px"/>
+              <circle cx="40" cy="40" r="30" fill="none" stroke="#f44336" stroke-width="12"
+                [attr.stroke-dasharray]="devDonutDash(devOffline)"
+                [attr.stroke-dashoffset]="47-((devHealthy+devWarning)/devTotal*188.5)"
+                style="transform:rotate(-90deg);transform-origin:40px 40px"/>
+              <text x="40" y="37" text-anchor="middle" font-size="11" font-weight="700" fill="white">{{ devHealthPct }}%</text>
+              <text x="40" y="48" text-anchor="middle" font-size="6" fill="rgba(255,255,255,0.45)">HEALTHY</text>
+            </svg>
+          </div>
+          <div class="ent-dh-legend">
+            <div class="ent-dh-row"><span class="ent-dot green"></span><span>Healthy</span><strong class="green">{{ devHealthy }} ({{ devHealthPct }}%)</strong></div>
+            <div class="ent-dh-row"><span class="ent-dot amber"></span><span>Warning</span><strong class="amber">{{ devWarning }} ({{ devTotal > 0 ? (devWarning/devTotal*100).toFixed(0) : 0 }}%)</strong></div>
+            <div class="ent-dh-row"><span class="ent-dot red"></span><span>Offline</span><strong class="red">{{ devOffline }} ({{ devTotal > 0 ? (devOffline/devTotal*100).toFixed(0) : 0 }}%)</strong></div>
+          </div>
+        </div>
+        <a class="ent-card-link" (click)="nav('devices')">View All Devices</a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="ent-footer">
+      <span><a (click)="nav('settings')">Privacy Policy</a> &nbsp;|&nbsp; <a (click)="nav('settings')">Terms of Service</a> &nbsp;|&nbsp; <a>Support</a></span>
+      <span>Data updated: {{ updateTs }} &nbsp; <span class="ent-live-dot"></span> Live</span>
+    </div>
+
+  </main>
+</div>
