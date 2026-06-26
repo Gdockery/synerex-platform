@@ -210,8 +210,13 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
     return n >= 1000 ? (n / 1000).toFixed(2) + ' MVA' : n.toLocaleString() + ' kVA';
   }
 
+  // ── Sidebar ───────────────────────────────────────────────────────────────
+  devicesOpen = false;
+  toggleDevices(e: Event) { e.stopPropagation(); this.devicesOpen = !this.devicesOpen; }
+
   // ── Navigation ────────────────────────────────────────────────────────────
   nav(path: string) { this.router.navigate(['/ecbs/' + path]); }
+  navActive(path: string): boolean { return this.router.url.includes(path); }
 
   // ── Leaflet map ───────────────────────────────────────────────────────────
   private _initMap() {
