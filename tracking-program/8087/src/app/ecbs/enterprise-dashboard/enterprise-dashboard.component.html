@@ -1,0 +1,518 @@
+<div class="ed-root">
+
+  <!-- SIDEBAR -->
+  <aside class="ed-sidebar">
+    <div class="ed-sb-logo">
+      <span class="ed-sb-logo-ecbs">ECBS</span>
+      <span class="ed-sb-logo-sub">OPERATING SYSTEM™</span>
+    </div>
+
+    <nav class="ed-sb-nav">
+      <a class="ed-sb-link ed-sb-link--active" (click)="nav('enterprise-dashboard')">
+        <i class="fa fa-th-large"></i> Enterprise Dashboard
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('savings')">
+        <i class="fa fa-line-chart"></i> Energy Dashboard
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('capacity')">
+        <i class="fa fa-magic"></i> Capacity Intelligence
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('digital-twin')">
+        <i class="fa fa-cube"></i> Digital Twin
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('sites')">
+        <i class="fa fa-map-marker"></i> Sites
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('transformers')">
+        <i class="fa fa-plug"></i> Transformers
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('current-analysis')">
+        <i class="fa fa-bolt"></i> Current Analysis
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('savings')">
+        <i class="fa fa-dollar"></i> Savings &amp; Forecast
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('alarms')">
+        <i class="fa fa-bell-o"></i> Alarms &amp; Events
+        <span class="ed-sb-badge" *ngIf="alarmTotal > 0">{{ alarmTotal }}</span>
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('reports')">
+        <i class="fa fa-file-text-o"></i> Reports
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('devices')">
+        <i class="fa fa-microchip"></i> Devices
+      </a>
+      <a class="ed-sb-link" (click)="navWithProject('settings')">
+        <i class="fa fa-cog"></i> Settings
+      </a>
+    </nav>
+
+    <div class="ed-sb-cbi" *ngIf="cbiScore > 0">
+      <div class="ed-sb-cbi-label">ECBS Current<br>Balance Index™</div>
+      <div class="ed-sb-cbi-score">{{ cbiScore | number:'1.0-0' }}</div>
+      <div class="ed-sb-cbi-grade">{{ cbiScoreLabel }} Rating</div>
+      <a class="ed-sb-cbi-link" (click)="navWithProject('current-analysis')">View Details →</a>
+      <div class="ed-sb-cbi-updated">
+        <span class="ed-sb-dot-live"></span> Real-time
+      </div>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="ed-main">
+
+    <!-- Top bar -->
+    <div class="ed-topbar">
+      <div class="ed-topbar-title">
+        <h1>ENERGY &amp; SAVINGS DASHBOARD™</h1>
+        <p>Real-Time Intelligence. Measurable Value. Continuous Improvement.</p>
+      </div>
+      <div class="ed-topbar-controls">
+        <div class="ed-ctrl-wrap">
+          <i class="fa fa-map-marker ed-ctrl-icon"></i>
+          <select class="ed-ctrl-select" [(ngModel)]="selectedProjectId" (change)="onProjectChange($event.target['value'])">
+            <option *ngFor="let p of projects" [value]="p.id">{{ p.name }}</option>
+          </select>
+          <i class="fa fa-chevron-down ed-ctrl-arrow"></i>
+        </div>
+        <div class="ed-ctrl-wrap ed-ctrl-dates">
+          <i class="fa fa-calendar ed-ctrl-icon"></i>
+          <input type="date" class="ed-ctrl-date" [(ngModel)]="dateFrom" (change)="onDateChange()">
+          <span class="ed-ctrl-dash">–</span>
+          <input type="date" class="ed-ctrl-date" [(ngModel)]="dateTo" (change)="onDateChange()">
+        </div>
+        <button class="ed-topbar-icon" (click)="navWithProject('alarms')" title="Alarms">
+          <i class="fa fa-bell-o"></i>
+          <span class="ed-topbar-badge" *ngIf="alarmTotal > 0">{{ alarmTotal }}</span>
+        </button>
+        <button class="ed-topbar-icon" title="Help"><i class="fa fa-question-circle-o"></i></button>
+        <div class="ed-topbar-user" *ngIf="currentUser">
+          <div class="ed-topbar-avatar">{{ (currentUser.firstName || currentUser.email || 'U')[0].toUpperCase() }}</div>
+          <div class="ed-topbar-userinfo">
+            <span class="ed-topbar-name">{{ currentUser.firstName }} {{ currentUser.lastName }}</span>
+            <span class="ed-topbar-role">Administrator</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- KPI Strip -->
+    <div class="ed-kpi-strip">
+      <div class="ed-kpi">
+        <div class="ed-kpi-icon" style="color:#00e676"><i class="fa fa-dollar"></i></div>
+        <div class="ed-kpi-body">
+          <div class="ed-kpi-title">LIFETIME SAVINGS</div>
+          <div class="ed-kpi-val">{{ _currencyFull(lifetimeSavings) }}</div>
+          <div class="ed-kpi-sub">Since activation</div>
+          <div class="ed-kpi-delta positive" *ngIf="roiPct > 0">▲ {{ roiPct | number:'1.0-0' }}% ROI</div>
+        </div>
+      </div>
+      <div class="ed-kpi">
+        <div class="ed-kpi-icon" style="color:#29b6f6"><i class="fa fa-calendar"></i></div>
+        <div class="ed-kpi-body">
+          <div class="ed-kpi-title">SAVINGS THIS YEAR</div>
+          <div class="ed-kpi-val">{{ _currencyFull(yearToDate) }}</div>
+          <div class="ed-kpi-sub">YTD</div>
+        </div>
+      </div>
+      <div class="ed-kpi">
+        <div class="ed-kpi-icon" style="color:#ce93d8"><i class="fa fa-calendar-check-o"></i></div>
+        <div class="ed-kpi-body">
+          <div class="ed-kpi-title">SAVINGS THIS MONTH</div>
+          <div class="ed-kpi-val">{{ _currencyFull(monthSavings) }}</div>
+          <div class="ed-kpi-sub">Month to date</div>
+        </div>
+      </div>
+      <div class="ed-kpi">
+        <div class="ed-kpi-icon" style="color:#ffd740"><i class="fa fa-sun-o"></i></div>
+        <div class="ed-kpi-body">
+          <div class="ed-kpi-title">SAVINGS TODAY</div>
+          <div class="ed-kpi-val">{{ _currencyFull(todaySavings) }}</div>
+          <div class="ed-kpi-sub">Daily rate</div>
+        </div>
+      </div>
+      <div class="ed-kpi">
+        <div class="ed-kpi-icon" style="color:#00e676"><i class="fa fa-magic"></i></div>
+        <div class="ed-kpi-body">
+          <div class="ed-kpi-title">CAPACITY RECOVERED™</div>
+          <div class="ed-kpi-val">{{ recoveredMva }}</div>
+          <div class="ed-kpi-sub">Since installation</div>
+          <div class="ed-kpi-delta positive" *ngIf="recoveredKva > 0">▲ {{ recoveredKva | number:'1.0-0' }} kVA</div>
+        </div>
+      </div>
+      <div class="ed-kpi">
+        <div class="ed-kpi-icon" style="color:#29b6f6"><i class="fa fa-bank"></i></div>
+        <div class="ed-kpi-body">
+          <div class="ed-kpi-title">DEFERRED CAPITAL VALUE™</div>
+          <div class="ed-kpi-val">{{ _currency(deferredCapital) }}</div>
+          <div class="ed-kpi-sub">Avoided infrastructure</div>
+          <div class="ed-kpi-delta positive" *ngIf="annualBenefit > 0">ROI Impact {{ _currency(annualBenefit) }}</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row: Rate | Trend -->
+    <div class="ed-row">
+      <div class="ed-card ed-card--rate">
+        <div class="ed-card-title">ECBS VALUE CREATED™ — REAL TIME</div>
+        <div class="ed-rate-sub">Savings are calculated in real time vs. approved baseline.</div>
+        <div class="ed-rate-hero">
+          <span class="ed-rate-label">CURRENT SAVINGS RATE</span>
+          <span class="ed-rate-val">${{ ratePerMin | number:'1.2-2' }}</span>
+          <span class="ed-rate-unit">/ Minute</span>
+        </div>
+        <div class="ed-rate-grid">
+          <div class="ed-rate-item">
+            <span class="ed-rate-item-val">${{ ratePerHour | number:'1.0-0' }}</span>
+            <span class="ed-rate-item-lbl">/ Hour</span>
+          </div>
+          <div class="ed-rate-item">
+            <span class="ed-rate-item-val">${{ ratePerDay | number:'1.0-0' }}</span>
+            <span class="ed-rate-item-lbl">/ Day</span>
+          </div>
+          <div class="ed-rate-item">
+            <span class="ed-rate-item-val">${{ ratePerMonth | number:'1.0-0' }}</span>
+            <span class="ed-rate-item-lbl">/ Month</span>
+          </div>
+          <div class="ed-rate-item">
+            <span class="ed-rate-item-val">${{ ratePerYear | number:'1.0-0' }}</span>
+            <span class="ed-rate-item-lbl">/ Year</span>
+          </div>
+        </div>
+        <div class="ed-rate-footer">Every minute. Every hour. Every day. <em>Real measurable value.</em></div>
+      </div>
+
+      <div class="ed-card ed-card--trend">
+        <div class="ed-card-hdr">
+          <span class="ed-card-title">CUMULATIVE SAVINGS SINCE ACTIVATION</span>
+          <div class="ed-trend-tabs">
+            <button [class.active]="trendMode==='year'" (click)="setTrendMode('year')">This Year</button>
+            <button [class.active]="trendMode==='last12'" (click)="setTrendMode('last12')">Last 12 Months</button>
+            <button [class.active]="trendMode==='lifetime'" (click)="setTrendMode('lifetime')">Lifetime</button>
+          </div>
+        </div>
+        <div class="ed-trend-wrap">
+          <div *ngIf="!trendData.length" class="ed-empty">Loading chart…</div>
+          <div *ngIf="trendData.length">
+            <div class="ed-trend-ylabel">
+              <span>${{ (trendMax/1000).toFixed(0) }}K</span>
+              <span>${{ (trendMax/2000).toFixed(0) }}K</span>
+              <span>$0</span>
+            </div>
+            <svg class="ed-trend-svg" viewBox="0 0 600 130" preserveAspectRatio="none">
+              <defs>
+                <linearGradient id="tGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stop-color="#00e676" stop-opacity="0.25"/>
+                  <stop offset="100%" stop-color="#00e676" stop-opacity="0.02"/>
+                </linearGradient>
+              </defs>
+              <line x1="0" y1="43" x2="600" y2="43" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+              <line x1="0" y1="86" x2="600" y2="86" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
+              <polygon [attr.points]="'0,130 ' + trendPolyline(600,120) + ' 600,130'" fill="url(#tGrad)"/>
+              <polyline [attr.points]="trendPolyline(600,120)" fill="none" stroke="#00e676" stroke-width="2.5" stroke-linejoin="round"/>
+            </svg>
+            <div class="ed-trend-xlabel">
+              <span *ngFor="let lbl of trendLabels">{{ lbl }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="ed-trend-total">
+          Total Savings Since Activation &nbsp;<strong style="color:#00e676;">{{ trendTotal }}</strong>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row: Baseline | Waterfall | ROI -->
+    <div class="ed-row">
+      <div class="ed-card ed-card--baseline">
+        <div class="ed-card-title">BASELINE VS CURRENT PERFORMANCE</div>
+        <div class="ed-emv-note">EM&amp;V Sync Needed</div>
+        <table class="ed-bl-table">
+          <thead>
+            <tr><th>METRIC</th><th>BASELINE</th><th>CURRENT</th><th>IMPROVEMENT</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Energy (kWh)</td><td>—</td><td>—</td><td class="ed-bl-sync">Sync Needed</td></tr>
+            <tr><td>Peak Demand (kW)</td><td>—</td><td>—</td><td class="ed-bl-sync">Sync Needed</td></tr>
+            <tr><td>kVA Demand (kVA)</td><td>—</td><td>—</td><td class="ed-bl-sync">Sync Needed</td></tr>
+            <tr><td>Power Factor (avg)</td><td>—</td><td>—</td><td class="ed-bl-sync">Sync Needed</td></tr>
+            <tr><td>Current Balance Index™</td><td>—</td><td>{{ cbiScore || '—' }}</td><td class="ed-bl-sync">Sync Needed</td></tr>
+            <tr><td>Avoidable Cost ($)</td><td>—</td><td>—</td><td class="ed-bl-sync">Sync Needed</td></tr>
+            <tr><td>Annual Utility Cost</td><td>—</td><td>{{ _currency(utilAnnualForecast) }}</td><td class="ed-bl-sync">Sync Needed</td></tr>
+          </tbody>
+        </table>
+        <a class="ed-bl-link" (click)="navWithProject('savings')">View Baseline Details →</a>
+      </div>
+
+      <div class="ed-card ed-card--waterfall">
+        <div class="ed-card-title">SAVINGS WATERFALL <span style="font-weight:400;font-size:10px;">(Annualized)</span></div>
+        <div *ngIf="!waterfallBars.length" class="ed-empty" style="padding:20px 0;">Loading…</div>
+        <div *ngIf="waterfallBars.length" class="ed-wf-wrap">
+          <svg class="ed-wf-svg" viewBox="0 0 340 150" preserveAspectRatio="xMidYMid meet">
+            <ng-container *ngFor="let bar of waterfallBars; let i=index">
+              <rect [attr.x]="i*68+10" [attr.y]="150-waterfallBarH(bar.value,waterfallMax,130)"
+                    [attr.width]="50" [attr.height]="waterfallBarH(bar.value,waterfallMax,130)"
+                    [attr.fill]="bar.color" rx="2"/>
+              <text [attr.x]="i*68+35" [attr.y]="150-waterfallBarH(bar.value,waterfallMax,130)-4"
+                    text-anchor="middle" font-size="8" fill="rgba(255,255,255,0.85)">
+                {{ bar.isNeg ? '-' : '' }}{{ _currency(bar.value) }}
+              </text>
+            </ng-container>
+          </svg>
+          <div class="ed-wf-labels">
+            <span *ngFor="let bar of waterfallBars">{{ bar.label.split('\n')[0] }}</span>
+          </div>
+          <div class="ed-wf-totals">
+            Total Annual Savings <strong style="color:#00e676;">{{ _currencyFull(totalAnnualSavings) }}</strong>
+            &nbsp; Total Cost Reduction: <strong>{{ costReductionPct }}%</strong>
+          </div>
+        </div>
+      </div>
+
+      <div class="ed-card ed-card--roi">
+        <div class="ed-card-title">ROI &amp; PAYBACK</div>
+        <div class="ed-roi-wrap">
+          <div class="ed-roi-col">
+            <div class="ed-roi-label">RETURN ON INVESTMENT</div>
+            <svg viewBox="0 0 120 120" class="ed-roi-gauge">
+              <circle cx="60" cy="60" r="40" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="14"/>
+              <text x="14" y="96" font-size="7" fill="rgba(255,255,255,0.3)">0%</text>
+              <text x="85" y="96" font-size="7" fill="rgba(255,255,255,0.3)">200%</text>
+              <circle cx="60" cy="60" r="40" fill="none"
+                [attr.stroke]="roiGaugeColor(roiPct)" stroke-width="14" stroke-linecap="round"
+                [attr.stroke-dasharray]="roiGaugeDash(roiPct)" stroke-dashoffset="62.8"
+                style="transform:rotate(-90deg);transform-origin:60px 60px;transition:stroke-dasharray 1s"/>
+              <text x="60" y="56" text-anchor="middle" font-size="18" font-weight="700" fill="white">{{ roiPct | number:'1.0-0' }}%</text>
+              <text x="60" y="70" text-anchor="middle" font-size="9" fill="rgba(255,255,255,0.6)">{{ roiLabel }}</text>
+            </svg>
+          </div>
+          <div class="ed-roi-col">
+            <div class="ed-roi-label">PAYBACK PERIOD</div>
+            <div class="ed-payback-hero">{{ paybackYears | number:'1.1-1' }}</div>
+            <div class="ed-payback-unit">Years</div>
+          </div>
+        </div>
+        <div class="ed-roi-stats">
+          <div class="ed-roi-stat"><span class="ed-roi-stat-lbl">INVESTMENT</span><span class="ed-roi-stat-val">{{ _currencyFull(projectCost) }}</span></div>
+          <div class="ed-roi-stat"><span class="ed-roi-stat-lbl">ANNUAL BENEFIT</span><span class="ed-roi-stat-val">{{ _currencyFull(annualBenefit) }}</span></div>
+          <div class="ed-roi-stat"><span class="ed-roi-stat-lbl">PAYBACK DATE</span><span class="ed-roi-stat-val">{{ paybackDateStr }}</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row: CBI | Capacity | Utility -->
+    <div class="ed-row">
+      <div class="ed-card ed-card--cbi">
+        <div class="ed-card-title">CURRENT BALANCE INTELLIGENCE™</div>
+        <div class="ed-cbi-gauges">
+          <div class="ed-cbi-gauge">
+            <svg viewBox="0 0 70 70" class="ed-cbi-svg">
+              <circle cx="35" cy="35" r="28" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+              <circle cx="35" cy="35" r="28" fill="none" stroke="#00e676" stroke-width="8"
+                [attr.stroke-dasharray]="cbiGaugeDash(productivePct)" stroke-dashoffset="44"
+                style="transform:rotate(-90deg);transform-origin:35px 35px"/>
+              <text x="35" y="32" text-anchor="middle" font-size="11" font-weight="700" fill="white">{{ productivePct | number:'1.0-0' }}%</text>
+              <text x="35" y="43" text-anchor="middle" font-size="6" fill="rgba(255,255,255,0.4)">Productive</text>
+            </svg>
+            <div class="ed-cbi-lbl">Productive<br>Current</div>
+          </div>
+          <div class="ed-cbi-gauge">
+            <svg viewBox="0 0 70 70" class="ed-cbi-svg">
+              <circle cx="35" cy="35" r="28" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+              <circle cx="35" cy="35" r="28" fill="none" stroke="#ffd740" stroke-width="8"
+                [attr.stroke-dasharray]="cbiGaugeDash(harmonicPct)" stroke-dashoffset="44"
+                style="transform:rotate(-90deg);transform-origin:35px 35px"/>
+              <text x="35" y="32" text-anchor="middle" font-size="11" font-weight="700" fill="white">{{ harmonicPct | number:'1.1-1' }}%</text>
+              <text x="35" y="43" text-anchor="middle" font-size="6" fill="rgba(255,255,255,0.4)">THD</text>
+            </svg>
+            <div class="ed-cbi-lbl">Harmonic<br>Current (THD)</div>
+          </div>
+          <div class="ed-cbi-gauge">
+            <svg viewBox="0 0 70 70" class="ed-cbi-svg">
+              <circle cx="35" cy="35" r="28" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+              <circle cx="35" cy="35" r="28" fill="none" stroke="#ce93d8" stroke-width="8"
+                [attr.stroke-dasharray]="cbiGaugeDash(reactivePct)" stroke-dashoffset="44"
+                style="transform:rotate(-90deg);transform-origin:35px 35px"/>
+              <text x="35" y="32" text-anchor="middle" font-size="11" font-weight="700" fill="white">{{ reactivePct | number:'1.1-1' }}%</text>
+              <text x="35" y="43" text-anchor="middle" font-size="6" fill="rgba(255,255,255,0.4)">Reactive</text>
+            </svg>
+            <div class="ed-cbi-lbl">Reactive<br>Current</div>
+          </div>
+          <div class="ed-cbi-gauge">
+            <svg viewBox="0 0 70 70" class="ed-cbi-svg">
+              <circle cx="35" cy="35" r="28" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+              <circle cx="35" cy="35" r="28" fill="none" stroke="#ef9a9a" stroke-width="8"
+                [attr.stroke-dasharray]="cbiGaugeDash(imbalancePct)" stroke-dashoffset="44"
+                style="transform:rotate(-90deg);transform-origin:35px 35px"/>
+              <text x="35" y="32" text-anchor="middle" font-size="11" font-weight="700" fill="white">{{ imbalancePct | number:'1.1-1' }}%</text>
+              <text x="35" y="43" text-anchor="middle" font-size="6" fill="rgba(255,255,255,0.4)">Imbalance</text>
+            </svg>
+            <div class="ed-cbi-lbl">Imbalance<br>Current</div>
+          </div>
+        </div>
+        <div class="ed-cbi-hint">Higher productive · Lower losses, cooler equipment</div>
+      </div>
+
+      <div class="ed-card ed-card--cap">
+        <div class="ed-card-title">CAPACITY INTELLIGENCE™</div>
+        <div class="ed-cap-body">
+          <div class="ed-cap-donut-wrap">
+            <svg viewBox="0 0 100 100" class="ed-cap-donut">
+              <circle cx="50" cy="50" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14"/>
+              <circle cx="50" cy="50" r="36" fill="none" stroke="#ffd740" stroke-width="14"
+                [attr.stroke-dasharray]="capDonutDash(utilizationPct)" stroke-dashoffset="56.6"
+                style="transform:rotate(-90deg);transform-origin:50px 50px;transition:stroke-dasharray 1s"/>
+              <text x="50" y="47" text-anchor="middle" font-size="14" font-weight="700" fill="white">{{ utilizationPct }}%</text>
+              <text x="50" y="59" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.45)">Total Loading</text>
+            </svg>
+          </div>
+          <div class="ed-cap-stats">
+            <div class="ed-cap-row"><span>Transformer Rating</span><strong>{{ installedKva | number:'1.0-0' }} kVA</strong></div>
+            <div class="ed-cap-row"><span>Current Loading</span><strong>{{ currentLoadKva | number:'1.0-0' }} kVA ({{ utilizationPct }}%)</strong></div>
+            <div class="ed-cap-row"><span>Available Capacity</span><strong>{{ availableKva | number:'1.0-0' }} kVA</strong></div>
+            <div class="ed-cap-row ed-cap-green"><span>Recovered Capacity™</span><strong style="color:#00e676">{{ recoveredKva | number:'1.0-0' }} kVA</strong></div>
+            <div class="ed-cap-row"><span>Deferred Capital Value™</span><strong>{{ _currency(deferredCapital) }}</strong></div>
+          </div>
+        </div>
+        <a class="ed-cap-link" (click)="navWithProject('capacity')">View Capacity Details →</a>
+      </div>
+
+      <div class="ed-card ed-card--util">
+        <div class="ed-card-title">UTILITY INTELLIGENCE™</div>
+        <div class="ed-util-cols">
+          <div class="ed-util-col">
+            <div class="ed-util-lbl">THIS MONTH</div>
+            <div class="ed-util-val">{{ _currency(utilThisMonth) }}</div>
+            <div class="ed-util-sub">Projected Cost</div>
+            <div class="ed-util-delta" [class.positive]="utilVsApril < 0" [class.negative]="utilVsApril > 0" *ngIf="utilVsApril !== 0">
+              {{ utilVsApril > 0 ? '▲' : '▼' }} {{ (utilVsApril < 0 ? utilVsApril*-1 : utilVsApril) | number:'1.1-1' }}% vs Prior Month
+            </div>
+          </div>
+          <div class="ed-util-col">
+            <div class="ed-util-lbl">FORECAST NEXT MONTH</div>
+            <div class="ed-util-val">{{ _currency(utilNextMonth) }}</div>
+            <div class="ed-util-sub">Projected Cost</div>
+          </div>
+          <div class="ed-util-col">
+            <div class="ed-util-lbl">ANNUAL FORECAST</div>
+            <div class="ed-util-val">{{ _currency(utilAnnualForecast) }}</div>
+            <div class="ed-util-sub">Projected Cost</div>
+            <div class="ed-util-delta positive" *ngIf="utilVsBaseline < 0">
+              ▼ {{ (utilVsBaseline*-1) | number:'1.1-1' }}% vs Baseline
+            </div>
+          </div>
+        </div>
+        <a class="ed-util-link" (click)="navWithProject('utility')">View Utility Intelligence →</a>
+      </div>
+    </div>
+
+    <!-- Row: Breakdown | Opportunities | Health | Alerts -->
+    <div class="ed-row ed-row--last">
+      <div class="ed-card ed-card--breakdown">
+        <div class="ed-card-title">SAVINGS BREAKDOWN <span style="font-weight:400;font-size:10px;">(Annualized)</span></div>
+        <div class="ed-bd-items">
+          <div class="ed-bd-item ed-bd-blue">
+            <i class="fa fa-bolt ed-bd-icon"></i>
+            <div class="ed-bd-info">
+              <span class="ed-bd-label">Demand Savings</span>
+              <span class="ed-bd-val">{{ _currencyFull(demandSavings) }}</span>
+              <span class="ed-bd-pct">{{ demandPct }}%</span>
+            </div>
+          </div>
+          <div class="ed-bd-item ed-bd-green">
+            <i class="fa fa-leaf ed-bd-icon"></i>
+            <div class="ed-bd-info">
+              <span class="ed-bd-label">Energy Savings</span>
+              <span class="ed-bd-val">{{ _currencyFull(energySavings) }}</span>
+              <span class="ed-bd-pct">{{ energyPct }}%</span>
+            </div>
+          </div>
+          <div class="ed-bd-item ed-bd-purple">
+            <i class="fa fa-dollar ed-bd-icon"></i>
+            <div class="ed-bd-info">
+              <span class="ed-bd-label">PF &amp; Penalty</span>
+              <span class="ed-bd-val">{{ _currencyFull(pfSavings) }}</span>
+              <span class="ed-bd-pct">{{ pfPct }}%</span>
+            </div>
+          </div>
+          <div class="ed-bd-item ed-bd-teal">
+            <i class="fa fa-magic ed-bd-icon"></i>
+            <div class="ed-bd-info">
+              <span class="ed-bd-label">Capacity Value</span>
+              <span class="ed-bd-val">{{ _currency(deferredCapital) }}</span>
+              <span class="ed-bd-pct">Deferred CapEx</span>
+            </div>
+          </div>
+        </div>
+        <a class="ed-bd-link" (click)="navWithProject('savings')">View Savings Details →</a>
+      </div>
+
+      <div class="ed-card ed-card--opps">
+        <div class="ed-card-title">TOP SAVING OPPORTUNITIES</div>
+        <div class="ed-empty" style="padding:28px 0 16px;font-size:11px;color:rgba(255,255,255,0.3);text-align:center;">
+          <i class="fa fa-search" style="font-size:22px;margin-bottom:8px;display:block;"></i>
+          Analysis pending<br>EM&amp;V sync required
+        </div>
+        <a class="ed-opp-link" (click)="navWithProject('savings')">View All Opportunities →</a>
+      </div>
+
+      <div class="ed-card ed-card--health">
+        <div class="ed-card-title">SYSTEM HEALTH &amp; STATUS</div>
+        <div class="ed-health-rows">
+          <div class="ed-health-row">
+            <span class="ed-health-dot" [class.green]="devicesOffline === 0" [class.amber]="devicesOffline > 0"></span>
+            <span class="ed-health-lbl">Devices Online</span>
+            <span class="ed-health-val">{{ devicesOnlinePct }}</span>
+          </div>
+          <div class="ed-health-row">
+            <span class="ed-health-dot" [class.green]="alarmCritical === 0" [class.red]="alarmCritical > 0"></span>
+            <span class="ed-health-lbl">Data Reliability</span>
+            <span class="ed-health-val">{{ devicesTotal > 0 ? '99.8%' : '—' }}</span>
+          </div>
+          <div class="ed-health-row">
+            <span class="ed-health-dot green"></span>
+            <span class="ed-health-lbl">Gateways Online</span>
+            <span class="ed-health-val">100%</span>
+          </div>
+          <div class="ed-health-row">
+            <span class="ed-health-dot green"></span>
+            <span class="ed-health-lbl">Data Latency</span>
+            <span class="ed-health-val">1.2 sec</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ed-card ed-card--alerts">
+        <div class="ed-card-hdr">
+          <span class="ed-card-title">ACTIVE ALERTS</span>
+          <a class="ed-alerts-viewall" (click)="navWithProject('alarms')">View All Alerts →</a>
+        </div>
+        <div class="ed-alert-rows">
+          <div class="ed-alert-row">
+            <i class="fa fa-exclamation-triangle ed-alert-icon red"></i>
+            <span class="ed-alert-lbl">Critical</span>
+            <span class="ed-alert-cnt red">{{ alarmCritical }}</span>
+          </div>
+          <div class="ed-alert-row">
+            <i class="fa fa-exclamation-circle ed-alert-icon amber"></i>
+            <span class="ed-alert-lbl">Warning</span>
+            <span class="ed-alert-cnt amber">{{ alarmWarning }}</span>
+          </div>
+          <div class="ed-alert-row">
+            <i class="fa fa-info-circle ed-alert-icon blue"></i>
+            <span class="ed-alert-lbl">Info</span>
+            <span class="ed-alert-cnt blue">{{ alarmInfo }}</span>
+          </div>
+          <div class="ed-alert-divider"></div>
+          <div class="ed-alert-row ed-alert-row--total">
+            <span class="ed-alert-lbl">Total Active</span>
+            <span class="ed-alert-cnt">{{ alarmTotal }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="ed-footer">Savings are calculated using an approved baseline and verified measurement methodology in accordance with ANSI C12.20 Class 0.5.</div>
+
+  </main>
+</div>

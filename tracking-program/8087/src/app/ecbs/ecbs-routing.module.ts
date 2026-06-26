@@ -2,6 +2,7 @@ import { NgModule } from '@angular/core';
 import { RouterModule, Routes } from '@angular/router';
 
 import { DashboardComponent }          from './dashboard/dashboard.component';
+import { EnterpriseDashboardComponent }  from './enterprise-dashboard/enterprise-dashboard.component';
 import { CapacityComponent }            from './capacity/capacity.component';
 import { DigitalTwinComponent }         from './digital-twin/digital-twin.component';
 import { SitesComponent }               from './sites/sites.component';
@@ -40,7 +41,8 @@ import { DeploymentEngSupportComponent }    from './deployment/deployment-eng-su
 import { DeploymentDocumentsComponent }     from './deployment/deployment-documents.component';
 
 const routes: Routes = [
-  { path: 'dashboard',            component: DashboardComponent,          data: { title: 'Enterprise Dashboard' } },
+  { path: 'enterprise-dashboard',  component: EnterpriseDashboardComponent, data: { title: 'Enterprise Dashboard' } },
+  { path: 'dashboard',            component: DashboardComponent,          data: { title: 'Dashboard' } },
   { path: 'capacity',             component: CapacityComponent,           data: { title: 'Capacity Intelligence' } },
   { path: 'digital-twin',         component: DigitalTwinComponent,        data: { title: 'Digital Twin' } },
   { path: 'sites',                component: SitesComponent,              data: { title: 'Sites' } },
@@ -82,7 +84,7 @@ const routes: Routes = [
       { path: 'materials',          component: DeploymentMaterialsComponent,     data: { title: 'Materials' } },
     ]
   },
-  { path: '', redirectTo: 'dashboard', pathMatch: 'full' },
+  { path: '', redirectTo: 'enterprise-dashboard', pathMatch: 'full' },
 ];
 
 @NgModule({
