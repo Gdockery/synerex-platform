@@ -217,11 +217,11 @@ export class DeploymentPreComponent implements OnInit {
     return issues.slice(0, 5);
   }
 
-  get toolCheckCount(): number { return Object.values(this.toolChecks).filter(Boolean).length; }
+  get toolCheckCount(): number { return Object.keys(this.toolChecks).filter(k => (this.toolChecks as any)[k]).length; }
   get toolTotal(): number { return Object.keys(this.toolChecks).length; }
-  get accessCheckCount(): number { return Object.values(this.accessChecks).filter(Boolean).length; }
+  get accessCheckCount(): number { return Object.keys(this.accessChecks).filter(k => (this.accessChecks as any)[k]).length; }
   get accessTotal(): number { return Object.keys(this.accessChecks).length; }
-  get safetyCheckCount(): number { return Object.values(this.safetyChecks).filter(Boolean).length; }
+  get safetyCheckCount(): number { return Object.keys(this.safetyChecks).filter(k => (this.safetyChecks as any)[k]).length; }
   get safetyTotal(): number { return Object.keys(this.safetyChecks).length; }
 
   sectionScore(s: any): number {
