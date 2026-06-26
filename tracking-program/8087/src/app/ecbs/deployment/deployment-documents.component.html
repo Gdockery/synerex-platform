@@ -20,27 +20,27 @@
 
   <!-- KPI strip -->
   <div class="dc-kpi-strip">
-    <div class="dc-kpi">
+    <div class="dc-kpi" (click)="filterKpi('')" style="cursor:pointer">
       <i class="fa fa-file-text-o dc-kpi-icon dc-ki--blue"></i>
       <div><div class="dc-kpi-val">{{ totalDocs }}</div><div class="dc-kpi-lbl">Total Documents</div></div>
     </div>
-    <div class="dc-kpi">
+    <div class="dc-kpi" (click)="filterKpi('Drawing')" style="cursor:pointer">
       <i class="fa fa-file-image-o dc-kpi-icon dc-ki--blue"></i>
       <div><div class="dc-kpi-val dc-kv--blue">{{ drawingCount }}</div><div class="dc-kpi-lbl">Drawings</div></div>
     </div>
-    <div class="dc-kpi">
+    <div class="dc-kpi" (click)="filterKpi('Manual')" style="cursor:pointer">
       <i class="fa fa-book dc-kpi-icon dc-ki--amber"></i>
       <div><div class="dc-kpi-val dc-kv--amber">{{ manualCount }}</div><div class="dc-kpi-lbl">Manuals</div></div>
     </div>
-    <div class="dc-kpi">
+    <div class="dc-kpi" (click)="filterKpi('Report')" style="cursor:pointer">
       <i class="fa fa-bar-chart dc-kpi-icon dc-ki--purple"></i>
       <div><div class="dc-kpi-val dc-kv--purple">{{ reportCount }}</div><div class="dc-kpi-lbl">Reports</div></div>
     </div>
-    <div class="dc-kpi">
+    <div class="dc-kpi" (click)="filterKpi('Other')" style="cursor:pointer">
       <i class="fa fa-ellipsis-h dc-kpi-icon dc-ki--dim"></i>
       <div><div class="dc-kpi-val">{{ otherCount }}</div><div class="dc-kpi-lbl">Other</div></div>
     </div>
-    <div class="dc-kpi">
+    <div class="dc-kpi" (click)="filterFavorites()" style="cursor:pointer">
       <i class="fa fa-star dc-kpi-icon dc-ki--amber"></i>
       <div><div class="dc-kpi-val dc-kv--amber">{{ favoritesCount }}</div><div class="dc-kpi-lbl">My Favorites</div></div>
     </div>
@@ -121,7 +121,7 @@
                 <div>{{ d.uploaded_at ? (d.uploaded_at | date:'MMM d, y') : '—' }}</div>
                 <div class="dc-date-sub">{{ d.uploaded_at ? (d.uploaded_at | date:'h:mm a') : '' }}</div>
               </td>
-              <td><button class="dc-star-btn" title="Favorite"><i class="fa" [ngClass]="d.is_favorite ? 'fa-star dc-starred' : 'fa-star-o'"></i></button></td>
+              <td><button class="dc-star-btn" title="Favorite" (click)="toggleFavorite(d, $event)"><i class="fa" [ngClass]="d.is_favorite ? 'fa-star dc-starred' : 'fa-star-o'"></i></button></td>
             </tr>
             <tr *ngIf="filtered.length === 0">
               <td colspan="6" class="dc-empty"><i class="fa fa-folder-open-o"></i> No documents found</td>
@@ -167,11 +167,11 @@
         </div>
         <div class="dc-dp-actions">
           <button class="dc-dp-btn dc-dp-primary" (click)="openDoc(selected)"><i class="fa fa-eye"></i> Open</button>
-          <button class="dc-dp-btn dc-dp-outline"><i class="fa fa-star-o"></i> Add to Favorites</button>
+          <button class="dc-dp-btn dc-dp-outline" (click)="toggleFavorite(selected)"><i class="fa" [ngClass]="selected?.is_favorite ? 'fa-star' : 'fa-star-o'"></i> {{ selected?.is_favorite ? 'In Favorites' : 'Add to Favorites' }}</button>
           <button class="dc-dp-btn dc-dp-outline" (click)="openDoc(selected)"><i class="fa fa-download"></i> Download</button>
-          <button class="dc-dp-btn dc-dp-outline"><i class="fa fa-upload"></i> Upload New Version</button>
-          <button class="dc-dp-btn dc-dp-outline"><i class="fa fa-share"></i> Share</button>
-          <button class="dc-dp-btn dc-dp-outline"><i class="fa fa-paperclip"></i> Add to Support Request</button>
+          <label class="dc-dp-btn dc-dp-outline" style="cursor:pointer"><i class="fa fa-upload"></i> Upload New Version<input type="file" style="display:none" (change)="uploadNewVersion($event)"/></label>
+          <button class="dc-dp-btn dc-dp-outline" (click)="shareDoc(selected)"><i class="fa fa-share"></i> Share</button>
+          <button class="dc-dp-btn dc-dp-outline" (click)="addToSupportRequest(selected)"><i class="fa fa-paperclip"></i> Add to Support Request</button>
         </div>
       </div>
 
@@ -181,6 +181,7 @@
           <i class="fa fa-file-pdf-o"></i>
           <span>Preview not available in browser.</span>
           <button class="dc-dp-btn dc-dp-primary" (click)="openDoc(selected)"><i class="fa fa-external-link"></i> Open in New Tab</button>
+          <button class="dc-dp-btn dc-dp-outline" (click)="requestDrawingUpdate(selected)"><i class="fa fa-pencil-square-o"></i> Request Drawing Update</button>
         </div>
       </div>
 
@@ -201,4 +202,5 @@
 
   </div><!-- /dc-body -->
 </div>
+<div class="dc-action-msg" *ngIf="actionMsg"><i class="fa fa-check-circle"></i> {{ actionMsg }}</div>
 <ng-template #dcLoad><div class="dc-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div></ng-template>

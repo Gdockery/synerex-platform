@@ -25,6 +25,14 @@ export class DeploymentCommissioningComponent implements OnInit {
   // commissioning notes
   notes: string[] = [];
 
+  // action states
+  generatingReport = false;
+  reportMsg = '';
+  showHistoryPanel = false;
+  showManualResultModal = false;
+  manualResult: any = { label: '', value: '', notes: '' };
+  savingManual = false;
+
   readonly WORKFLOW_STEPS = [
     { num: 1, label: 'Pre-Checks',       desc: 'Verify installation and CT orientation' },
     { num: 2, label: 'Power-Up',         desc: 'Energize device and confirm status' },
@@ -185,5 +193,106 @@ export class DeploymentCommissioningComponent implements OnInit {
       },
       error: () => {}
     });
+  }
+
+  // ── KPI filter ───────────────────────────────────────────────────────────
+  filterByKpi(status: string) {
+    this.filterStatus = this.filterStatus === status ? '' : status;
+    this.page = 1;
+  }
+
+  // ── Row actions ──────────────────────────────────────────────────────────
+  viewDevice(d: any, e: Event) {
+    e.stopPropagation();
+    this.select(d);
+  }
+
+  downloadReport(d: any, e: Event) {
+    e.stopPropagation();
+    window.open('/api/dep/devices/' + d.id + '/commissioning-report', '_blank');
+  }
+
+  // ── Workflow step navigation ──────────────────────────────────────────────
+  clickChecklistStep(step: any) {
+    const label = (step.label || '').toLowerCase();
+    if (label.includes('communication')) {
+      this.router.navigate(['/ecbs/deployment', this.depId, 'electrical-network']);
+    } else if (label.includes('pre-check') || label.includes('functional')) {
+      this.router.navigate(['/ecbs/deployment', this.depId, 'devices']);
+    }
+    // Other steps stay on commissioning page and scroll to step
+  }
+
+  // ── Action buttons ────────────────────────────────────────────────────────
+  runNextStep() {
+    if (!this.selected) return;
+    const prog = this.commProgress(this.selected);
+    const nextStep = Math.floor(prog / 16.67) + 1;
+    this.api.post('/api/dep/devices/' + this.selected.id + '/commissioning-step', { step: nextStep }).subscribe({
+      next: (r: any) => {
+        const resp = r && r.response ? r.response : r;
+        if (resp && resp.progress !== undefined) {
+          this.selected.commissioning_progress = resp.progress;
+          this.selected.commissioning_status = resp.status || this.selected.commissioning_status;
+        }
+        this.load();
+      },
+      error: () => {}
+    });
+  }
+
+  viewTestHistory() {
+    this.showHistoryPanel = !this.showHistoryPanel;
+  }
+
+  openManualResult() {
+    this.showManualResultModal = true;
+    this.manualResult = { label: '', value: '', notes: '' };
+  }
+
+  saveManualResult() {
+    if (!this.selected || !this.manualResult.label) return;
+    this.savingManual = true;
+    this.api.post('/api/dep/devices/' + this.selected.id + '/commissioning-result', this.manualResult).subscribe({
+      next: () => {
+        this.savingManual = false;
+        this.showManualResultModal = false;
+        this.load();
+      },
+      error: () => { this.savingManual = false; }
+    });
+  }
+
+  uploadTestResultsFile(event: any) {
+    if (!this.selected) return;
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('device_id', String(this.selected.id));
+    form.append('type', 'test_result');
+    this.api.post('/api/dep/photos/upload', form).subscribe({
+      next: () => this.load(),
+      error: () => {}
+    });
+  }
+
+  generateCommissioningReport() {
+    if (!this.selected) return;
+    this.generatingReport = true;
+    this.api.post('/api/dep/devices/' + this.selected.id + '/commissioning-report', {}).subscribe({
+      next: (r: any) => {
+        this.generatingReport = false;
+        const resp = r && r.response ? r.response : r;
+        if (resp && resp.download_url) window.open(resp.download_url, '_blank');
+        else { this.reportMsg = 'Report generated — check Documents.'; setTimeout(() => this.reportMsg = '', 4000); }
+      },
+      error: () => { this.generatingReport = false; }
+    });
+  }
+
+  get canCommission(): boolean {
+    if (!this.selected) return false;
+    return this.commProgress(this.selected) >= 80;
   }
 }

@@ -122,3 +122,14 @@ $bg: #111827; $card: #1a2535; $border: rgba(255,255,255,.07); $text: #e5e7eb; $d
 .es-ext { margin-left:auto;font-size:10px; }
 .es-no-sel { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:$dim;i{font-size:32px;color:#374151;}span{font-size:12px;} }
 .es-loading { display:flex;align-items:center;justify-content:center;height:100vh;color:$dim;gap:8px; }
+
+.es-action-msg { padding:7px 12px;background:#14532d;border:1px solid #22c55e;border-radius:6px;color:#86efac;font-size:12px;display:flex;align-items:center;gap:5px;margin:6px 0; }
+.es-modal-backdrop { position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:200;display:flex;align-items:center;justify-content:center; }
+.es-modal { background:#1f2937;border:1px solid #374151;border-radius:10px;width:380px;max-width:95vw; }
+.es-modal-hdr { display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #374151;font-weight:600;font-size:14px;color:#e5e7eb; button{background:none;border:none;color:#8b9ab0;cursor:pointer;font-size:16px;} }
+.es-modal-body { padding:14px 16px; }
+.es-modal-input { background:#111827;border:1px solid #374151;border-radius:6px;padding:8px 12px;color:#e5e7eb;font-size:13px;width:100%;box-sizing:border-box;&:focus{outline:1px solid #3b82f6;} }
+.es-modal-footer { display:flex;gap:8px;justify-content:flex-end;padding:10px 16px;border-top:1px solid #374151; }
+.es-modal-btn { padding:8px 16px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;
+  &--primary{background:#3b82f6;border:none;color:#fff;&:disabled{opacity:.5;}}
+  &--outline{background:none;border:1px solid #374151;color:#d1d5db;} }

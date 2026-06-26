@@ -28,6 +28,11 @@ export class DeploymentDocumentsComponent implements OnInit {
   readonly CATEGORIES = ['Drawing', 'Manual', 'Report', 'Permit', 'Safety', 'As-Built', 'Commissioning', 'Other'];
   readonly FIELD_CRITICAL_TAGS = ['One-Line Drawing', 'CT Guide', 'APF Installation', 'Shutdown Approval', 'Site Access'];
 
+  // action states
+  actionMsg = '';
+  showShare = false;
+  shareUrl = '';
+
   readonly FOLDERS = [
     { key: 'all',          label: 'All Documents',         icon: 'fa-folder-open',    countKey: 'all' },
     { key: 'deployment',   label: 'Deployment Package',    icon: 'fa-briefcase',      countKey: 'deployment' },
@@ -162,5 +167,74 @@ export class DeploymentDocumentsComponent implements OnInit {
     if (!bytes) return '—';
     if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' KB';
     return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+  }
+
+  // ── KPI filter ────────────────────────────────────────────────────────────
+  filterKpi(category: string) {
+    this.filterCategory = this.filterCategory === category ? '' : category;
+    this.activeFolder = 'all';
+    this.page = 1;
+  }
+
+  filterFavorites() {
+    this.activeFolder = this.activeFolder === 'favorites' ? 'all' : 'favorites';
+    this.page = 1;
+  }
+
+  // ── Favorites ─────────────────────────────────────────────────────────────
+  toggleFavorite(doc: any, e?: Event) {
+    if (e) e.stopPropagation();
+    this.api.post('/api/dep/documents/' + doc.id + '/favorite', { favorite: !doc.is_favorite }).subscribe({
+      next: () => {
+        doc.is_favorite = !doc.is_favorite;
+        this.actionMsg = doc.is_favorite ? 'Added to favorites.' : 'Removed from favorites.';
+        setTimeout(() => this.actionMsg = '', 3000);
+      },
+      error: () => {}
+    });
+  }
+
+  // ── Upload new version ────────────────────────────────────────────────────
+  uploadNewVersion(event: any) {
+    if (!this.selected) return;
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('deployment_id', String(this.depId));
+    form.append('replaces_id', String(this.selected.id));
+    form.append('category', this.selected.category || 'Drawing');
+    form.append('description', this.selected.description || file.name);
+    this.api.post('/api/dep/documents/upload', form).subscribe({
+      next: () => { this.actionMsg = 'New version uploaded.'; setTimeout(() => this.actionMsg = '', 4000); this.load(); },
+      error: () => {}
+    });
+  }
+
+  // ── Share ─────────────────────────────────────────────────────────────────
+  shareDoc(doc: any) {
+    if (!doc) return;
+    const url = doc.file_url || window.location.origin + '/api/dep/documents/' + doc.id + '/download';
+    if (navigator.share) {
+      navigator.share({ title: doc.description || doc.filename, url });
+    } else {
+      navigator.clipboard.writeText(url).then(() => {
+        this.actionMsg = 'Share link copied to clipboard.'; setTimeout(() => this.actionMsg = '', 3000);
+      });
+    }
+  }
+
+  // ── Request drawing update ────────────────────────────────────────────────
+  requestDrawingUpdate(doc: any) {
+    this.router.navigate(['/ecbs/deployment', this.depId, 'engineering-support'], {
+      queryParams: { from_doc: doc ? doc.id : null, subject: 'Drawing Update Request: ' + (doc ? (doc.description || doc.filename) : '') }
+    });
+  }
+
+  // ── Add to support request ────────────────────────────────────────────────
+  addToSupportRequest(doc: any) {
+    this.router.navigate(['/ecbs/deployment', this.depId, 'engineering-support'], {
+      queryParams: { attach_doc: doc ? doc.id : null }
+    });
   }
 }

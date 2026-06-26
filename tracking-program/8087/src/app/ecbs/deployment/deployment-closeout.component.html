@@ -19,7 +19,7 @@
 
   <!-- KPI strip -->
   <div class="co-kpi-strip">
-    <div class="co-kpi co-kpi--donut">
+    <div class="co-kpi co-kpi--donut" (click)="goTo('commissioning')" style="cursor:pointer" title="View commissioning status">
       <div class="co-donut-wrap">
         <svg viewBox="0 0 110 110" class="co-donut-svg">
           <circle cx="55" cy="55" r="45" fill="none" stroke="#1f2937" stroke-width="11"/>
@@ -37,7 +37,7 @@
         <div class="co-kpi-sub" [style.color]="statusColor">{{ statusLabel }}</div>
       </div>
     </div>
-    <div class="co-kpi">
+    <div class="co-kpi" (click)="goTo('devices')" style="cursor:pointer">
       <i class="fa fa-microchip co-kpi-icon co-ki--blue"></i>
       <div>
         <div class="co-kpi-val co-kv--green">{{ devicesComplete }} / {{ devicesTotal }}</div>
@@ -45,7 +45,7 @@
         <div class="co-kpi-sub co-sub--green">{{ devicesTotal > 0 ? (devicesComplete/devicesTotal*100 | number:'1.0-0') : 0 }}%</div>
       </div>
     </div>
-    <div class="co-kpi">
+    <div class="co-kpi" (click)="goTo('photos')" style="cursor:pointer">
       <i class="fa fa-camera co-kpi-icon co-ki--purple"></i>
       <div>
         <div class="co-kpi-val co-kv--green">{{ photosComplete }}</div>
@@ -53,7 +53,7 @@
         <div class="co-kpi-sub" [class.co-sub--green]="photosComplete > 0">{{ photosComplete > 0 ? (photosComplete + " uploaded") : "None yet" }}</div>
       </div>
     </div>
-    <div class="co-kpi">
+    <div class="co-kpi" (click)="goTo('issues')" style="cursor:pointer">
       <i class="fa fa-exclamation-triangle co-kpi-icon" [class.co-ki--amber]="openIssues>0" [class.co-ki--green]="openIssues===0"></i>
       <div>
         <div class="co-kpi-val" [class.co-kv--green]="openIssues===0" [class.co-kv--amber]="openIssues>0">{{ openIssues }}</div>
@@ -61,7 +61,7 @@
         <div class="co-kpi-sub" [class.co-sub--green]="openIssues===0">{{ openIssues === 0 ? '100%' : '' }}</div>
       </div>
     </div>
-    <div class="co-kpi">
+    <div class="co-kpi" (click)="goTo('commissioning')" style="cursor:pointer">
       <i class="fa fa-check-circle co-kpi-icon co-ki--green"></i>
       <div>
         <div class="co-kpi-val co-kv--green">{{ commissionedCount }} / {{ devicesTotal }}</div>
@@ -97,7 +97,7 @@
     <div class="co-package">
       <div class="co-section-hdr"><span>PACKAGE CONTENT</span></div>
       <div class="co-pkg-list">
-        <div class="co-pkg-item" *ngFor="let p of pkgContent">
+        <div class="co-pkg-item" *ngFor="let p of pkgContent" (click)="goToPkgSection(p.label)" style="cursor:pointer">
           <i class="fa co-pkg-icon" [ngClass]="p.icon"></i>
           <div class="co-pkg-info">
             <div class="co-pkg-label">{{ p.label }}</div>

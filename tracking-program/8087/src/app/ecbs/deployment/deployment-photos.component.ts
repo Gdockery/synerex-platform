@@ -29,6 +29,20 @@ export class DeploymentPhotosComponent implements OnInit {
 
   albums: any[] = [];
 
+  // quick action states
+  showCreateAlbum = false;
+  newAlbumName = '';
+  showPhotoNote = false;
+  photoNoteText = '';
+  savingNote = false;
+  showPhotoChecklist = false;
+  exportingZip = false;
+  exportMsg = '';
+  showRequestPhoto = false;
+  requestPhotoDevice = '';
+  requestPhotoType = '';
+  requestPhotoNote = '';
+
   constructor(
     private route: ActivatedRoute,
     private router: Router,
@@ -146,4 +160,78 @@ export class DeploymentPhotosComponent implements OnInit {
   }
 
   goIssues() { this.router.navigate(['/ecbs/deployment', this.depId, 'issues']); }
+
+  // ── KPI filter helpers ────────────────────────────────────────────────────
+  filterKpi(type: string) {
+    if (type === 'all')     { this.filterStatus = ''; this.filterType = ''; }
+    if (type === 'verified')  { this.filterStatus = 'Verified'; }
+    if (type === 'pending')   { this.filterStatus = 'Pending'; }
+    if (type === 'missing')   { this.filterStatus = 'Missing'; }
+    if (type === 'albums')    { /* scroll to albums section */ }
+  }
+
+  // ── Quick actions ─────────────────────────────────────────────────────────
+  openCreateAlbum() { this.showCreateAlbum = true; this.newAlbumName = ''; }
+  saveAlbum() {
+    if (!this.newAlbumName) return;
+    this.api.post('/api/dep/deployments/' + this.depId + '/photo-albums', { name: this.newAlbumName }).subscribe({
+      next: () => { this.showCreateAlbum = false; this.load(); },
+      error: () => {}
+    });
+  }
+
+  openPhotoNote() { this.showPhotoNote = true; this.photoNoteText = ''; }
+  savePhotoNote() {
+    if (!this.photoNoteText || !this.lightbox) return;
+    this.savingNote = true;
+    this.api.post('/api/dep/photos/' + this.lightbox.id + '/note', { note: this.photoNoteText }).subscribe({
+      next: () => { this.savingNote = false; this.showPhotoNote = false; this.load(); },
+      error: () => { this.savingNote = false; }
+    });
+  }
+
+  openRequestPhoto() { this.showRequestPhoto = true; }
+  submitPhotoRequest() {
+    this.api.post('/api/dep/deployments/' + this.depId + '/photo-request', {
+      device: this.requestPhotoDevice,
+      photo_type: this.requestPhotoType,
+      note: this.requestPhotoNote
+    }).subscribe({
+      next: () => { this.showRequestPhoto = false; },
+      error: () => {}
+    });
+  }
+
+  togglePhotoChecklist() { this.showPhotoChecklist = !this.showPhotoChecklist; }
+
+  exportZip() {
+    this.exportingZip = true;
+    this.api.post('/api/dep/deployments/' + this.depId + '/photos/export', {}).subscribe({
+      next: (r: any) => {
+        this.exportingZip = false;
+        const resp = r && r.response ? r.response : r;
+        if (resp && resp.download_url) window.open(resp.download_url, '_blank');
+        else { this.exportMsg = 'Export queued — check Documents for ZIP.'; setTimeout(() => this.exportMsg = '', 4000); }
+      },
+      error: () => { this.exportingZip = false; }
+    });
+  }
+
+  viewAlbum(album: any) {
+    this.filterType = album.name || '';
+  }
+
+  // ── Lightbox actions ──────────────────────────────────────────────────────
+  openDeviceFromLightbox() {
+    if (!this.lightbox) return;
+    const devId = this.lightbox.device_id;
+    this.router.navigate(['/ecbs/deployment', this.depId, 'devices'], devId ? { queryParams: { select: devId } } : {});
+    this.closeLightbox();
+  }
+
+  openIssueFromLightbox() {
+    if (!this.lightbox || !this.lightbox.issue_id) return;
+    this.router.navigate(['/ecbs/deployment', this.depId, 'issues']);
+    this.closeLightbox();
+  }
 }

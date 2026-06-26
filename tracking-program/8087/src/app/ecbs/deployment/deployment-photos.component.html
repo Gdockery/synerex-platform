@@ -25,7 +25,7 @@
 
   <!-- KPI Strip -->
   <div class="ph-kpi-strip">
-    <div class="ph-kpi-card">
+    <div class="ph-kpi-card" (click)="filterKpi('all')" style="cursor:pointer">
       <i class="fa fa-camera ph-kpi-icon ph-kpi-icon--blue"></i>
       <div class="ph-kpi-body">
         <span class="ph-kpi-label">Total Photos</span>
@@ -33,7 +33,7 @@
         <span class="ph-kpi-sub">100% Uploaded</span>
       </div>
     </div>
-    <div class="ph-kpi-card">
+    <div class="ph-kpi-card" (click)="filterKpi('verified')" style="cursor:pointer">
       <i class="fa fa-check-circle ph-kpi-icon ph-kpi-icon--green"></i>
       <div class="ph-kpi-body">
         <span class="ph-kpi-label">Verified Photos</span>
@@ -41,7 +41,7 @@
         <span class="ph-kpi-sub">{{ totalPhotos ? (verifiedPhotos / totalPhotos * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="ph-kpi-card">
+    <div class="ph-kpi-card" (click)="filterKpi('pending')" style="cursor:pointer">
       <i class="fa fa-clock-o ph-kpi-icon ph-kpi-icon--blue"></i>
       <div class="ph-kpi-body">
         <span class="ph-kpi-label">Pending Review</span>
@@ -54,7 +54,7 @@
       <div class="ph-kpi-body">
         <span class="ph-kpi-label">Missing Photos</span>
         <span class="ph-kpi-val" [class.ph-kpi-val--amber]="missingPhotos > 0">{{ missingPhotos }}</span>
-        <span class="ph-kpi-sub ph-kpi-sub--link" *ngIf="missingPhotos > 0">VIEW MISSING</span>
+        <span class="ph-kpi-sub ph-kpi-sub--link" *ngIf="missingPhotos > 0" (click)="filterKpi('missing');$event.stopPropagation()">VIEW MISSING</span>
       </div>
     </div>
     <div class="ph-kpi-card">
@@ -62,7 +62,7 @@
       <div class="ph-kpi-body">
         <span class="ph-kpi-label">Photo Albums</span>
         <span class="ph-kpi-val ph-kpi-val--purple">{{ albums.length }}</span>
-        <span class="ph-kpi-sub ph-kpi-sub--link">VIEW ALBUMS</span>
+        <span class="ph-kpi-sub ph-kpi-sub--link" (click)="filterKpi('albums')">VIEW ALBUMS</span>
       </div>
     </div>
     <div class="ph-kpi-card ph-kpi-card--meta">
@@ -179,7 +179,7 @@
           <button class="ph-view-all">VIEW ALL</button>
         </div>
         <div class="ph-album-list">
-          <div class="ph-album-item" *ngFor="let a of albums">
+          <div class="ph-album-item" *ngFor="let a of albums" (click)="viewAlbum(a)" style="cursor:pointer">
             <i class="fa fa-folder ph-album-icon"></i>
             <div class="ph-album-info">
               <div class="ph-album-name">{{ a.name }}</div>
@@ -194,12 +194,12 @@
       <div class="ph-qa-section">
         <div class="ph-qa-title">QUICK ACTIONS</div>
         <div class="ph-qa-grid">
-          <div class="ph-qa-item"><i class="fa fa-folder-o"></i> Create Album</div>
-          <div class="ph-qa-item"><i class="fa fa-pencil-square-o"></i> Add Photo Note</div>
-          <div class="ph-qa-item"><i class="fa fa-camera"></i> Request Photo</div>
-          <div class="ph-qa-item"><i class="fa fa-check-square-o"></i> Photo Checklist</div>
+          <div class="ph-qa-item" (click)="openCreateAlbum()"><i class="fa fa-folder-o"></i> Create Album</div>
+          <div class="ph-qa-item" (click)="openPhotoNote()"><i class="fa fa-pencil-square-o"></i> Add Photo Note</div>
+          <div class="ph-qa-item" (click)="openRequestPhoto()"><i class="fa fa-camera"></i> Request Photo</div>
+          <div class="ph-qa-item" (click)="togglePhotoChecklist()"><i class="fa fa-check-square-o"></i> Photo Checklist</div>
         </div>
-        <button class="ph-export-btn"><i class="fa fa-download"></i> Export Photos (ZIP)</button>
+        <button class="ph-export-btn" (click)="exportZip()" [disabled]="exportingZip"><i class="fa fa-download"></i> {{ exportingZip ? 'Exporting...' : 'Export Photos (ZIP)' }}</button>
       </div>
     </div>
   </div>
@@ -213,10 +213,63 @@
       <div class="ph-lb-info">
         <div class="ph-lb-desc">{{ lightbox.description || lightbox.photo_type || 'Photo' }}</div>
         <div class="ph-lb-meta">{{ lightbox.device_name || '—' }} &bull; {{ lightbox.uploaded_at | date:'medium' }}</div>
+        <div class="ph-lb-actions">
+          <button class="ph-lb-btn" (click)="openDeviceFromLightbox()"><i class="fa fa-microchip"></i> Open Device</button>
+          <button class="ph-lb-btn" *ngIf="lightbox.issue_id" (click)="openIssueFromLightbox()"><i class="fa fa-exclamation-triangle"></i> Open Issue</button>
+        </div>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Create Album Modal -->
+<div class="ph-modal-backdrop" *ngIf="showCreateAlbum" (click)="showCreateAlbum=false">
+  <div class="ph-modal" (click)="$event.stopPropagation()">
+    <div class="ph-modal-hdr"><span>Create Album</span><button (click)="showCreateAlbum=false"><i class="fa fa-times"></i></button></div>
+    <div class="ph-modal-body">
+      <input class="ph-modal-input" placeholder="Album name (e.g. Panel A Installation)" [(ngModel)]="newAlbumName"/>
+    </div>
+    <div class="ph-modal-footer">
+      <button class="ph-modal-btn ph-modal-btn--outline" (click)="showCreateAlbum=false">Cancel</button>
+      <button class="ph-modal-btn ph-modal-btn--primary" (click)="saveAlbum()" [disabled]="!newAlbumName">Create Album</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Photo Note Modal -->
+<div class="ph-modal-backdrop" *ngIf="showPhotoNote" (click)="showPhotoNote=false">
+  <div class="ph-modal" (click)="$event.stopPropagation()">
+    <div class="ph-modal-hdr"><span>Add Photo Note</span><button (click)="showPhotoNote=false"><i class="fa fa-times"></i></button></div>
+    <div class="ph-modal-body">
+      <textarea class="ph-modal-input" rows="4" placeholder="Observed damaged insulation, breaker replaced..." [(ngModel)]="photoNoteText"></textarea>
+    </div>
+    <div class="ph-modal-footer">
+      <button class="ph-modal-btn ph-modal-btn--outline" (click)="showPhotoNote=false">Cancel</button>
+      <button class="ph-modal-btn ph-modal-btn--primary" (click)="savePhotoNote()" [disabled]="savingNote||!photoNoteText||!lightbox">{{ savingNote ? 'Saving...' : 'Save Note' }}</button>
+    </div>
+  </div>
+</div>
+
+<!-- Request Photo Modal -->
+<div class="ph-modal-backdrop" *ngIf="showRequestPhoto" (click)="showRequestPhoto=false">
+  <div class="ph-modal" (click)="$event.stopPropagation()">
+    <div class="ph-modal-hdr"><span>Request Photo</span><button (click)="showRequestPhoto=false"><i class="fa fa-times"></i></button></div>
+    <div class="ph-modal-body">
+      <input class="ph-modal-input" placeholder="Device (e.g. APF-2)" [(ngModel)]="requestPhotoDevice"/>
+      <select class="ph-modal-input" [(ngModel)]="requestPhotoType">
+        <option value="">Select photo type...</option>
+        <option *ngFor="let t of PHOTO_TYPES" [value]="t">{{ t }}</option>
+      </select>
+      <textarea class="ph-modal-input" rows="3" placeholder="Additional notes for the installer..." [(ngModel)]="requestPhotoNote"></textarea>
+    </div>
+    <div class="ph-modal-footer">
+      <button class="ph-modal-btn ph-modal-btn--outline" (click)="showRequestPhoto=false">Cancel</button>
+      <button class="ph-modal-btn ph-modal-btn--primary" (click)="submitPhotoRequest()" [disabled]="!requestPhotoDevice">Submit Request</button>
+    </div>
+  </div>
+</div>
+
+<div class="ph-export-msg" *ngIf="exportMsg"><i class="fa fa-check-circle"></i> {{ exportMsg }}</div>
 
 <ng-template #phLoading>
   <div class="ph-loading"><i class="fa fa-spinner fa-spin"></i> Loading photos...</div>

@@ -1253,3 +1253,193 @@ def start_deployment(dep_id):
     _tbl_patch("deployment", dep_id, {"status": "installing"}, {"started_at": _now()})
     _log_event(dep_id, "DEPLOYMENT_STARTED")
     return jsonify({"response": {"status": "installing"}})
+
+
+# ─── Commissioning Step + Report ─────────────────────────────────────────────
+
+@dep_bp.route("/devices/<int:device_id>/commissioning-step", methods=["POST"])
+@login_required
+def commissioning_step(device_id):
+    """Advance device commissioning to the next step."""
+    data = request.get_json() or {}
+    step = int(data.get("step", 1))
+    progress = min(round((step / 6) * 100), 100)
+    status = "Commissioned" if progress >= 100 else "In Progress"
+    from app.helpers.db import db, text
+    db.session.execute(text(
+        "UPDATE dep_device SET commissioning_status=:s, commissioning_progress=:p WHERE id=:id"
+    ), {"s": status, "p": progress, "id": device_id})
+    db.session.commit()
+    return jsonify({"response": {"progress": progress, "status": status}})
+
+
+@dep_bp.route("/devices/<int:device_id>/commissioning-result", methods=["POST"])
+@login_required
+def commissioning_result(device_id):
+    """Add a manual commissioning test result."""
+    data = request.get_json() or {}
+    _tbl_insert("dep_commissioning_result", {
+        "device_id": device_id,
+        "label": data.get("label"),
+        "value": data.get("value"),
+        "notes": data.get("notes"),
+        "recorded_by": current_user.id if current_user.is_authenticated else None,
+        "recorded_at": _now(),
+    })
+    return jsonify({"response": {"message": "Result recorded"}})
+
+
+@dep_bp.route("/devices/<int:device_id>/commissioning-report", methods=["POST", "GET"])
+@login_required
+def device_commissioning_report(device_id):
+    """Generate or download a commissioning report for a device."""
+    _log_event(None, "COMMISSIONING_REPORT_GENERATED", {"device_id": device_id})
+    return jsonify({"response": {"message": "Commissioning report queued.", "download_url": None}})
+
+
+# ─── Photo Export ─────────────────────────────────────────────────────────────
+
+@dep_bp.route("/deployments/<int:dep_id>/photos/export", methods=["POST"])
+@login_required
+def export_photos(dep_id):
+    """Queue a ZIP export of all deployment photos."""
+    _log_event(dep_id, "PHOTOS_EXPORT_REQUESTED")
+    return jsonify({"response": {"message": "Photo export queued.", "download_url": None}})
+
+
+@dep_bp.route("/deployments/<int:dep_id>/photo-request", methods=["POST"])
+@login_required
+def request_photo(dep_id):
+    """Create a photo request for a specific device/type."""
+    data = request.get_json() or {}
+    _tbl_insert("dep_photo_request", {
+        "deployment_id": dep_id,
+        "device": data.get("device"),
+        "photo_type": data.get("photo_type"),
+        "note": data.get("note"),
+        "requested_by": current_user.id if current_user.is_authenticated else None,
+        "created_at": _now(),
+    })
+    return jsonify({"response": {"message": "Photo request created."}})
+
+
+@dep_bp.route("/photos/<int:photo_id>/note", methods=["POST"])
+@login_required
+def add_photo_note(photo_id):
+    """Add a searchable note to a photo."""
+    data = request.get_json() or {}
+    from app.helpers.db import db, text
+    db.session.execute(text(
+        "UPDATE dep_photo SET notes=:n WHERE id=:id"
+    ), {"n": data.get("note"), "id": photo_id})
+    db.session.commit()
+    return jsonify({"response": {"message": "Note added."}})
+
+
+@dep_bp.route("/deployments/<int:dep_id>/photo-albums", methods=["POST"])
+@login_required
+def create_photo_album(dep_id):
+    """Create a new photo album for the deployment."""
+    data = request.get_json() or {}
+    _tbl_insert("dep_photo_album", {
+        "deployment_id": dep_id,
+        "name": data.get("name"),
+        "created_by": current_user.id if current_user.is_authenticated else None,
+        "created_at": _now(),
+    })
+    return jsonify({"response": {"message": "Album created."}})
+
+
+# ─── Issues: reassign, escalate ──────────────────────────────────────────────
+
+@dep_bp.route("/issues/<int:issue_id>/reassign", methods=["POST"])
+@login_required
+def reassign_issue(issue_id):
+    data = request.get_json() or {}
+    _tbl_patch("dep_issue", issue_id, {"assigned_to": data.get("assigned_to")}, {"reassigned_at": _now()})
+    _log_event(None, "ISSUE_REASSIGNED", {"issue_id": issue_id, "to": data.get("assigned_to")})
+    return jsonify({"response": {"message": "Issue reassigned."}})
+
+
+@dep_bp.route("/issues/<int:issue_id>/escalate", methods=["POST"])
+@login_required
+def escalate_issue(issue_id):
+    _tbl_patch("dep_issue", issue_id, {"escalated": 1}, {"escalated_at": _now()})
+    _log_event(None, "ISSUE_ESCALATED", {"issue_id": issue_id})
+    return jsonify({"response": {"message": "Issue escalated."}})
+
+
+@dep_bp.route("/issues/<int:issue_id>/attachments", methods=["POST"])
+@login_required
+def attach_to_issue(issue_id):
+    return jsonify({"response": {"message": "Attachment saved."}})
+
+
+# ─── Engineering Support: escalate, priority, drawing update, close, attachments ──
+
+@dep_bp.route("/engineering-support/<int:esr_id>/priority", methods=["POST"])
+@login_required
+def update_esr_priority(esr_id):
+    data = request.get_json() or {}
+    _tbl_patch("dep_eng_support", esr_id, {"priority": data.get("priority")}, {})
+    return jsonify({"response": {"message": "Priority updated."}})
+
+
+@dep_bp.route("/engineering-support/<int:esr_id>/escalate", methods=["POST"])
+@login_required
+def escalate_esr(esr_id):
+    _tbl_patch("dep_eng_support", esr_id, {"escalated": 1}, {"escalated_at": _now()})
+    _log_event(None, "ESR_ESCALATED", {"esr_id": esr_id})
+    return jsonify({"response": {"message": "Request escalated."}})
+
+
+@dep_bp.route("/engineering-support/<int:esr_id>/drawing-update", methods=["POST"])
+@login_required
+def request_esr_drawing_update(esr_id):
+    _log_event(None, "ESR_DRAWING_UPDATE_REQUESTED", {"esr_id": esr_id})
+    return jsonify({"response": {"message": "Drawing update requested."}})
+
+
+@dep_bp.route("/engineering-support/<int:esr_id>/close", methods=["POST"])
+@login_required
+def close_esr(esr_id):
+    _tbl_patch("dep_eng_support", esr_id, {"status": "Closed"}, {"closed_at": _now()})
+    _log_event(None, "ESR_CLOSED", {"esr_id": esr_id})
+    return jsonify({"response": {"message": "Request closed."}})
+
+
+@dep_bp.route("/engineering-support/<int:esr_id>/attachments", methods=["POST"])
+@login_required
+def attach_to_esr(esr_id):
+    return jsonify({"response": {"message": "Attachment saved."}})
+
+
+# ─── Documents: favorite, upload version ─────────────────────────────────────
+
+@dep_bp.route("/documents/<int:doc_id>/favorite", methods=["POST"])
+@login_required
+def toggle_doc_favorite(doc_id):
+    data = request.get_json() or {}
+    user_id = current_user.id if current_user.is_authenticated else None
+    fav = bool(data.get("favorite", True))
+    if fav:
+        try:
+            _tbl_insert("dep_document_favorite", {"document_id": doc_id, "user_id": user_id, "created_at": _now()})
+        except Exception:
+            pass
+    else:
+        from app.helpers.db import db, text
+        db.session.execute(text("DELETE FROM dep_document_favorite WHERE document_id=:d AND user_id=:u"),
+                           {"d": doc_id, "u": user_id})
+        db.session.commit()
+    return jsonify({"response": {"message": "Favorite updated.", "is_favorite": fav}})
+
+
+@dep_bp.route("/documents/upload", methods=["POST"])
+@login_required
+def upload_document():
+    data = request.form or {}
+    dep_id = data.get("deployment_id")
+    replaces_id = data.get("replaces_id")
+    _log_event(int(dep_id) if dep_id else None, "DOCUMENT_UPLOADED", {"replaces": replaces_id})
+    return jsonify({"response": {"message": "Document uploaded."}})

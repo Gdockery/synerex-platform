@@ -202,6 +202,104 @@ export class DeploymentEngSupportComponent implements OnInit {
     });
   }
 
+  // ── KPI filter ───────────────────────────────────────────────────────────
+  filterKpi(status: string) {
+    this.filterStatus = this.filterStatus === status ? '' : status;
+    this.page = 1;
+  }
+
+  filterHighPriority() {
+    this.filterPriority = this.filterPriority === 'High' ? '' : 'High';
+    this.page = 1;
+  }
+
+  // ── Quick actions ─────────────────────────────────────────────────────────
+  showUpdatePriority = false;
+  newPriority = '';
+  updatingPriority = false;
+  actionMsg = '';
+
+  openUpdatePriority() {
+    this.showUpdatePriority = true;
+    this.newPriority = this.selected ? (this.selected.priority || 'Medium') : 'Medium';
+  }
+
+  submitUpdatePriority() {
+    if (!this.selected || !this.newPriority) return;
+    this.updatingPriority = true;
+    this.api.post('/api/dep/engineering-support/' + this.selected.id + '/priority', { priority: this.newPriority }).subscribe({
+      next: () => {
+        this.updatingPriority = false; this.showUpdatePriority = false;
+        this.selected.priority = this.newPriority;
+        this.actionMsg = 'Priority updated.'; setTimeout(() => this.actionMsg = '', 3000);
+      },
+      error: () => { this.updatingPriority = false; }
+    });
+  }
+
+  escalateRequest() {
+    if (!this.selected) return;
+    this.api.post('/api/dep/engineering-support/' + this.selected.id + '/escalate', {}).subscribe({
+      next: () => { this.actionMsg = 'Request escalated. Engineering Manager notified.'; setTimeout(() => this.actionMsg = '', 4000); this.load(); },
+      error: () => {}
+    });
+  }
+
+  requestDrawingUpdate() {
+    if (!this.selected) return;
+    this.api.post('/api/dep/engineering-support/' + this.selected.id + '/drawing-update', {}).subscribe({
+      next: () => { this.actionMsg = 'Drawing update requested. Engineering notified.'; setTimeout(() => this.actionMsg = '', 4000); },
+      error: () => {}
+    });
+  }
+
+  addToIssues() {
+    if (!this.selected) return;
+    this.router.navigate(['/ecbs/deployment', this.depId, 'issues'], { queryParams: { from_esr: this.selected.id, subject: this.selected.subject } });
+  }
+
+  closeRequest() {
+    if (!this.selected) return;
+    if (!confirm('Close this engineering request?')) return;
+    this.api.post('/api/dep/engineering-support/' + this.selected.id + '/close', {}).subscribe({
+      next: () => { this.actionMsg = 'Request closed.'; setTimeout(() => this.actionMsg = '', 3000); this.load(); },
+      error: () => {}
+    });
+  }
+
+  uploadDocForRequest(event: any) {
+    if (!this.selected) return;
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('esr_id', String(this.selected.id));
+    form.append('deployment_id', String(this.depId));
+    this.api.post('/api/dep/engineering-support/' + this.selected.id + '/attachments', form).subscribe({
+      next: () => { this.actionMsg = 'Document attached.'; setTimeout(() => this.actionMsg = '', 3000); },
+      error: () => {}
+    });
+  }
+
+  uploadPhotoForRequest(event: any) {
+    if (!this.selected) return;
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('deployment_id', String(this.depId));
+    form.append('esr_id', String(this.selected.id));
+    form.append('photo_type', 'Engineering Support');
+    this.api.post('/api/dep/photos/upload', form).subscribe({
+      next: () => { this.actionMsg = 'Photo attached.'; setTimeout(() => this.actionMsg = '', 3000); },
+      error: () => {}
+    });
+  }
+
+  openResourceDoc(label: string) {
+    this.router.navigate(['/ecbs/deployment', this.depId, 'documents']);
+  }
+
   sendMessage() {
     if (!this.messageText || !this.selected) return;
     this.sending = true;

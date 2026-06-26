@@ -20,7 +20,7 @@
 
   <!-- KPI Strip -->
   <div class="es-kpi-strip">
-    <div class="es-kpi">
+    <div class="es-kpi" (click)="filterKpi('')" style="cursor:pointer">
       <i class="fa fa-headphones es-kpi-icon es-kpi-icon--purple"></i>
       <div>
         <div class="es-kpi-val">{{ totalRequests }}</div>
@@ -28,7 +28,7 @@
         <div class="es-kpi-sub">100%</div>
       </div>
     </div>
-    <div class="es-kpi">
+    <div class="es-kpi" (click)="filterKpi('Resolved')" style="cursor:pointer">
       <i class="fa fa-check-circle es-kpi-icon es-kpi-icon--green"></i>
       <div>
         <div class="es-kpi-val es-kv--green">{{ resolvedCount }}</div>
@@ -36,7 +36,7 @@
         <div class="es-kpi-sub es-sub--green">{{ resolvedPct }}%</div>
       </div>
     </div>
-    <div class="es-kpi">
+    <div class="es-kpi" (click)="filterKpi('In Progress')" style="cursor:pointer">
       <i class="fa fa-clock-o es-kpi-icon es-kpi-icon--blue"></i>
       <div>
         <div class="es-kpi-val es-kv--blue">{{ inProgressCount }}</div>
@@ -44,7 +44,7 @@
         <div class="es-kpi-sub es-sub--blue">{{ inProgressPct }}%</div>
       </div>
     </div>
-    <div class="es-kpi">
+    <div class="es-kpi" (click)="filterKpi('Awaiting Response')" style="cursor:pointer">
       <i class="fa fa-hourglass-half es-kpi-icon es-kpi-icon--amber"></i>
       <div>
         <div class="es-kpi-val es-kv--amber">{{ awaitingCount }}</div>
@@ -52,7 +52,7 @@
         <div class="es-kpi-sub es-sub--amber">{{ awaitingPct }}%</div>
       </div>
     </div>
-    <div class="es-kpi">
+    <div class="es-kpi" (click)="filterHighPriority()" style="cursor:pointer">
       <i class="fa fa-exclamation-triangle es-kpi-icon es-kpi-icon--red"></i>
       <div>
         <div class="es-kpi-val es-kv--red">{{ highPriorityCount }}</div>
@@ -60,7 +60,7 @@
         <div class="es-kpi-sub es-sub--red">{{ highPriorityPct }}%</div>
       </div>
     </div>
-    <div class="es-kpi">
+    <div class="es-kpi" style="cursor:pointer">
       <i class="fa fa-tachometer es-kpi-icon es-kpi-icon--green"></i>
       <div>
         <div class="es-kpi-val es-kv--green">{{ slaCompliant }}%</div>
@@ -220,8 +220,8 @@
       <div class="es-dp-desc" *ngIf="selected.description">{{ selected.description }}</div>
 
       <div class="es-dp-btns">
-        <button class="es-dp-btn es-dp-btn--outline">VIEW FULL CONVERSATION</button>
-        <button class="es-dp-btn es-dp-btn--primary">EDIT REQUEST</button>
+        <button class="es-dp-btn es-dp-btn--outline" (click)="requestDrawingUpdate()">REQUEST DRAWING UPDATE</button>
+        <button class="es-dp-btn es-dp-btn--primary" (click)="closeRequest()">CLOSE REQUEST</button>
       </div>
 
       <!-- Conversation -->
@@ -243,23 +243,24 @@
       <!-- Quick actions -->
       <div class="es-dp-section">QUICK ACTIONS</div>
       <div class="es-qa-grid">
-        <div class="es-qa-item"><i class="fa fa-comment-o"></i> Add Comment</div>
-        <div class="es-qa-item"><i class="fa fa-file-o"></i> Upload Document</div>
-        <div class="es-qa-item"><i class="fa fa-camera"></i> Upload Photo</div>
-        <div class="es-qa-item"><i class="fa fa-desktop"></i> Request Remote Session</div>
-        <div class="es-qa-item es-qa-full"><i class="fa fa-arrow-up"></i> Escalate Request</div>
-        <div class="es-qa-item es-qa-full"><i class="fa fa-flag"></i> Update Priority</div>
+        <div class="es-qa-item" (click)="messageText=''" title="Focus message box"><i class="fa fa-comment-o"></i> Add Comment</div>
+        <label class="es-qa-item" style="cursor:pointer"><i class="fa fa-file-o"></i> Upload Document<input type="file" style="display:none" (change)="uploadDocForRequest($event)"/></label>
+        <label class="es-qa-item" style="cursor:pointer"><i class="fa fa-camera"></i> Upload Photo<input type="file" style="display:none" accept="image/*" (change)="uploadPhotoForRequest($event)"/></label>
+        <div class="es-qa-item" (click)="addToIssues()"><i class="fa fa-exclamation-triangle"></i> Add To Issues</div>
+        <div class="es-qa-item es-qa-full" (click)="escalateRequest()"><i class="fa fa-arrow-up"></i> Escalate Request</div>
+        <div class="es-qa-item es-qa-full" (click)="openUpdatePriority()"><i class="fa fa-flag"></i> Update Priority</div>
       </div>
 
       <!-- Support resources -->
       <div class="es-dp-section">SUPPORT RESOURCES</div>
       <div class="es-resources">
-        <div class="es-resource-item"><i class="fa fa-book"></i> Installation Guide - APF Series <i class="fa fa-external-link es-ext"></i></div>
-        <div class="es-resource-item"><i class="fa fa-wrench"></i> Troubleshooting - Power Issues <i class="fa fa-external-link es-ext"></i></div>
-        <div class="es-resource-item"><i class="fa fa-envelope-o"></i> Contact Synerex Engineering <i class="fa fa-external-link es-ext"></i></div>
+        <div class="es-resource-item" (click)="openResourceDoc('APF')" style="cursor:pointer"><i class="fa fa-book"></i> Installation Guide - APF Series <i class="fa fa-external-link es-ext"></i></div>
+        <div class="es-resource-item" (click)="openResourceDoc('troubleshooting')" style="cursor:pointer"><i class="fa fa-wrench"></i> Troubleshooting - Power Issues <i class="fa fa-external-link es-ext"></i></div>
+        <div class="es-resource-item" (click)="openResourceDoc('contact')" style="cursor:pointer"><i class="fa fa-envelope-o"></i> Contact Synerex Engineering <i class="fa fa-external-link es-ext"></i></div>
       </div>
     </div>
 
+    <div class="es-action-msg" *ngIf="actionMsg"><i class="fa fa-check-circle"></i> {{ actionMsg }}</div>
     <ng-template #esNoSel>
       <div class="es-no-sel">
         <i class="fa fa-inbox"></i>
@@ -269,4 +270,23 @@
 
   </div><!-- /es-body -->
 </div>
+<!-- Update Priority Modal -->
+<div class="es-modal-backdrop" *ngIf="showUpdatePriority" (click)="showUpdatePriority=false">
+  <div class="es-modal" (click)="$event.stopPropagation()">
+    <div class="es-modal-hdr"><span>Update Priority</span><button (click)="showUpdatePriority=false"><i class="fa fa-times"></i></button></div>
+    <div class="es-modal-body">
+      <select class="es-modal-input" [(ngModel)]="newPriority">
+        <option value="Low">Low</option>
+        <option value="Medium">Medium</option>
+        <option value="High">High</option>
+        <option value="Critical">Critical — Deployment Cannot Continue</option>
+      </select>
+    </div>
+    <div class="es-modal-footer">
+      <button class="es-modal-btn es-modal-btn--outline" (click)="showUpdatePriority=false">Cancel</button>
+      <button class="es-modal-btn es-modal-btn--primary" (click)="submitUpdatePriority()" [disabled]="updatingPriority">{{ updatingPriority ? 'Saving...' : 'Update Priority' }}</button>
+    </div>
+  </div>
+</div>
+
 <ng-template #esLoad><div class="es-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div></ng-template>

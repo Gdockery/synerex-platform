@@ -159,6 +159,18 @@ export class DeploymentCloseoutComponent implements OnInit {
 
   // ── Navigation ───────────────────────────────────────────────────────────
   goTo(screen: string) { this.router.navigate(['/ecbs/deployment', this.depId, screen]); }
+  goToPkgSection(label: string) {
+    const l = (label || '').toLowerCase();
+    if (l.includes('photo'))        return this.goTo('photos');
+    if (l.includes('document'))     return this.goTo('documents');
+    if (l.includes('commission'))   return this.goTo('commissioning');
+    if (l.includes('issue'))        return this.goTo('issues');
+    if (l.includes('engineering') || l.includes('communication')) return this.goTo('engineering-support');
+    if (l.includes('drawing') || l.includes('built')) return this.goTo('one-line');
+    if (l.includes('device') || l.includes('config')) return this.goTo('devices');
+    this.goTo('documents');
+  }
+
   goToRequirement(req: any) {
     const label = (req.label || '').toLowerCase();
     if (label.includes('installation') || label.includes('ct verif')) return this.goTo('devices');

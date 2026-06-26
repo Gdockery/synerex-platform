@@ -28,6 +28,16 @@ export class DeploymentIssuesComponent implements OnInit {
   readonly STATUSES    = ['Open', 'In Progress', 'Pending OEM', 'Resolved'];
   readonly CATEGORIES  = ['Device', 'Installation', 'Documentation', 'Communication', 'Other'];
 
+  // quick action modals
+  showAddNote = false;
+  noteText = '';
+  savingNote = false;
+  showReassign = false;
+  reassignTo = '';
+  reassigning = false;
+  showSlaPanel = false;
+  actionMsg = '';
+
   constructor(private route: ActivatedRoute, private router: Router, private api: ApiRequestService) {}
 
   ngOnInit() {
@@ -159,6 +169,75 @@ export class DeploymentIssuesComponent implements OnInit {
     if (!this.selected) return;
     this.api.patch('/api/dep/issues/' + this.selected.id, { status }).subscribe({
       next: () => { this.load(); }
+    });
+  }
+
+  // ── KPI filter ───────────────────────────────────────────────────────────
+  filterKpi(status: string) {
+    this.filterStatus = this.filterStatus === status ? '' : status;
+  }
+
+  filterExternal() {
+    // Filter to issues waiting on external parties
+    this.filterStatus = 'Pending OEM';
+  }
+
+  toggleSlaPanel() { this.showSlaPanel = !this.showSlaPanel; }
+
+  // ── Quick actions ─────────────────────────────────────────────────────────
+  openAddNote() { this.showAddNote = true; this.noteText = ''; }
+  saveNote() {
+    if (!this.selected || !this.noteText) return;
+    this.savingNote = true;
+    this.api.post('/api/dep/issues/' + this.selected.id + '/comments', { text: this.noteText, type: 'note' }).subscribe({
+      next: () => { this.savingNote = false; this.showAddNote = false; this.load(); },
+      error: () => { this.savingNote = false; }
+    });
+  }
+
+  openReassign() { this.showReassign = true; this.reassignTo = ''; }
+  submitReassign() {
+    if (!this.selected || !this.reassignTo) return;
+    this.reassigning = true;
+    this.api.post('/api/dep/issues/' + this.selected.id + '/reassign', { assigned_to: this.reassignTo }).subscribe({
+      next: () => { this.reassigning = false; this.showReassign = false; this.load(); },
+      error: () => { this.reassigning = false; }
+    });
+  }
+
+  uploadPhotoForIssue(event: any) {
+    if (!this.selected) return;
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('deployment_id', String(this.depId));
+    form.append('issue_id', String(this.selected.id));
+    form.append('photo_type', 'Issue');
+    this.api.post('/api/dep/photos/upload', form).subscribe({
+      next: () => { this.actionMsg = 'Photo attached to issue.'; setTimeout(() => this.actionMsg = '', 3000); },
+      error: () => {}
+    });
+  }
+
+  attachDocument(event: any) {
+    if (!this.selected) return;
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const form = new FormData();
+    form.append('file', file);
+    form.append('issue_id', String(this.selected.id));
+    this.api.post('/api/dep/issues/' + this.selected.id + '/attachments', form).subscribe({
+      next: () => { this.actionMsg = 'Document attached.'; setTimeout(() => this.actionMsg = '', 3000); },
+      error: () => {}
+    });
+  }
+
+  escalateIssue() {
+    if (!this.selected) return;
+    this.api.post('/api/dep/issues/' + this.selected.id + '/escalate', {}).subscribe({
+      next: () => { this.actionMsg = 'Issue escalated to Engineering Manager.'; setTimeout(() => this.actionMsg = '', 4000); this.load(); },
+      error: () => {}
     });
   }
 

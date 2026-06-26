@@ -25,7 +25,7 @@
 
   <!-- KPI Strip -->
   <div class="is-kpi-strip">
-    <div class="is-kpi-card">
+    <div class="is-kpi-card" (click)="filterKpi('Open')" style="cursor:pointer">
       <i class="fa fa-exclamation-triangle is-kpi-icon" [class.is-kpi-icon--red]="openCount > 0" [class.is-kpi-icon--dim]="!openCount"></i>
       <div class="is-kpi-body">
         <span class="is-kpi-label">Open Issues</span>
@@ -33,7 +33,7 @@
         <span class="is-kpi-sub">{{ issues.length ? (openCount / issues.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="is-kpi-card">
+    <div class="is-kpi-card" (click)="filterKpi('In Progress')" style="cursor:pointer">
       <i class="fa fa-clock-o is-kpi-icon is-kpi-icon--amber"></i>
       <div class="is-kpi-body">
         <span class="is-kpi-label">In Progress</span>
@@ -41,7 +41,7 @@
         <span class="is-kpi-sub">{{ issues.length ? (inProgressCount / issues.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="is-kpi-card">
+    <div class="is-kpi-card" (click)="filterExternal()" style="cursor:pointer">
       <i class="fa fa-info-circle is-kpi-icon is-kpi-icon--blue"></i>
       <div class="is-kpi-body">
         <span class="is-kpi-label">Pending OEM</span>
@@ -49,7 +49,7 @@
         <span class="is-kpi-sub">{{ issues.length ? (pendingOemCount / issues.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="is-kpi-card">
+    <div class="is-kpi-card" (click)="filterKpi('Resolved')" style="cursor:pointer">
       <i class="fa fa-check-circle is-kpi-icon is-kpi-icon--green"></i>
       <div class="is-kpi-body">
         <span class="is-kpi-label">Resolved</span>
@@ -57,7 +57,7 @@
         <span class="is-kpi-sub">{{ issues.length ? (resolvedCount / issues.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="is-kpi-card">
+    <div class="is-kpi-card" (click)="toggleSlaPanel()" style="cursor:pointer">
       <i class="fa fa-check-circle-o is-kpi-icon is-kpi-icon--green"></i>
       <div class="is-kpi-body">
         <span class="is-kpi-label">SLA Compliance</span>
@@ -265,14 +265,15 @@
         <!-- Quick Actions -->
         <div class="is-dp-section">QUICK ACTIONS</div>
         <div class="is-qa-grid">
-          <div class="is-qa-item"><i class="fa fa-pencil"></i> Add Note</div>
-          <div class="is-qa-item"><i class="fa fa-user"></i> Reassign Issue</div>
-          <div class="is-qa-item"><i class="fa fa-camera"></i> Upload Photo</div>
-          <div class="is-qa-item"><i class="fa fa-paperclip"></i> Attach Document</div>
+          <div class="is-qa-item" (click)="openAddNote()"><i class="fa fa-pencil"></i> Add Note</div>
+          <div class="is-qa-item" (click)="openReassign()"><i class="fa fa-user"></i> Reassign Issue</div>
+          <label class="is-qa-item" style="cursor:pointer"><i class="fa fa-camera"></i> Upload Photo<input type="file" style="display:none" accept="image/*" (change)="uploadPhotoForIssue($event)"/></label>
+          <label class="is-qa-item" style="cursor:pointer"><i class="fa fa-paperclip"></i> Attach Document<input type="file" style="display:none" (change)="attachDocument($event)"/></label>
           <div class="is-qa-item" (click)="updateStatus('In Progress')"><i class="fa fa-refresh"></i> Change Status</div>
-          <div class="is-qa-item"><i class="fa fa-arrow-up"></i> Escalate Issue</div>
+          <div class="is-qa-item" (click)="escalateIssue()"><i class="fa fa-arrow-up"></i> Escalate Issue</div>
         </div>
 
+        <div class="is-action-msg" *ngIf="actionMsg"><i class="fa fa-check-circle"></i> {{ actionMsg }}</div>
         <button class="is-resolve-btn" (click)="resolveIssue()" *ngIf="selected.status !== 'Resolved'">
           <i class="fa fa-check-circle"></i> RESOLVE ISSUE
         </button>

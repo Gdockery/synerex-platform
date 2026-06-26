@@ -19,7 +19,7 @@
 
   <!-- KPI strip -->
   <div class="cm-kpi-strip">
-    <div class="cm-kpi">
+    <div class="cm-kpi" (click)="filterByKpi('Commissioned')" style="cursor:pointer" [class.cm-kpi--active]="filterStatus==='Commissioned'">
       <i class="fa fa-check-circle cm-kpi-icon cm-ki--green"></i>
       <div>
         <div class="cm-kpi-val cm-kv--green">{{ commissionedCount }}</div>
@@ -27,7 +27,7 @@
         <div class="cm-kpi-sub cm-sub--green">{{ commissionedPct }}%</div>
       </div>
     </div>
-    <div class="cm-kpi">
+    <div class="cm-kpi" (click)="filterByKpi('In Progress')" style="cursor:pointer" [class.cm-kpi--active]="filterStatus==='In Progress'">
       <i class="fa fa-clock-o cm-kpi-icon cm-ki--blue"></i>
       <div>
         <div class="cm-kpi-val cm-kv--blue">{{ inProgressCount }}</div>
@@ -35,7 +35,7 @@
         <div class="cm-kpi-sub cm-sub--blue">{{ inProgressPct }}%</div>
       </div>
     </div>
-    <div class="cm-kpi">
+    <div class="cm-kpi" (click)="filterByKpi('Pending')" style="cursor:pointer" [class.cm-kpi--active]="filterStatus==='Pending'">
       <i class="fa fa-hourglass-half cm-kpi-icon cm-ki--amber"></i>
       <div>
         <div class="cm-kpi-val cm-kv--amber">{{ pendingCount }}</div>
@@ -43,7 +43,7 @@
         <div class="cm-kpi-sub cm-sub--amber">{{ pendingPct }}%</div>
       </div>
     </div>
-    <div class="cm-kpi">
+    <div class="cm-kpi" (click)="filterByKpi('Failed')" style="cursor:pointer" [class.cm-kpi--active]="filterStatus==='Failed'">
       <i class="fa fa-exclamation-circle cm-kpi-icon cm-ki--red"></i>
       <div>
         <div class="cm-kpi-val cm-kv--red">{{ failedCount }}</div>
@@ -116,8 +116,8 @@
               <td class="cm-date">{{ d.last_test_at ? (d.last_test_at | date:'MMM d, y h:mm a') : '—' }}</td>
               <td>
                 <div class="cm-row-actions">
-                  <button class="cm-row-btn" title="View"><i class="fa fa-eye"></i></button>
-                  <button class="cm-row-btn" title="Download"><i class="fa fa-download"></i></button>
+                  <button class="cm-row-btn" title="View" (click)="viewDevice(d, $event)"><i class="fa fa-eye"></i></button>
+                  <button class="cm-row-btn" title="Download" (click)="downloadReport(d, $event)"><i class="fa fa-download"></i></button>
                   <button class="cm-row-btn" title="More"><i class="fa fa-ellipsis-v"></i></button>
                 </div>
               </td>
@@ -226,18 +226,18 @@
       <!-- Actions -->
       <div class="cm-section-hdr cm-section-hdr--sub"><span>ACTIONS</span></div>
       <div class="cm-dev-actions">
-        <button class="cm-act-btn cm-act-btn--primary"><i class="fa fa-play"></i> Run Next Test</button>
-        <button class="cm-act-btn cm-act-btn--outline"><i class="fa fa-history"></i> View Test History</button>
-        <button class="cm-act-btn cm-act-btn--outline"><i class="fa fa-pencil"></i> Add Manual Test Result</button>
-        <button class="cm-act-btn cm-act-btn--outline"><i class="fa fa-upload"></i> Upload Test Results</button>
-        <button class="cm-act-btn cm-act-btn--outline"><i class="fa fa-file-text-o"></i> Generate Commissioning Report</button>
+        <button class="cm-act-btn cm-act-btn--primary" (click)="runNextStep()" [disabled]="!selected"><i class="fa fa-play"></i> Run Next Test</button>
+        <button class="cm-act-btn cm-act-btn--outline" (click)="viewTestHistory()"><i class="fa fa-history"></i> {{ showHistoryPanel ? 'Hide History' : 'View Test History' }}</button>
+        <button class="cm-act-btn cm-act-btn--outline" (click)="openManualResult()"><i class="fa fa-pencil"></i> Add Manual Test Result</button>
+        <label class="cm-act-btn cm-act-btn--outline" style="cursor:pointer"><i class="fa fa-upload"></i> Upload Test Results<input type="file" style="display:none" accept=".pdf,.csv,image/*" (change)="uploadTestResultsFile($event)"/></label>
+        <button class="cm-act-btn cm-act-btn--outline" (click)="generateCommissioningReport()" [disabled]="generatingReport"><i class="fa fa-file-text-o"></i> {{ generatingReport ? 'Generating...' : 'Generate Commissioning Report' }}</button>
         <button class="cm-act-btn cm-act-btn--green" (click)="markCommissioned()"><i class="fa fa-check"></i> Mark as Commissioned</button>
       </div>
 
       <!-- Checklist -->
       <div class="cm-section-hdr cm-section-hdr--sub"><span>COMMISSIONING CHECKLIST</span></div>
       <div class="cm-checklist">
-        <div class="cm-check" *ngFor="let step of WORKFLOW_STEPS">
+        <div class="cm-check" *ngFor="let step of WORKFLOW_STEPS" (click)="clickChecklistStep(step)" style="cursor:pointer">
           <i class="fa" [ngClass]="workflowStepStatus(step.num)==='done' ? 'fa-check-circle cm-chk--green' : (workflowStepStatus(step.num)==='active' ? 'fa-clock-o cm-chk--blue' : 'fa-circle-o cm-chk--dim')"></i>
           <div class="cm-chk-info">
             <span class="cm-chk-lbl">{{ step.label }}</span>
@@ -252,6 +252,29 @@
       <div class="cm-no-sel"><i class="fa fa-microchip"></i><span>Select a device to view commissioning details</span></div>
     </ng-template>
 
-  </div><!-- /cm-body -->
+    <!-- Test History Panel -->
+  <div class="cm-history-panel" *ngIf="showHistoryPanel && selected">
+    <div class="cm-section-hdr cm-section-hdr--sub"><span>TEST HISTORY</span><button class="cm-close-btn" (click)="showHistoryPanel=false"><i class="fa fa-times"></i></button></div>
+    <div class="cm-empty cm-empty--sm">No previous test sessions found.</div>
+  </div>
+
+  <!-- Manual Result Modal -->
+  <div class="cm-modal-backdrop" *ngIf="showManualResultModal" (click)="showManualResultModal=false">
+    <div class="cm-modal" (click)="$event.stopPropagation()">
+      <div class="cm-modal-hdr"><span>Add Manual Test Result</span><button (click)="showManualResultModal=false"><i class="fa fa-times"></i></button></div>
+      <div class="cm-modal-body">
+        <input class="cm-modal-input" placeholder="Test label (e.g. CT Polarity)" [(ngModel)]="manualResult.label"/>
+        <input class="cm-modal-input" placeholder="Result (e.g. PASS)" [(ngModel)]="manualResult.value"/>
+        <textarea class="cm-modal-input" rows="3" placeholder="Notes" [(ngModel)]="manualResult.notes"></textarea>
+      </div>
+      <div class="cm-modal-footer">
+        <button class="cm-act-btn cm-act-btn--outline" (click)="showManualResultModal=false">Cancel</button>
+        <button class="cm-act-btn cm-act-btn--primary" (click)="saveManualResult()" [disabled]="savingManual||!manualResult.label">{{ savingManual ? 'Saving...' : 'Save Result' }}</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="cm-action-msg" *ngIf="reportMsg"><i class="fa fa-check-circle"></i> {{ reportMsg }}</div>
+</div><!-- /cm-body -->
 </div>
 <ng-template #cmLoad><div class="cm-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div></ng-template>
