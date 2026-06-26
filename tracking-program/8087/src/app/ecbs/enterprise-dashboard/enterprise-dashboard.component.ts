@@ -22,8 +22,6 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
   portfolio: any        = null;
   trendsData: any[]     = [];
 
-  // ── Individual API data ───────────────────────────────────────────────────
-  alarmData: any        = null;
 
   // ── Leaf map ──────────────────────────────────────────────────────────────
   private _map: any     = null;
@@ -68,16 +66,9 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
       next: (r: any) => {
         this.portfolio = r?.response || r;
         this.loading   = false;
-        // Re-plot map markers once data is in
         if (this._map) this._addMarkers();
       },
       error: () => { this.loading = false; }
-    });
-
-    // Aggregate alarm counts across all projects
-    this.api.get('/api/alarms/summary').subscribe({
-      next: (r: any) => { this.alarmData = r?.response || r; },
-      error: () => {}
     });
   }
 
@@ -156,10 +147,8 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
     return vals.length ? Math.round(vals.reduce((a, b) => a + b, 0) / vals.length) : 97;
   }
 
-  // ── Alarms ────────────────────────────────────────────────────────────────
-  get alarmCritical(): number { return Number(this.alarmData?.critical || 0); }
-  get alarmWarning(): number  { return Number(this.alarmData?.high || this.alarmData?.warning || 0); }
-  get alarmTotal(): number    { return Number(this.alarmData?.active_alarms || this.alarmCritical + this.alarmWarning); }
+  // ── Alarms — sourced from portfolio summary ───────────────────────────────
+  get alarmTotal(): number { return Number(this.portfolio?.total_active_alarms || 0); }
 
   // ── AI Summary items ──────────────────────────────────────────────────────
   get aiItems(): { icon: string; text: string; good: boolean }[] {

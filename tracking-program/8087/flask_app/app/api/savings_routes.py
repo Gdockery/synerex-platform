@@ -449,6 +449,7 @@ def get_portfolio_summary():
     from app.models.project import Project, project_user
     from app.models.savings_intelligence import SavingsIntelligence
     from sqlalchemy import func, desc, text
+    from app.extensions import db
 
     sess = get_session()
     user = User.query.get(current_user.id)
