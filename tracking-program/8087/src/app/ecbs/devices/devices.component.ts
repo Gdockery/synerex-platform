@@ -44,77 +44,40 @@ export class DevicesComponent implements OnInit {
   loadAll() {
     this.loading = true;
     this.allDevices = [];
-    const collected: DeviceRow[] = [];
-    let pending = 3;
 
-    const done = () => {
-      pending--;
-      if (pending === 0) {
-        this.allDevices = collected.slice().sort((a, b) => a.name.localeCompare(b.name));
-        this.loading = false;
-      }
-    };
-
-    // PQ Meters — use /data endpoint which returns all columns including lastCommunicatedAt
-    this.api.get('/api/meter/data?project=' + this.projectId + '&pageSize=500').subscribe({
-      next: (r: any) => {
-        const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
-        const items: any[] = raw.filter((m: any) => m.isDeleted !== 1 && m.isDeleted !== true);
-        const now = Date.now();
-        items.forEach((m: any) => {
-          const lastMs = m.lastCommunicatedAt || m.meshLastCommunicatedAt || 0;
-          const status = this._meterStatus(m, now);
-          collected.push({
-            id: 'meter-' + m.id,
-            name: m.name || ('Meter #' + m.id),
-            deviceTypeName: 'Power Quality Meter',
-            location: m.location || this._meterLocation(m),
-            status: status,
-            healthScore: this._healthScore(status),
-            lastSeenMs: lastMs,
-            firmware: m.firmwareVersion || '—',
-            sourceType: 'meter',
-          });
-        });
-        done();
-      },
-      error: () => done(),
-    });
-
-    // Gateways
-    this.api.get('/api/gateway?project=' + this.projectId + '&pageSize=500').subscribe({
-      next: (r: any) => {
-        const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
-        const items: any[] = raw.filter((g: any) => g.isDeleted !== 1 && g.isDeleted !== true);
-        const now = Date.now();
-        items.forEach((g: any) => {
-          const lastMs = g.lastCommunicatedAt || 0;
-          const status = this._commStatus(lastMs, now);
-          collected.push({
-            id: 'gw-' + g.id,
-            name: g.name || ('Gateway #' + g.id),
-            deviceTypeName: 'Gateway',
-            location: '—',
-            status: status,
-            healthScore: this._healthScore(status),
-            lastSeenMs: lastMs,
-            firmware: g.softwareVersion || '—',
-            sourceType: 'gateway',
-          });
-        });
-        done();
-      },
-      error: () => done(),
-    });
-
-    // Switches / APF units — correct endpoint, replaces broken /api/devices/apf
+    // Load switches first to build name→lastMs map, then load meters/gateways
+    // using the switch timestamp as a fallback. This fixes PF meters (which
+    // exist in both switch and meter tables) showing as Offline when their
+    // meter.lastCommunicatedAt is stale but their switch heartbeat is current.
     this.api.get('/api/switch?project=' + this.projectId + '&pageSize=500').subscribe({
-      next: (r: any) => {
-        const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
-        const items: any[] = raw.filter((s: any) => s.isDeleted !== 1 && s.isDeleted !== true);
+      next: (swRes: any) => {
+        const swRaw: any[] = (swRes && swRes.response) ? swRes.response : (Array.isArray(swRes) ? swRes : []);
+        const swItems = swRaw.filter(function(s: any) { return s.isDeleted !== 1 && s.isDeleted !== true; });
+
+        // name → best lastMs from the switch table
+        const switchLastByName: {[name: string]: number} = {};
+        swItems.forEach(function(s: any) {
+          const t = Math.max(+(s.meshLastCommunicatedAt || 0), +(s.lastCommunicatedAt || 0));
+          const key = (s.name || '').trim().toLowerCase();
+          if (!switchLastByName[key] || t > switchLastByName[key]) {
+            switchLastByName[key] = t;
+          }
+        });
+
+        const collected: DeviceRow[] = [];
+        let pending = 3;
+        const done = () => {
+          pending--;
+          if (pending === 0) {
+            this.allDevices = collected.slice().sort(function(a: any, b: any) { return a.name.localeCompare(b.name); });
+            this.loading = false;
+          }
+        };
+
+        // Switches / APF units
         const now = Date.now();
-        items.forEach((s: any) => {
-          const lastMs = s.meshLastCommunicatedAt || s.lastCommunicatedAt || 0;
+        swItems.forEach(function(s: any) {
+          const lastMs = Math.max(+(s.meshLastCommunicatedAt || 0), +(s.lastCommunicatedAt || 0));
           const swStatus = this._commStatus(lastMs, now);
           const typeName = s.deviceType === 0 ? 'APF Unit' : 'Switch';
           collected.push({
@@ -128,7 +91,109 @@ export class DevicesComponent implements OnInit {
             firmware: '—',
             sourceType: 'switch',
           });
+        }.bind(this));
+        done();
+
+        // PQ Meters — use switch timestamp as fallback for dual-role PF devices
+        this.api.get('/api/meter/data?project=' + this.projectId + '&pageSize=500').subscribe({
+          next: (r: any) => {
+            const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
+            const items: any[] = raw.filter(function(m: any) { return m.isDeleted !== 1 && m.isDeleted !== true; });
+            const now2 = Date.now();
+            items.forEach(function(m: any) {
+              const meterLast = Math.max(+(m.meshLastCommunicatedAt || 0), +(m.lastCommunicatedAt || 0));
+              const switchLast = switchLastByName[(m.name || '').trim().toLowerCase()] || 0;
+              const lastMs = Math.max(meterLast, switchLast);
+              const status = this._commStatus(lastMs, now2);
+              collected.push({
+                id: 'meter-' + m.id,
+                name: m.name || ('Meter #' + m.id),
+                deviceTypeName: 'Power Quality Meter',
+                location: m.location || this._meterLocation(m),
+                status: status,
+                healthScore: this._healthScore(status),
+                lastSeenMs: lastMs,
+                firmware: m.firmwareVersion || '—',
+                sourceType: 'meter',
+              });
+            }.bind(this));
+            done();
+          },
+          error: () => done(),
         });
+
+        // Gateways
+        this.api.get('/api/gateway?project=' + this.projectId + '&pageSize=500').subscribe({
+          next: (r: any) => {
+            const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
+            const items: any[] = raw.filter(function(g: any) { return g.isDeleted !== 1 && g.isDeleted !== true; });
+            const now3 = Date.now();
+            items.forEach(function(g: any) {
+              const lastMs = +(g.lastCommunicatedAt || 0);
+              const status = this._commStatus(lastMs, now3);
+              collected.push({
+                id: 'gw-' + g.id,
+                name: g.name || ('Gateway #' + g.id),
+                deviceTypeName: 'Gateway',
+                location: '—',
+                status: status,
+                healthScore: this._healthScore(status),
+                lastSeenMs: lastMs,
+                firmware: g.softwareVersion || '—',
+                sourceType: 'gateway',
+              });
+            }.bind(this));
+            done();
+          },
+          error: () => done(),
+        });
+      },
+      error: () => {
+        // If switches fail, fall back to loading meters+gateways without cross-ref
+        this._loadMetersAndGateways();
+      },
+    });
+  }
+
+  private _loadMetersAndGateways() {
+    const collected: DeviceRow[] = [];
+    let pending = 2;
+    const done = () => {
+      pending--;
+      if (pending === 0) {
+        this.allDevices = collected.slice().sort(function(a: any, b: any) { return a.name.localeCompare(b.name); });
+        this.loading = false;
+      }
+    };
+    this.api.get('/api/meter/data?project=' + this.projectId + '&pageSize=500').subscribe({
+      next: (r: any) => {
+        const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
+        const now = Date.now();
+        raw.filter(function(m: any) { return m.isDeleted !== 1 && m.isDeleted !== true; })
+           .forEach(function(m: any) {
+             const lastMs = Math.max(+(m.meshLastCommunicatedAt || 0), +(m.lastCommunicatedAt || 0));
+             const status = this._commStatus(lastMs, now);
+             collected.push({ id: 'meter-' + m.id, name: m.name || ('Meter #' + m.id),
+               deviceTypeName: 'Power Quality Meter', location: m.location || this._meterLocation(m),
+               status, healthScore: this._healthScore(status), lastSeenMs: lastMs,
+               firmware: m.firmwareVersion || '—', sourceType: 'meter' });
+           }.bind(this));
+        done();
+      },
+      error: () => done(),
+    });
+    this.api.get('/api/gateway?project=' + this.projectId + '&pageSize=500').subscribe({
+      next: (r: any) => {
+        const raw: any[] = (r && r.response) ? r.response : (Array.isArray(r) ? r : []);
+        const now = Date.now();
+        raw.filter(function(g: any) { return g.isDeleted !== 1 && g.isDeleted !== true; })
+           .forEach(function(g: any) {
+             const lastMs = +(g.lastCommunicatedAt || 0);
+             const status = this._commStatus(lastMs, now);
+             collected.push({ id: 'gw-' + g.id, name: g.name || ('Gateway #' + g.id),
+               deviceTypeName: 'Gateway', location: '—', status, healthScore: this._healthScore(status),
+               lastSeenMs: lastMs, firmware: g.softwareVersion || '—', sourceType: 'gateway' });
+           }.bind(this));
         done();
       },
       error: () => done(),
@@ -136,7 +201,7 @@ export class DevicesComponent implements OnInit {
   }
 
   private _meterStatus(m: any, now: number): string {
-    const lastMs = m.lastCommunicatedAt || m.meshLastCommunicatedAt || 0;
+    const lastMs = Math.max(+(m.meshLastCommunicatedAt || 0), +(m.lastCommunicatedAt || 0));
     return this._commStatus(lastMs, now);
   }
 
