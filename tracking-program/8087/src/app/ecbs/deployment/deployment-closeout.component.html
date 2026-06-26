@@ -12,8 +12,8 @@
     </div>
     <div class="co-header-right">
       <span class="co-sync"><i class="fa fa-cloud-upload"></i> Synced: {{ syncedAt }}</span>
-      <button class="co-icon-btn"><i class="fa fa-bell-o"></i></button>
-      <button class="co-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
+      <button class="co-icon-btn" title="View Issues" (click)="goTo('issues')"><i class="fa fa-bell-o"></i></button>
+      <button class="co-icon-btn" title="Print Report" (click)="generateReport()"><i class="fa fa-print"></i></button>
     </div>
   </div>
 
@@ -78,7 +78,7 @@
     <div class="co-requirements">
       <div class="co-section-hdr"><span>CLOSEOUT REQUIREMENTS</span></div>
       <div class="co-req-list">
-        <div class="co-req" *ngFor="let r of requirements">
+        <div class="co-req" *ngFor="let r of requirements" (click)="goToRequirement(r)" style="cursor:pointer">
           <div class="co-req-icon">
             <i class="fa" [ngClass]="reqIcon(r.status)" [ngClass]="reqStatusClass(r.status)"></i>
           </div>
@@ -157,16 +157,17 @@
           <button class="co-act-btn co-act--outline" (click)="generateReport()" [disabled]="generating">
             <i class="fa fa-file-pdf-o"></i> {{ generating ? 'Generating...' : 'Generate PDF Report' }}
           </button>
-          <button class="co-act-btn co-act--outline"><i class="fa fa-file-archive-o"></i> Generate ZIP Package</button>
+          <button class="co-act-btn co-act--outline" (click)="generateZip()" [disabled]="generatingZip"><i class="fa fa-file-archive-o"></i> {{ generatingZip ? 'Generating...' : 'Generate ZIP Package' }}</button>
           <div class="co-act-row">
-            <button class="co-act-btn co-act--green co-act--half"><i class="fa fa-paper-plane"></i> Submit For Approval</button>
-            <button class="co-act-btn co-act--outline co-act--half"><i class="fa fa-download"></i> Download Package</button>
+            <button class="co-act-btn co-act--green co-act--half" (click)="submitForApproval()" [disabled]="submitting"><i class="fa fa-paper-plane"></i> {{ submitting ? 'Submitting...' : 'Submit For Approval' }}</button>
+            <button class="co-act-btn co-act--outline co-act--half" (click)="downloadPackage()"><i class="fa fa-download"></i> Download Package</button>
           </div>
-          <button class="co-act-btn co-act--outline"><i class="fa fa-rocket"></i> Release To Operations</button>
+          <button class="co-act-btn co-act--green" (click)="releaseToOps()" [disabled]="releasing"><i class="fa fa-rocket"></i> {{ releasing ? 'Releasing...' : 'Release To Operations' }}</button>
         </div>
       </div>
 
-    </div><!-- /co-status-col -->
+      <div class="co-action-msg" *ngIf="actionMsg"><i class="fa fa-check-circle"></i> {{ actionMsg }}</div>
+</div><!-- /co-status-col -->
   </div><!-- /co-body -->
 </div>
 <ng-template #coLoad><div class="co-loading"><i class="fa fa-spinner fa-spin"></i> Loading...</div></ng-template>

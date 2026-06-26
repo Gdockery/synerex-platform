@@ -84,3 +84,5 @@ $bg: #111827; $card: #1a2535; $border: rgba(255,255,255,.07); $text: #e5e7eb; $d
 .co-act-row { display:flex;gap:6px; }
 
 .co-loading { display:flex;align-items:center;justify-content:center;height:100vh;color:$dim;gap:8px; }
+
+.co-action-msg { margin:10px 14px 4px;padding:9px 12px;background:#14532d;border:1px solid #22c55e;border-radius:5px;color:#86efac;font-size:12px;display:flex;align-items:center;gap:6px; }

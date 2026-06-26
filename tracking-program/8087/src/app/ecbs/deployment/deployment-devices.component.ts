@@ -137,6 +137,7 @@ export class DeploymentDevicesComponent implements OnInit {
   goPhotos() { this.router.navigate(['/ecbs/deployment', this.depId, 'photos']); }
   goEngineering() { this.router.navigate(['/ecbs/deployment', this.depId, 'engineering-support']); }
   goDocuments() { this.router.navigate(['/ecbs/deployment', this.depId, 'documents']); }
+  goIssues()    { this.router.navigate(['/ecbs/deployment', this.depId, 'issues']); }
 
   load() {
     this.loading = true;

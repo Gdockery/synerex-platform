@@ -16,6 +16,10 @@ export class DeploymentCloseoutComponent implements OnInit {
   loading = true;
   syncedAt = '';
   generating = false;
+  generatingZip = false;
+  submitting = false;
+  releasing = false;
+  actionMsg = '';
 
   constructor(
     private route: ActivatedRoute,
@@ -153,12 +157,79 @@ export class DeploymentCloseoutComponent implements OnInit {
     }, 0);
   }
 
+  // ── Navigation ───────────────────────────────────────────────────────────
+  goTo(screen: string) { this.router.navigate(['/ecbs/deployment', this.depId, screen]); }
+  goToRequirement(req: any) {
+    const label = (req.label || '').toLowerCase();
+    if (label.includes('installation') || label.includes('ct verif')) return this.goTo('devices');
+    if (label.includes('photo'))     return this.goTo('photos');
+    if (label.includes('document'))  return this.goTo('documents');
+    if (label.includes('commission')) return this.goTo('commissioning');
+    if (label.includes('drawing') || label.includes('built')) return this.goTo('one-line');
+    if (label.includes('sign') || label.includes('approval') || label.includes('customer')) return this.goTo('engineering-support');
+    this.goTo('issues');
+  }
+
   // ── Actions ──────────────────────────────────────────────────────────────
+
   generateReport() {
     this.generating = true;
     this.api.post('/api/dep/deployments/' + this.depId + '/closeout/generate', { type: 'pdf' }).subscribe({
-      next: (r: any) => { this.generating = false; },
+      next: (r: any) => {
+        this.generating = false;
+        const resp = r && r.response ? r.response : r;
+        if (resp && resp.download_url) window.open(resp.download_url, '_blank');
+        else this.actionMsg = 'PDF generated — check Documents screen.';
+        setTimeout(() => this.actionMsg = '', 4000);
+      },
       error: () => { this.generating = false; }
+    });
+  }
+
+  generateZip() {
+    this.generatingZip = true;
+    this.api.post('/api/dep/deployments/' + this.depId + '/closeout/generate', { type: 'zip' }).subscribe({
+      next: (r: any) => {
+        this.generatingZip = false;
+        const resp = r && r.response ? r.response : r;
+        if (resp && resp.download_url) window.open(resp.download_url, '_blank');
+        else this.actionMsg = 'ZIP package queued — check Documents screen.';
+        setTimeout(() => this.actionMsg = '', 4000);
+      },
+      error: () => { this.generatingZip = false; }
+    });
+  }
+
+  submitForApproval() {
+    if (this.submitting) return;
+    this.submitting = true;
+    this.api.post('/api/dep/deployments/' + this.depId + '/closeout/submit', {}).subscribe({
+      next: () => {
+        this.submitting = false;
+        this.actionMsg = 'Submitted for approval. Engineering team has been notified.';
+        setTimeout(() => this.actionMsg = '', 5000);
+        this.load();
+      },
+      error: () => { this.submitting = false; }
+    });
+  }
+
+  downloadPackage() {
+    window.open('/api/dep/deployments/' + this.depId + '/closeout/download', '_blank');
+  }
+
+  releaseToOps() {
+    if (this.releasing) return;
+    if (!confirm('Release this deployment to Operations? This marks it as complete and activated.')) return;
+    this.releasing = true;
+    this.api.post('/api/dep/deployments/' + this.depId + '/closeout/release', {}).subscribe({
+      next: () => {
+        this.releasing = false;
+        this.actionMsg = 'Deployment released to Operations successfully.';
+        setTimeout(() => this.actionMsg = '', 5000);
+        this.load();
+      },
+      error: () => { this.releasing = false; }
     });
   }
 }

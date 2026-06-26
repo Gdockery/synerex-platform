@@ -855,6 +855,71 @@ def approve_closeout(dep_id):
     return jsonify({"response": {"message": "Deployment released to operations", "status": "activated"}})
 
 
+
+# ─── Closeout: Generate PDF/ZIP, Submit, Download, Release ───────────────────
+
+@dep_bp.route("/deployments/<int:dep_id>/closeout/generate", methods=["POST"])
+@login_required
+def closeout_generate(dep_id):
+    """Generate a PDF report or ZIP package for the closeout."""
+    data = request.get_json() or {}
+    gen_type = data.get("type", "pdf")  # "pdf" or "zip"
+    _log_event(dep_id, "CLOSEOUT_GENERATE_REQUESTED", {"type": gen_type})
+    # Placeholder: in production this would kick off a background job
+    # and return a pre-signed download URL.
+    return jsonify({"response": {
+        "message": f"Closeout {gen_type.upper()} generation queued.",
+        "download_url": None,
+        "type": gen_type,
+    }})
+
+
+@dep_bp.route("/deployments/<int:dep_id>/closeout/submit", methods=["POST"])
+@login_required
+def closeout_submit(dep_id):
+    """Submit the closeout package for engineering approval."""
+    dep = _tbl_get("deployment", dep_id)
+    if not dep:
+        return jsonify({"error": "Not found"}), 404
+    _tbl_patch("deployment", dep_id, {"status": "pending_approval"}, {
+        "submitted_at": _now(),
+        "submitted_by": current_user.id if current_user.is_authenticated else None,
+    })
+    _log_event(dep_id, "CLOSEOUT_SUBMITTED_FOR_APPROVAL")
+    return jsonify({"response": {"message": "Closeout submitted for approval."}})
+
+
+@dep_bp.route("/deployments/<int:dep_id>/closeout/download", methods=["GET"])
+@login_required
+def closeout_download(dep_id):
+    """Return download URL for the generated closeout package."""
+    dep = _tbl_get("deployment", dep_id)
+    if not dep:
+        return jsonify({"error": "Not found"}), 404
+    # Placeholder: redirect to the document download endpoint
+    from flask import redirect
+    url = dep.get("closeout_package_url") if isinstance(dep, dict) else None
+    if url:
+        return redirect(url)
+    return jsonify({"error": "No package generated yet. Use Generate PDF or ZIP first."}), 404
+
+
+@dep_bp.route("/deployments/<int:dep_id>/closeout/release", methods=["POST"])
+@login_required
+def closeout_release(dep_id):
+    """Release the deployment to Operations (marks it as activated/complete)."""
+    dep = _tbl_get("deployment", dep_id)
+    if not dep:
+        return jsonify({"error": "Not found"}), 404
+    _tbl_patch("deployment", dep_id, {"status": "activated"}, {
+        "activated_at": _now(),
+        "completed_at": _now(),
+        "released_by": current_user.id if current_user.is_authenticated else None,
+    })
+    _log_event(dep_id, "DEPLOYMENT_RELEASED_TO_OPERATIONS")
+    return jsonify({"response": {"message": "Deployment released to Operations.", "status": "activated"}})
+
+
 # ─── Project Manager Assignment ──────────────────────────────────────────────
 
 @dep_bp.route("/deployments/<int:dep_id>/assign-pm", methods=["PATCH"])
