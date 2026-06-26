@@ -8,9 +8,15 @@ import { CurrentUserService } from '../../shared/user/currentUser.service';
   styleUrls: ['./dashboard.component.scss'],
 })
 export class DashboardComponent implements OnInit, AfterViewInit {
+  // ── Mode ─────────────────────────────────────────────────────────────────
+  /** true = all-sites portfolio view; false = single-project view */
+  isPortfolio = false;
+  portfolioData: any = null;
+
+  // ── Single-project fields ─────────────────────────────────────────────────
   projectId: number;
   siteName = '';
-  projectLocation = '';  // Street address from project record
+  projectLocation = '';
   loading = true;
 
   alarmSummary: any  = null;
@@ -24,28 +30,136 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   ngOnInit() {
     const p = this.userService.user?.selectedProject as any;
-    if (!p) { this.loading = false; return; }
-    this.projectId = p.id;
-    this.siteName = p.name ? p.name.toString() : '';
-    this.projectLocation = p.location || '';
-    this.loadData();
+    if (p && p.id) {
+      // Single-project mode
+      this.isPortfolio = false;
+      this.projectId = p.id;
+      this.siteName = p.name ? p.name.toString() : '';
+      this.projectLocation = p.location || '';
+      this.loadData();
+    } else {
+      // Portfolio mode — no project selected
+      this.isPortfolio = true;
+      this.loadPortfolio();
+    }
   }
 
   ngAfterViewInit() { this._initLeafletMap(); }
 
+  // ── Portfolio Load ────────────────────────────────────────────────────────
+  loadPortfolio() {
+    this.loading = true;
+    this.api.get('/api/portfolio/summary').subscribe({
+      next: (r: any) => {
+        this.portfolioData = (r && r.response) ? r.response : r;
+        this.loading = false;
+        setTimeout(() => this._initPortfolioMap(), 100);
+      },
+      error: () => { this.loading = false; }
+    });
+  }
+
+  // ── Portfolio computed properties ─────────────────────────────────────────
+  get pfxAnnualSavings(): string {
+    const v = this.portfolioData?.total_annual_savings;
+    if (!v) return '—';
+    const n = Number(v);
+    if (n >= 1000000) return '$' + (n / 1000000).toFixed(2) + 'M';
+    if (n >= 1000) return '$' + (n / 1000).toFixed(1) + 'K';
+    return '$' + n.toLocaleString();
+  }
+  get pfxKvaRecovered(): string {
+    const v = this.portfolioData?.total_kva_recovered;
+    if (!v) return '—';
+    return Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 }) + ' kVA';
+  }
+  get pfxAvgPf(): string {
+    const v = this.portfolioData?.avg_power_factor;
+    if (!v) return '—';
+    const n = Number(v);
+    return (n <= 1 ? (n * 100).toFixed(1) : n.toFixed(1)) + '%';
+  }
+  get pfxAvgThd(): string {
+    const v = this.portfolioData?.avg_thd;
+    if (v === undefined || v === null) return '—';
+    return Number(v).toFixed(1) + '%';
+  }
+  get pfxCo2Tons(): string {
+    const v = this.portfolioData?.total_co2_tons;
+    if (!v) return '—';
+    return Number(v).toLocaleString(undefined, { maximumFractionDigits: 0 });
+  }
+  get pfxSiteCount(): number { return this.portfolioData?.site_count ?? 0; }
+  get pfxAlarms(): number    { return this.portfolioData?.total_active_alarms ?? 0; }
+  get pfxSites(): any[]      { return this.portfolioData?.sites ?? []; }
+  get pfxTrend(): any[]      { return this.portfolioData?.savings_trend ?? []; }
+  get pfxTrendMax(): number  { return this.pfxTrend.length ? Math.max(...this.pfxTrend.map((t: any) => t.value), 1) : 1; }
+  get pfxDevicesTotal(): number   { return this.portfolioData?.total_devices ?? 0; }
+  get pfxDevicesHealthy(): number { return this.portfolioData?.devices_healthy ?? 0; }
+  get pfxDevicesWarning(): number { return this.portfolioData?.devices_warning ?? 0; }
+  get pfxDevicesOffline(): number { return this.portfolioData?.devices_offline ?? 0; }
+  get pfxDeviceHealthPct(): number {
+    const t = this.pfxDevicesTotal;
+    return t > 0 ? Math.round(this.pfxDevicesHealthy / t * 100) : 0;
+  }
+  get pfxHealthySites(): number  { return this.pfxSites.filter((s: any) => s.status === 'Healthy').length; }
+  get pfxWarningSites(): number  { return this.pfxSites.filter((s: any) => s.status === 'Warning').length; }
+  get pfxCriticalSites(): number { return this.pfxSites.filter((s: any) => s.status === 'Critical').length; }
+
+  // ── Portfolio map — multiple markers ─────────────────────────────────────
+  private _pfxMap: any = null;
+
+  private _initPortfolioMap() {
+    const sites = this.pfxSites;
+    const init = () => {
+      const L = (window as any).L;
+      if (!L) return;
+      const el = document.getElementById('site-leaflet-map');
+      if (!el || this._pfxMap) return;
+      this._pfxMap = L.map(el, { zoomControl: true, attributionControl: false, scrollWheelZoom: false })
+        .setView([20, 0], 2);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(this._pfxMap);
+
+      // Geocode each site that has a location string
+      sites.forEach((site: any) => {
+        if (!site.location) return;
+        const color = site.status === 'Healthy' ? '#00e676' : site.status === 'Warning' ? '#ffd740' : '#f44336';
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid #fff;box-shadow:0 0 8px ${color};"></div>`,
+          iconSize: [12, 12], iconAnchor: [6, 6],
+        });
+        fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(site.location))
+          .then((r: any) => r.json())
+          .then((results: any[]) => {
+            if (results && results.length) {
+              L.marker([parseFloat(results[0].lat), parseFloat(results[0].lon)], { icon })
+                .addTo(this._pfxMap)
+                .bindPopup(`<b>${site.name}</b><br/>Annual Savings: $${(site.annual_savings || 0).toLocaleString()}<br/>Status: ${site.status}`);
+            }
+          })
+          .catch(() => {});
+      });
+    };
+    if ((window as any).L) { init(); return; }
+    const link = document.createElement('link'); link.rel = 'stylesheet'; link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'; document.head.appendChild(link);
+    const s = document.createElement('script'); s.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'; s.onload = init; document.head.appendChild(s);
+  }
+
+  // ── Single-project map ────────────────────────────────────────────────────
   private _leafletMap: any = null;
-  private _mapLat = 39.5;  // continental US center — overridden by geocode
+  private _mapLat = 39.5;
   private _mapLng = -98.35;
   private _mapZoom = 4;
 
   private _initLeafletMap() {
+    if (this.isPortfolio) return;  // portfolio map handled separately
     const placeMarker = (L: any, lat: number, lng: number, zoom: number) => {
       const el = document.getElementById('site-leaflet-map');
       if (!el || this._leafletMap) return;
       this._leafletMap = L.map(el, { zoomControl: false, attributionControl: false, scrollWheelZoom: false })
         .setView([lat, lng], zoom);
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 })
-        .addTo(this._leafletMap);
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(this._leafletMap);
       const icon = L.divIcon({
         className: '',
         html: '<div style="width:14px;height:14px;border-radius:50%;background:#00e676;border:2px solid #fff;box-shadow:0 0 10px #00e676;"></div>',
@@ -54,12 +168,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
       L.marker([lat, lng], { icon }).addTo(this._leafletMap)
         .bindPopup('<b>' + (this.siteName || this.projectLocation || 'Site') + '</b><br/><small>' + (this.projectLocation || '') + '</small>');
     };
-
     const init = () => {
       const L = (window as any).L;
       if (!L) return;
       if (this.projectLocation) {
-        // Geocode address via Nominatim (OpenStreetMap, free, no key)
         fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q=' + encodeURIComponent(this.projectLocation))
           .then(r => r.json())
           .then((results: any[]) => {
@@ -80,14 +192,22 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   // ── Map legend counts — from alarm API data ───────────────────────────────
-  get mapHealthyCount(): number  { return this.alarmSummary ? (this.activeAlarms === 0 ? 1 : 0) : 0; }
-  get mapWarningCount(): number  { return this.alarmSummary ? ((this.alarmSummary.high ?? 0) + (this.alarmSummary.medium ?? 0)) : 0; }
-  get mapCriticalCount(): number { return this.alarmSummary ? (this.alarmSummary.critical ?? 0) : 0; }
+  get mapHealthyCount(): number  {
+    if (this.isPortfolio) return this.pfxHealthySites;
+    return this.alarmSummary ? (this.activeAlarms === 0 ? 1 : 0) : 0;
+  }
+  get mapWarningCount(): number  {
+    if (this.isPortfolio) return this.pfxWarningSites;
+    return this.alarmSummary ? ((this.alarmSummary.high ?? 0) + (this.alarmSummary.medium ?? 0)) : 0;
+  }
+  get mapCriticalCount(): number {
+    if (this.isPortfolio) return this.pfxCriticalSites;
+    return this.alarmSummary ? (this.alarmSummary.critical ?? 0) : 0;
+  }
 
   loadData() {
     this.loading = true;
     const pid = this.projectId;
-
     this.api.get(`/api/alarms/summary?project_id=${pid}`).subscribe({ next: (r: any) => { this.alarmSummary = r; }, error: () => {}});
     this.api.get(`/api/capacity/summary?project_id=${pid}`).subscribe({ next: (r: any) => { this.capacityData = r; this.loading = false; }, error: () => { this.loading = false; }});
     this.api.get(`/api/savings/intelligence?project_id=${pid}`).subscribe({ next: (r: any) => { this.savingsData = r?.latest || r; }, error: () => {}});
@@ -145,9 +265,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     return this.thdValue.toFixed(1) + '%';
   }
   get thdVsBaseline(): string {
-    const b = this.savingsData?.baseline_avg_pf; // use as proxy if no baseline THD
-    if (this.thdValue <= 0) return '';
-    // If THD is below 5% show it's good, else show value
     if (this.thdValue < 5) return 'Within IEEE limits';
     return 'Current THD';
   }
@@ -161,7 +278,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   get co2Tons(): number {
     const stored = this.savingsData?.co2_reduction_tons;
     if (stored && stored > 0) return Math.round(stored);
-    // Compute from kw_reduction: kWh/yr × EPA grid factor (0.386 kg/kWh = 0.000386 t/kWh)
     const kwRed = this.savingsData?.kw_reduction ?? 0;
     return Math.round(kwRed * 8760 * 0.000386);
   }
@@ -192,7 +308,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     return Math.round(Math.max(0, Math.min(100, 100 - hb * 2.5)));
   }
   get assetHealth(): number {
-    // 100 minus penalty for alarms and utilization
     let score = 100;
     if (this.criticalAlarms > 0) score -= this.criticalAlarms * 15;
     if (this.activeAlarms > 0)   score -= this.activeAlarms * 5;
@@ -205,8 +320,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
     return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
   }
 
-  // SVG circle gauge helper — returns stroke-dasharray string for a value 0-100
-  // Circle circumference at r=40: 2π×40 ≈ 251.3
   gaugeCirc = 251.3;
   gaugeDash(value: number): string {
     const pct = Math.min(100, Math.max(0, value)) / 100;
@@ -232,7 +345,6 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   // ── Savings trend chart ───────────────────────────────────────────────────────
-  // 7-day cumulative savings from annual rate
   get monthlySavings(): { month: string; value: number }[] {
     const annual = this.savingsData?.annual_savings_est ?? this.savingsData?.annual_savings ?? 0;
     const daily = Number(annual) / 365;
@@ -265,6 +377,15 @@ export class DashboardComponent implements OnInit, AfterViewInit {
 
   // ── AI Energy Summary ─────────────────────────────────────────────────────────
   get aiSummaryItems(): { icon: string; text: string; color: string }[] {
+    if (this.isPortfolio && this.portfolioData) {
+      const items: { icon: string; text: string; color: string }[] = [];
+      if (this.portfolioData.total_annual_savings) items.push({ icon: '✓', text: `$${Math.round(this.portfolioData.total_annual_savings / 1000)}K annual savings across ${this.pfxSiteCount} sites`, color: '#00e676' });
+      if (this.portfolioData.total_kva_recovered)  items.push({ icon: '✓', text: `${Math.round(this.portfolioData.total_kva_recovered)} kVA total capacity recovered`, color: '#00e676' });
+      if (this.portfolioData.avg_power_factor)     items.push({ icon: '✓', text: `Avg power factor ${this.pfxAvgPf} across portfolio`, color: '#00e676' });
+      if (this.portfolioData.total_co2_tons)       items.push({ icon: '✓', text: `${Math.round(this.portfolioData.total_co2_tons)} tons CO₂ reduction`, color: '#00e676' });
+      if (this.pfxAlarms > 0)                      items.push({ icon: '⚠', text: `${this.pfxAlarms} active alarms require attention`, color: '#ffd740' });
+      return items;
+    }
     const items: { icon: string; text: string; color: string }[] = [];
     const annual = this.savingsData?.annual_savings;
     if (annual) items.push({ icon: '✓', text: `Annual savings $${Math.round(annual / 1000)}K/yr`, color: '#00e676' });
@@ -281,14 +402,28 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   get aiStatusText(): string {
+    if (this.isPortfolio) {
+      if (this.pfxAlarms > 0) return `${this.pfxAlarms} active alarm(s) across ${this.pfxSiteCount} sites — review required.`;
+      if (this.pfxSiteCount > 0) return `All ${this.pfxSiteCount} sites operating normally. Portfolio metrics trending positive.`;
+      return 'Portfolio data loading…';
+    }
     if (this.activeAlarms > 0) return 'Action required on ' + this.activeAlarms + ' alarm(s).';
     if (this.cbiValue >= 90) return 'Network performance is excellent. All metrics trending in the right direction.';
     if (this.cbiValue >= 70) return 'Network performance is good. Minor optimization opportunities detected.';
     return 'Network performance needs attention. Review CBI details.';
   }
 
-  // ── Top sites (single-project: show current project) ─────────────────────────
+  // ── Top sites ─────────────────────────────────────────────────────────────────
   get topSites(): { name: string; savings: number; pf: number; thd: number; status: string }[] {
+    if (this.isPortfolio) {
+      return this.pfxSites.map((s: any) => ({
+        name: s.name,
+        savings: s.annual_savings || 0,
+        pf: s.avg_pf || 0,
+        thd: s.avg_thd || 0,
+        status: s.status,
+      }));
+    }
     if (!this.savingsData) return [];
     return [{
       name: this.siteName || 'Current Site',
@@ -300,10 +435,10 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   // ── Hidden capacity equivalents ───────────────────────────────────────────────
-  get capacityEquivMotors(): number   { return Math.floor(this.recoveredKva * 0.746 / 50); }  // 50HP motor ≈ 37.3kVA
+  get capacityEquivMotors(): number   { return Math.floor(this.recoveredKva * 0.746 / 50); }
   get capacityEquivCNC(): number      { return Math.floor(this.recoveredKva / 25); }
-  get capacityEquivServers(): number  { return Math.floor(this.recoveredKva * 1000 / 8); }    // 8VA per server
-  get deferredCapital(): number       { return Math.round(this.recoveredKva * 65); }           // $65/kVA
+  get capacityEquivServers(): number  { return Math.floor(this.recoveredKva * 1000 / 8); }
+  get deferredCapital(): number       { return Math.round(this.recoveredKva * 65); }
 
   // ── Network losses ────────────────────────────────────────────────────────────
   get lossesBeforeKw(): number {
@@ -324,13 +459,21 @@ export class DashboardComponent implements OnInit, AfterViewInit {
   }
 
   // ── Device health ─────────────────────────────────────────────────────────────
-  get devicesHealthy(): number  { return this.devicesData?.healthy ?? (this.activeAlarms === 0 ? 1 : 0); }
-  get devicesWarning(): number  { return this.devicesData?.warning ?? this.activeAlarms; }
-  get devicesOffline(): number  { return this.devicesData?.offline ?? 0; }
+  get devicesHealthy(): number  {
+    if (this.isPortfolio) return this.pfxDevicesHealthy;
+    return this.devicesData?.healthy ?? (this.activeAlarms === 0 ? 1 : 0);
+  }
+  get devicesWarning(): number  {
+    if (this.isPortfolio) return this.pfxDevicesWarning;
+    return this.devicesData?.warning ?? this.activeAlarms;
+  }
+  get devicesOffline(): number  {
+    if (this.isPortfolio) return this.pfxDevicesOffline;
+    return this.devicesData?.offline ?? 0;
+  }
   get devicesTotal(): number    { return this.devicesHealthy + this.devicesWarning + this.devicesOffline || 1; }
   get deviceHealthPct(): number { return Math.round(this.devicesHealthy / this.devicesTotal * 100); }
 
-  // Donut for device health (circ 2π×30 ≈ 188.5)
   deviceCirc = 188.5;
   deviceDonutDash(value: number, total: number): string {
     const pct = total > 0 ? value / total : 0;

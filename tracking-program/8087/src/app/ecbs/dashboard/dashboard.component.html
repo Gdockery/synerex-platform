@@ -2,8 +2,9 @@
 
   <div class="ecbs-page-header">
     <div class="page-title-block">
-      <h1>Enterprise Dashboard</h1>
-      <p>Portfolio command center — site health, savings, capacity recovery, alarms, and intelligence overview.</p>
+      <h1>{{ isPortfolio ? 'Portfolio Dashboard' : 'Enterprise Dashboard' }}</h1>
+      <p *ngIf="isPortfolio">All-sites command center — {{ pfxSiteCount }} site{{ pfxSiteCount !== 1 ? 's' : '' }} · health, savings, capacity &amp; intelligence overview.</p>
+      <p *ngIf="!isPortfolio">Site command center — site health, savings, capacity recovery, alarms, and intelligence overview.</p>
     </div>
     <div class="page-actions">
       <button class="btn-ecbs btn-outline" (click)="loadData()"><span class="fa fa-refresh"></span> Refresh</button>
@@ -11,8 +12,35 @@
     </div>
   </div>
 
+  <!-- Portfolio health banner -->
+  <div *ngIf="isPortfolio && portfolioData" class="site-health-banner"
+    [style.border-color]="pfxAlarms>0?'rgba(244,67,54,0.4)':'rgba(0,230,118,0.3)'">
+    <div class="shb-status">
+      <div class="shb-dot"
+        [style.background]="pfxAlarms>0?'#f44336':'#00e676'"
+        [style.box-shadow]="'0 0 10px '+(pfxAlarms>0?'#f44336':'#00e676')"></div>
+      <span class="shb-label" [style.color]="pfxAlarms>0?'#f44336':'#00e676'">
+        {{ pfxAlarms>0 ? 'Portfolio Needs Attention' : 'All Sites Normal' }}
+      </span>
+    </div>
+    <div class="shb-meta">
+      <span><strong>Sites:</strong> {{ pfxSiteCount }}</span>
+      <span><strong>Healthy:</strong> {{ pfxHealthySites }}</span>
+      <span *ngIf="pfxWarningSites>0"><strong>Warning:</strong> {{ pfxWarningSites }}</span>
+      <span *ngIf="pfxCriticalSites>0"><strong>Critical:</strong> {{ pfxCriticalSites }}</span>
+    </div>
+    <div style="margin-left:auto;">
+      <span *ngIf="pfxAlarms===0" class="health-score-pill hsp-excellent">
+        <span class="fa fa-check"></span> All Clear
+      </span>
+      <span *ngIf="pfxAlarms>0" class="health-score-pill hsp-poor">
+        <span class="fa fa-bell"></span> {{ pfxAlarms }} Active Alarms
+      </span>
+    </div>
+  </div>
+
   <!-- Site health banner -->
-  <div *ngIf="siteName" class="site-health-banner"
+  <div *ngIf="!isPortfolio && siteName" class="site-health-banner"
     [style.border-color]="(activeAlarms||0)>0?'rgba(244,67,54,0.4)':'rgba(0,230,118,0.3)'">
     <div class="shb-status">
       <div class="shb-dot"
@@ -41,28 +69,28 @@
 
     <div class="ecbs-kpi-card kpi-green">
       <div class="kpi-icon"><span class="fa fa-dollar"></span></div>
-      <div class="kpi-value">{{ annualSavingsDisplay }}</div>
-      <div class="kpi-label">Annual Savings</div>
-      <div class="kpi-delta">EM&amp;V verified</div>
+      <div class="kpi-value">{{ isPortfolio ? pfxAnnualSavings : annualSavingsDisplay }}</div>
+      <div class="kpi-label">{{ isPortfolio ? 'Total Annual Savings' : 'Annual Savings' }}</div>
+      <div class="kpi-delta">{{ isPortfolio ? pfxSiteCount + ' sites combined' : 'EM&amp;V verified' }}</div>
     </div>
 
     <div class="ecbs-kpi-card kpi-blue">
       <div class="kpi-icon"><span class="fa fa-magic"></span></div>
-      <div class="kpi-value">{{ capacityRecovered }}</div>
+      <div class="kpi-value">{{ isPortfolio ? pfxKvaRecovered : capacityRecovered }}</div>
       <div class="kpi-label">Capacity Recovered</div>
       <div class="kpi-delta neutral">kVA freed by ECBS</div>
     </div>
 
     <div class="ecbs-kpi-card kpi-green">
       <div class="kpi-icon"><span class="fa fa-bolt"></span></div>
-      <div class="kpi-value">{{ avgPowerFactor }}</div>
+      <div class="kpi-value">{{ isPortfolio ? pfxAvgPf : avgPowerFactor }}</div>
       <div class="kpi-label">Avg Power Factor</div>
-      <div class="kpi-delta neutral" [class.negative]="pfValue<0.9">{{ pfVsBaseline || (pfValue>=0.95?'Excellent':pfValue>=0.9?'Good':'Needs work') }}</div>
+      <div class="kpi-delta neutral">{{ isPortfolio ? 'Portfolio average' : (pfVsBaseline || 'Site average') }}</div>
     </div>
 
     <div class="ecbs-kpi-card kpi-blue">
       <div class="kpi-icon"><span class="fa fa-signal"></span></div>
-      <div class="kpi-value">{{ thdDisplay }}</div>
+      <div class="kpi-value">{{ isPortfolio ? pfxAvgThd : thdDisplay }}</div>
       <div class="kpi-label">THD</div>
       <div class="kpi-delta" [class.negative]="thdValue>5" [class.neutral]="thdValue<=5&&thdValue>0">
         {{ thdValue>0 ? (thdValue<5?'Within limits':'High THD') : '—' }}
@@ -81,7 +109,7 @@
 
     <div class="ecbs-kpi-card kpi-teal">
       <div class="kpi-icon"><span class="fa fa-leaf"></span></div>
-      <div class="kpi-value">{{ co2Display }}</div>
+      <div class="kpi-value">{{ isPortfolio ? pfxCo2Tons : co2Display }}</div>
       <div class="kpi-label">CO₂ Reduction</div>
       <div class="kpi-delta neutral">Tons / Year</div>
     </div>

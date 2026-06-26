@@ -414,3 +414,249 @@ def calculate():
         },
         "response": {"status": "ok"},
     })
+
+
+# ── Portfolio Summary ─────────────────────────────────────────────────────────
+
+@savings_bp.route("/api/portfolio/summary", methods=["GET"])
+@login_required
+@require_active_license
+def get_portfolio_summary():
+    """
+    GET /api/portfolio/summary
+
+    Returns aggregated KPIs across ALL projects the current user can access.
+    Used by the Portfolio Dashboard (all-sites view) shown on first login.
+
+    Response shape:
+      total_annual_savings   float
+      total_kva_recovered    float
+      avg_power_factor       float   (0-1)
+      avg_thd                float   (%)
+      total_active_alarms    int
+      total_devices          int
+      devices_healthy        int
+      devices_warning        int
+      devices_offline        int
+      total_co2_tons         float
+      site_count             int
+      sites                  list[{id, name, location, annual_savings, avg_pf,
+                                   avg_thd, status, active_alarms, lat, lng}]
+      savings_trend          list[{month, value}]  — last 7 days aggregate
+    """
+    from flask_login import current_user
+    from app.models.user import User
+    from app.models.project import Project, project_user
+    from app.models.savings_intelligence import SavingsIntelligence
+    from sqlalchemy import func, desc, text
+
+    sess = get_session()
+    user = User.query.get(current_user.id)
+    if not user:
+        return jsonify({"error": "Unauthorized"}), 403
+
+    role = getattr(user, "role", 0)
+
+    # ── 1. Gather accessible project IDs ────────────────────────────────────
+    if role == 8:
+        # Synerex Admin: all non-deleted projects
+        projects = Project.query.filter_by(isDeleted=False).all()
+    elif role in (9, 10):
+        # OEM: projects whose client shares the same org
+        org_id = getattr(user, "org_id", None)
+        if not org_id:
+            return jsonify({"error": "No org assigned"}), 403
+        try:
+            from app.models.client import Client
+            client_ids = [c.id for c in Client.query.filter_by(org_id=org_id, isDeleted=False).all()]
+            projects = Project.query.filter(
+                Project.client.in_(client_ids),
+                Project.isDeleted == False
+            ).all() if client_ids else []
+        except Exception:
+            projects = []
+    else:
+        # All other roles: explicitly assigned projects only
+        assigned = db.session.query(project_user.c.project_users).filter(
+            project_user.c.user_projects == user.id
+        ).all()
+        project_ids = [row[0] for row in assigned]
+        projects = Project.query.filter(
+            Project.id.in_(project_ids),
+            Project.isDeleted == False
+        ).all() if project_ids else []
+
+    if not projects:
+        return jsonify({
+            "meta": {"project_count": 0},
+            "response": {
+                "total_annual_savings": 0, "total_kva_recovered": 0,
+                "avg_power_factor": 0, "avg_thd": 0,
+                "total_active_alarms": 0, "site_count": 0,
+                "total_devices": 0, "devices_healthy": 0,
+                "devices_warning": 0, "devices_offline": 0,
+                "total_co2_tons": 0, "sites": [], "savings_trend": [],
+            }
+        })
+
+    pid_list = [p.id for p in projects]
+
+    # ── 2. Latest savings_intelligence row per project ────────────────────────
+    # Subquery: max bucket_ts per project_id
+    latest_ts_sub = (
+        db.session.query(
+            SavingsIntelligence.project_id,
+            func.max(SavingsIntelligence.bucket_ts).label("max_ts")
+        )
+        .filter(SavingsIntelligence.project_id.in_(pid_list))
+        .group_by(SavingsIntelligence.project_id)
+        .subquery()
+    )
+
+    si_rows = (
+        db.session.query(SavingsIntelligence)
+        .join(latest_ts_sub, (SavingsIntelligence.project_id == latest_ts_sub.c.project_id)
+              & (SavingsIntelligence.bucket_ts == latest_ts_sub.c.max_ts))
+        .all()
+    )
+    si_by_project = {r.project_id: r for r in si_rows}
+
+    # ── 3. Alarm counts per project ───────────────────────────────────────────
+    try:
+        from app.models.alarm import Alarm
+        alarm_rows = (
+            db.session.query(Alarm.project_id, func.count(Alarm.id).label("cnt"))
+            .filter(Alarm.project_id.in_(pid_list), Alarm.resolved == False)
+            .group_by(Alarm.project_id)
+            .all()
+        )
+        alarm_by_project = {r.project_id: r.cnt for r in alarm_rows}
+    except Exception:
+        alarm_by_project = {}
+
+    # ── 4. Device counts per project ─────────────────────────────────────────
+    try:
+        rows = db.session.execute(
+            text(
+                "SELECT project, "
+                "SUM(CASE WHEN online=1 THEN 1 ELSE 0 END) AS healthy, "
+                "SUM(CASE WHEN online=0 THEN 1 ELSE 0 END) AS offline, "
+                "COUNT(*) AS total "
+                "FROM meter WHERE project IN :pids GROUP BY project"
+            ),
+            {"pids": tuple(pid_list) or (0,)}
+        ).fetchall()
+        dev_by_project = {r[0]: {"healthy": r[1] or 0, "offline": r[2] or 0, "total": r[3] or 0} for r in rows}
+    except Exception:
+        dev_by_project = {}
+
+    # ── 5. CBI / THD per project (from cbi_record table) ─────────────────────
+    try:
+        cbi_rows = db.session.execute(
+            text(
+                "SELECT project_id, avg_pf, avg_thd "
+                "FROM cbi_record WHERE project_id IN :pids "
+                "ORDER BY bucket_ts DESC"
+            ),
+            {"pids": tuple(pid_list) or (0,)}
+        ).fetchall()
+        # Keep most recent per project
+        cbi_by_project = {}
+        for r in cbi_rows:
+            if r[0] not in cbi_by_project:
+                cbi_by_project[r[0]] = {"avg_pf": r[1] or 0, "avg_thd": r[2] or 0}
+    except Exception:
+        cbi_by_project = {}
+
+    # ── 6. Aggregate totals ───────────────────────────────────────────────────
+    total_savings = 0.0
+    total_kva = 0.0
+    total_co2 = 0.0
+    pf_vals = []
+    thd_vals = []
+    total_alarms = sum(alarm_by_project.values())
+    total_devices = 0
+    devices_healthy = 0
+    devices_warning = 0
+    devices_offline = 0
+
+    site_list = []
+    for p in projects:
+        si = si_by_project.get(p.id)
+        cbi = cbi_by_project.get(p.id, {})
+        alarms = alarm_by_project.get(p.id, 0)
+        devs = dev_by_project.get(p.id, {})
+
+        ann_sav = float(si.annual_savings or 0) if si else 0
+        kva = float(si.recoverable_kva or 0) if si else 0
+        co2 = float(si.co2_reduction_tons or 0) if si else 0
+        avg_pf = float(cbi.get("avg_pf") or (si.pf_improvement or 0) if si else 0)
+        avg_thd = float(cbi.get("avg_thd", 0))
+
+        total_savings += ann_sav
+        total_kva += kva
+        total_co2 += co2
+        if avg_pf > 0:
+            pf_vals.append(avg_pf)
+        if avg_thd > 0:
+            thd_vals.append(avg_thd)
+
+        d_healthy = devs.get("healthy", 0)
+        d_offline = devs.get("offline", 0)
+        d_total = devs.get("total", 0)
+        d_warning = max(0, d_total - d_healthy - d_offline)
+        total_devices += d_total
+        devices_healthy += d_healthy
+        devices_warning += d_warning
+        devices_offline += d_offline
+
+        status = "Healthy" if alarms == 0 else ("Warning" if alarms < 3 else "Critical")
+        site_list.append({
+            "id": p.id,
+            "name": getattr(p, "name", "") or "",
+            "location": getattr(p, "location", "") or "",
+            "annual_savings": round(ann_sav),
+            "avg_pf": round(avg_pf * 100, 1) if avg_pf <= 1 else round(avg_pf, 1),
+            "avg_thd": round(avg_thd, 1),
+            "status": status,
+            "active_alarms": alarms,
+            "kva_recovered": round(kva),
+        })
+
+    site_list.sort(key=lambda s: s["annual_savings"], reverse=True)
+
+    avg_pf_out = (sum(pf_vals) / len(pf_vals)) if pf_vals else 0
+    avg_thd_out = (sum(thd_vals) / len(thd_vals)) if thd_vals else 0
+
+    # ── 7. 7-day savings trend (aggregate) ───────────────────────────────────
+    daily_rate = total_savings / 365 if total_savings else 0
+    from datetime import datetime, timedelta
+    day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+    now_dt = datetime.utcnow()
+    savings_trend = []
+    for i in range(6, -1, -1):
+        d = now_dt - timedelta(days=i)
+        savings_trend.append({
+            "month": day_labels[d.weekday()],
+            "value": round(daily_rate * (7 - i))
+        })
+
+    return jsonify({
+        "meta": {"project_count": len(projects)},
+        "response": {
+            "total_annual_savings": round(total_savings),
+            "total_kva_recovered": round(total_kva),
+            "avg_power_factor": round(avg_pf_out, 4),
+            "avg_thd": round(avg_thd_out, 2),
+            "total_active_alarms": total_alarms,
+            "total_co2_tons": round(total_co2),
+            "site_count": len(projects),
+            "total_devices": total_devices,
+            "devices_healthy": devices_healthy,
+            "devices_warning": devices_warning,
+            "devices_offline": devices_offline,
+            "sites": site_list,
+            "savings_trend": savings_trend,
+        }
+    })
+

@@ -22,7 +22,7 @@ export class HomeRedirectComponent implements OnInit {
     if (role === 14) {
       this.router.navigate(['/ecbs/deployment']);
     } else {
-      this.router.navigate(['/welcome']);
+      this.router.navigate(['/ecbs/dashboard']);
     }
   }
 }
