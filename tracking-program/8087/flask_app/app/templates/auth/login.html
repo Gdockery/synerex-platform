@@ -20,21 +20,24 @@
       background: #060e1a;
     }
 
-    /* ══ LEFT — spec graphic fills the panel ══ */
+    /* ══ LEFT — scrollable marketing panel ══ */
     .lp-left {
       flex: 0 0 58%;
-      position: relative;
-      overflow: hidden;
+      overflow-y: auto;
+      overflow-x: hidden;
       min-height: 100vh;
+      max-height: 100vh;
+      background: #060e1a;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(27,192,122,0.3) transparent;
     }
+    .lp-left::-webkit-scrollbar { width: 4px; }
+    .lp-left::-webkit-scrollbar-track { background: transparent; }
+    .lp-left::-webkit-scrollbar-thumb { background: rgba(27,192,122,0.3); border-radius: 2px; }
     .lp-left-img {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      object-position: top center;
       display: block;
+      width: 100%;
+      height: auto;
     }
 
     /* ══ RIGHT — sign-in form ══ */
@@ -144,7 +147,7 @@
     /* ── Responsive ── */
     @media (max-width: 860px) {
       .lp-root  { flex-direction:column; }
-      .lp-left  { flex:none; min-height:0; height:260px; }
+      .lp-left  { flex:none; min-height:0; max-height:55vw; height:55vw; }
       .lp-right { flex:none; min-height:0; justify-content:flex-start; padding:2rem 1.5rem; }
     }
     @media (max-width: 480px) {
