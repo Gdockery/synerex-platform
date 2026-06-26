@@ -271,6 +271,19 @@ export class DeploymentPreComponent implements OnInit {
 
   printReport() { window.print(); }
 
+  uploadReadinessDoc(event: any) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('deployment_id', String(this.depId));
+    fd.append('category', 'approval');
+    this.api.post('/api/dep/documents/upload', fd).subscribe({
+      next: () => alert('Document uploaded successfully and added to Deployment Documents.'),
+      error: () => alert('Upload failed. Please try again.')
+    });
+  }
+
   // ─── Issue Modal ──────────────────────────────────────────────────────────
 
   openIssueModal() {

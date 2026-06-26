@@ -154,6 +154,12 @@
       <div class="co-actions">
         <div class="co-section-hdr"><span>ACTIONS</span></div>
         <div class="co-act-list">
+          <button class="co-act-btn co-act--primary" (click)="validatePackage()" [disabled]="validating">
+            <i class="fa fa-check-square-o"></i> {{ validating ? 'Validating...' : 'Validate Package' }}
+          </button>
+          <button class="co-act-btn co-act--outline" (click)="previewPackage()">
+            <i class="fa fa-eye"></i> Package Preview
+          </button>
           <button class="co-act-btn co-act--outline" (click)="generateReport()" [disabled]="generating">
             <i class="fa fa-file-pdf-o"></i> {{ generating ? 'Generating...' : 'Generate PDF Report' }}
           </button>

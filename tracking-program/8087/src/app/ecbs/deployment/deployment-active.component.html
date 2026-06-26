@@ -59,12 +59,12 @@
       </div>
     </div>
 
-    <div class="da-kpi da-kpi--purple">
+    <div class="da-kpi da-kpi--purple" (click)="go('engineering-support')">
       <span class="da-kpi-icon da-kpi-icon--purple fa fa-random"></span>
       <div class="da-kpi-body">
         <div class="da-kpi-val">0</div>
         <div class="da-kpi-lbl">ENGINEERING REQUESTS</div>
-        <div class="da-kpi-link da-kpi-link--purple">VIEW REQUESTS</div>
+        <div class="da-kpi-link da-kpi-link--purple" (click)="go('engineering-support');$event.stopPropagation()">VIEW REQUESTS</div>
       </div>
     </div>
 

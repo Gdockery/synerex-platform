@@ -207,9 +207,34 @@ export class DeploymentCommissioningComponent implements OnInit {
     this.select(d);
   }
 
+  resumeCommissioning(d: any, e: Event) {
+    e.stopPropagation();
+    this.select(d);
+    // Scroll action panel into view after selection
+    setTimeout(() => {
+      const panel = document.querySelector('.cm-selected-panel');
+      if (panel) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+  }
+
   downloadReport(d: any, e: Event) {
     e.stopPropagation();
     window.open('/api/dep/devices/' + d.id + '/commissioning-report', '_blank');
+  }
+
+  goPhotos(e: Event) {
+    e.stopPropagation();
+    this.router.navigate(['/ecbs/deployment', this.depId, 'photos']);
+  }
+
+  goElectrical(e: Event) {
+    e.stopPropagation();
+    this.router.navigate(['/ecbs/deployment', this.depId, 'electrical-network']);
+  }
+
+  goEngineering(e: Event) {
+    e.stopPropagation();
+    this.router.navigate(['/ecbs/deployment', this.depId, 'engineering-support']);
   }
 
   // ── Workflow step navigation ──────────────────────────────────────────────

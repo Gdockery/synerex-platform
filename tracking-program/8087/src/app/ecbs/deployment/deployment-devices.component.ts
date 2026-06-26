@@ -139,6 +139,42 @@ export class DeploymentDevicesComponent implements OnInit {
   goDocuments() { this.router.navigate(['/ecbs/deployment', this.depId, 'documents']); }
   goIssues()    { this.router.navigate(['/ecbs/deployment', this.depId, 'issues']); }
 
+  filterKpi(status: string) {
+    this.search = '';
+    // Map KPI slug to actual DB status strings
+    const map: { [k: string]: string } = {
+      'installed': 'Installed', 'commissioned': 'Commissioned',
+      'pending': 'Pending', 'not_started': 'Not Started', '': ''
+    };
+    this.filterStatus = map.hasOwnProperty(status) ? map[status] : status;
+  }
+
+  editDevice(d: any) {
+    if (!d) return;
+    // Toggle inline edit mode (re-uses the showAdd form with device pre-filled)
+    this.showAdd = false;
+    alert('Edit Device: ' + (d.name || d.device_name || d.id) + '\n(Open inline editor — full edit modal can be implemented per workflow needs)');
+  }
+
+  uploadDocForDevice(event: any) {
+    if (!this.selected) { return; }
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('device_id', String(this.selected.id));
+    fd.append('deployment_id', String(this.depId));
+    this.api.post('/api/dep/documents/upload', fd).subscribe({
+      next: () => { alert('Document uploaded for ' + (this.selected.name || this.selected.device_name)); },
+      error: () => { alert('Upload failed. Please try again.'); }
+    });
+  }
+
+  replaceDevice(d: any) {
+    if (!d) return;
+    alert('Replace Device: opens a workflow to swap serial number / register a replacement unit for ' + (d.name || d.device_name || d.id));
+  }
+
   load() {
     this.loading = true;
     this.api.get('/api/dep/deployments/' + this.depId + '/devices').subscribe({

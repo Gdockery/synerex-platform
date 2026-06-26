@@ -116,9 +116,12 @@
               <td class="cm-date">{{ d.last_test_at ? (d.last_test_at | date:'MMM d, y h:mm a') : '—' }}</td>
               <td>
                 <div class="cm-row-actions">
-                  <button class="cm-row-btn" title="View" (click)="viewDevice(d, $event)"><i class="fa fa-eye"></i></button>
-                  <button class="cm-row-btn" title="Download" (click)="downloadReport(d, $event)"><i class="fa fa-download"></i></button>
-                  <button class="cm-row-btn" title="More"><i class="fa fa-ellipsis-v"></i></button>
+                  <button class="cm-row-btn" title="View Device" (click)="viewDevice(d, $event)"><i class="fa fa-eye"></i></button>
+                  <button class="cm-row-btn" title="Resume Commissioning" (click)="resumeCommissioning(d, $event)"><i class="fa fa-play"></i></button>
+                  <button class="cm-row-btn" title="Generate Report" (click)="downloadReport(d, $event)"><i class="fa fa-download"></i></button>
+                  <button class="cm-row-btn" title="View Photos" (click)="goPhotos($event)"><i class="fa fa-camera"></i></button>
+                  <button class="cm-row-btn" title="Open Electrical Network" (click)="goElectrical($event)"><i class="fa fa-sitemap"></i></button>
+                  <button class="cm-row-btn" title="Engineering Support" (click)="goEngineering($event)"><i class="fa fa-random"></i></button>
                 </div>
               </td>
             </tr>

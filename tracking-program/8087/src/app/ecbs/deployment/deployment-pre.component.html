@@ -159,9 +159,10 @@
         <button class="dp-qa-btn" (click)="goToDocuments()">
           <i class="fa fa-file-text-o"></i> View Deployment Package
         </button>
-        <button class="dp-qa-btn" (click)="goToDocuments()">
+        <label class="dp-qa-btn" style="cursor:pointer">
           <i class="fa fa-upload"></i> Upload Document
-        </button>
+          <input type="file" style="display:none" (change)="uploadReadinessDoc($event)"/>
+        </label>
         <button class="dp-qa-btn dp-qa-btn--warn" (click)="openIssueModal()">
           <i class="fa fa-plus"></i> Add Readiness Issue
         </button>

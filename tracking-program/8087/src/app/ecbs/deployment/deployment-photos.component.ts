@@ -126,6 +126,20 @@ export class DeploymentPhotosComponent implements OnInit {
   openLightbox(photo: any) { this.lightbox = photo; }
   closeLightbox() { this.lightbox = null; }
 
+  openLastPhoto() {
+    if (!this.photos || !this.photos.length) return;
+    // Sort by upload date descending and open the newest
+    const sorted = this.photos.slice().sort((a: any, b: any) => {
+      const da = new Date(a.created_at || a.uploaded_at || 0).getTime();
+      const db = new Date(b.created_at || b.uploaded_at || 0).getTime();
+      return db - da;
+    });
+    this.openLightbox(sorted[0]);
+  }
+
+  showFilters = false;
+  toggleFilters() { this.showFilters = !this.showFilters; }
+
   onFilesSelected(event: any) {
     const files: FileList = event.target.files;
     if (!files || !files.length) return;

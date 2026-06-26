@@ -49,7 +49,7 @@
         <span class="ph-kpi-sub">{{ totalPhotos ? (pendingReview / totalPhotos * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="ph-kpi-card">
+    <div class="ph-kpi-card" (click)="filterKpi('missing')" style="cursor:pointer">
       <i class="fa fa-exclamation-triangle ph-kpi-icon" [class.ph-kpi-icon--amber]="missingPhotos > 0" [class.ph-kpi-icon--dim]="!missingPhotos"></i>
       <div class="ph-kpi-body">
         <span class="ph-kpi-label">Missing Photos</span>
@@ -65,10 +65,10 @@
         <span class="ph-kpi-sub ph-kpi-sub--link" (click)="filterKpi('albums')">VIEW ALBUMS</span>
       </div>
     </div>
-    <div class="ph-kpi-card ph-kpi-card--meta">
+    <div class="ph-kpi-card ph-kpi-card--meta" (click)="openLastPhoto()" style="cursor:pointer">
       <div class="ph-kpi-meta-lbl">Last Photo Uploaded</div>
       <div class="ph-kpi-meta-val">{{ syncedAt }}</div>
-      <span class="ph-kpi-sub ph-kpi-sub--link">VIEW ACTIVITY</span>
+      <span class="ph-kpi-sub ph-kpi-sub--link">VIEW LATEST</span>
     </div>
   </div>
 
@@ -79,7 +79,7 @@
 
       <!-- Filter Bar -->
       <div class="ph-filter-bar">
-        <button class="ph-filter-btn"><i class="fa fa-filter"></i> FILTERS</button>
+        <button class="ph-filter-btn" (click)="toggleFilters()"><i class="fa fa-filter"></i> FILTERS</button>
         <select class="ph-select" [(ngModel)]="filterType">
           <option value="">All Types</option>
           <option *ngFor="let t of PHOTO_TYPES" [value]="t">{{ t }}</option>

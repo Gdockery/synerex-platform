@@ -19,6 +19,7 @@ export class DeploymentCloseoutComponent implements OnInit {
   generatingZip = false;
   submitting = false;
   releasing = false;
+  validating = false;
   actionMsg = '';
 
   constructor(
@@ -183,6 +184,39 @@ export class DeploymentCloseoutComponent implements OnInit {
   }
 
   // ── Actions ──────────────────────────────────────────────────────────────
+
+  validatePackage() {
+    this.validating = true;
+    this.api.post('/api/dep/deployments/' + this.depId + '/closeout/validate', {}).subscribe({
+      next: (r: any) => {
+        this.validating = false;
+        const resp = r && r.response ? r.response : r;
+        const issues = resp && resp.issues ? resp.issues : [];
+        if (issues.length === 0) {
+          this.actionMsg = 'Validation passed — package is ready for approval.';
+        } else {
+          this.actionMsg = 'Validation found ' + issues.length + ' issue(s): ' + issues.slice(0, 3).join(', ');
+        }
+        setTimeout(() => this.actionMsg = '', 6000);
+      },
+      error: () => { this.validating = false; this.actionMsg = 'Validation failed — try again.'; setTimeout(() => this.actionMsg = '', 4000); }
+    });
+  }
+
+  previewPackage() {
+    // Opens a modal/panel showing package contents summary before generating
+    const summary = [
+      'Devices & Configurations',
+      'Installation Photos',
+      'Engineering Documents',
+      'Commissioning Reports',
+      'Issues & Resolutions',
+      'Engineering Communications',
+      'As-Built Drawings',
+      'Sign-Offs & Approvals',
+    ].join('\n• ');
+    alert('Package Preview\n\nThis package will contain:\n• ' + summary + '\n\nReview the Package Content section for item counts, then Generate ZIP Package to build it.');
+  }
 
   generateReport() {
     this.generating = true;

@@ -157,6 +157,11 @@ export class DeploymentDocumentsComponent implements OnInit {
   select(doc: any) { this.selected = doc; this.activeTab = 'details'; }
 
   filterByTag(tag: string) {
+    // "One-Line Drawing" navigates to the one-line screen; others filter docs
+    if (tag === 'One-Line Drawing') {
+      this.router.navigate(['/ecbs/deployment', this.depId, 'one-line']);
+      return;
+    }
     this.search = tag;
     this.activeFolder = 'all';
   }

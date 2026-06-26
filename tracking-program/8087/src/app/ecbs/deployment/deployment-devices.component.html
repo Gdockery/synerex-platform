@@ -25,7 +25,7 @@
 
   <!-- KPI Strip -->
   <div class="dv-kpi-strip">
-    <div class="dv-kpi-card">
+    <div class="dv-kpi-card" (click)="filterKpi('')" style="cursor:pointer">
       <i class="fa fa-list dv-kpi-icon dv-kpi-icon--blue"></i>
       <div class="dv-kpi-body">
         <span class="dv-kpi-label">Total Devices</span>
@@ -33,7 +33,7 @@
         <span class="dv-kpi-sub">100% identified</span>
       </div>
     </div>
-    <div class="dv-kpi-card">
+    <div class="dv-kpi-card" (click)="filterKpi('installed')" style="cursor:pointer">
       <i class="fa fa-check-circle dv-kpi-icon dv-kpi-icon--green"></i>
       <div class="dv-kpi-body">
         <span class="dv-kpi-label">Installed</span>
@@ -41,7 +41,7 @@
         <span class="dv-kpi-sub">{{ devices.length ? (kpiInstalled / devices.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="dv-kpi-card">
+    <div class="dv-kpi-card" (click)="filterKpi('commissioned')" style="cursor:pointer">
       <i class="fa fa-check-circle-o dv-kpi-icon dv-kpi-icon--blue"></i>
       <div class="dv-kpi-body">
         <span class="dv-kpi-label">Commissioned</span>
@@ -49,7 +49,7 @@
         <span class="dv-kpi-sub">{{ devices.length ? (kpiCommissioned / devices.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="dv-kpi-card">
+    <div class="dv-kpi-card" (click)="filterKpi('pending')" style="cursor:pointer">
       <i class="fa fa-clock-o dv-kpi-icon dv-kpi-icon--amber"></i>
       <div class="dv-kpi-body">
         <span class="dv-kpi-label">Pending</span>
@@ -57,7 +57,7 @@
         <span class="dv-kpi-sub">{{ devices.length ? (kpiPending / devices.length * 100 | number:'1.0-0') + '%' : '0%' }}</span>
       </div>
     </div>
-    <div class="dv-kpi-card">
+    <div class="dv-kpi-card" (click)="filterKpi('not_started')" style="cursor:pointer">
       <i class="fa fa-minus-circle dv-kpi-icon dv-kpi-icon--dim"></i>
       <div class="dv-kpi-body">
         <span class="dv-kpi-label">Not Installed</span>
@@ -65,7 +65,7 @@
         <span class="dv-kpi-sub">0%</span>
       </div>
     </div>
-    <div class="dv-kpi-card">
+    <div class="dv-kpi-card" (click)="goIssues()" style="cursor:pointer">
       <i class="fa fa-exclamation-triangle dv-kpi-icon" [class.dv-kpi-icon--amber]="kpiOpenIssues > 0" [class.dv-kpi-icon--dim]="!kpiOpenIssues"></i>
       <div class="dv-kpi-body">
         <span class="dv-kpi-label">Open Issues</span>
@@ -224,12 +224,12 @@
         <div class="dv-dp-section">QUICK ACTIONS</div>
         <div class="dv-qa-grid">
           <div class="dv-qa-item" (click)="goOneLine()"><i class="fa fa-eye"></i> View Device</div>
-          <div class="dv-qa-item"><i class="fa fa-pencil"></i> Edit Device</div>
+          <div class="dv-qa-item" (click)="editDevice(selected)"><i class="fa fa-pencil"></i> Edit Device</div>
           <div class="dv-qa-item" (click)="goPhotos()"><i class="fa fa-upload"></i> Upload Photo</div>
-          <div class="dv-qa-item"><i class="fa fa-file-o"></i> Upload Document</div>
+          <label class="dv-qa-item" style="cursor:pointer"><i class="fa fa-file-o"></i> Upload Document<input type="file" style="display:none" (change)="uploadDocForDevice($event)"/></label>
           <div class="dv-qa-item" (click)="goIssues()"><i class="fa fa-exclamation-triangle"></i> Create Issue</div>
           <div class="dv-qa-item" (click)="goEngineering()"><i class="fa fa-random"></i> Engineering Support</div>
-          <div class="dv-qa-full"><i class="fa fa-refresh"></i> Replace Device</div>
+          <div class="dv-qa-full" (click)="replaceDevice(selected)"><i class="fa fa-refresh"></i> Replace Device</div>
         </div>
       </div>
       <ng-template #noSel>
