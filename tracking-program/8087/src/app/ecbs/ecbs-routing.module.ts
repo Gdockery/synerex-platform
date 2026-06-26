@@ -41,7 +41,7 @@ import { DeploymentEngSupportComponent }    from './deployment/deployment-eng-su
 import { DeploymentDocumentsComponent }     from './deployment/deployment-documents.component';
 
 const routes: Routes = [
-  { path: 'enterprise-dashboard',  component: EnterpriseDashboardComponent, data: { title: 'Enterprise Dashboard' } },
+  { path: 'energy-dashboard',      component: EnterpriseDashboardComponent, data: { title: 'Energy Dashboard' } },
   { path: 'dashboard',            component: DashboardComponent,          data: { title: 'Dashboard' } },
   { path: 'capacity',             component: CapacityComponent,           data: { title: 'Capacity Intelligence' } },
   { path: 'digital-twin',         component: DigitalTwinComponent,        data: { title: 'Digital Twin' } },
@@ -84,7 +84,7 @@ const routes: Routes = [
       { path: 'materials',          component: DeploymentMaterialsComponent,     data: { title: 'Materials' } },
     ]
   },
-  { path: '', redirectTo: 'enterprise-dashboard', pathMatch: 'full' },
+  { path: '', redirectTo: 'energy-dashboard', pathMatch: 'full' },
 ];
 
 @NgModule({
