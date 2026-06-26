@@ -4,11 +4,11 @@ import { ApiRequestService } from '../../api/api-request.service';
 import { CurrentUserService } from '../../shared/user/currentUser.service';
 
 @Component({
-  selector: 'app-enterprise-dashboard',
-  templateUrl: './enterprise-dashboard.component.html',
-  styleUrls: ['./enterprise-dashboard.component.scss'],
+  selector: 'app-energy-dashboard',
+  templateUrl: './energy-dashboard.component.html',
+  styleUrls: ['./energy-dashboard.component.scss'],
 })
-export class EnterpriseDashboardComponent implements OnInit, OnDestroy {
+export class EnergyDashboardComponent implements OnInit, OnDestroy {
 
   // ── Project / Date controls ──────────────────────────────────────────────
   projects: any[] = [];

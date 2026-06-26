@@ -6,7 +6,7 @@ import { RouterModule } from '@angular/router';
 import { EcbsRoutingModule } from './ecbs-routing.module';
 
 import { DashboardComponent }        from './dashboard/dashboard.component';
-import { EnterpriseDashboardComponent }  from './enterprise-dashboard/enterprise-dashboard.component';
+import { EnergyDashboardComponent }      from './energy-dashboard/energy-dashboard.component';
 import { CapacityComponent }          from './capacity/capacity.component';
 import { DigitalTwinComponent }       from './digital-twin/digital-twin.component';
 import { SitesComponent }             from './sites/sites.component';
@@ -54,7 +54,7 @@ import { BarcodeScannerComponent }          from '../shared/barcode-scanner/barc
   ],
   declarations: [
     DashboardComponent,
-    EnterpriseDashboardComponent,
+    EnergyDashboardComponent,
     CapacityComponent,
     DigitalTwinComponent,
     SitesComponent,
