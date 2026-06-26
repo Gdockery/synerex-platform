@@ -15,12 +15,45 @@ export class DeploymentPreComponent implements OnInit {
   loading = true;
   syncedAt = '';
 
-  // Issue creation modal state
+  // ─── Issue modal ───────────────────────────────────────────────────────────
   showIssueModal = false;
   newIssueTitle = '';
   newIssueDesc = '';
   newIssuePriority = 'Medium';
   savingIssue = false;
+
+  // ─── Tool checklist modal ──────────────────────────────────────────────────
+  showToolModal = false;
+  toolChecks: {[key: string]: boolean} = {
+    'Torque Wrench': false, 'Multimeter': false,
+    'Label Printer': false, 'Network Tester': false, 'Hand Tools': false,
+  };
+  savingTools = false;
+
+  // ─── Site access modal ─────────────────────────────────────────────────────
+  showAccessModal = false;
+  accessChecks: {[key: string]: boolean} = {
+    'Site Contact Confirmed': false, 'Badge / Access Requirements Met': false,
+    'Parking / Staging Confirmed': false, 'Escort Arranged (if required)': false,
+    'Security Check-In Process Known': false,
+  };
+  accessNotes = '';
+  savingAccess = false;
+
+  // ─── Site info modal (read-only) ───────────────────────────────────────────
+  showSiteModal = false;
+
+  // ─── Shutdown modal (read-only) ────────────────────────────────────────────
+  showShutdownModal = false;
+  shutdownDetails: any = null;
+
+  // ─── Safety modal ──────────────────────────────────────────────────────────
+  showSafetyModal = false;
+  safetyChecks: {[key: string]: boolean} = {
+    'Arc Flash Study Reviewed': false, 'PPE Available on Truck': false,
+    'Lockout / Tagout Equipment Ready': false, 'Safety Training Completed': false,
+  };
+  savingSafety = false;
 
   constructor(
     private route: ActivatedRoute,
@@ -42,19 +75,58 @@ export class DeploymentPreComponent implements OnInit {
         this.dep = r && r.response ? r.response : r;
         this.syncedAt = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         this.loading = false;
+        // Restore saved checklist state from deployment record
+        this._restoreChecks();
+        // Load shutdown details
+        this._loadShutdowns();
       },
       error: () => { this.loading = false; }
     });
-
     this.api.get(`/api/dep/deployments/${this.depId}/readiness`).subscribe({
       next: (r: any) => { this.readiness = r && r.response ? r.response : r; },
       error: () => {}
     });
-
     this.api.get(`/api/dep/deployments/${this.depId}/materials`).subscribe({
       next: (r: any) => { this.materials = (r && r.response) ? r.response : []; },
       error: () => {}
     });
+  }
+
+  private _restoreChecks() {
+    if (!this.dep) return;
+    try {
+      const saved = this.dep.pre_deployment_checks
+        ? (typeof this.dep.pre_deployment_checks === 'string'
+            ? JSON.parse(this.dep.pre_deployment_checks)
+            : this.dep.pre_deployment_checks)
+        : {};
+      if (saved.tool_checks) Object.assign(this.toolChecks, saved.tool_checks);
+      if (saved.access_checks) Object.assign(this.accessChecks, saved.access_checks);
+      if (saved.access_notes) this.accessNotes = saved.access_notes;
+      if (saved.safety_checks) Object.assign(this.safetyChecks, saved.safety_checks);
+    } catch (e) {}
+  }
+
+  private _loadShutdowns() {
+    this.api.get(`/api/dep/deployments/${this.depId}/shutdowns`).subscribe({
+      next: (r: any) => {
+        const list = (r && r.response) ? r.response : [];
+        this.shutdownDetails = list.length ? list[0] : null;
+      },
+      error: () => {}
+    });
+  }
+
+  private _saveChecks() {
+    const payload = {
+      pre_deployment_checks: JSON.stringify({
+        tool_checks: this.toolChecks,
+        access_checks: this.accessChecks,
+        access_notes: this.accessNotes,
+        safety_checks: this.safetyChecks,
+      }),
+    };
+    this.api.patch(`/api/dep/deployments/${this.depId}`, payload).subscribe({ error: () => {} });
   }
 
   // ─── Derived getters ───────────────────────────────────────────────────────
@@ -67,10 +139,34 @@ export class DeploymentPreComponent implements OnInit {
            (this.dep && this.dep.project_info && this.dep.project_info.name) || '—';
   }
   get utility(): string { return (this.dep && this.dep.site_info && this.dep.site_info.utility) || '—'; }
+  get siteInfo(): any { return (this.dep && this.dep.site_info) || null; }
 
   get sections(): any[] {
-    if (this.readiness && this.readiness.sections) return this.readiness.sections;
+    if (this.readiness && this.readiness.sections) return this._mergeSavedChecks(this.readiness.sections);
     return this._defaultSections();
+  }
+
+  private _mergeSavedChecks(sections: any[]): any[] {
+    return sections.map((s: any) => {
+      if (s.num === 6) {
+        return { ...s, items: s.items.map((item: any) => ({
+          ...item, status: this.toolChecks[item.label] ? 'ok' : item.status
+        }))};
+      }
+      if (s.num === 4) {
+        return { ...s, items: s.items.map((item: any) => {
+          const key = Object.keys(this.accessChecks).find(k => k.startsWith(item.label.split(' / ')[0]));
+          return { ...item, status: (key && this.accessChecks[key]) ? 'ok' : item.status };
+        })};
+      }
+      if (s.num === 7) {
+        return { ...s, items: s.items.map((item: any) => {
+          const key = Object.keys(this.safetyChecks).find(k => k.startsWith(item.label));
+          return { ...item, status: (key && this.safetyChecks[key]) ? 'ok' : item.status };
+        })};
+      }
+      return s;
+    });
   }
 
   get readinessScore(): number {
@@ -79,10 +175,7 @@ export class DeploymentPreComponent implements OnInit {
     if (!sects.length) return 0;
     let total = 0, done = 0;
     for (const s of sects) {
-      for (const item of (s.items || [])) {
-        total++;
-        if (item.status === 'ok') done++;
-      }
+      for (const item of (s.items || [])) { total++; if (item.status === 'ok') done++; }
     }
     return total ? Math.round(done / total * 100) : 0;
   }
@@ -101,7 +194,6 @@ export class DeploymentPreComponent implements OnInit {
     return 'not-ready';
   }
 
-  /** True when the Start button should be enabled: score=100 OR approved override */
   get canStart(): boolean {
     if (this.readiness && this.readiness.override_approved) return true;
     return this.readinessScore >= 100;
@@ -125,11 +217,17 @@ export class DeploymentPreComponent implements OnInit {
     return issues.slice(0, 5);
   }
 
+  get toolCheckCount(): number { return Object.values(this.toolChecks).filter(Boolean).length; }
+  get toolTotal(): number { return Object.keys(this.toolChecks).length; }
+  get accessCheckCount(): number { return Object.values(this.accessChecks).filter(Boolean).length; }
+  get accessTotal(): number { return Object.keys(this.accessChecks).length; }
+  get safetyCheckCount(): number { return Object.values(this.safetyChecks).filter(Boolean).length; }
+  get safetyTotal(): number { return Object.keys(this.safetyChecks).length; }
+
   sectionScore(s: any): number {
     const items = s.items || [];
     if (!items.length) return 0;
-    const done = items.filter((i: any) => i.status === 'ok').length;
-    return Math.round(done / items.length * 100);
+    return Math.round(items.filter((i: any) => i.status === 'ok').length / items.length * 100);
   }
 
   itemIcon(status: string): string {
@@ -146,6 +244,10 @@ export class DeploymentPreComponent implements OnInit {
   }
   issueClass(status: string): string { return this.itemClass(status); }
 
+  toolCheckKeys(): string[] { return Object.keys(this.toolChecks); }
+  accessCheckKeys(): string[] { return Object.keys(this.accessChecks); }
+  safetyCheckKeys(): string[] { return Object.keys(this.safetyChecks); }
+
   // ─── Start Deployment ──────────────────────────────────────────────────────
 
   startDeployment() {
@@ -156,20 +258,26 @@ export class DeploymentPreComponent implements OnInit {
     });
   }
 
+  // ─── Navigation ────────────────────────────────────────────────────────────
+
+  goToDocuments()   { this.router.navigate(['/ecbs/deployment', this.depId, 'documents']); }
+  goToOneLine()     { this.router.navigate(['/ecbs/deployment', this.depId, 'one-line']); }
+  goToNetwork()     { this.router.navigate(['/ecbs/deployment', this.depId, 'electrical-network']); }
+  goToMaterials()   { this.router.navigate(['/ecbs/deployment', this.depId, 'materials']); }
+  goToIssues()      { this.router.navigate(['/ecbs/deployment', this.depId, 'issues']); }
+  goToEngSupport()  { this.router.navigate(['/ecbs/deployment', this.depId, 'engineering-support']); }
+
+  // ─── Print Readiness Report ────────────────────────────────────────────────
+
+  printReport() { window.print(); }
+
   // ─── Issue Modal ──────────────────────────────────────────────────────────
 
   openIssueModal() {
-    this.newIssueTitle = '';
-    this.newIssueDesc = '';
-    this.newIssuePriority = 'Medium';
+    this.newIssueTitle = ''; this.newIssueDesc = ''; this.newIssuePriority = 'Medium';
     this.showIssueModal = true;
   }
-
-  closeIssueModal() {
-    if (this.savingIssue) return;
-    this.showIssueModal = false;
-  }
-
+  closeIssueModal() { if (!this.savingIssue) this.showIssueModal = false; }
   submitIssue() {
     if (!this.newIssueTitle.trim() || this.savingIssue) return;
     this.savingIssue = true;
@@ -179,38 +287,63 @@ export class DeploymentPreComponent implements OnInit {
       priority: this.newIssuePriority,
       impact_level: 'Documentation Only',
     }).subscribe({
-      next: () => {
-        this.savingIssue = false;
-        this.showIssueModal = false;
-        this.load();
-      },
+      next: () => { this.savingIssue = false; this.showIssueModal = false; this.load(); },
       error: () => { this.savingIssue = false; }
     });
   }
 
-  // ─── Navigation helpers ───────────────────────────────────────────────────
+  // ─── Tool Checklist Modal ─────────────────────────────────────────────────
 
-  goToDocuments() { this.router.navigate(['/ecbs/deployment', this.depId, 'documents']); }
-  goToOneLine()   { this.router.navigate(['/ecbs/deployment', this.depId, 'one-line']); }
-  goToNetwork()   { this.router.navigate(['/ecbs/deployment', this.depId, 'network']); }
+  openToolModal() { this.showToolModal = true; }
+  closeToolModal() { if (!this.savingTools) this.showToolModal = false; }
+  saveToolChecklist() {
+    this.savingTools = true;
+    this._saveChecks();
+    setTimeout(() => { this.savingTools = false; this.showToolModal = false; this.load(); }, 800);
+  }
+  markAllTools(val: boolean) { Object.keys(this.toolChecks).forEach(k => this.toolChecks[k] = val); }
 
-  // ─── Default sections (used while readiness API loads) ────────────────────
+  // ─── Site Access Modal ─────────────────────────────────────────────────────
+
+  openAccessModal() { this.showAccessModal = true; }
+  closeAccessModal() { if (!this.savingAccess) this.showAccessModal = false; }
+  saveAccessChecklist() {
+    this.savingAccess = true;
+    this._saveChecks();
+    setTimeout(() => { this.savingAccess = false; this.showAccessModal = false; this.load(); }, 800);
+  }
+
+  // ─── Site Info Modal ──────────────────────────────────────────────────────
+
+  openSiteModal() { this.showSiteModal = true; }
+  closeSiteModal() { this.showSiteModal = false; }
+
+  // ─── Shutdown Modal ───────────────────────────────────────────────────────
+
+  openShutdownModal() { this.showShutdownModal = true; }
+  closeShutdownModal() { this.showShutdownModal = false; }
+
+  // ─── Safety Modal ─────────────────────────────────────────────────────────
+
+  openSafetyModal() { this.showSafetyModal = true; }
+  closeSafetyModal() { if (!this.savingSafety) this.showSafetyModal = false; }
+  saveSafetyChecklist() {
+    this.savingSafety = true;
+    this._saveChecks();
+    setTimeout(() => { this.savingSafety = false; this.showSafetyModal = false; this.load(); }, 800);
+  }
+
+  // ─── Default sections ─────────────────────────────────────────────────────
 
   private _defaultSections(): any[] {
     const site = this.dep && this.dep.site_info;
     const mats = this.materials;
-
     const matItems = mats.length > 0 ? mats.map((m: any) => {
-      const exp = m.expected_qty || 0;
-      const deliv = m.delivered_qty || 0;
+      const exp = m.expected_qty || 0; const deliv = m.delivered_qty || 0;
       let status = 'in_progress';
       if (exp > 0 && deliv >= exp) status = 'ok';
       else if (!deliv) status = 'missing';
-      return {
-        label: m.item_label || m.item_type || 'Item',
-        value: exp ? `${deliv}/${exp}` : '—',
-        status,
-      };
+      return { label: m.item_label || m.item_type || 'Item', value: exp ? `${deliv}/${exp}` : '—', status };
     }) : [
       { label: 'APFs Loaded', value: '—', status: 'in_progress' },
       { label: 'Meters Loaded', value: '—', status: 'in_progress' },
@@ -244,40 +377,29 @@ export class DeploymentPreComponent implements OnInit {
       {
         num: 4, title: 'Site Access Verification', icon: 'fa-id-badge',
         items: [
-          { label: 'Site Contact Confirmed', value: site && site.contact_name ? site.contact_name : '—', status: site && site.contact_name ? 'ok' : 'in_progress' },
-          { label: 'Badge / Access Requirements', value: '—', status: 'in_progress' },
-          { label: 'Parking / Staging', value: '—', status: 'in_progress' },
-          { label: 'Escort Required', value: '—', status: 'in_progress' },
-          { label: 'Security Check-In', value: '—', status: 'in_progress' },
+          { label: 'Site Contact Confirmed', value: site && site.contact_name ? site.contact_name : '—', status: this.accessChecks['Site Contact Confirmed'] ? 'ok' : (site && site.contact_name ? 'ok' : 'in_progress') },
+          { label: 'Badge / Access Requirements', value: '—', status: this.accessChecks['Badge / Access Requirements Met'] ? 'ok' : 'in_progress' },
+          { label: 'Parking / Staging', value: '—', status: this.accessChecks['Parking / Staging Confirmed'] ? 'ok' : 'in_progress' },
+          { label: 'Escort Required', value: '—', status: this.accessChecks['Escort Arranged (if required)'] ? 'ok' : 'in_progress' },
+          { label: 'Security Check-In', value: '—', status: this.accessChecks['Security Check-In Process Known'] ? 'ok' : 'in_progress' },
         ]
       },
       {
         num: 5, title: 'Shutdown Verification', icon: 'fa-power-off',
         items: [
-          { label: 'Shutdown Required', value: '—', status: 'in_progress' },
-          { label: 'Shutdown Approval Status', value: '—', status: 'in_progress' },
-          { label: 'Approved Window', value: '—', status: 'in_progress' },
-          { label: 'Approval Document', value: '—', status: 'in_progress' },
+          { label: 'Shutdown Required', value: this.shutdownDetails ? (this.shutdownDetails.shutdown_required ? 'Yes' : 'No') : '—', status: this.shutdownDetails ? 'ok' : 'in_progress' },
+          { label: 'Shutdown Approval Status', value: this.shutdownDetails ? (this.shutdownDetails.status || '—') : '—', status: this.shutdownDetails && this.shutdownDetails.status === 'Approved' ? 'ok' : 'in_progress' },
+          { label: 'Approved Window', value: this.shutdownDetails && this.shutdownDetails.window_start ? `${this.shutdownDetails.window_start} – ${this.shutdownDetails.window_end}` : '—', status: this.shutdownDetails && this.shutdownDetails.window_start ? 'ok' : 'missing' },
+          { label: 'Approval Document', value: this.shutdownDetails && this.shutdownDetails.approval_doc ? 'Attached' : '—', status: this.shutdownDetails && this.shutdownDetails.approval_doc ? 'ok' : 'missing' },
         ]
       },
       {
         num: 6, title: 'Tool Verification', icon: 'fa-wrench',
-        items: [
-          { label: 'Torque Wrench', value: '—', status: 'in_progress' },
-          { label: 'Multimeter', value: '—', status: 'in_progress' },
-          { label: 'Label Printer', value: '—', status: 'in_progress' },
-          { label: 'Network Tester', value: '—', status: 'in_progress' },
-          { label: 'Hand Tools', value: '—', status: 'in_progress' },
-        ]
+        items: Object.keys(this.toolChecks).map(k => ({ label: k, status: this.toolChecks[k] ? 'ok' : 'in_progress' }))
       },
       {
         num: 7, title: 'Safety Verification', icon: 'fa-shield',
-        items: [
-          { label: 'Arc Flash Study', value: '—', status: 'in_progress' },
-          { label: 'PPE Available', value: '—', status: 'in_progress' },
-          { label: 'Lockout / Tagout Equipment', value: '—', status: 'in_progress' },
-          { label: 'Safety Training', value: '—', status: 'in_progress' },
-        ]
+        items: Object.keys(this.safetyChecks).map(k => ({ label: k, status: this.safetyChecks[k] ? 'ok' : 'in_progress' }))
       },
       {
         num: 8, title: 'Required Documents', icon: 'fa-file-text-o',

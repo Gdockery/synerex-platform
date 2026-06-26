@@ -17,9 +17,9 @@
     </div>
     <div class="dp-header-right">
       <span class="dp-sync"><i class="fa fa-refresh"></i> Synced {{ syncedAt }}</span>
-      <button class="dp-icon-btn" title="Notifications"><i class="fa fa-bell-o"></i></button>
-      <button class="dp-icon-btn" title="Help"><i class="fa fa-question-circle-o"></i></button>
-      <button class="dp-icon-btn" title="More options"><i class="fa fa-ellipsis-v"></i></button>
+      <button class="dp-icon-btn" title="View Issues" (click)="goToIssues()"><i class="fa fa-bell-o"></i></button>
+      <button class="dp-icon-btn" title="Engineering Support" (click)="goToEngSupport()"><i class="fa fa-question-circle-o"></i></button>
+      <button class="dp-icon-btn" title="Print Readiness Report" (click)="printReport()"><i class="fa fa-print"></i></button>
     </div>
   </div>
 
@@ -98,14 +98,33 @@
           </div>
         </div>
         <div class="dp-sec-footer">
-          <button class="dp-sec-btn" *ngIf="s.num === 1">Edit Site Info</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 2" (click)="goToOneLine()">View One-Line</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 3">View Materials</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 4">Edit Access Info</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 5">View Shutdown</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 6">Edit Tool List</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 7">View Safety Docs</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 8" (click)="goToDocuments()">View Documents</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 1" (click)="openSiteModal()">
+            <i class="fa fa-info-circle"></i> View Site Info
+          </button>
+          <button class="dp-sec-btn" *ngIf="s.num === 2" (click)="goToOneLine()">
+            <i class="fa fa-file-text-o"></i> View One-Line
+          </button>
+          <button class="dp-sec-btn" *ngIf="s.num === 3" (click)="goToMaterials()">
+            <i class="fa fa-cubes"></i> View Materials
+          </button>
+          <button class="dp-sec-btn" *ngIf="s.num === 4" (click)="openAccessModal()">
+            <i class="fa fa-id-badge"></i> Confirm Access Info
+            <span class="dp-sec-check-count" *ngIf="accessCheckCount > 0">{{ accessCheckCount }}/{{ accessTotal }}</span>
+          </button>
+          <button class="dp-sec-btn" *ngIf="s.num === 5" (click)="openShutdownModal()">
+            <i class="fa fa-power-off"></i> View Shutdown Details
+          </button>
+          <button class="dp-sec-btn" *ngIf="s.num === 6" (click)="openToolModal()">
+            <i class="fa fa-wrench"></i> Verify Tool List
+            <span class="dp-sec-check-count" *ngIf="toolCheckCount > 0">{{ toolCheckCount }}/{{ toolTotal }}</span>
+          </button>
+          <button class="dp-sec-btn" *ngIf="s.num === 7" (click)="openSafetyModal()">
+            <i class="fa fa-shield"></i> Safety Checklist
+            <span class="dp-sec-check-count" *ngIf="safetyCheckCount > 0">{{ safetyCheckCount }}/{{ safetyTotal }}</span>
+          </button>
+          <button class="dp-sec-btn" *ngIf="s.num === 8" (click)="goToDocuments()">
+            <i class="fa fa-folder-open"></i> View Documents
+          </button>
         </div>
       </div>
     </div>
@@ -118,25 +137,26 @@
       </div>
       <div class="dp-ip-body">
         <div class="dp-ip-item" *ngFor="let issue of readinessIssues" [ngClass]="'issue-' + issueClass(issue.status)">
-          <div class="dp-ip-icon">
-            <i class="fa" [ngClass]="itemIcon(issue.status)"></i>
-          </div>
+          <div class="dp-ip-icon"><i class="fa" [ngClass]="itemIcon(issue.status)"></i></div>
           <div class="dp-ip-detail">
             <div class="dp-ip-title">{{ issue.label }}</div>
             <div class="dp-ip-sub">{{ issue.section }}</div>
           </div>
-          <button class="dp-ip-view">View &rsaquo;</button>
+          <button class="dp-ip-view" (click)="goToIssues()">View &rsaquo;</button>
         </div>
         <div class="dp-ip-empty" *ngIf="readinessIssues.length === 0">
           <i class="fa fa-check-circle"></i>
           <span>All readiness checks passed!</span>
         </div>
       </div>
+      <button class="dp-ip-all" *ngIf="readinessIssues.length > 0" (click)="goToIssues()">
+        <i class="fa fa-list"></i> View All Issues
+      </button>
 
       <!-- Quick Actions -->
       <div class="dp-qa-section">
         <div class="dp-qa-title">Quick Actions</div>
-        <button class="dp-qa-btn" (click)="goToOneLine()">
+        <button class="dp-qa-btn" (click)="goToDocuments()">
           <i class="fa fa-file-text-o"></i> View Deployment Package
         </button>
         <button class="dp-qa-btn" (click)="goToDocuments()">
@@ -145,10 +165,10 @@
         <button class="dp-qa-btn dp-qa-btn--warn" (click)="openIssueModal()">
           <i class="fa fa-plus"></i> Add Readiness Issue
         </button>
-        <button class="dp-qa-btn">
+        <button class="dp-qa-btn" (click)="goToEngSupport()">
           <i class="fa fa-comment"></i> Message Project Team
         </button>
-        <button class="dp-qa-btn">
+        <button class="dp-qa-btn" (click)="printReport()">
           <i class="fa fa-print"></i> Print Readiness Report
         </button>
       </div>
@@ -173,10 +193,10 @@
       <button class="dp-footer-btn dp-footer-btn--ghost" (click)="openIssueModal()">
         <i class="fa fa-plus"></i> Add Readiness Issue
       </button>
-      <button class="dp-footer-btn dp-footer-btn--ghost">
+      <button class="dp-footer-btn dp-footer-btn--ghost" (click)="goToEngSupport()">
         <i class="fa fa-comment"></i> Message Project Team
       </button>
-      <button class="dp-footer-btn dp-footer-btn--ghost">
+      <button class="dp-footer-btn dp-footer-btn--ghost" (click)="printReport()">
         <i class="fa fa-print"></i> Print Readiness Report
       </button>
       <button class="dp-footer-btn dp-footer-btn--start"
@@ -187,6 +207,10 @@
     </div>
   </div>
 </div>
+
+<!-- ════════════════════════════════════════════════════════════
+     MODALS
+     ════════════════════════════════════════════════════════════ -->
 
 <!-- Issue Creation Modal -->
 <div class="dp-modal-backdrop" *ngIf="showIssueModal" (click)="closeIssueModal()">
@@ -216,12 +240,162 @@
     </div>
     <div class="dp-modal-footer">
       <button class="dp-modal-btn dp-modal-btn--cancel" (click)="closeIssueModal()">Cancel</button>
-      <button class="dp-modal-btn dp-modal-btn--submit"
-        (click)="submitIssue()"
-        [disabled]="!newIssueTitle.trim() || savingIssue">
+      <button class="dp-modal-btn dp-modal-btn--submit" (click)="submitIssue()" [disabled]="!newIssueTitle.trim() || savingIssue">
         <i class="fa fa-spinner fa-spin" *ngIf="savingIssue"></i>
         {{ savingIssue ? 'Saving...' : 'Create Issue' }}
       </button>
+    </div>
+  </div>
+</div>
+
+<!-- Tool Checklist Modal -->
+<div class="dp-modal-backdrop" *ngIf="showToolModal" (click)="closeToolModal()">
+  <div class="dp-modal" (click)="$event.stopPropagation()">
+    <div class="dp-modal-header">
+      <span><i class="fa fa-wrench" style="color:#3b82f6;margin-right:8px"></i>Tool Verification</span>
+      <button class="dp-modal-close" (click)="closeToolModal()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="dp-modal-body">
+      <p class="dp-modal-hint">Confirm all required tools are loaded in the truck before dispatch.</p>
+      <div class="dp-check-row" *ngFor="let key of toolCheckKeys()">
+        <label class="dp-check-label">
+          <input type="checkbox" [(ngModel)]="toolChecks[key]" />
+          <span class="dp-check-box" [class.dp-check-box--on]="toolChecks[key]">
+            <i class="fa" [ngClass]="toolChecks[key] ? 'fa-check-square' : 'fa-square-o'"></i>
+          </span>
+          {{ key }}
+        </label>
+      </div>
+      <div class="dp-modal-mark-all">
+        <button class="dp-mark-btn" (click)="markAllTools(true)">Mark All Present</button>
+        <button class="dp-mark-btn dp-mark-btn--clear" (click)="markAllTools(false)">Clear All</button>
+      </div>
+    </div>
+    <div class="dp-modal-footer">
+      <span class="dp-check-tally">{{ toolCheckCount }}/{{ toolTotal }} confirmed</span>
+      <button class="dp-modal-btn dp-modal-btn--cancel" (click)="closeToolModal()">Cancel</button>
+      <button class="dp-modal-btn dp-modal-btn--save" (click)="saveToolChecklist()" [disabled]="savingTools">
+        <i class="fa fa-spinner fa-spin" *ngIf="savingTools"></i>
+        {{ savingTools ? 'Saving...' : 'Save & Close' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Site Access Modal -->
+<div class="dp-modal-backdrop" *ngIf="showAccessModal" (click)="closeAccessModal()">
+  <div class="dp-modal" (click)="$event.stopPropagation()">
+    <div class="dp-modal-header">
+      <span><i class="fa fa-id-badge" style="color:#3b82f6;margin-right:8px"></i>Site Access Verification</span>
+      <button class="dp-modal-close" (click)="closeAccessModal()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="dp-modal-body">
+      <p class="dp-modal-hint">Confirm all site access requirements are met before dispatching the crew.</p>
+      <div class="dp-check-row" *ngFor="let key of accessCheckKeys()">
+        <label class="dp-check-label">
+          <input type="checkbox" [(ngModel)]="accessChecks[key]" />
+          <span class="dp-check-box" [class.dp-check-box--on]="accessChecks[key]">
+            <i class="fa" [ngClass]="accessChecks[key] ? 'fa-check-square' : 'fa-square-o'"></i>
+          </span>
+          {{ key }}
+        </label>
+      </div>
+      <div class="dp-modal-row" style="margin-top:10px">
+        <label class="dp-modal-label">Access Notes</label>
+        <textarea class="dp-modal-textarea" [(ngModel)]="accessNotes" placeholder="Parking location, security contact, special instructions..."></textarea>
+      </div>
+    </div>
+    <div class="dp-modal-footer">
+      <span class="dp-check-tally">{{ accessCheckCount }}/{{ accessTotal }} confirmed</span>
+      <button class="dp-modal-btn dp-modal-btn--cancel" (click)="closeAccessModal()">Cancel</button>
+      <button class="dp-modal-btn dp-modal-btn--save" (click)="saveAccessChecklist()" [disabled]="savingAccess">
+        <i class="fa fa-spinner fa-spin" *ngIf="savingAccess"></i>
+        {{ savingAccess ? 'Saving...' : 'Save & Close' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Safety Checklist Modal -->
+<div class="dp-modal-backdrop" *ngIf="showSafetyModal" (click)="closeSafetyModal()">
+  <div class="dp-modal" (click)="$event.stopPropagation()">
+    <div class="dp-modal-header">
+      <span><i class="fa fa-shield" style="color:#ef4444;margin-right:8px"></i>Safety Verification</span>
+      <button class="dp-modal-close" (click)="closeSafetyModal()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="dp-modal-body">
+      <p class="dp-modal-hint">Confirm all safety requirements are met before the crew begins work.</p>
+      <div class="dp-check-row" *ngFor="let key of safetyCheckKeys()">
+        <label class="dp-check-label">
+          <input type="checkbox" [(ngModel)]="safetyChecks[key]" />
+          <span class="dp-check-box" [class.dp-check-box--on]="safetyChecks[key]">
+            <i class="fa" [ngClass]="safetyChecks[key] ? 'fa-check-square' : 'fa-square-o'"></i>
+          </span>
+          {{ key }}
+        </label>
+      </div>
+    </div>
+    <div class="dp-modal-footer">
+      <span class="dp-check-tally">{{ safetyCheckCount }}/{{ safetyTotal }} confirmed</span>
+      <button class="dp-modal-btn dp-modal-btn--cancel" (click)="closeSafetyModal()">Cancel</button>
+      <button class="dp-modal-btn dp-modal-btn--save" (click)="saveSafetyChecklist()" [disabled]="savingSafety">
+        <i class="fa fa-spinner fa-spin" *ngIf="savingSafety"></i>
+        {{ savingSafety ? 'Saving...' : 'Save & Close' }}
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Site Info Modal (read-only) -->
+<div class="dp-modal-backdrop" *ngIf="showSiteModal" (click)="closeSiteModal()">
+  <div class="dp-modal" (click)="$event.stopPropagation()">
+    <div class="dp-modal-header">
+      <span><i class="fa fa-map-marker" style="color:#22c55e;margin-right:8px"></i>Site Information</span>
+      <button class="dp-modal-close" (click)="closeSiteModal()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="dp-modal-body">
+      <div class="dp-info-grid">
+        <div class="dp-info-row"><span class="dp-info-label">Site Name</span><span class="dp-info-val">{{ siteInfo?.name || '—' }}</span></div>
+        <div class="dp-info-row"><span class="dp-info-label">Address</span><span class="dp-info-val">{{ siteInfo?.address || '—' }}, {{ siteInfo?.city || '' }} {{ siteInfo?.state || '' }}</span></div>
+        <div class="dp-info-row"><span class="dp-info-label">Utility Provider</span><span class="dp-info-val">{{ siteInfo?.utility || '—' }}</span></div>
+        <div class="dp-info-row"><span class="dp-info-label">Service Voltage</span><span class="dp-info-val">{{ siteInfo?.service_voltage || siteInfo?.voltage || '—' }}</span></div>
+        <div class="dp-info-row" *ngIf="siteInfo?.contact_name"><span class="dp-info-label">Site Contact</span><span class="dp-info-val">{{ siteInfo?.contact_name }}</span></div>
+        <div class="dp-info-row"><span class="dp-info-label">Deployment</span><span class="dp-info-val">{{ depName }} ({{ depNumber }})</span></div>
+      </div>
+      <p class="dp-modal-hint" style="margin-top:12px">
+        <i class="fa fa-info-circle"></i> Site information is managed by Engineering. Contact the project team to request changes.
+      </p>
+    </div>
+    <div class="dp-modal-footer">
+      <button class="dp-modal-btn dp-modal-btn--save" (click)="closeSiteModal()">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Shutdown Details Modal (read-only) -->
+<div class="dp-modal-backdrop" *ngIf="showShutdownModal" (click)="closeShutdownModal()">
+  <div class="dp-modal" (click)="$event.stopPropagation()">
+    <div class="dp-modal-header">
+      <span><i class="fa fa-power-off" style="color:#f59e0b;margin-right:8px"></i>Shutdown Details</span>
+      <button class="dp-modal-close" (click)="closeShutdownModal()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="dp-modal-body" *ngIf="shutdownDetails">
+      <div class="dp-info-grid">
+        <div class="dp-info-row"><span class="dp-info-label">Shutdown Required</span><span class="dp-info-val">{{ shutdownDetails.shutdown_required ? 'Yes' : 'No' }}</span></div>
+        <div class="dp-info-row"><span class="dp-info-label">Status</span><span class="dp-info-val">{{ shutdownDetails.status || '—' }}</span></div>
+        <div class="dp-info-row" *ngIf="shutdownDetails.window_start"><span class="dp-info-label">Approved Window</span><span class="dp-info-val">{{ shutdownDetails.window_start }} – {{ shutdownDetails.window_end }}</span></div>
+        <div class="dp-info-row" *ngIf="shutdownDetails.customer_contact"><span class="dp-info-label">Customer Contact</span><span class="dp-info-val">{{ shutdownDetails.customer_contact }}</span></div>
+        <div class="dp-info-row" *ngIf="shutdownDetails.approval_doc"><span class="dp-info-label">Approval Document</span><span class="dp-info-val">{{ shutdownDetails.approval_doc }}</span></div>
+        <div class="dp-info-row" *ngIf="shutdownDetails.notes"><span class="dp-info-label">Notes</span><span class="dp-info-val">{{ shutdownDetails.notes }}</span></div>
+      </div>
+    </div>
+    <div class="dp-modal-body" *ngIf="!shutdownDetails">
+      <p class="dp-modal-hint">No shutdown window has been entered for this deployment yet.</p>
+      <p class="dp-modal-hint">Contact Engineering to add shutdown approval details before dispatch.</p>
+    </div>
+    <div class="dp-modal-footer">
+      <button class="dp-modal-btn dp-modal-btn--cancel" (click)="goToEngSupport(); closeShutdownModal()">Request Shutdown Approval</button>
+      <button class="dp-modal-btn dp-modal-btn--save" (click)="closeShutdownModal()">Close</button>
     </div>
   </div>
 </div>
