@@ -17,9 +17,9 @@
     </div>
     <div class="dp-header-right">
       <span class="dp-sync"><i class="fa fa-refresh"></i> Synced {{ syncedAt }}</span>
-      <button class="dp-icon-btn"><i class="fa fa-bell-o"></i></button>
-      <button class="dp-icon-btn"><i class="fa fa-question-circle-o"></i></button>
-      <button class="dp-icon-btn"><i class="fa fa-ellipsis-v"></i></button>
+      <button class="dp-icon-btn" title="Notifications"><i class="fa fa-bell-o"></i></button>
+      <button class="dp-icon-btn" title="Help"><i class="fa fa-question-circle-o"></i></button>
+      <button class="dp-icon-btn" title="More options"><i class="fa fa-ellipsis-v"></i></button>
     </div>
   </div>
 
@@ -50,19 +50,27 @@
       </div>
     </div>
     <div class="dp-kpi-card">
-      <i class="fa fa-minus-circle dp-kpi-icon dp-kpi-icon--dim"></i>
-      <div class="dp-kpi-body">
-        <span class="dp-kpi-label">Not Required</span>
-        <span class="dp-kpi-val">0/{{ totalItems }}</span>
-        <span class="dp-kpi-pct">0%</span>
-      </div>
-    </div>
-    <div class="dp-kpi-card">
-      <i class="fa fa-times-circle dp-kpi-icon" [class.dp-kpi-icon--red]="blockedItems > 0" [class.dp-kpi-icon--dim]="!blockedItems"></i>
+      <i class="fa fa-times-circle dp-kpi-icon"
+        [class.dp-kpi-icon--red]="blockedItems > 0"
+        [class.dp-kpi-icon--dim]="!blockedItems"></i>
       <div class="dp-kpi-body">
         <span class="dp-kpi-label">Blocked</span>
         <span class="dp-kpi-val" [class.dp-kpi-val--red]="blockedItems > 0">{{ blockedItems }}/{{ totalItems }}</span>
         <span class="dp-kpi-pct" [class.dp-kpi-pct--red]="blockedItems > 0">{{ blockedItems > 0 ? (blockedItems / totalItems * 100 | number:'1.0-0') + '%' : '0%' }}</span>
+      </div>
+    </div>
+    <div class="dp-kpi-card">
+      <i class="fa fa-shield dp-kpi-icon"
+        [class.dp-kpi-icon--green]="readinessScore >= 100"
+        [class.dp-kpi-icon--amber]="readinessScore >= 70 && readinessScore < 100"
+        [class.dp-kpi-icon--red]="readinessScore < 70"></i>
+      <div class="dp-kpi-body">
+        <span class="dp-kpi-label">Readiness</span>
+        <span class="dp-kpi-val"
+          [class.dp-kpi-val--green]="readinessScore >= 100"
+          [class.dp-kpi-val--amber]="readinessScore >= 70 && readinessScore < 100"
+          [class.dp-kpi-val--red]="readinessScore < 70">{{ readinessScore }}%</span>
+        <span class="dp-kpi-pct" [class.dp-kpi-pct--red]="!canStart">{{ canStart ? 'READY' : 'NOT READY' }}</span>
       </div>
     </div>
     <div class="dp-kpi-card dp-kpi-card--meta">
@@ -90,21 +98,22 @@
           </div>
         </div>
         <div class="dp-sec-footer">
-          <button class="dp-sec-btn" *ngIf="s.num === 1">Edit</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 2">View Package</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 3">View Details</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 4">Edit</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 5">View</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 6">Edit</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 7">View Details</button>
-          <button class="dp-sec-btn" *ngIf="s.num === 8">Upload Document</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 1">Edit Site Info</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 2" (click)="goToOneLine()">View One-Line</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 3">View Materials</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 4">Edit Access Info</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 5">View Shutdown</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 6">Edit Tool List</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 7">View Safety Docs</button>
+          <button class="dp-sec-btn" *ngIf="s.num === 8" (click)="goToDocuments()">View Documents</button>
         </div>
       </div>
     </div>
 
-    <!-- Readiness Issues Panel -->
+    <!-- Right Panel: Readiness Issues + Quick Actions -->
     <div class="dp-issues-panel">
       <div class="dp-ip-header">
+        <i class="fa fa-exclamation-triangle" style="color:#f59e0b;margin-right:6px"></i>
         <span>Readiness Issues ({{ readinessIssues.length }})</span>
       </div>
       <div class="dp-ip-body">
@@ -123,21 +132,95 @@
           <span>All readiness checks passed!</span>
         </div>
       </div>
-      <button class="dp-ip-all" *ngIf="readinessIssues.length > 0">View All Issues</button>
+
+      <!-- Quick Actions -->
+      <div class="dp-qa-section">
+        <div class="dp-qa-title">Quick Actions</div>
+        <button class="dp-qa-btn" (click)="goToOneLine()">
+          <i class="fa fa-file-text-o"></i> View Deployment Package
+        </button>
+        <button class="dp-qa-btn" (click)="goToDocuments()">
+          <i class="fa fa-upload"></i> Upload Document
+        </button>
+        <button class="dp-qa-btn dp-qa-btn--warn" (click)="openIssueModal()">
+          <i class="fa fa-plus"></i> Add Readiness Issue
+        </button>
+        <button class="dp-qa-btn">
+          <i class="fa fa-comment"></i> Message Project Team
+        </button>
+        <button class="dp-qa-btn">
+          <i class="fa fa-print"></i> Print Readiness Report
+        </button>
+      </div>
     </div>
   </div>
 
   <!-- Footer Action Bar -->
   <div class="dp-footer">
-    <span class="dp-footer-hint">All required sections must be complete to start the Active Deployment.</span>
+    <span class="dp-footer-hint" *ngIf="!canStart">
+      <i class="fa fa-lock" style="margin-right:4px"></i>
+      All required sections must be complete (100%) to start the Active Deployment.
+    </span>
+    <span class="dp-footer-hint dp-footer-hint--ok" *ngIf="canStart && readinessScore >= 100">
+      <i class="fa fa-check-circle" style="margin-right:4px"></i>
+      All checks passed — crew is cleared to start.
+    </span>
+    <span class="dp-footer-hint dp-footer-hint--override" *ngIf="readiness?.override_approved && readinessScore < 100">
+      <i class="fa fa-unlock" style="margin-right:4px"></i>
+      Approved override — starting with partial readiness.
+    </span>
     <div class="dp-footer-actions">
-      <button class="dp-footer-btn dp-footer-btn--ghost"><i class="fa fa-plus"></i> Add Readiness Issue</button>
-      <button class="dp-footer-btn dp-footer-btn--ghost"><i class="fa fa-comment"></i> Message Project Team</button>
-      <button class="dp-footer-btn dp-footer-btn--ghost"><i class="fa fa-print"></i> Print Readiness Report</button>
+      <button class="dp-footer-btn dp-footer-btn--ghost" (click)="openIssueModal()">
+        <i class="fa fa-plus"></i> Add Readiness Issue
+      </button>
+      <button class="dp-footer-btn dp-footer-btn--ghost">
+        <i class="fa fa-comment"></i> Message Project Team
+      </button>
+      <button class="dp-footer-btn dp-footer-btn--ghost">
+        <i class="fa fa-print"></i> Print Readiness Report
+      </button>
       <button class="dp-footer-btn dp-footer-btn--start"
-        [disabled]="blockedItems > 0 && readinessScore < 90"
+        [disabled]="!canStart"
         (click)="startDeployment()">
-        &rsaquo; START ACTIVE DEPLOYMENT
+        <i class="fa fa-play" style="font-size:11px"></i> START ACTIVE DEPLOYMENT
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Issue Creation Modal -->
+<div class="dp-modal-backdrop" *ngIf="showIssueModal" (click)="closeIssueModal()">
+  <div class="dp-modal" (click)="$event.stopPropagation()">
+    <div class="dp-modal-header">
+      <span><i class="fa fa-exclamation-triangle" style="color:#f59e0b;margin-right:8px"></i>Add Readiness Issue</span>
+      <button class="dp-modal-close" (click)="closeIssueModal()"><i class="fa fa-times"></i></button>
+    </div>
+    <div class="dp-modal-body">
+      <div class="dp-modal-row">
+        <label class="dp-modal-label">Issue Title *</label>
+        <input class="dp-modal-input" [(ngModel)]="newIssueTitle" placeholder="e.g. CTs Missing - Panel B" />
+      </div>
+      <div class="dp-modal-row">
+        <label class="dp-modal-label">Description</label>
+        <textarea class="dp-modal-textarea" [(ngModel)]="newIssueDesc" placeholder="Describe the readiness problem..."></textarea>
+      </div>
+      <div class="dp-modal-row">
+        <label class="dp-modal-label">Priority</label>
+        <select class="dp-modal-select" [(ngModel)]="newIssuePriority">
+          <option value="Low">Low</option>
+          <option value="Medium">Medium</option>
+          <option value="High">High</option>
+          <option value="Critical">Critical</option>
+        </select>
+      </div>
+    </div>
+    <div class="dp-modal-footer">
+      <button class="dp-modal-btn dp-modal-btn--cancel" (click)="closeIssueModal()">Cancel</button>
+      <button class="dp-modal-btn dp-modal-btn--submit"
+        (click)="submitIssue()"
+        [disabled]="!newIssueTitle.trim() || savingIssue">
+        <i class="fa fa-spinner fa-spin" *ngIf="savingIssue"></i>
+        {{ savingIssue ? 'Saving...' : 'Create Issue' }}
       </button>
     </div>
   </div>

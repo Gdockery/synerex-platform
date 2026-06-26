@@ -993,3 +993,198 @@ def get_summary(dep_id):
     if not dep:
         return jsonify({"error": "Not found"}), 404
     return jsonify({"response": _dep_summary(dep_id)})
+
+
+# ─── Readiness ────────────────────────────────────────────────────────────────
+
+@dep_bp.route("/deployments/<int:dep_id>/readiness", methods=["GET"])
+@login_required
+def get_readiness(dep_id):
+    dep = _tbl_get("deployment", dep_id)
+    if not dep:
+        return jsonify({"error": "Not found"}), 404
+
+    from sqlalchemy import text
+
+    # ── Section 1: Site Information ──────────────────────────────────────────
+    site = None
+    if dep.get("site_id"):
+        site_row = db.session.execute(
+            text("SELECT name, address, city, state, utility, service_voltage, contact_name "
+                 "FROM site WHERE id=:s AND is_deleted=0 LIMIT 1"),
+            {"s": dep["site_id"]}
+        ).fetchone()
+        if site_row:
+            site = {
+                "name": site_row[0], "address": site_row[1], "city": site_row[2],
+                "state": site_row[3], "utility": site_row[4],
+                "service_voltage": site_row[5], "contact_name": site_row[6],
+            }
+
+    site_items = [
+        {"label": "Site Name", "value": site["name"] if site else "—",
+         "status": "ok" if site and site["name"] else "missing"},
+        {"label": "Address",
+         "value": "{}, {} {}".format(site["address"], site["city"], site["state"]) if site and site["address"] else "—",
+         "status": "ok" if site and site["address"] else "missing"},
+        {"label": "Utility", "value": site["utility"] if site and site["utility"] else "—",
+         "status": "ok" if site and site["utility"] else "missing"},
+        {"label": "Service Voltage", "value": site["service_voltage"] if site and site["service_voltage"] else "—",
+         "status": "ok" if site and site["service_voltage"] else "missing"},
+    ]
+
+    # ── Section 2: Deployment Package Review ─────────────────────────────────
+    pkg_items = [
+        {"label": "One-Line Drawing Reviewed", "status": "ok"},
+        {"label": "Electrical Network Reviewed", "status": "ok"},
+        {"label": "Panel Schedules Reviewed", "status": "ok"},
+        {"label": "Installation Scope Reviewed", "status": "ok"},
+        {"label": "Device Locations Reviewed", "status": "ok"},
+    ]
+
+    # ── Section 3: Material Verification ─────────────────────────────────────
+    materials = _tbl_list("dep_material", "deployment_id", dep_id)
+    if materials:
+        mat_items = []
+        for m in materials:
+            exp = m.get("expected_qty") or 0
+            deliv = m.get("delivered_qty") or 0
+            if exp == 0:
+                status = "in_progress"
+            elif deliv >= exp:
+                status = "ok"
+            elif deliv > 0:
+                status = "in_progress"
+            else:
+                status = "missing"
+            mat_items.append({
+                "label": m.get("item_label") or m.get("item_type", "Item"),
+                "value": "{}/{}".format(deliv, exp) if exp else "—",
+                "status": status,
+            })
+    else:
+        mat_items = [
+            {"label": "APFs Loaded", "value": "—", "status": "in_progress"},
+            {"label": "Meters Loaded", "value": "—", "status": "in_progress"},
+            {"label": "Gateways Loaded", "value": "—", "status": "in_progress"},
+            {"label": "CTs Loaded", "value": "—", "status": "missing"},
+            {"label": "Breakers Loaded", "value": "—", "status": "in_progress"},
+            {"label": "Labels & Markers", "value": "—", "status": "ok"},
+        ]
+
+    # ── Section 4: Site Access Verification ──────────────────────────────────
+    contact_ok = bool(site and site.get("contact_name"))
+    access_items = [
+        {"label": "Site Contact Confirmed", "value": site["contact_name"] if contact_ok else "—",
+         "status": "ok" if contact_ok else "in_progress"},
+        {"label": "Badge / Access Requirements", "value": "—", "status": "in_progress"},
+        {"label": "Parking / Staging", "value": "—", "status": "in_progress"},
+        {"label": "Escort Required", "value": "—", "status": "in_progress"},
+        {"label": "Security Check-In", "value": "—", "status": "in_progress"},
+    ]
+
+    # ── Section 5: Shutdown Verification ─────────────────────────────────────
+    shutdowns = _tbl_list("dep_shutdown", "deployment_id", dep_id)
+    if shutdowns:
+        sd = shutdowns[0]
+        sd_status = sd.get("status", "Pending")
+        shutdown_items = [
+            {"label": "Shutdown Required", "value": "Yes" if sd.get("shutdown_required") else "No", "status": "ok"},
+            {"label": "Shutdown Approval Status", "value": sd_status,
+             "status": "ok" if sd_status == "Approved" else "in_progress"},
+            {"label": "Approved Window",
+             "value": "{} – {}".format(sd.get("window_start", "—"), sd.get("window_end", "—")) if sd.get("window_start") else "—",
+             "status": "ok" if sd.get("window_start") else "missing"},
+            {"label": "Approval Document",
+             "value": sd.get("approval_doc") or "—",
+             "status": "ok" if sd.get("approval_doc") else "missing"},
+        ]
+    else:
+        shutdown_items = [
+            {"label": "Shutdown Required", "value": "—", "status": "in_progress"},
+            {"label": "Shutdown Approval Status", "value": "—", "status": "in_progress"},
+            {"label": "Approved Window", "value": "—", "status": "in_progress"},
+            {"label": "Approval Document", "value": "—", "status": "in_progress"},
+        ]
+
+    # ── Section 6: Tool Verification ─────────────────────────────────────────
+    tool_items = [
+        {"label": "Torque Wrench", "value": "—", "status": "in_progress"},
+        {"label": "Multimeter", "value": "—", "status": "in_progress"},
+        {"label": "Label Printer", "value": "—", "status": "in_progress"},
+        {"label": "Network Tester", "value": "—", "status": "in_progress"},
+        {"label": "Hand Tools", "value": "—", "status": "in_progress"},
+    ]
+
+    # ── Section 7: Safety Verification ───────────────────────────────────────
+    safety_items = [
+        {"label": "Arc Flash Study", "value": "—", "status": "in_progress"},
+        {"label": "PPE Available", "value": "—", "status": "in_progress"},
+        {"label": "Lockout / Tagout Equipment", "value": "—", "status": "in_progress"},
+        {"label": "Safety Training", "value": "—", "status": "in_progress"},
+    ]
+
+    # ── Section 8: Required Documents ────────────────────────────────────────
+    doc_map = {
+        "One-Line Drawing": "missing",
+        "Panel Schedules": "missing",
+        "Device List": "missing",
+        "Shutdown Approval": "missing",
+        "Site Map": "missing",
+        "Arc Flash Study": "missing",
+    }
+    try:
+        doc_rows = db.session.execute(
+            text("SELECT document_name, status FROM dep_document WHERE deployment_id=:d"),
+            {"d": dep_id}
+        ).fetchall()
+        for dr in doc_rows:
+            name, dstatus = dr[0], dr[1]
+            if name in doc_map:
+                doc_map[name] = "ok" if dstatus == "Active" else "in_progress"
+    except Exception:
+        pass
+    doc_items = [
+        {"label": k, "value": "Attached" if v == "ok" else "Missing", "status": v}
+        for k, v in doc_map.items()
+    ]
+
+    sections = [
+        {"num": 1, "title": "Site Information",         "icon": "fa-map-marker",   "items": site_items},
+        {"num": 2, "title": "Deployment Package Review", "icon": "fa-folder-open",  "items": pkg_items},
+        {"num": 3, "title": "Material Verification",     "icon": "fa-cubes",        "items": mat_items},
+        {"num": 4, "title": "Site Access Verification",  "icon": "fa-id-badge",     "items": access_items},
+        {"num": 5, "title": "Shutdown Verification",     "icon": "fa-power-off",    "items": shutdown_items},
+        {"num": 6, "title": "Tool Verification",         "icon": "fa-wrench",       "items": tool_items},
+        {"num": 7, "title": "Safety Verification",       "icon": "fa-shield",       "items": safety_items},
+        {"num": 8, "title": "Required Documents",        "icon": "fa-file-text-o",  "items": doc_items},
+    ]
+
+    total = sum(len(s["items"]) for s in sections)
+    done = sum(1 for s in sections for item in s["items"] if item["status"] == "ok")
+    score = int(done / total * 100) if total else 0
+    override = bool(dep.get("readiness_override"))
+
+    return jsonify({
+        "score": score,
+        "sections": sections,
+        "override_approved": override,
+        "can_start": score >= 100 or override,
+    })
+
+
+# ─── Start Deployment ─────────────────────────────────────────────────────────
+
+@dep_bp.route("/deployments/<int:dep_id>/start", methods=["POST"])
+@login_required
+def start_deployment(dep_id):
+    dep = _tbl_get("deployment", dep_id)
+    if not dep:
+        return jsonify({"error": "Not found"}), 404
+
+    if dep.get("status") not in ("not_started", "scheduled"):
+        return jsonify({"error": "Deployment already started"}), 400
+
+    _tbl_patch("deployment", dep_id, {"status": "installing"}, {"started_at": _now()})
+    _log_event(dep_id, "DEPLOYMENT_STARTED")
+    return jsonify({"response": {"status": "installing"}})
