@@ -44,17 +44,14 @@ export class AppComponent implements OnInit {
       this._opened = false;
     }
 
-    // Hide main platform sidebar for deployment detail and standalone ECBS pages
-    const STANDALONE_ECBS = /\/ecbs\/(enterprise-dashboard|energy-dashboard)/;
+    // Hide the platform sidebar on all /ecbs/ routes (they have their own nav)
     this.router.events.subscribe(event => {
       if (event instanceof NavigationEnd) {
-        const url = event.urlAfterRedirects;
-        const onDepDetail  = /\/ecbs\/deployment\/\d+/.test(url);
-        const onStandalone = STANDALONE_ECBS.test(url);
-        if ((onDepDetail || onStandalone) && !this.isFieldMode) {
+        const onEcbs = /\/ecbs\//.test(event.urlAfterRedirects);
+        if (onEcbs) {
           this.isFieldMode = true;
           this._opened = false;
-        } else if (!onDepDetail && !onStandalone && role !== 14) {
+        } else if (role !== 14) {
           this.isFieldMode = false;
         }
       }
