@@ -33,6 +33,46 @@ from app.helpers.project_access import org_can_access_project as _can_access_pro
 
 savings_bp = Blueprint("savings", __name__, url_prefix="")
 
+# ── Geocoding helper (server-side, cached) ────────────────────────────────────
+_geo_cache: dict = {}  # location string → (lat, lng) or (None, None)
+
+def _geocode_location(location: str):
+    """
+    Geocode a location string to (lat, lng) floats using Nominatim.
+    Tries the full address first, then falls back to city/state extraction.
+    Results are cached in-process so the map API only calls Nominatim once per site.
+    Returns (None, None) if geocoding fails.
+    """
+    import urllib.request, urllib.parse, json as _json, re
+
+    if not location:
+        return None, None
+    if location in _geo_cache:
+        return _geo_cache[location]
+
+    def _fetch(query: str):
+        url = ("https://nominatim.openstreetmap.org/search?format=json&limit=1&q="
+               + urllib.parse.quote(query))
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Synerex/1.0"})
+            with urllib.request.urlopen(req, timeout=4) as resp:
+                data = _json.loads(resp.read())
+                if data:
+                    return float(data[0]["lat"]), float(data[0]["lon"])
+        except Exception:
+            pass
+        return None, None
+
+    lat, lng = _fetch(location)
+    if lat is None:
+        # Fallback: extract "City, ST" from the address
+        m = re.search(r"([A-Za-z ]+,\s*[A-Z]{2})", location)
+        if m:
+            lat, lng = _fetch(m.group(1).strip())
+
+    _geo_cache[location] = (lat, lng)
+    return lat, lng
+
 _WRITE_ROLES = ENGINEERING_ROLES | ADMIN_ROLES
 
 
@@ -626,10 +666,14 @@ def get_portfolio_summary():
         devices_offline += d_offline
 
         status = "Healthy" if alarms == 0 else ("Warning" if alarms < 3 else "Critical")
+        loc = getattr(p, "location", "") or ""
+        lat, lng = _geocode_location(loc)
         site_list.append({
             "id": p.id,
             "name": getattr(p, "name", "") or "",
-            "location": getattr(p, "location", "") or "",
+            "location": loc,
+            "lat": lat,
+            "lng": lng,
             "annual_savings": round(ann_sav),
             "avg_pf": round(avg_pf * 100, 1) if avg_pf <= 1 else round(avg_pf, 1),
             "avg_thd": round(avg_thd, 1),

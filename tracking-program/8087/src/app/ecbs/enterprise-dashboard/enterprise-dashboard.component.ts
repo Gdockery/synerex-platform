@@ -273,22 +273,42 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
     const L = (window as any).L;
     if (!L || !this._map) return;
     this.sites.forEach((site: any) => {
-      if (!site.location) return;
       const color = site.status === 'Healthy' ? '#00e676' : site.status === 'Warning' ? '#ffd740' : '#f44336';
       const icon  = L.divIcon({
         className: '',
-        html: `<div style="width:12px;height:12px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.8);box-shadow:0 0 8px ${color};"></div>`,
-        iconSize: [12, 12], iconAnchor: [6, 6],
+        html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.85);box-shadow:0 0 10px ${color};"></div>`,
+        iconSize: [14, 14], iconAnchor: [7, 7],
       });
-      fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(site.location)}`)
-        .then((r: any) => r.json())
-        .then((res: any[]) => {
-          if (res && res.length) {
-            L.marker([parseFloat(res[0].lat), parseFloat(res[0].lon)], { icon })
-              .addTo(this._map)
-              .bindPopup(`<b>${site.name}</b><br>Savings: ${this.currency(site.annual_savings)}<br>Status: ${site.status}`);
-          }
+      const place = (lat: number, lng: number) => {
+        L.marker([lat, lng], { icon })
+          .addTo(this._map)
+          .bindPopup(`<b>${site.name}</b><br>${site.location}<br>Savings: ${this.currency(site.annual_savings)}<br>Status: ${site.status}`)
+          .openPopup();
+        // Centre map on first site
+        if (this.sites.indexOf(site) === 0) this._map.setView([lat, lng], 8);
+      };
+
+      // Use server-geocoded coordinates if available
+      if (site.lat != null && site.lng != null) {
+        place(site.lat, site.lng);
+        return;
+      }
+
+      // Fallback: client-side geocode with city/state fallback
+      if (!site.location) return;
+      const tryGeo = (q: string) =>
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,
+              { headers: { 'User-Agent': 'Synerex/1.0' } })
+          .then((r: any) => r.json());
+
+      tryGeo(site.location).then((res: any[]) => {
+        if (res && res.length) { place(parseFloat(res[0].lat), parseFloat(res[0].lon)); return; }
+        // City/state fallback
+        const m = site.location.match(/([A-Za-z ]+,\s*[A-Z]{2})/);
+        if (m) tryGeo(m[1]).then((r2: any[]) => {
+          if (r2 && r2.length) place(parseFloat(r2[0].lat), parseFloat(r2[0].lon));
         }).catch(() => {});
+      }).catch(() => {});
     });
   }
 }
