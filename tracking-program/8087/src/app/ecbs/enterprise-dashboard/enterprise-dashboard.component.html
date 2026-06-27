@@ -459,18 +459,19 @@
       <div class="ent-card ent-card--xfmr">
         <div class="ent-card-title">TRANSFORMER CAPACITY OVERVIEW</div>
         <div class="ent-xfmr-body">
+          <img class="ent-xfmr-img" src="/images/transformer-graphic.png" alt="Transformer">
           <div class="ent-xfmr-donut-wrap">
             <svg viewBox="0 0 100 100" class="ent-xfmr-donut">
-              <circle cx="50" cy="50" r="36" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="14"/>
-              <circle cx="50" cy="50" r="36" fill="none" stroke="#ffd740" stroke-width="14"
+              <circle cx="50" cy="50" r="36" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="13"/>
+              <circle cx="50" cy="50" r="36" fill="none" stroke="#ffd740" stroke-width="13"
                 [attr.stroke-dasharray]="capDonutDash(utilizationPct)" stroke-dashoffset="56.6"
                 style="transform:rotate(-90deg);transform-origin:50px 50px"/>
-              <circle cx="50" cy="50" r="36" fill="none" stroke="#00e676" stroke-width="14"
+              <circle cx="50" cy="50" r="36" fill="none" stroke="#00e676" stroke-width="13"
                 [attr.stroke-dasharray]="capDonutDash(kvaRecovered / (totalInstalledKva||1) * 100)"
                 [attr.stroke-dashoffset]="56.6 - (utilizationPct/100*226.2)"
                 style="transform:rotate(-90deg);transform-origin:50px 50px"/>
-              <text x="50" y="47" text-anchor="middle" font-size="13" font-weight="700" fill="white">{{ utilizationPct }}%</text>
-              <text x="50" y="59" text-anchor="middle" font-size="6.5" fill="rgba(255,255,255,0.45)">LOADED</text>
+              <text x="50" y="46" text-anchor="middle" font-size="14" font-weight="800" fill="white">{{ utilizationPct }}%</text>
+              <text x="50" y="59" text-anchor="middle" font-size="7" fill="rgba(255,255,255,0.72)" font-weight="600">LOADED</text>
             </svg>
           </div>
           <div class="ent-xfmr-stats">
@@ -489,6 +490,9 @@
         <div class="ent-hc-hero">
           <span class="ent-hc-val">{{ kvaRecovered | number:'1.0-0' }}</span>
           <span class="ent-hc-unit">kVA</span>
+        </div>
+        <div class="ent-hc-chart-wrap">
+          <img class="ent-hc-chart" src="/images/capacity-chart.png" alt="Capacity trend">
         </div>
         <div class="ent-hc-equiv-label">Equivalent To:</div>
         <div class="ent-hc-equivs">
