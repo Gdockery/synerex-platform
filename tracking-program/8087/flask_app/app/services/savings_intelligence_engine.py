@@ -354,17 +354,72 @@ def compute_savings_for_project(
                     project_id, baseline.id)
         return []
 
-    # 3. CBI buckets
+    # 3. Identify isMain=1 meters for this project (savings computed from main meters only)
+    from app.models.meter import Meter
+    from sqlalchemy import text as _text
+    main_meter_ids = [
+        m.id for m in Meter.query.filter_by(project=project_id, isMain=True, isDeleted=False).all()
+    ]
+    if not main_meter_ids:
+        logger.info("[si_engine] project %d has no isMain meters — skipping", project_id)
+        return []
+    logger.info("[si_engine] project %d main meters: %s", project_id, main_meter_ids)
+
+    # 4. Load interval-normalized baselines (96 slots, from baseline_intervals table).
+    #    Falls back to flat baseline_dict if not available.
+    interval_baselines: dict[int, dict] = {}
+    try:
+        ibl_rows = db.session.execute(
+            _text(
+                "SELECT interval_num, avg_kw, avg_kva, avg_pf, avg_kvar, avg_thd, peak_kva "
+                "FROM baseline_intervals WHERE project_id=:pid"
+            ),
+            {"pid": project_id},
+        ).fetchall()
+        for row in ibl_rows:
+            interval_baselines[int(row[0])] = {
+                "avg_kw":   float(row[1] or 0),
+                "avg_kva":  float(row[2] or 0),
+                "avg_pf":   float(row[3] or 0),
+                "avg_kvar": float(row[4] or 0),
+                "avg_thd":  float(row[5] or 0),
+                "peak_kva": float(row[6] or 0),
+            }
+        if interval_baselines:
+            logger.info("[si_engine] project %d loaded %d interval baselines", project_id, len(interval_baselines))
+    except Exception as exc:
+        logger.warning("[si_engine] could not load interval baselines: %s", exc)
+
+    # Pre-compute monthly peak kVA from CBI for demand savings (current monthly peak vs baseline peak)
+    # demand_savings = (baseline_peak - current_monthly_peak) * demand_rate per month
+    try:
+        monthly_peaks = db.session.execute(
+            _text(
+                "SELECT DATE_FORMAT(FROM_UNIXTIME(bucket_ts/1000),'%Y-%m') as mo, "
+                "  MAX(avg_kva) as peak_kva "
+                "FROM current_balance_metrics "
+                "WHERE project_id=:pid AND meter_id IN :mids "
+                "  AND bucket_ts BETWEEN :f AND :t "
+                "GROUP BY mo"
+            ),
+            {"pid": project_id, "mids": tuple(main_meter_ids), "f": from_ts, "t": to_ts},
+        ).fetchall()
+        monthly_peak_map: dict[str, float] = {str(r[0]): float(r[1] or 0) for r in monthly_peaks}
+    except Exception:
+        monthly_peak_map = {}
+
+    # 5. CBI buckets — restricted to isMain meters only
     cbi_rows = (CurrentBalanceMetrics.query
                 .filter_by(project_id=project_id)
+                .filter(CurrentBalanceMetrics.meter_id.in_(main_meter_ids))
                 .filter(CurrentBalanceMetrics.bucket_ts.between(from_ts, to_ts))
                 .order_by(CurrentBalanceMetrics.bucket_ts.asc())
                 .all())
     if not cbi_rows:
-        logger.info("[si_engine] project %d no CBI data in window", project_id)
+        logger.info("[si_engine] project %d no CBI data for main meters in window", project_id)
         return []
 
-    # 4. Pre-fetch CI buckets for this window (keyed by bucket_ts)
+    # 6. Pre-fetch CI buckets for this window (keyed by bucket_ts)
     ci_map: dict[int, dict] = {}
     ci_rows = (CapacityIntelligence.query
                .filter_by(project_id=project_id)
@@ -376,19 +431,41 @@ def compute_savings_for_project(
             "deferred_capital_value": ci.deferred_capital_value,
         }
 
-    # 5. Compute per CBI bucket
+    # 7. Compute per CBI bucket using interval-normalized baseline
     results = []
     for cbi in cbi_rows:
+        # Interval number for this 15-min bucket (0=00:00, 95=23:45)
+        slot = int((cbi.bucket_ts // 900000) % 96)
+
+        # Use per-slot baseline if available, else flat baseline_dict
+        if interval_baselines:
+            ibl = interval_baselines.get(slot, {})
+            slot_baseline = {
+                "id":       baseline_dict["id"],
+                "avg_kw":   ibl.get("avg_kw") or baseline_dict.get("avg_kw") or 0,
+                "avg_kva":  ibl.get("avg_kva") or baseline_dict.get("avg_kva") or 0,
+                "avg_pf":   ibl.get("avg_pf") or baseline_dict.get("avg_pf") or 0,
+                # Monthly peak for demand savings: baseline peak vs current month's measured peak
+                "peak_kva": ibl.get("peak_kva") or baseline_dict.get("peak_kva") or 0,
+            }
+        else:
+            slot_baseline = baseline_dict.copy()
+
+        # Current monthly peak for proper demand savings calculation
+        import datetime as _dt
+        bucket_month = _dt.datetime.utcfromtimestamp(cbi.bucket_ts / 1000).strftime("%Y-%m")
+        current_month_peak = monthly_peak_map.get(bucket_month, cbi.avg_kva or 0)
+
         current_dict = {
             "avg_kw":   cbi.avg_kw,
             "avg_kva":  cbi.avg_kva,
             "avg_pf":   cbi.avg_pf,
-            "peak_kva": cbi.avg_kva,    # CBI doesn't store peak; use avg as conservative estimate
+            "peak_kva": current_month_peak,  # actual monthly peak, not instantaneous avg
         }
         ci_snap = ci_map.get(cbi.bucket_ts)
 
         snap = compute_savings_snapshot(
-            baseline_dict,
+            slot_baseline,
             current_dict,
             project_dict,
             capacity_intelligence=ci_snap,
