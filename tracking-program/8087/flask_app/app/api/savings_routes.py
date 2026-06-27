@@ -595,6 +595,7 @@ def get_portfolio_summary():
     #   warning  = communicated within last 24 hours
     #   offline  = older than 24 hours or never communicated
     try:
+        import time as _time
         now_epoch_ms = int(_time.time() * 1000)
         rows = db.session.execute(
             text(
