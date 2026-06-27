@@ -171,23 +171,23 @@ def compute_savings_snapshot(
     demand_savings    = peak_kw_reduction * d_rate * 12.0   # 12 months
 
     # ── 3. Power Factor Savings™ ──────────────────────────────────────────────
-    # PF improvement: utilities may charge ratchet penalties below 0.9 or 0.95 PF.
-    # Simplified model: each 0.01 PF improvement on base kVA reduces apparent
-    # power draw. kVAR saved × e_rate × 8760 approximates the savings.
+    # PF ratchet penalty model: many utilities apply a demand penalty when PF < 0.90.
+    # Common formula: billed_kW = measured_kW × (0.90 / actual_pf) when PF < 0.90.
+    # Savings = avoided penalty on demand charges (12 months).
+    # When current PF >= 0.90 and baseline PF was below 0.90, Synerex eliminated
+    # the penalty. When both are above 0.90, no penalty savings apply.
     pf_improvement = max(0.0, c_avg_pf - b_avg_pf)   # positive = improvement
-    # kVAR_saved = kVA × sin(arccos(new_pf)) − kVA × sin(arccos(old_pf))
-    if b_avg_kva > 0 and b_avg_pf < 1.0 and c_avg_pf > b_avg_pf:
-        try:
-            old_angle = math.acos(min(b_avg_pf, 1.0))
-            new_angle = math.acos(min(c_avg_pf, 1.0))
-            kvar_saved = b_avg_kva * (math.sin(old_angle) - math.sin(new_angle))
-            kvar_saved = max(0.0, kvar_saved)
-        except (ValueError, ZeroDivisionError):
-            kvar_saved = 0.0
-        # kVAR savings monetised as equivalent kWh reduction at energy rate
-        pf_savings = kvar_saved * e_rate * 8760.0
-    else:
-        pf_savings = 0.0
+    pf_savings = 0.0
+    PF_THRESHOLD = 0.90
+    if b_avg_pf > 0 and c_avg_pf > b_avg_pf:
+        # Only credit savings if baseline PF was below the penalty threshold
+        if b_avg_pf < PF_THRESHOLD:
+            # Baseline would have been billed at penalty_kw; current avoids it
+            penalty_kw_baseline = c_avg_kw * (PF_THRESHOLD / b_avg_pf - 1.0)
+            # Current may still have a residual penalty if c_avg_pf < threshold
+            penalty_kw_current  = c_avg_kw * max(0.0, PF_THRESHOLD / max(c_avg_pf, 0.001) - 1.0) if c_avg_pf < PF_THRESHOLD else 0.0
+            avoided_penalty_kw  = max(0.0, penalty_kw_baseline - penalty_kw_current)
+            pf_savings = avoided_penalty_kw * d_rate * 12.0
 
     # ── 4. Capacity Value™ ────────────────────────────────────────────────────
     # = Deferred Capital Value™ from Phase 8 Capacity Intelligence.
