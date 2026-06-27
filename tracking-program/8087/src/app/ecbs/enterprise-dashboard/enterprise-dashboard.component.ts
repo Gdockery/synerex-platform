@@ -75,7 +75,7 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
   // ── Computed: KPIs ────────────────────────────────────────────────────────
   get annualSavings(): number    { return Number(this.portfolio?.total_annual_savings || 0); }
   get kvaRecovered(): number     { return Number(this.portfolio?.total_kva_recovered  || 0); }
-  get avgPf(): number            { const v = Number(this.portfolio?.avg_power_factor || 0); return v <= 1 && v > 0 ? v * 100 : v; }
+  get avgPf(): number            { const v = Number(this.portfolio?.avg_power_factor || 0); return v > 1 ? v : v * 100; }
   get avgThd(): number           { return Number(this.portfolio?.avg_thd || 0); }
   get co2Tons(): number          { return Number(this.portfolio?.total_co2_tons || 0); }
   get siteCount(): number        { return Number(this.portfolio?.site_count || 0); }

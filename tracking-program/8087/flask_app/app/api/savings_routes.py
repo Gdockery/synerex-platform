@@ -551,12 +551,12 @@ def get_portfolio_summary():
     except Exception:
         dev_by_project = {}
 
-    # ── 5. CBI / THD per project (from cbi_record table) ─────────────────────
+    # ── 5. Current PF / THD per project (from current_balance_metrics) ──────────
     try:
         cbi_rows = db.session.execute(
             text(
                 "SELECT project_id, avg_pf, avg_thd "
-                "FROM cbi_record WHERE project_id IN :pids "
+                "FROM current_balance_metrics WHERE project_id IN :pids "
                 "ORDER BY bucket_ts DESC"
             ),
             {"pids": tuple(pid_list) or (0,)}
@@ -591,8 +591,8 @@ def get_portfolio_summary():
         ann_sav = float(si.annual_savings or 0) if si else 0
         kva = float(si.recoverable_kva or 0) if si else 0
         co2 = float(si.co2_reduction_tons or 0) if si else 0
-        avg_pf = float(cbi.get("avg_pf") or (si.pf_improvement or 0) if si else 0)
-        avg_thd = float(cbi.get("avg_thd", 0))
+        avg_pf = float(cbi.get("avg_pf") or 0)
+        avg_thd = float(cbi.get("avg_thd") or 0)
 
         total_savings += ann_sav
         total_kva += kva
@@ -719,21 +719,22 @@ def get_portfolio_summary():
     except Exception:
         pass
 
-    # ── 7c. Baseline PF + THD existence check ────────────────────────────────
+    # ── 7c. Baseline check — requires approved/locked baseline_master record ────
     baseline_avg_pf  = 0.0
     has_pf_baseline  = False
+    has_thd_baseline = False
     try:
         bl = db.session.execute(text(
-            "SELECT AVG(baseline_avg_pf) FROM savings_intelligence "
-            "WHERE project_id IN :pids AND baseline_avg_pf IS NOT NULL AND baseline_avg_pf > 0"
+            "SELECT AVG(avg_pf) FROM baseline_master "
+            "WHERE project_id IN :pids AND status IN ('approved', 'locked') "
+            "AND avg_pf IS NOT NULL AND avg_pf > 0"
         ), {"pids": pids_t}).scalar()
         if bl and float(bl) > 0:
             baseline_avg_pf = round(float(bl) * 100, 2)
             has_pf_baseline = True
     except Exception:
         pass
-
-    has_thd_baseline = False  # no baseline THD table yet
+    # has_thd_baseline remains False — no baseline THD table
 
     # ── 7d. Weekly cumulative savings for current calendar year ──────────────
     monthly_trend = []
