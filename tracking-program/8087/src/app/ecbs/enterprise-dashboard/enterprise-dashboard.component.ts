@@ -175,9 +175,11 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
   get equivServers(): number  { return Math.floor(this.kvaRecovered * 1000 / 8); }
 
   // ── Network losses ────────────────────────────────────────────────────────
-  get lossesBeforeKw(): number { return Math.round(this.annualSavings / 365 / 24 * 10) / 10 * 2.5 || 31.2; }
+  // Network I²R losses estimated from kW reduction (kw_reduction avg × load factor 2.5)
+  // Falls back to 0 when no savings data — section hides itself via *ngIf
+  get lossesBeforeKw(): number { return Math.round(this.annualSavings / 365 / 24 * 10) / 10 * 2.5; }
   get lossesAfterKw(): number  { return Math.round(this.lossesBeforeKw * 0.6 * 10) / 10; }
-  get lossReductionPct(): number { return this.lossesBeforeKw > 0 ? Math.round((1 - this.lossesAfterKw / this.lossesBeforeKw) * 100) : 40; }
+  get lossReductionPct(): number { return this.lossesBeforeKw > 0 ? Math.round((1 - this.lossesAfterKw / this.lossesBeforeKw) * 100) : 0; }
 
   // ── Network health scores ─────────────────────────────────────────────────
   get cbiScore(): number {
