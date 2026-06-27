@@ -114,6 +114,11 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
   // ── Legacy (used as fallback) ─────────────────────────────────────────────
   get savingsTrend(): any[] { return this.portfolio?.savings_trend || []; }
 
+  /** Alias used by template SVG sparklines — delegates to trendPolyline. */
+  sparkline(w: number, h: number, data?: any[]): string {
+    return this.trendPolyline(w, h, data);
+  }
+
   // ── Polyline builder (min-max normalized, no y-axis zero anchor) ──────────
   trendPolyline(w: number, h: number, data?: any[]): string {
     const pts = data || this.trend30Savings;
