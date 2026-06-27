@@ -203,8 +203,8 @@
         <div class="ent-kpi-val">{{ avgThd | number:'1.1-1' }}<span class="ent-kpi-unit">%</span></div>
         <ng-container *ngIf="!loading">
           <ng-container *ngIf="hasThdBaseline; else thdNoBaseline">
-            <div class="ent-kpi-delta" [class.positive]="thdVsBaseline < 0" [class.negative]="thdVsBaseline > 0" *ngIf="thdVsBaseline !== 0">
-              {{ thdVsBaseline <= 0 ? '▼' : '▲' }} {{ thdVsBaseline | number:'1.1-1' }}% vs Baseline
+            <div class="ent-kpi-delta" [class.positive]="thdVsBaseline > 0" [class.negative]="thdVsBaseline < 0" *ngIf="thdVsBaseline !== 0">
+              {{ thdVsBaseline > 0 ? '▼' : '▲' }} {{ thdVsBaseline | number:'1.1-1' }}% vs Baseline
             </div>
             <div class="ent-kpi-spark" *ngIf="trend30Thd.length > 1">
               <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">

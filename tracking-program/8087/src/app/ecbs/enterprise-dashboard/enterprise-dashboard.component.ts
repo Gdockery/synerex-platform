@@ -106,8 +106,10 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
   get hasThdBaseline(): boolean{ return !!this.portfolio?.has_thd_baseline; }
   get baselinePf(): number     { return Number(this.portfolio?.baseline_avg_pf  || 0); }
   get baselineThd(): number    { return Number(this.portfolio?.baseline_avg_thd || 0); }
-  get pfVsBaseline(): number   { return this.baselinePf  > 0 ? Number((this.avgPf  - this.baselinePf ).toFixed(1)) : 0; }
-  get thdVsBaseline(): number  { return this.baselineThd > 0 ? Number((this.avgThd - this.baselineThd).toFixed(1)) : 0; }
+  // % change relative to baseline, e.g. (current - baseline) / baseline * 100
+  get pfVsBaseline(): number  { return this.baselinePf  > 0 ? Number(((this.avgPf  - this.baselinePf)  / this.baselinePf  * 100).toFixed(1)) : 0; }
+  // THD reduction: (baseline - current) / baseline * 100  (positive = improvement)
+  get thdVsBaseline(): number { return this.baselineThd > 0 ? Number(((this.baselineThd - this.avgThd) / this.baselineThd * 100).toFixed(1)) : 0; }
 
   // ── Legacy (used as fallback) ─────────────────────────────────────────────
   get savingsTrend(): any[] { return this.portfolio?.savings_trend || []; }
