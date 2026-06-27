@@ -483,11 +483,12 @@ def create_app(config_class=Config):
                     continue
                 buckets = compute_buckets(meter_batch, project_id, meter_id=meter_id_val)
                 for b in buckets:
-                    existing = CurrentBalanceMetrics.query.filter_by(
-                        project_id=b["project_id"],
-                        meter_id=b.get("meter_id"),
-                        bucket_ts=b["bucket_ts"],
-                    ).first()
+                    with _db.session.no_autoflush:
+                        existing = CurrentBalanceMetrics.query.filter_by(
+                            project_id=b["project_id"],
+                            meter_id=b.get("meter_id"),
+                            bucket_ts=b["bucket_ts"],
+                        ).first()
                     if existing:
                         for k, v in b.items():
                             if hasattr(existing, k) and k not in ("project_id", "meter_id", "bucket_ts"):
