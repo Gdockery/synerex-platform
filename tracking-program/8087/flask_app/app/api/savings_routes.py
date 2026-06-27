@@ -629,18 +629,54 @@ def get_portfolio_summary():
     avg_pf_out = (sum(pf_vals) / len(pf_vals)) if pf_vals else 0
     avg_thd_out = (sum(thd_vals) / len(thd_vals)) if thd_vals else 0
 
-    # ── 7. 7-day savings trend (aggregate) ───────────────────────────────────
-    daily_rate = total_savings / 365 if total_savings else 0
+    # ── 7. 7-day savings trend — real daily averages from DB ─────────────────
     from datetime import datetime, timedelta
-    day_labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-    now_dt = datetime.utcnow()
+    import time
     savings_trend = []
-    for i in range(6, -1, -1):
-        d = now_dt - timedelta(days=i)
-        savings_trend.append({
-            "month": day_labels[d.weekday()],
-            "value": round(daily_rate * (7 - i))
-        })
+    try:
+        now_ms   = int(time.time() * 1000)
+        week_ms  = 7 * 86400 * 1000
+        day_abbr = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        # Per-day sum of per-project average annual_savings
+        rows = db.session.execute(
+            text(
+                "SELECT "
+                "  DATE(FROM_UNIXTIME(bucket_ts/1000)) AS day, "
+                "  project_id, "
+                "  AVG(annual_savings) AS avg_sav "
+                "FROM savings_intelligence "
+                "WHERE project_id IN :pids "
+                "  AND bucket_ts >= :cutoff "
+                "GROUP BY day, project_id "
+                "ORDER BY day"
+            ),
+            {"pids": tuple(pid_list) or (0,), "cutoff": now_ms - week_ms}
+        ).fetchall()
+        # Aggregate: for each day, sum average savings across projects
+        daily = {}
+        for r in rows:
+            day_str = str(r[0])
+            daily[day_str] = daily.get(day_str, 0) + float(r[2] or 0)
+        # Build ordered 7-day list, filling gaps with previous value
+        today = datetime.utcnow().date()
+        last_val = total_savings  # fallback
+        for i in range(6, -1, -1):
+            d = today - timedelta(days=i)
+            ds = d.strftime("%Y-%m-%d")
+            val = daily.get(ds, None)
+            if val is not None:
+                last_val = val
+            savings_trend.append({
+                "month": day_abbr[d.weekday()],
+                "value": round(last_val)
+            })
+    except Exception as _e:
+        # Fallback: flat line at current total_savings
+        day_abbr2 = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+        today2 = datetime.utcnow().date()
+        for i in range(6, -1, -1):
+            d = today2 - timedelta(days=i)
+            savings_trend.append({"month": day_abbr2[d.weekday()], "value": round(total_savings)})
 
     return jsonify({
         "meta": {"project_count": len(projects)},
