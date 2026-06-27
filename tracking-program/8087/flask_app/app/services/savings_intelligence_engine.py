@@ -715,3 +715,162 @@ def _fill_baseline_from_emv(baseline_dict: dict, emv_id: int) -> dict:
     except Exception:
         pass
     return baseline_dict
+
+
+# ── Public service functions (shared by CLI + auto-trigger) ───────────────────
+
+def compute_interval_baseline(
+    project_id: int,
+    from_date: str,
+    to_date: str,
+    min_kw: float = 10.0,
+    max_kw: float = 50_000.0,
+) -> int:
+    """
+    Compute 96-slot interval baseline for a project from its isMain=1 meter(s).
+
+    Args:
+        project_id: Target project.
+        from_date:  Baseline period start as 'YYYY-MM-DD' (UTC).
+        to_date:    Baseline period end   as 'YYYY-MM-DD' (UTC, inclusive).
+        min_kw:     Minimum kW to include (filters offline / zero rows).
+        max_kw:     Maximum kW to include (filters sensor spikes).
+
+    Returns:
+        Number of slots upserted (0-96).
+    """
+    from datetime import datetime, timezone, timedelta
+    from sqlalchemy import text as _text
+    from app.extensions import db
+    from app.models.meter import Meter
+    from app.models.baseline import Baseline
+
+    # Date → epoch-ms
+    try:
+        from_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        to_dt   = (datetime.strptime(to_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+                   + timedelta(hours=23, minutes=59, seconds=59))
+    except ValueError as exc:
+        logger.error("[interval-baseline] bad date for project=%d: %s", project_id, exc)
+        return 0
+
+    from_ms = int(from_dt.timestamp() * 1000)
+    to_ms   = int(to_dt.timestamp()   * 1000)
+
+    # Find isMain=1 meters
+    main_meters = Meter.query.filter_by(project=project_id, isMain=True, isDeleted=False).all()
+    if not main_meters:
+        logger.warning("[interval-baseline] no isMain meters for project=%d — skipping", project_id)
+        return 0
+    meter_ids = [m.id for m in main_meters]
+
+    # Linked baseline_master id
+    bm = (Baseline.query
+          .filter_by(project_id=project_id, status="locked")
+          .order_by(Baseline.version.desc())
+          .first())
+    bm_id = bm.id if bm else None
+
+    rows = db.session.execute(
+        _text("""
+            SELECT
+                FLOOR(((recordedAt / 1000) % 86400) / 900) AS slot,
+                ROUND(AVG(totalKw),  4) AS avg_kw,
+                ROUND(AVG(totalKva), 4) AS avg_kva,
+                ROUND(SUM(totalKw) / NULLIF(SUM(totalKva), 0), 6) AS avg_pf,
+                ROUND(AVG(totalKvar),4) AS avg_kvar,
+                ROUND(AVG(totalTHD), 5) AS avg_thd,
+                ROUND(AVG(totalAmp), 4) AS avg_amp,
+                ROUND(MAX(totalKva), 4) AS peak_kva,
+                COUNT(*)               AS sample_count
+            FROM meterdata
+            WHERE meter IN :mids
+              AND recordedAt BETWEEN :f AND :t
+              AND totalKw > :min_kw AND totalKw < :max_kw
+            GROUP BY slot
+            ORDER BY slot
+        """),
+        {"mids": tuple(meter_ids), "f": from_ms, "t": to_ms,
+         "min_kw": min_kw, "max_kw": max_kw},
+    ).fetchall()
+
+    if not rows:
+        logger.warning(
+            "[interval-baseline] no qualifying meterdata for project=%d %s→%s",
+            project_id, from_date, to_date,
+        )
+        return 0
+
+    now_ms = int(_time.time() * 1000)
+    upserted = 0
+    for row in rows:
+        slot, avg_kw, avg_kva, avg_pf, avg_kvar, avg_thd, avg_amp, peak_kva, sample_count = row
+        db.session.execute(
+            _text("""
+                INSERT INTO baseline_intervals
+                  (project_id, interval_num, avg_kw, avg_kva, avg_pf, avg_kvar,
+                   avg_thd, avg_amp, peak_kva, sample_count, baseline_master_id,
+                   created_at, updated_at)
+                VALUES
+                  (:pid, :slot, :kw, :kva, :pf, :kvar,
+                   :thd, :amp, :peak, :cnt, :bm_id, :now, :now)
+                ON DUPLICATE KEY UPDATE
+                  avg_kw=VALUES(avg_kw), avg_kva=VALUES(avg_kva),
+                  avg_pf=VALUES(avg_pf), avg_kvar=VALUES(avg_kvar),
+                  avg_thd=VALUES(avg_thd), avg_amp=VALUES(avg_amp),
+                  peak_kva=VALUES(peak_kva), sample_count=VALUES(sample_count),
+                  baseline_master_id=VALUES(baseline_master_id),
+                  updated_at=VALUES(updated_at)
+            """),
+            {"pid": project_id, "slot": int(slot),
+             "kw": avg_kw, "kva": avg_kva, "pf": avg_pf, "kvar": avg_kvar,
+             "thd": avg_thd, "amp": avg_amp, "peak": peak_kva,
+             "cnt": sample_count, "bm_id": bm_id, "now": now_ms},
+        )
+        upserted += 1
+
+    db.session.commit()
+    logger.info(
+        "[interval-baseline] project=%d  %d slots upserted  meters=%s  %s→%s",
+        project_id, upserted, meter_ids, from_date, to_date,
+    )
+    return upserted
+
+
+def run_analytics_backfill(project_id: int, days: int = 30) -> dict:
+    """
+    Rebuild savings_intelligence from existing CBI data for the last `days` days.
+    Called automatically after locking a baseline (interval baseline already computed).
+    The cron job handles CBI/CI refresh going forward.
+    Returns count dict: {"si": N}.
+    """
+    from app.extensions import db
+    from app.models.savings_intelligence import SavingsIntelligence
+
+    now_ms   = int(_time.time() * 1000)
+    since_ms = now_ms - days * 86400 * 1000
+
+    results = compute_savings_for_project(project_id, from_ts=since_ms, to_ts=now_ms)
+    if not results:
+        logger.info("[analytics-backfill] project=%d no SI results", project_id)
+        return {"si": 0}
+
+    si_n = 0
+    for snap in results:
+        existing = SavingsIntelligence.query.filter_by(
+            project_id=project_id, bucket_ts=snap["bucket_ts"]
+        ).first()
+        if existing:
+            for k, v in snap.items():
+                if hasattr(existing, k):
+                    setattr(existing, k, v)
+        else:
+            valid = {k: v for k, v in snap.items() if hasattr(SavingsIntelligence, k)}
+            db.session.add(SavingsIntelligence(**valid))
+        si_n += 1
+        if si_n % 200 == 0:
+            db.session.commit()
+
+    db.session.commit()
+    logger.info("[analytics-backfill] project=%d  SI upserted=%d", project_id, si_n)
+    return {"si": si_n}

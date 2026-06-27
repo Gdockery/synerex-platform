@@ -26,13 +26,66 @@ POST   /api/baseline/version-forward          create next version from a locked 
 """
 
 import logging
+import threading
 
-from flask import Blueprint, request
+from flask import Blueprint, request, current_app
 from flask_login import login_required, current_user
 
 from app.db import get_session
 
 logger = logging.getLogger(__name__)
+
+
+def _trigger_interval_baseline_async(baseline):
+    """
+    Fire-and-forget: compute interval baseline then backfill analytics.
+    Runs in a background thread so the lock API response is instant.
+    Uses baseline.test_start / test_end as the pre-install period.
+    Falls back to the 90 days before locked_at if dates are missing.
+    """
+    from datetime import datetime, timezone, timedelta
+
+    project_id = baseline.project_id
+
+    # Resolve date range from baseline measurement period
+    if baseline.test_start and baseline.test_end:
+        from_date = baseline.test_start[:10]   # take YYYY-MM-DD prefix
+        to_date   = baseline.test_end[:10]
+    else:
+        # No test period set — use 90 days before the lock date as a safe fallback
+        locked_ts = baseline.locked_at or int(__import__("time").time() * 1000)
+        locked_dt = datetime.utcfromtimestamp(locked_ts / 1000)
+        to_date   = locked_dt.strftime("%Y-%m-%d")
+        from_date = (locked_dt - timedelta(days=90)).strftime("%Y-%m-%d")
+
+    logger.info(
+        "[baseline lock] scheduling interval baseline for project=%d  %s → %s",
+        project_id, from_date, to_date,
+    )
+
+    app = current_app._get_current_object()
+
+    def _run():
+        with app.app_context():
+            try:
+                from app.services.savings_intelligence_engine import (
+                    compute_interval_baseline,
+                    run_analytics_backfill,
+                )
+                compute_interval_baseline(
+                    project_id=project_id,
+                    from_date=from_date,
+                    to_date=to_date,
+                )
+                run_analytics_backfill(project_id=project_id)
+            except Exception as exc:
+                logger.exception(
+                    "[baseline lock] interval-baseline auto-trigger failed for project=%d: %s",
+                    project_id, exc,
+                )
+
+    t = threading.Thread(target=_run, daemon=True, name=f"interval-baseline-{project_id}")
+    t.start()
 from app.models.baseline import Baseline, BASELINE_STATUSES, BASELINE_TEST_TYPES, _TRANSITIONS
 from app.models.emv_analysis import EmvAnalysis
 from app.services.audit import audit
@@ -248,6 +301,11 @@ def change_status(bid: int):
         b.reviewer_notes = body["reviewer_notes"]
 
     sess.commit()
+
+    # On lock: automatically compute interval baseline then rebuild savings analytics
+    if new_status == "locked":
+        _trigger_interval_baseline_async(b)
+
     audit(f"baseline.status.{new_status}", user_id=current_user.id,
           entity_type="baseline", entity_id=bid,
           detail={"project_id": b.project_id, "version": b.version})

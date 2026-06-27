@@ -573,116 +573,24 @@ def create_app(config_class=Config):
         pre-installation) and computes per-15-min-slot averages that become the
         normalised baseline for the savings engine.
 
+        This same logic fires automatically when a baseline is locked.
+
         Example:
             flask compute-interval-baseline --project-id 14 \\
                 --from-date 2026-03-01 --to-date 2026-03-31
         """
-        import time as _t
-        from datetime import datetime, timezone
         from sqlalchemy import text as _text
         from app.extensions import db as _db
-        from app.models.meter import Meter
-        from app.models.baseline import Baseline
+        from app.services.savings_intelligence_engine import compute_interval_baseline as _svc
 
-        # ── 1. Resolve date range to epoch-ms (UTC midnight) ──────────────────
-        try:
-            from_dt = datetime.strptime(from_date, "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            to_dt   = datetime.strptime(to_date,   "%Y-%m-%d").replace(tzinfo=timezone.utc)
-            # to_date is inclusive: advance to end of day
-            to_dt   = to_dt.replace(hour=23, minute=59, second=59)
-        except ValueError as exc:
-            print(f"[interval-baseline] ERROR bad date: {exc}")
-            return
-
-        from_ms = int(from_dt.timestamp() * 1000)
-        to_ms   = int(to_dt.timestamp()   * 1000)
         print(f"[interval-baseline] project={project_id}  range: {from_date} → {to_date}")
-        print(f"[interval-baseline] epoch-ms range: {from_ms} → {to_ms}")
+        upserted = _svc(project_id, from_date, to_date, min_kw=min_kw, max_kw=max_kw)
 
-        # ── 2. Find isMain=1 meters ───────────────────────────────────────────
-        main_meters = Meter.query.filter_by(
-            project=project_id, isMain=True, isDeleted=False
-        ).all()
-        if not main_meters:
-            print(f"[interval-baseline] ERROR no isMain=1 meters for project {project_id}")
-            return
-        meter_ids = [m.id for m in main_meters]
-        print(f"[interval-baseline] isMain meters: {meter_ids}")
-
-        # ── 3. Find locked baseline_master id ─────────────────────────────────
-        bm = (Baseline.query
-              .filter_by(project_id=project_id, status="locked")
-              .order_by(Baseline.version.desc())
-              .first())
-        bm_id = bm.id if bm else None
-        print(f"[interval-baseline] baseline_master id: {bm_id}")
-
-        # ── 4. Compute 96-slot averages from meterdata ────────────────────────
-        meter_tuple = tuple(meter_ids) if len(meter_ids) > 1 else f"({meter_ids[0]})"
-        sql = _text(f"""
-            SELECT
-                FLOOR(((recordedAt / 1000) % 86400) / 900) AS slot,
-                ROUND(AVG(totalKw),  4) AS avg_kw,
-                ROUND(AVG(totalKva), 4) AS avg_kva,
-                ROUND(SUM(totalKw) / NULLIF(SUM(totalKva), 0), 6) AS avg_pf,
-                ROUND(AVG(totalKvar),4) AS avg_kvar,
-                ROUND(AVG(totalTHD), 5) AS avg_thd,
-                ROUND(AVG(totalAmp), 4) AS avg_amp,
-                ROUND(MAX(totalKva), 4) AS peak_kva,
-                COUNT(*)               AS sample_count
-            FROM meterdata
-            WHERE meter IN :mids
-              AND recordedAt BETWEEN :from_ms AND :to_ms
-              AND totalKw  > :min_kw
-              AND totalKw  < :max_kw
-            GROUP BY slot
-            ORDER BY slot
-        """)
-        rows = _db.session.execute(
-            sql,
-            {"mids": tuple(meter_ids), "from_ms": from_ms, "to_ms": to_ms,
-             "min_kw": min_kw, "max_kw": max_kw},
-        ).fetchall()
-
-        if not rows:
-            print("[interval-baseline] ERROR no qualifying meterdata found — check dates and meter IDs")
+        if not upserted:
+            print("[interval-baseline] ERROR no slots computed — check dates, min-kw, and meter isMain flag")
             return
 
-        print(f"[interval-baseline] computed {len(rows)} slots")
-
-        # ── 5. Upsert into baseline_intervals ─────────────────────────────────
-        now_ms = int(_t.time() * 1000)
-        upserted = 0
-        for row in rows:
-            slot, avg_kw, avg_kva, avg_pf, avg_kvar, avg_thd, avg_amp, peak_kva, sample_count = row
-            _db.session.execute(
-                _text("""
-                    INSERT INTO baseline_intervals
-                      (project_id, interval_num, avg_kw, avg_kva, avg_pf, avg_kvar,
-                       avg_thd, avg_amp, peak_kva, sample_count, baseline_master_id,
-                       created_at, updated_at)
-                    VALUES
-                      (:pid, :slot, :kw, :kva, :pf, :kvar,
-                       :thd, :amp, :peak, :cnt, :bm_id,
-                       :now, :now)
-                    ON DUPLICATE KEY UPDATE
-                      avg_kw=VALUES(avg_kw), avg_kva=VALUES(avg_kva),
-                      avg_pf=VALUES(avg_pf), avg_kvar=VALUES(avg_kvar),
-                      avg_thd=VALUES(avg_thd), avg_amp=VALUES(avg_amp),
-                      peak_kva=VALUES(peak_kva), sample_count=VALUES(sample_count),
-                      baseline_master_id=VALUES(baseline_master_id),
-                      updated_at=VALUES(updated_at)
-                """),
-                {"pid": project_id, "slot": int(slot),
-                 "kw": avg_kw, "kva": avg_kva, "pf": avg_pf, "kvar": avg_kvar,
-                 "thd": avg_thd, "amp": avg_amp, "peak": peak_kva,
-                 "cnt": sample_count, "bm_id": bm_id, "now": now_ms},
-            )
-            upserted += 1
-
-        _db.session.commit()
-
-        # ── 6. Summary ────────────────────────────────────────────────────────
+        # Print summary from DB
         summary = _db.session.execute(
             _text("""
                 SELECT ROUND(MIN(avg_kw),0), ROUND(MAX(avg_kw),0),
