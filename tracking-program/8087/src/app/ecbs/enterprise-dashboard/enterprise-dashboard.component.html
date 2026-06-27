@@ -178,19 +178,21 @@
           <span class="ent-kpi-title">AVG POWER FACTOR</span>
         </div>
         <div class="ent-kpi-val">{{ avgPf | number:'1.1-1' }}<span class="ent-kpi-unit">%</span></div>
-        <ng-container *ngIf="hasPfBaseline; else pfNoBaseline">
-          <div class="ent-kpi-delta positive" *ngIf="pfVsBaseline !== 0">
-            {{ pfVsBaseline >= 0 ? '▲' : '▼' }} {{ pfVsBaseline | number:'1.1-1' }}% vs Baseline
-          </div>
-          <div class="ent-kpi-spark" *ngIf="trend30Pf.length > 1">
-            <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
-              <polyline [attr.points]="trendPolyline(80,22,trend30Pf)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
-            </svg>
-          </div>
+        <ng-container *ngIf="!loading">
+          <ng-container *ngIf="hasPfBaseline; else pfNoBaseline">
+            <div class="ent-kpi-delta positive" *ngIf="pfVsBaseline !== 0">
+              {{ pfVsBaseline >= 0 ? '▲' : '▼' }} {{ pfVsBaseline | number:'1.1-1' }}% vs Baseline
+            </div>
+            <div class="ent-kpi-spark" *ngIf="trend30Pf.length > 1">
+              <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
+                <polyline [attr.points]="trendPolyline(80,22,trend30Pf)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </ng-container>
+          <ng-template #pfNoBaseline>
+            <div class="ent-kpi-emv">EM&amp;V Sync Needed</div>
+          </ng-template>
         </ng-container>
-        <ng-template #pfNoBaseline>
-          <div class="ent-kpi-emv">EM&amp;V Sync Needed</div>
-        </ng-template>
       </div>
 
       <div class="ent-kpi ent-kpi--green">
@@ -199,16 +201,18 @@
           <span class="ent-kpi-title">THD REDUCTION</span>
         </div>
         <div class="ent-kpi-val">{{ avgThd | number:'1.1-1' }}<span class="ent-kpi-unit">%</span></div>
-        <ng-container *ngIf="hasThdBaseline; else thdNoBaseline">
-          <div class="ent-kpi-spark" *ngIf="trend30Thd.length > 1">
-            <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
-              <polyline [attr.points]="trendPolyline(80,22,trend30Thd)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
-            </svg>
-          </div>
+        <ng-container *ngIf="!loading">
+          <ng-container *ngIf="hasThdBaseline; else thdNoBaseline">
+            <div class="ent-kpi-spark" *ngIf="trend30Thd.length > 1">
+              <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
+                <polyline [attr.points]="trendPolyline(80,22,trend30Thd)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
+              </svg>
+            </div>
+          </ng-container>
+          <ng-template #thdNoBaseline>
+            <div class="ent-kpi-emv">EM&amp;V Sync Needed</div>
+          </ng-template>
         </ng-container>
-        <ng-template #thdNoBaseline>
-          <div class="ent-kpi-emv">EM&amp;V Sync Needed</div>
-        </ng-template>
       </div>
 
       <div class="ent-kpi" [class.ent-kpi--amber]="sitesAttention > 0" [class.ent-kpi--green]="sitesAttention === 0">
