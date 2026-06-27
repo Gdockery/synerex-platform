@@ -487,19 +487,23 @@
       <!-- Hidden Capacity Recovered -->
       <div class="ent-card ent-card--hiddencap">
         <div class="ent-card-title">HIDDEN CAPACITY RECOVERED</div>
-        <div class="ent-hc-hero">
-          <span class="ent-hc-val">{{ kvaRecovered | number:'1.0-0' }}</span>
-          <span class="ent-hc-unit">kVA</span>
-        </div>
-        <div class="ent-hc-chart-wrap">
-          <img class="ent-hc-chart" src="/images/capacity-chart.png" alt="Capacity trend">
-        </div>
-        <div class="ent-hc-equiv-label">Equivalent To:</div>
-        <div class="ent-hc-equivs">
-          <div class="ent-hc-item" *ngIf="equivMotors > 0"><i class="fa fa-cog"></i> {{ equivMotors }} New 50 HP Motors</div>
-          <div class="ent-hc-item" *ngIf="equivCnc > 0"><i class="fa fa-industry"></i> {{ equivCnc }} CNC Machines</div>
-          <div class="ent-hc-item" *ngIf="equivServers > 0"><i class="fa fa-server"></i> {{ equivServers }} Server Cabinets</div>
-          <div class="ent-hc-item green" *ngIf="deferredCapital > 0"><i class="fa fa-check-circle"></i> Deferred Upgrade {{ currency(deferredCapital) }}</div>
+        <div class="ent-hc-body">
+          <div class="ent-hc-left">
+            <div class="ent-hc-hero">
+              <span class="ent-hc-val">{{ kvaRecovered | number:'1.0-0' }}</span>
+              <span class="ent-hc-unit">kVA</span>
+            </div>
+            <div class="ent-hc-equiv-label">Equivalent To:</div>
+            <div class="ent-hc-equivs">
+              <div class="ent-hc-item" *ngIf="equivMotors > 0"><i class="fa fa-check-circle"></i> {{ equivMotors }} New 50 HP Motors</div>
+              <div class="ent-hc-item" *ngIf="equivCnc > 0"><i class="fa fa-check-circle"></i> {{ equivCnc }} CNC Machines</div>
+              <div class="ent-hc-item" *ngIf="equivServers > 0"><i class="fa fa-check-circle"></i> {{ equivServers }} Server Cabinets</div>
+              <div class="ent-hc-item green" *ngIf="deferredCapital > 0"><i class="fa fa-check-circle"></i> Deferred Upgrade {{ currency(deferredCapital) }}</div>
+            </div>
+          </div>
+          <div class="ent-hc-chart-wrap">
+            <img class="ent-hc-chart" src="/images/capacity-chart.png" alt="">
+          </div>
         </div>
         <a class="ent-card-link" (click)="nav('capacity')">View Details</a>
       </div>

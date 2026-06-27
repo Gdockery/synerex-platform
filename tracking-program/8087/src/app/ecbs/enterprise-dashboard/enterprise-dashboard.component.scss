@@ -343,19 +343,25 @@ $sb-w:    210px;
   strong { margin-left: auto; font-size: 10px; color: $text; font-weight: 600; white-space: nowrap; } }
 
 // ── Hidden capacity ───────────────────────────────────────────────────────────
-.ent-hc-hero    { display: flex; align-items: baseline; gap: 5px; margin: 2px 0 4px; }
-.ent-hc-val     { font-size: 42px; font-weight: 800; color: $text; text-shadow: 0 0 24px rgba(255,255,255,0.14); line-height: 1; }
-.ent-hc-unit    { font-size: 18px; color: $dim; font-weight: 600; }
+.ent-hc-body    { display: flex; gap: 8px; align-items: flex-end; flex: 1; min-height: 0; }
+.ent-hc-left    { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.ent-hc-hero    { display: flex; align-items: baseline; gap: 5px; margin: 0 0 6px; }
+.ent-hc-val     { font-size: 38px; font-weight: 800; color: $green; text-shadow: 0 0 20px rgba(0,230,118,0.35); line-height: 1; }
+.ent-hc-unit    { font-size: 17px; color: $dim; font-weight: 600; }
 .ent-hc-chart-wrap {
-  margin: 6px 0 8px;
-  border-radius: 6px;
-  overflow: hidden;
   flex-shrink: 0;
+  width: 46%;
+  align-self: stretch;
+  display: flex;
+  align-items: flex-end;
 }
-.ent-hc-chart   { width: 100%; height: 70px; object-fit: cover; display: block; border-radius: 6px; }
-.ent-hc-equiv-label { font-size: 9.5px; color: $muted; margin-bottom: 5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
-.ent-hc-equivs  { display: flex; flex-direction: column; gap: 4px; flex: 1; }
-.ent-hc-item    { font-size: 10.5px; color: $dim; display: flex; align-items: center; gap: 7px; i { color: $blue; width: 13px; } &.green { color: $green; i { color: $green; } } }
+.ent-hc-chart   { width: 100%; height: 100%; object-fit: contain; display: block; }
+.ent-hc-equiv-label { font-size: 10px; color: $dim; margin-bottom: 5px; font-weight: 600; }
+.ent-hc-equivs  { display: flex; flex-direction: column; gap: 4px; }
+.ent-hc-item    { font-size: 10.5px; color: $dim; display: flex; align-items: center; gap: 6px;
+  i { color: $green; width: 13px; font-size: 10px; }
+  &.green { color: $green; }
+}
 
 // ── Network losses ────────────────────────────────────────────────────────────
 .ent-losses-cols { display: flex; gap: 18px; flex: 1; }
