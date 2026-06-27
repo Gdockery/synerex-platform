@@ -40,9 +40,15 @@ business rule, data source, or deployment process changes.
 
 ## Navigation and Sidebar Rules
 
-- Use the sidebar from `Screenshot 19: Devices Repeaters Page` as the base sidebar pattern for the ECBS screens unless a screen intentionally has a different app shell.
+- Use the latest user-provided full sidebar screenshot as the base sidebar pattern for ECBS screens unless a screen intentionally has a different app shell.
 - Avoid creating competing sidebar variants unless there is a clear product reason.
-- The sidebar should include the Devices section from Screenshot 19.
+- The sidebar should include these sections when relevant:
+  - Enterprise
+  - Devices
+  - Client Management
+  - Data & Analytics
+  - Operations
+  - Administration
 - Add financial/navigation links in the Financial section, including Job Costing and other financial main links required by the master spec.
 - Before implementing new navigation, compare all screens in the master spec and remove/merge duplicates.
 - If two screenshots appear to represent the same workflow with different names, document the likely canonical route and ask before building both.
