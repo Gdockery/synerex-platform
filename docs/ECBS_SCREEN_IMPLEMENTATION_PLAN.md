@@ -198,7 +198,10 @@ Data inventory:
   - Loads clients from `/api/client/`.
   - Loads projects from `/api/project/`.
   - Derives Sites, Active Projects, Total Capacity, and Annual Savings by matching projects to clients where possible.
-  - Falls back to client fields if available.
+  - Enriches each client's projects from analytics APIs:
+    - `/api/capacity/summary?project_id=...` for installed capacity.
+    - `/api/savings/intelligence?project_id=...` for annual savings.
+  - Falls back to client/project fields if available.
 
 Known gaps / questions:
 

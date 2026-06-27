@@ -57,6 +57,7 @@ export class ClientsComponent implements OnInit {
           next: (projectResp: any) => {
             this.projects = this.unwrapList(projectResp);
             this.clients = rawClients.map((client: any, index: number) => this.toClientRow(client, index));
+            this.loadAnalyticsForProjects();
             this.loading = false;
           },
           error: () => {
@@ -100,6 +101,58 @@ export class ClientsComponent implements OnInit {
       initials: this.initials(name),
       iconClass: 'cl-logo-' + (index % 10),
     };
+  }
+
+  private loadAnalyticsForProjects() {
+    this.projects.forEach(project => {
+      const clientRow = this.clientRowForProject(project);
+      if (!clientRow || !project.id) return;
+
+      this.api.get('/api/capacity/summary?project_id=' + project.id).subscribe({
+        next: (summary: any) => {
+          const installedKva = Number(
+            summary.installed_capacity_kva ||
+            summary.total_installed_kva ||
+            summary.installed_capacity ||
+            0
+          );
+          if (installedKva > 0) {
+            clientRow.totalCapacityMw += installedKva / 1000;
+          }
+        },
+        error: () => {}
+      });
+
+      this.api.get('/api/savings/intelligence?project_id=' + project.id).subscribe({
+        next: (summary: any) => {
+          const annualSavings = Number(
+            summary.annual_savings ||
+            summary.annual_savings_est ||
+            0
+          );
+          if (annualSavings > 0) {
+            clientRow.annualSavings += annualSavings;
+          }
+        },
+        error: () => {}
+      });
+    });
+  }
+
+  private clientRowForProject(project: any): EcbsClientRow | null {
+    const projectClient = project.client;
+    let clientId = 0;
+    if (typeof projectClient === 'object' && projectClient) {
+      clientId = Number(projectClient.id || 0);
+    } else {
+      clientId = Number(projectClient || project.client_id || project.clientId || 0);
+    }
+    if (clientId) {
+      const byId = this.clients.find(c => c.id === clientId);
+      if (byId) return byId;
+    }
+    const projectClientName = (project.clientName || project.client_name || '').toLowerCase();
+    return this.clients.find(c => c.name.toLowerCase() === projectClientName) || null;
   }
 
   private projectBelongsToClient(project: any, clientId: number, client: any): boolean {
