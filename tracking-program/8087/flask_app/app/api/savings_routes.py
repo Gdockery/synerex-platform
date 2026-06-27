@@ -502,25 +502,39 @@ def get_portfolio_summary():
 
     pid_list = [p.id for p in projects]
 
-    # ── 2. Latest savings_intelligence row per project ────────────────────────
-    # Subquery: max bucket_ts per project_id
-    latest_ts_sub = (
-        db.session.query(
-            SavingsIntelligence.project_id,
-            func.max(SavingsIntelligence.bucket_ts).label("max_ts")
-        )
-        .filter(SavingsIntelligence.project_id.in_(pid_list))
-        .group_by(SavingsIntelligence.project_id)
-        .subquery()
-    )
+    # ── 2. 30-day average savings_intelligence per project ───────────────────
+    # Use a 30-day rolling average for stable KPI values rather than a single
+    # snapshot (which fluctuates with instantaneous load vs a fixed baseline).
+    import time as _t2
+    _now_ms = int(_t2.time() * 1000)
+    _cutoff30 = _now_ms - 30 * 86400 * 1000
+    try:
+        avg_rows = db.session.execute(
+            text(
+                "SELECT project_id, "
+                "  AVG(annual_savings) AS annual_savings, "
+                "  AVG(recoverable_kva) AS recoverable_kva, "
+                "  AVG(co2_reduction_tons) AS co2_reduction_tons, "
+                "  AVG(pf_improvement) AS pf_improvement "
+                "FROM savings_intelligence "
+                "WHERE project_id IN :pids AND bucket_ts >= :c30 "
+                "GROUP BY project_id"
+            ),
+            {"pids": tuple(pid_list) or (0,), "c30": _cutoff30},
+        ).fetchall()
 
-    si_rows = (
-        db.session.query(SavingsIntelligence)
-        .join(latest_ts_sub, (SavingsIntelligence.project_id == latest_ts_sub.c.project_id)
-              & (SavingsIntelligence.bucket_ts == latest_ts_sub.c.max_ts))
-        .all()
-    )
-    si_by_project = {r.project_id: r for r in si_rows}
+        class _SIProxy:
+            """Lightweight proxy so downstream code can use dot-access."""
+            def __init__(self, row):
+                self.project_id        = row[0]
+                self.annual_savings    = row[1]
+                self.recoverable_kva   = row[2]
+                self.co2_reduction_tons = row[3]
+                self.pf_improvement    = row[4]
+
+        si_by_project = {r[0]: _SIProxy(r) for r in avg_rows}
+    except Exception:
+        si_by_project = {}
 
     # ── 3. Alarm counts per project ───────────────────────────────────────────
     try:
