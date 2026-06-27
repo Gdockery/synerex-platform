@@ -185,7 +185,11 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
     const pf = this.avgPf > 1 ? this.avgPf : this.avgPf * 100;
     return pf >= 98 ? 95 : pf >= 95 ? 90 : pf >= 90 ? 80 : 70;
   }
-  get harmonicHealth(): number { return this.avgThd > 0 ? Math.round(Math.max(0, 100 - this.avgThd * 8)) : 96; }
+  get harmonicHealth(): number {
+    // Score: 100 at 0% THD, ~80 at 10%, ~60 at 20%, floors at 0
+    // IEEE 519: <5% excellent, 5-10% good, 10-20% acceptable, >20% poor
+    return this.avgThd > 0 ? Math.round(Math.max(0, 100 - this.avgThd * 2)) : 96;
+  }
   get assetHealth(): number    { return this.sitesAttention === 0 ? 98 : Math.max(70, 100 - this.sitesAttention * 5); }
   get overallHealth(): number  {
     const vals = [this.cbiScore, this.harmonicHealth, this.assetHealth].filter(v => v > 0);

@@ -590,18 +590,32 @@ def get_portfolio_summary():
         alarm_by_project = {}
 
     # ── 4. Device counts per project ─────────────────────────────────────────
+    # Status derived from lastCommunicatedAt:
+    #   healthy  = communicated within last 30 minutes
+    #   warning  = communicated within last 24 hours
+    #   offline  = older than 24 hours or never communicated
     try:
+        now_epoch_ms = int(_time.time() * 1000)
         rows = db.session.execute(
             text(
                 "SELECT project, "
-                "SUM(CASE WHEN online=1 THEN 1 ELSE 0 END) AS healthy, "
-                "SUM(CASE WHEN online=0 THEN 1 ELSE 0 END) AS offline, "
-                "COUNT(*) AS total "
-                "FROM meter WHERE project IN :pids GROUP BY project"
+                "  SUM(CASE WHEN lastCommunicatedAt >= :h30 THEN 1 ELSE 0 END) AS healthy, "
+                "  SUM(CASE WHEN lastCommunicatedAt >= :h24 AND lastCommunicatedAt < :h30 THEN 1 ELSE 0 END) AS warning, "
+                "  SUM(CASE WHEN lastCommunicatedAt < :h24 OR lastCommunicatedAt IS NULL THEN 1 ELSE 0 END) AS offline, "
+                "  COUNT(*) AS total "
+                "FROM meter WHERE project IN :pids AND isDeleted=0 GROUP BY project"
             ),
-            {"pids": tuple(pid_list) or (0,)}
+            {
+                "pids": tuple(pid_list) or (0,),
+                "h30": now_epoch_ms - 30 * 60 * 1000,      # 30 min ago
+                "h24": now_epoch_ms - 24 * 3600 * 1000,    # 24 hours ago
+            }
         ).fetchall()
-        dev_by_project = {r[0]: {"healthy": r[1] or 0, "offline": r[2] or 0, "total": r[3] or 0} for r in rows}
+        dev_by_project = {
+            r[0]: {"healthy": int(r[1] or 0), "warning": int(r[2] or 0),
+                   "offline": int(r[3] or 0), "total": int(r[4] or 0)}
+            for r in rows
+        }
     except Exception:
         dev_by_project = {}
 
@@ -657,13 +671,13 @@ def get_portfolio_summary():
             thd_vals.append(avg_thd)
 
         d_healthy = devs.get("healthy", 0)
+        d_warning = devs.get("warning", 0)
         d_offline = devs.get("offline", 0)
-        d_total = devs.get("total", 0)
-        d_warning = max(0, d_total - d_healthy - d_offline)
-        total_devices += d_total
-        devices_healthy += d_healthy
-        devices_warning += d_warning
-        devices_offline += d_offline
+        d_total   = devs.get("total", 0)
+        total_devices    += d_total
+        devices_healthy  += d_healthy
+        devices_warning  += d_warning
+        devices_offline  += d_offline
 
         status = "Healthy" if alarms == 0 else ("Warning" if alarms < 3 else "Critical")
         loc = getattr(p, "location", "") or ""
@@ -739,16 +753,23 @@ def get_portfolio_summary():
         trend_savings_30d = _daily_list(sav_by_day, total_savings)
         trend_kva_30d     = _daily_list(kva_by_day, total_kva)
 
-        # Previous period for delta
+        # Previous period for delta — use raw DB avg for both periods (apples-to-apples)
+        cur_db = db.session.execute(text(
+            "SELECT AVG(annual_savings) AS sav, AVG(recoverable_kva) AS kva "
+            "FROM savings_intelligence "
+            "WHERE project_id IN :pids AND bucket_ts >= :c30"
+        ), {"pids": pids_t, "c30": cutoff30}).fetchone()
         prev = db.session.execute(text(
             "SELECT AVG(annual_savings) AS sav, AVG(recoverable_kva) AS kva "
             "FROM savings_intelligence "
             "WHERE project_id IN :pids AND bucket_ts >= :c60 AND bucket_ts < :c30"
         ), {"pids": pids_t, "c60": cutoff60, "c30": cutoff30}).fetchone()
-        if prev and prev[0]:
-            cur_avg  = sum(r["value"] for r in trend_savings_30d) / max(len(trend_savings_30d), 1)
+        if cur_db and cur_db[0] and prev and prev[0]:
+            cur_avg  = float(cur_db[0])
             prev_avg = float(prev[0])
-            savings_delta_pct = round((cur_avg - prev_avg) / prev_avg * 100, 1) if prev_avg else 0
+            raw_delta = (cur_avg - prev_avg) / prev_avg * 100 if prev_avg else 0
+            # Clamp to ±200% — outliers from model changes or powered-down periods
+            savings_delta_pct = round(max(-200.0, min(200.0, raw_delta)), 1)
         if prev and prev[1] and total_kva > 0:
             kva_delta = round(total_kva - float(prev[1]), 1)
     except Exception:
