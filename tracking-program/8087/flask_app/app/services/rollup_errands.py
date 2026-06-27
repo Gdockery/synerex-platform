@@ -14,7 +14,8 @@ from app.extensions import db
 
 logger = logging.getLogger(__name__)
 
-# Simple in-memory cache for rollup deduplication _rollup_cache = {}  # key -> (value, expires_at_ms)
+# Simple in-memory cache for rollup deduplication
+_rollup_cache = {}  # key -> (value, expires_at_ms)
 ROLLUP_CACHE_TTL_MS = 600000  # 10 min
 
 
