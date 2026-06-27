@@ -153,6 +153,57 @@ Known Enterprise Dashboard buttons/actions to verify:
 - Date range control behavior.
 - Alarm button and attention card.
 
+## Screen 2: Clients Page
+
+Route:
+
+- Angular route: `/ecbs/clients`
+- Component:
+  - `tracking-program/8087/src/app/ecbs/clients/clients.component.ts`
+  - `tracking-program/8087/src/app/ecbs/clients/clients.component.html`
+  - `tracking-program/8087/src/app/ecbs/clients/clients.component.scss`
+
+Reference:
+
+- User-provided screenshot labeled `2. Clients Page`.
+- Reference traits:
+  - XECO Energy logo/sidebar on the left.
+  - Sidebar sections: Enterprise, Devices, Client Management, Data & Analytics, Operations, Administration.
+  - Clients is active under Client Management.
+  - Top bar includes organization selector, date range, online status, bell, help, and user block.
+  - Main page title: `Clients`.
+  - Five KPI cards: Total Clients, Total Sites, Active Projects, Total Capacity, Annual Savings.
+  - Search/filter/export row.
+  - Large clients table with columns: Client Name, Contract Number, Sites, Active Projects, Total Capacity, Status, Joined Date, Actions.
+  - Pagination footer.
+
+Visual status:
+
+- New screen created from scratch.
+- Uses the latest sidebar screenshot as the canonical sidebar, not Screenshot 19.
+- Needs browser review against the reference screenshot after dev build.
+- Proportions, typography, KPI card vividness, logo sizing, table row height, and sidebar density are critical.
+
+Data inventory:
+
+- Clients API: `/api/client/`
+- Projects API: `/api/project/`
+- Current implementation:
+  - Loads clients from `/api/client/`.
+  - Loads projects from `/api/project/`.
+  - Derives Sites, Active Projects, Total Capacity, and Annual Savings by matching projects to clients where possible.
+  - Falls back to client fields if available.
+
+Known gaps / questions:
+
+- Reference uses generated sample clients; live dev data may not have the same industry names, contract numbers, capacity, or savings fields.
+- Need verify actual API response shape on dev and adjust mappings if needed.
+- `Filters` is visual-only for now except search; decide whether it should open a menu/status filter.
+- `Add New Client` routes to existing legacy create client page (`/project/client/create`) for now.
+- Row action routes to existing legacy edit client page (`/project/client/edit/:id`) for now.
+- Need decide whether the top org selector/date range should be wired or visual-only on this management page.
+- Need decide whether to keep XECO text in this sidebar or switch to ECBS/Synerex after visual match.
+
 ## New Screens To Add From Master Spec
 
 Status: pending PDF access.
@@ -290,3 +341,4 @@ Data sync:
 
 - 2026-06-27: Created this living plan. Captured current Enterprise Dashboard state, known data rules, deployment flow, and dev-sync concerns.
 - 2026-06-27: Added stronger visual acceptance criteria, canonical sidebar guidance from Screenshot 19, financial/job costing navigation requirement, screen inventory workflow, and pending master PDF follow-up.
+- 2026-06-27: Added Screen 2 Clients Page spec and noted the updated canonical sidebar from the user-provided sidebar screenshot.

@@ -16,6 +16,7 @@ import { AlarmConfigComponent }         from './alarm-config/alarm-config.compon
 import { AlertRulesComponent }          from './alert-rules/alert-rules.component';
 import { ReportsComponent }             from './reports/reports.component';
 import { DevicesComponent }             from './devices/devices.component';
+import { ClientsComponent }             from './clients/clients.component';
 import { SettingsComponent }            from './settings/settings.component';
 import { UtilityComponent }             from './utility/utility.component';
 import { FinancialDashboardComponent }  from './financial-dashboard/financial-dashboard.component';
@@ -57,6 +58,7 @@ const routes: Routes = [
   { path: 'alert-rules',          component: AlertRulesComponent,         data: { title: 'Alert Rule Monitor' } },
   { path: 'reports',              component: ReportsComponent,            data: { title: 'Reports' } },
   { path: 'devices',              component: DevicesComponent,            data: { title: 'Devices' } },
+  { path: 'clients',              component: ClientsComponent,            data: { title: 'Clients' } },
   { path: 'settings',             component: SettingsComponent,           data: { title: 'Settings' } },
   { path: 'utility',              component: UtilityComponent,            data: { title: 'Utility Intelligence' } },
   { path: 'financial-dashboard',  component: FinancialDashboardComponent, data: { title: 'Financial Dashboard' } },

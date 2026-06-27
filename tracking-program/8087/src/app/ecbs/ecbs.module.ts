@@ -20,6 +20,7 @@ import { AlarmConfigComponent }      from './alarm-config/alarm-config.component
 import { AlertRulesComponent }       from './alert-rules/alert-rules.component';
 import { ReportsComponent }           from './reports/reports.component';
 import { DevicesComponent }           from './devices/devices.component';
+import { ClientsComponent }           from './clients/clients.component';
 import { SettingsComponent }          from './settings/settings.component';
 import { UtilityComponent }             from './utility/utility.component';
 import { FinancialDashboardComponent }  from './financial-dashboard/financial-dashboard.component';
@@ -69,6 +70,7 @@ import { BarcodeScannerComponent }          from '../shared/barcode-scanner/barc
     AlertRulesComponent,
     ReportsComponent,
     DevicesComponent,
+    ClientsComponent,
     SettingsComponent,
     UtilityComponent,
     FinancialDashboardComponent,

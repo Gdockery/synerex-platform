@@ -1,0 +1,112 @@
+<div class="cl-root">
+  <aside class="cl-sidebar">
+    <div class="cl-logo">
+      <div class="cl-logo-main">XECO</div>
+      <div class="cl-logo-sub">ENERGY</div>
+    </div>
+
+    <nav class="cl-nav">
+      <div class="cl-nav-section">ENTERPRISE</div>
+      <a class="cl-nav-link" (click)="nav('enterprise-dashboard')"><i class="fa fa-th-large"></i>Enterprise Dashboard</a>
+      <a class="cl-nav-link" (click)="nav('energy-dashboard')"><i class="fa fa-line-chart"></i>Energy Dashboard</a>
+      <a class="cl-nav-link" (click)="nav('capacity')"><i class="fa fa-tachometer"></i>Capacity Intelligence</a>
+      <a class="cl-nav-link" (click)="nav('digital-twin')"><i class="fa fa-cube"></i>Digital Twin</a>
+      <a class="cl-nav-link" (click)="nav('sites')"><i class="fa fa-home"></i>Sites</a>
+      <a class="cl-nav-link" (click)="nav('transformers')"><i class="fa fa-sliders"></i>Transformers</a>
+      <a class="cl-nav-link" (click)="nav('current-analysis')"><i class="fa fa-bolt"></i>Current Analysis</a>
+      <a class="cl-nav-link" (click)="nav('savings')"><i class="fa fa-line-chart"></i>Savings &amp; Forecast</a>
+      <a class="cl-nav-link" (click)="nav('alarms')"><i class="fa fa-warning"></i>Alarms &amp; Events <span class="cl-alert-badge">{{ alarmTotal }}</span></a>
+      <a class="cl-nav-link" (click)="nav('reports')"><i class="fa fa-file-text-o"></i>Reports</a>
+
+      <div class="cl-nav-section cl-nav-section-row" (click)="sidebarDevicesOpen = !sidebarDevicesOpen">
+        <span>DEVICES</span><i class="fa" [class.fa-angle-up]="sidebarDevicesOpen" [class.fa-angle-down]="!sidebarDevicesOpen"></i>
+      </div>
+      <div class="cl-subnav" *ngIf="sidebarDevicesOpen">
+        <a (click)="nav('devices')"><i class="fa fa-angle-right"></i>Gateways</a>
+        <a (click)="nav('devices')"><i class="fa fa-angle-right"></i>Meters</a>
+        <a (click)="nav('devices')"><i class="fa fa-angle-right"></i>Switches</a>
+        <a (click)="nav('devices')"><i class="fa fa-angle-right"></i>Repeaters</a>
+      </div>
+
+      <div class="cl-nav-section">CLIENT MANAGEMENT</div>
+      <a class="cl-nav-link cl-nav-link-active"><i class="fa fa-user-o"></i>Clients</a>
+      <a class="cl-nav-link"><i class="fa fa-user"></i>Users</a>
+      <a class="cl-nav-link"><i class="fa fa-shield"></i>Roles &amp; Permissions</a>
+
+      <div class="cl-nav-section">DATA &amp; ANALYTICS</div>
+      <a class="cl-nav-link" (click)="nav('energy-dashboard')"><i class="fa fa-area-chart"></i>Energy Intelligence</a>
+      <a class="cl-nav-link" (click)="nav('capacity')"><i class="fa fa-pie-chart"></i>Capacity Intelligence</a>
+      <a class="cl-nav-link" (click)="nav('current-analysis')"><i class="fa fa-balance-scale"></i>Power Quality</a>
+      <a class="cl-nav-link" (click)="nav('digital-twin')"><i class="fa fa-object-group"></i>Digital Twin</a>
+      <a class="cl-nav-link" (click)="nav('savings')"><i class="fa fa-money"></i>Savings &amp; Forecast</a>
+
+      <div class="cl-nav-section">OPERATIONS</div>
+      <a class="cl-nav-link" (click)="nav('deployment')"><i class="fa fa-check-square-o"></i>Deployments</a>
+      <a class="cl-nav-link"><i class="fa fa-pencil-square-o"></i>Forms &amp; Checklists</a>
+      <a class="cl-nav-link"><i class="fa fa-wrench"></i>Commissioning</a>
+      <a class="cl-nav-link"><i class="fa fa-cog"></i>Maintenance</a>
+
+      <div class="cl-nav-section">ADMINISTRATION</div>
+      <a class="cl-nav-link" (click)="nav('settings')"><i class="fa fa-cog"></i>Settings</a>
+      <a class="cl-nav-link"><i class="fa fa-file-code-o"></i>Audit Logs</a>
+    </nav>
+
+    <div class="cl-help">
+      <i class="fa fa-headphones"></i>
+      <div><strong>Need Help?</strong><span>Contact Support</span></div>
+    </div>
+  </aside>
+
+  <main class="cl-main">
+    <header class="cl-topbar">
+      <div class="cl-portal-title">XECO ENERGY INTELLIGENCE PORTAL</div>
+      <div class="cl-topbar-right">
+        <button class="cl-org-select"><i class="fa fa-building-o"></i> OEM Solutions Inc. <i class="fa fa-angle-down"></i></button>
+        <button class="cl-date-select"><i class="fa fa-calendar"></i> May 12 - May 18, 2025 <i class="fa fa-angle-down"></i></button>
+        <span class="cl-online"><span></span>Online</span>
+        <button class="cl-icon-btn"><i class="fa fa-bell-o"></i><em>1</em></button>
+        <button class="cl-icon-btn"><i class="fa fa-question-circle-o"></i></button>
+        <div class="cl-user"><div class="cl-user-avatar">{{ userInitials() }}</div><div><strong>{{ userName() }}</strong><span>OEM User</span></div></div>
+      </div>
+    </header>
+
+    <section class="cl-content">
+      <div class="cl-page-header">
+        <div><h1>Clients</h1><p>View and manage all clients associated with your organization.</p></div>
+        <button class="cl-add-btn" (click)="addClient()"><i class="fa fa-plus"></i> Add New Client</button>
+      </div>
+
+      <div class="cl-kpi-row">
+        <div class="cl-kpi-card cl-kpi-blue"><div class="cl-kpi-icon"><i class="fa fa-users"></i></div><div><span>Total Clients</span><strong>{{ totalClients }}</strong><small>Active clients</small></div></div>
+        <div class="cl-kpi-card cl-kpi-teal"><div class="cl-kpi-icon"><i class="fa fa-building-o"></i></div><div><span>Total Sites</span><strong>{{ totalSites }}</strong><small>Across all clients</small></div></div>
+        <div class="cl-kpi-card cl-kpi-purple"><div class="cl-kpi-icon"><i class="fa fa-folder-o"></i></div><div><span>Active Projects</span><strong>{{ activeProjects }}</strong><small>In progress</small></div></div>
+        <div class="cl-kpi-card cl-kpi-cyan"><div class="cl-kpi-icon"><i class="fa fa-tachometer"></i></div><div><span>Total Capacity</span><strong>{{ totalCapacityMw | number:'1.1-1' }} MW</strong><small>Monitored capacity</small></div></div>
+        <div class="cl-kpi-card cl-kpi-gold"><div class="cl-kpi-icon"><i class="fa fa-usd"></i></div><div><span>Annual Savings</span><strong>{{ formatMoney(annualSavings) }}</strong><small>Projected savings</small></div></div>
+      </div>
+
+      <div class="cl-toolbar">
+        <div class="cl-search"><i class="fa fa-search"></i><input [(ngModel)]="searchQuery" (ngModelChange)="onSearchChange()" placeholder="Search clients by name, contract #, or location..."></div>
+        <button class="cl-filter-btn"><i class="fa fa-filter"></i> Filters <i class="fa fa-angle-down"></i></button>
+        <button class="cl-export-btn" (click)="exportCsv()"><i class="fa fa-download"></i> Export <i class="fa fa-angle-down"></i></button>
+      </div>
+
+      <section class="cl-table-card">
+        <table class="cl-table">
+          <thead><tr><th>Client Name</th><th>Contract Number</th><th>Sites</th><th>Active Projects</th><th>Total Capacity</th><th>Status</th><th>Joined Date</th><th>Actions</th></tr></thead>
+          <tbody>
+            <tr *ngIf="loading"><td colspan="8" class="cl-empty">Loading clients...</td></tr>
+            <tr *ngFor="let client of pagedClients">
+              <td><div class="cl-client-cell"><div class="cl-client-logo" [ngClass]="client.iconClass">{{ client.initials }}</div><div><strong>{{ client.name }}</strong><span>{{ client.subtitle }}</span></div></div></td>
+              <td>{{ client.contractNumber }}</td><td>{{ client.sites }}</td><td>{{ client.activeProjects }}</td><td>{{ client.totalCapacityMw | number:'1.1-1' }} MW</td><td><span class="cl-status-dot"></span>{{ client.status }}</td><td>{{ formatDate(client.joinedDate) }}</td><td><button class="cl-action-btn" (click)="editClient(client)"><i class="fa fa-ellipsis-h"></i></button></td>
+            </tr>
+            <tr *ngIf="!loading && !pagedClients.length"><td colspan="8" class="cl-empty">No clients found.</td></tr>
+          </tbody>
+        </table>
+        <div class="cl-pagination">
+          <span>Showing {{ filteredClients.length ? ((currentPage - 1) * pageSize + 1) : 0 }} to {{ ((currentPage - 1) * pageSize + pagedClients.length) }} of {{ filteredClients.length }} clients</span>
+          <div><button (click)="page(currentPage - 1)" [disabled]="currentPage === 1"><i class="fa fa-angle-left"></i></button><button *ngFor="let p of [1,2]" (click)="page(p)" [class.active]="currentPage === p" [hidden]="p > totalPages">{{ p }}</button><button (click)="page(currentPage + 1)" [disabled]="currentPage === totalPages"><i class="fa fa-angle-right"></i></button></div>
+        </div>
+      </section>
+    </section>
+  </main>
+</div>
