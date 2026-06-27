@@ -367,6 +367,7 @@ def compute_savings_for_project(
 
     # 4. Load interval-normalized baselines (96 slots, from baseline_intervals table).
     #    Falls back to flat baseline_dict if not available.
+    from app import db
     interval_baselines: dict[int, dict] = {}
     try:
         ibl_rows = db.session.execute(
