@@ -210,7 +210,7 @@ $sb-w:    210px;
 .ent-kpi--blue  .ent-kpi-circle-icon circle { filter: drop-shadow(0 0 5px rgba(41,182,246,0.45)); }
 .ent-kpi--amber .ent-kpi-circle-icon circle { filter: drop-shadow(0 0 5px rgba(255,215,64,0.45)); }
 
-.ent-kpi-title { font-size: 9px; font-weight: 700; color: $muted; letter-spacing: 0.08em; text-transform: uppercase; }
+.ent-kpi-title { font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.65); letter-spacing: 0.06em; text-transform: uppercase; }
 .ent-kpi-val  { font-size: 24px; font-weight: 800; color: $text; line-height: 1.1; }
 .ent-kpi-unit { font-size: 13px; font-weight: 400; color: $dim; margin-left: 3px; }
 .ent-kpi-sub  { font-size: 9.5px; color: $muted; margin-top: 2px; }
@@ -243,8 +243,8 @@ $sb-w:    210px;
   min-width: 0;
 }
 .ent-card-title {
-  font-size: 9.5px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
-  color: rgba(255,255,255,0.55); margin-bottom: 10px; flex-shrink: 0;
+  font-size: 11px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  color: rgba(255,255,255,0.82); margin-bottom: 10px; flex-shrink: 0;
 }
 .ent-card-link {
   font-size: 10px; color: $green; cursor: pointer; margin-top: 8px; display: inline-block; flex-shrink: 0; font-weight: 600;
@@ -345,9 +345,9 @@ $sb-w:    210px;
 // ── Hidden capacity ───────────────────────────────────────────────────────────
 .ent-hc-body    { display: flex; gap: 8px; align-items: flex-end; flex: 1; min-height: 0; }
 .ent-hc-left    { flex: 1; display: flex; flex-direction: column; min-width: 0; }
-.ent-hc-hero    { display: flex; align-items: baseline; gap: 5px; margin: 0 0 6px; }
-.ent-hc-val     { font-size: 38px; font-weight: 800; color: $green; text-shadow: 0 0 20px rgba(0,230,118,0.35); line-height: 1; }
-.ent-hc-unit    { font-size: 17px; color: $dim; font-weight: 600; }
+.ent-hc-hero    { display: flex; align-items: baseline; gap: 6px; margin: 0 0 8px; }
+.ent-hc-val     { font-size: 52px; font-weight: 800; color: $green; text-shadow: 0 0 24px rgba(0,230,118,0.4); line-height: 1; }
+.ent-hc-unit    { font-size: 20px; color: $dim; font-weight: 600; }
 .ent-hc-chart-wrap {
   flex-shrink: 0;
   width: 46%;
@@ -356,10 +356,10 @@ $sb-w:    210px;
   align-items: flex-end;
 }
 .ent-hc-chart   { width: 100%; height: 100%; object-fit: contain; display: block; }
-.ent-hc-equiv-label { font-size: 10px; color: $dim; margin-bottom: 5px; font-weight: 600; }
-.ent-hc-equivs  { display: flex; flex-direction: column; gap: 4px; }
-.ent-hc-item    { font-size: 10.5px; color: $dim; display: flex; align-items: center; gap: 6px;
-  i { color: $green; width: 13px; font-size: 10px; }
+.ent-hc-equiv-label { font-size: 11px; color: $dim; margin-bottom: 6px; font-weight: 600; }
+.ent-hc-equivs  { display: flex; flex-direction: column; gap: 5px; }
+.ent-hc-item    { font-size: 11.5px; color: $dim; display: flex; align-items: center; gap: 7px;
+  i { color: $green; width: 15px; font-size: 13px; flex-shrink: 0; }
   &.green { color: $green; }
 }
 
