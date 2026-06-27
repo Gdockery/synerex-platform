@@ -438,16 +438,22 @@ def compute_savings_for_project(
         # Interval number for this 15-min bucket (0=00:00, 95=23:45)
         slot = int((cbi.bucket_ts // 900000) % 96)
 
-        # Use per-slot baseline if available, else flat baseline_dict
+        # Use per-slot baseline if available, else flat baseline_dict.
+        # avg_kw/avg_kva come from interval data (time-of-day normalized).
+        # avg_pf uses baseline_master value (user-set 0.88) — the pre-install PF
+        #   agreed on with the customer, not the measured May figure.
+        # peak_kva uses baseline_master peak (monthly historical max, not slot max)
+        #   so demand savings compares the same monthly peaks correctly.
         if interval_baselines:
             ibl = interval_baselines.get(slot, {})
             slot_baseline = {
                 "id":       baseline_dict["id"],
                 "avg_kw":   ibl.get("avg_kw") or baseline_dict.get("avg_kw") or 0,
                 "avg_kva":  ibl.get("avg_kva") or baseline_dict.get("avg_kva") or 0,
-                "avg_pf":   ibl.get("avg_pf") or baseline_dict.get("avg_pf") or 0,
-                # Monthly peak for demand savings: baseline peak vs current month's measured peak
-                "peak_kva": ibl.get("peak_kva") or baseline_dict.get("peak_kva") or 0,
+                # PF: use baseline_master agreed value (e.g. 0.88) for penalty calc
+                "avg_pf":   baseline_dict.get("avg_pf") or ibl.get("avg_pf") or 0,
+                # Peak: use baseline_master monthly peak for demand comparison (not slot peak)
+                "peak_kva": baseline_dict.get("peak_kva") or ibl.get("peak_kva") or 0,
             }
         else:
             slot_baseline = baseline_dict.copy()
