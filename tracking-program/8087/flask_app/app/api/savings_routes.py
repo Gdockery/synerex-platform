@@ -719,22 +719,25 @@ def get_portfolio_summary():
     except Exception:
         pass
 
-    # ── 7c. Baseline check — requires approved/locked baseline_master record ────
+    # ── 7c. Baseline — requires approved/locked baseline_master record ──────────
     baseline_avg_pf  = 0.0
+    baseline_avg_thd = 0.0
     has_pf_baseline  = False
     has_thd_baseline = False
     try:
         bl = db.session.execute(text(
-            "SELECT AVG(avg_pf) FROM baseline_master "
-            "WHERE project_id IN :pids AND status IN ('approved', 'locked') "
-            "AND avg_pf IS NOT NULL AND avg_pf > 0"
-        ), {"pids": pids_t}).scalar()
-        if bl and float(bl) > 0:
-            baseline_avg_pf = round(float(bl) * 100, 2)
-            has_pf_baseline = True
+            "SELECT AVG(avg_pf), AVG(avg_thd) FROM baseline_master "
+            "WHERE project_id IN :pids AND status IN ('approved', 'locked')"
+        ), {"pids": pids_t}).fetchone()
+        if bl:
+            if bl[0] and float(bl[0]) > 0:
+                baseline_avg_pf = round(float(bl[0]) * 100, 2)
+                has_pf_baseline = True
+            if bl[1] and float(bl[1]) > 0:
+                baseline_avg_thd = round(float(bl[1]), 2)
+                has_thd_baseline = True
     except Exception:
         pass
-    # has_thd_baseline remains False — no baseline THD table
 
     # ── 7d. Weekly cumulative savings for current calendar year ──────────────
     monthly_trend = []
@@ -802,6 +805,7 @@ def get_portfolio_summary():
             "kva_delta":          kva_delta,
             # ── Baseline ───────────────────────────────────────────────────
             "baseline_avg_pf":    baseline_avg_pf,
+            "baseline_avg_thd":   baseline_avg_thd,
             "has_pf_baseline":    has_pf_baseline,
             "has_thd_baseline":   has_thd_baseline,
         }
