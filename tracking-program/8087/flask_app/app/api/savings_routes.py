@@ -589,7 +589,7 @@ def get_portfolio_summary():
     except Exception:
         alarm_by_project = {}
 
-    # ── 4. Device counts per project ─────────────────────────────────────────
+    # ── 4. Device counts per project (from switch table — physical Synerex units) ──
     # Status derived from lastCommunicatedAt:
     #   healthy  = communicated within last 30 minutes
     #   warning  = communicated within last 24 hours
@@ -603,12 +603,12 @@ def get_portfolio_summary():
                 "  SUM(CASE WHEN lastCommunicatedAt >= :h24 AND lastCommunicatedAt < :h30 THEN 1 ELSE 0 END) AS warning, "
                 "  SUM(CASE WHEN lastCommunicatedAt < :h24 OR lastCommunicatedAt IS NULL THEN 1 ELSE 0 END) AS offline, "
                 "  COUNT(*) AS total "
-                "FROM meter WHERE project IN :pids AND isDeleted=0 GROUP BY project"
+                "FROM switch WHERE project IN :pids AND isDeleted=0 GROUP BY project"
             ),
             {
                 "pids": tuple(pid_list) or (0,),
-                "h30": now_epoch_ms - 30 * 60 * 1000,      # 30 min ago
-                "h24": now_epoch_ms - 24 * 3600 * 1000,    # 24 hours ago
+                "h30": now_epoch_ms - 30 * 60 * 1000,
+                "h24": now_epoch_ms - 24 * 3600 * 1000,
             }
         ).fetchall()
         dev_by_project = {
