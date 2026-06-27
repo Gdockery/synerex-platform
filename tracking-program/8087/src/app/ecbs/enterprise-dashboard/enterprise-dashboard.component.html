@@ -146,10 +146,12 @@
           <span class="ent-kpi-title">ANNUAL SAVINGS</span>
         </div>
         <div class="ent-kpi-val">{{ currency(annualSavings) }}</div>
-        <div class="ent-kpi-delta positive" *ngIf="annualSavings > 0">▲ 12.6% vs Last Month</div>
-        <div class="ent-kpi-spark">
+        <div class="ent-kpi-delta" [class.positive]="savingsDeltaPct >= 0" [class.negative]="savingsDeltaPct < 0" *ngIf="annualSavings > 0">
+          {{ savingsDeltaPct >= 0 ? '▲' : '▼' }} {{ savingsDeltaPct | number:'1.1-1' }}% vs Last Month
+        </div>
+        <div class="ent-kpi-spark" *ngIf="trend30Savings.length > 1">
           <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
-            <polyline [attr.points]="sparkline(80,22)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
+            <polyline [attr.points]="trendPolyline(80,22,trend30Savings)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
           </svg>
         </div>
       </div>
@@ -160,10 +162,12 @@
           <span class="ent-kpi-title">CAPACITY RECOVERED</span>
         </div>
         <div class="ent-kpi-val">{{ kvaRecovered | number:'1.0-0' }} <span class="ent-kpi-unit">kVA</span></div>
-        <div class="ent-kpi-delta positive" *ngIf="kvaRecovered > 0">▲ 380 kVA vs Last Month</div>
-        <div class="ent-kpi-spark">
+        <div class="ent-kpi-delta" [class.positive]="kvaDelta >= 0" [class.negative]="kvaDelta < 0" *ngIf="kvaRecovered > 0">
+          {{ kvaDelta >= 0 ? '▲' : '▼' }} {{ kvaDelta | number:'1.0-0' }} kVA vs Last Month
+        </div>
+        <div class="ent-kpi-spark" *ngIf="trend30Kva.length > 1">
           <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
-            <polyline [attr.points]="sparkline(80,22)" fill="none" stroke="#29b6f6" stroke-width="1.5" stroke-linejoin="round"/>
+            <polyline [attr.points]="trendPolyline(80,22,trend30Kva)" fill="none" stroke="#29b6f6" stroke-width="1.5" stroke-linejoin="round"/>
           </svg>
         </div>
       </div>
@@ -174,12 +178,19 @@
           <span class="ent-kpi-title">AVG POWER FACTOR</span>
         </div>
         <div class="ent-kpi-val">{{ avgPf | number:'1.1-1' }}<span class="ent-kpi-unit">%</span></div>
-        <div class="ent-kpi-delta positive" *ngIf="avgPf > 0">▲ 13.2% vs Baseline</div>
-        <div class="ent-kpi-spark">
-          <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
-            <polyline [attr.points]="sparkline(80,22)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
-          </svg>
-        </div>
+        <ng-container *ngIf="hasPfBaseline; else pfNoBaseline">
+          <div class="ent-kpi-delta positive" *ngIf="pfVsBaseline !== 0">
+            {{ pfVsBaseline >= 0 ? '▲' : '▼' }} {{ pfVsBaseline | number:'1.1-1' }}% vs Baseline
+          </div>
+          <div class="ent-kpi-spark" *ngIf="trend30Pf.length > 1">
+            <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
+              <polyline [attr.points]="trendPolyline(80,22,trend30Pf)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </ng-container>
+        <ng-template #pfNoBaseline>
+          <div class="ent-kpi-emv">EM&amp;V Sync Needed</div>
+        </ng-template>
       </div>
 
       <div class="ent-kpi ent-kpi--green">
@@ -188,12 +199,16 @@
           <span class="ent-kpi-title">THD REDUCTION</span>
         </div>
         <div class="ent-kpi-val">{{ avgThd | number:'1.1-1' }}<span class="ent-kpi-unit">%</span></div>
-        <div class="ent-kpi-delta positive" *ngIf="avgThd > 0">▼ 72% vs Baseline</div>
-        <div class="ent-kpi-spark">
-          <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
-            <polyline [attr.points]="sparkline(80,22)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
-          </svg>
-        </div>
+        <ng-container *ngIf="hasThdBaseline; else thdNoBaseline">
+          <div class="ent-kpi-spark" *ngIf="trend30Thd.length > 1">
+            <svg viewBox="0 0 80 24" preserveAspectRatio="none" class="ent-spark-svg">
+              <polyline [attr.points]="trendPolyline(80,22,trend30Thd)" fill="none" stroke="#00e676" stroke-width="1.5" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </ng-container>
+        <ng-template #thdNoBaseline>
+          <div class="ent-kpi-emv">EM&amp;V Sync Needed</div>
+        </ng-template>
       </div>
 
       <div class="ent-kpi" [class.ent-kpi--amber]="sitesAttention > 0" [class.ent-kpi--green]="sitesAttention === 0">
@@ -321,11 +336,11 @@
       <!-- Savings Trend -->
       <div class="ent-card ent-card--trend">
         <div class="ent-card-title">SAVINGS TREND (MONTHLY)</div>
-        <div *ngIf="!savingsTrend.length" class="ent-empty">Loading…</div>
-        <div *ngIf="savingsTrend.length" class="ent-trend-body">
+        <div *ngIf="!monthlyTrend.length" class="ent-empty">Loading…</div>
+        <div *ngIf="monthlyTrend.length" class="ent-trend-body">
           <div class="ent-trend-ylabels">
-            <span>${{ (trendMax/1000).toFixed(0) }}K</span>
-            <span>${{ (trendMax/2000).toFixed(0) }}K</span>
+            <span>${{ (monthlyMax/1000).toFixed(0) }}K</span>
+            <span>${{ (monthlyMax/2000).toFixed(0) }}K</span>
             <span>$0</span>
           </div>
           <div class="ent-trend-chart-wrap">
@@ -338,19 +353,19 @@
               </defs>
               <line x1="0" y1="43" x2="500" y2="43" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
               <line x1="0" y1="86" x2="500" y2="86" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-              <polygon [attr.points]="'0,130 ' + trendPolyline(500,120) + ' 500,130'" fill="url(#entGrad)"/>
-              <polyline [attr.points]="trendPolyline(500,120)" fill="none" stroke="#00e676" stroke-width="2" stroke-linejoin="round"/>
-              <!-- Latest label -->
-              <ng-container *ngIf="savingsTrend.length">
-                <text x="480" [attr.y]="120-(savingsTrend[savingsTrend.length-1]?.value||0)/(trendMax||1)*110 - 6"
+              <polygon [attr.points]="'0,130 ' + monthlyPolyline(500,120) + ' 500,130'" fill="url(#entGrad)"/>
+              <polyline [attr.points]="monthlyPolyline(500,120)" fill="none" stroke="#00e676" stroke-width="2" stroke-linejoin="round"/>
+              <!-- Latest value label -->
+              <ng-container *ngIf="monthlyTrend.length">
+                <text x="490" [attr.y]="120-(monthlyTrend[monthlyTrend.length-1]?.value||0)/(monthlyMax||1)*110 - 6"
                   text-anchor="end" font-size="9" fill="#00e676" font-weight="700">
-                  ${{ ((savingsTrend[savingsTrend.length-1]?.value||0)/1000).toFixed(0) }}K
+                  ${{ ((monthlyTrend[monthlyTrend.length-1]?.value||0)/1000).toFixed(0) }}K
                 </text>
               </ng-container>
             </svg>
-            <!-- X labels -->
+            <!-- X labels: show unique month names only -->
             <div class="ent-trend-xlabels">
-              <span *ngFor="let t of savingsTrend">{{ t.month || '' }}</span>
+              <span *ngFor="let lbl of monthLabels">{{ lbl }}</span>
             </div>
           </div>
         </div>

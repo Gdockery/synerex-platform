@@ -629,54 +629,150 @@ def get_portfolio_summary():
     avg_pf_out = (sum(pf_vals) / len(pf_vals)) if pf_vals else 0
     avg_thd_out = (sum(thd_vals) / len(thd_vals)) if thd_vals else 0
 
-    # ── 7. 7-day savings trend — real daily averages from DB ─────────────────
+    # ── 7. Comprehensive trend data ──────────────────────────────────────────
     from datetime import datetime, timedelta
-    import time
-    savings_trend = []
-    try:
-        now_ms   = int(time.time() * 1000)
-        week_ms  = 7 * 86400 * 1000
-        day_abbr = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        # Per-day sum of per-project average annual_savings
-        rows = db.session.execute(
-            text(
-                "SELECT "
-                "  DATE(FROM_UNIXTIME(bucket_ts/1000)) AS day, "
-                "  project_id, "
-                "  AVG(annual_savings) AS avg_sav "
-                "FROM savings_intelligence "
-                "WHERE project_id IN :pids "
-                "  AND bucket_ts >= :cutoff "
-                "GROUP BY day, project_id "
-                "ORDER BY day"
-            ),
-            {"pids": tuple(pid_list) or (0,), "cutoff": now_ms - week_ms}
-        ).fetchall()
-        # Aggregate: for each day, sum average savings across projects
-        daily = {}
-        for r in rows:
-            day_str = str(r[0])
-            daily[day_str] = daily.get(day_str, 0) + float(r[2] or 0)
-        # Build ordered 7-day list, filling gaps with previous value
-        today = datetime.utcnow().date()
-        last_val = total_savings  # fallback
-        for i in range(6, -1, -1):
+    import time as _time
+    import calendar
+
+    now_ms     = int(_time.time() * 1000)
+    now_dt     = datetime.utcnow()
+    today      = now_dt.date()
+    day_abbr   = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    pids_t     = tuple(pid_list) or (0,)
+
+    ms30  = 30 * 86400 * 1000
+    ms60  = 60 * 86400 * 1000
+    cutoff30 = now_ms - ms30
+    cutoff60 = now_ms - ms60
+
+    # ── Helper: build ordered 30-day list filling gaps ────────────────────────
+    def _daily_list(day_map, fallback=0):
+        out = []
+        last = fallback
+        for i in range(29, -1, -1):
             d = today - timedelta(days=i)
             ds = d.strftime("%Y-%m-%d")
-            val = daily.get(ds, None)
-            if val is not None:
-                last_val = val
-            savings_trend.append({
-                "month": day_abbr[d.weekday()],
-                "value": round(last_val)
-            })
-    except Exception as _e:
-        # Fallback: flat line at current total_savings
-        day_abbr2 = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-        today2 = datetime.utcnow().date()
-        for i in range(6, -1, -1):
-            d = today2 - timedelta(days=i)
-            savings_trend.append({"month": day_abbr2[d.weekday()], "value": round(total_savings)})
+            v = day_map.get(ds)
+            if v is not None:
+                last = v
+            out.append({"day": ds, "abbr": day_abbr[d.weekday()], "value": round(last, 4)})
+        return out
+
+    # ── 7a. 30-day daily savings + kVA (from savings_intelligence) ────────────
+    trend_savings_30d = []
+    trend_kva_30d     = []
+    savings_delta_pct = 0.0
+    kva_delta         = 0.0
+    try:
+        rows = db.session.execute(text(
+            "SELECT DATE(FROM_UNIXTIME(bucket_ts/1000)) AS day, project_id,"
+            "  AVG(annual_savings) AS sav, AVG(recoverable_kva) AS kva "
+            "FROM savings_intelligence "
+            "WHERE project_id IN :pids AND bucket_ts >= :c30 "
+            "GROUP BY day, project_id ORDER BY day"
+        ), {"pids": pids_t, "c30": cutoff30}).fetchall()
+
+        sav_by_day = {}; kva_by_day = {}
+        for r in rows:
+            ds = str(r[0])
+            sav_by_day[ds] = sav_by_day.get(ds, 0) + float(r[2] or 0)
+            kva_by_day[ds] = kva_by_day.get(ds, 0) + float(r[3] or 0)
+
+        trend_savings_30d = _daily_list(sav_by_day, total_savings)
+        trend_kva_30d     = _daily_list(kva_by_day, total_kva)
+
+        # Previous period for delta
+        prev = db.session.execute(text(
+            "SELECT AVG(annual_savings) AS sav, AVG(recoverable_kva) AS kva "
+            "FROM savings_intelligence "
+            "WHERE project_id IN :pids AND bucket_ts >= :c60 AND bucket_ts < :c30"
+        ), {"pids": pids_t, "c60": cutoff60, "c30": cutoff30}).fetchone()
+        if prev and prev[0]:
+            cur_avg  = sum(r["value"] for r in trend_savings_30d) / max(len(trend_savings_30d), 1)
+            prev_avg = float(prev[0])
+            savings_delta_pct = round((cur_avg - prev_avg) / prev_avg * 100, 1) if prev_avg else 0
+        if prev and prev[1] and total_kva > 0:
+            kva_delta = round(total_kva - float(prev[1]), 1)
+    except Exception:
+        pass
+
+    # ── 7b. 30-day daily PF + THD (from current_balance_metrics) ─────────────
+    trend_pf_30d  = []
+    trend_thd_30d = []
+    try:
+        cbm = db.session.execute(text(
+            "SELECT DATE(FROM_UNIXTIME(bucket_ts/1000)) AS day,"
+            "  AVG(avg_pf) AS pf, AVG(avg_thd) AS thd "
+            "FROM current_balance_metrics "
+            "WHERE project_id IN :pids AND bucket_ts >= :c30 "
+            "GROUP BY day ORDER BY day"
+        ), {"pids": pids_t, "c30": cutoff30}).fetchall()
+
+        pf_by_day = {}; thd_by_day = {}
+        for r in cbm:
+            ds = str(r[0])
+            pf_by_day[ds]  = float(r[1] or 0)
+            thd_by_day[ds] = float(r[2] or 0)
+
+        trend_pf_30d  = _daily_list(pf_by_day)
+        trend_thd_30d = _daily_list(thd_by_day)
+    except Exception:
+        pass
+
+    # ── 7c. Baseline PF + THD existence check ────────────────────────────────
+    baseline_avg_pf  = 0.0
+    has_pf_baseline  = False
+    try:
+        bl = db.session.execute(text(
+            "SELECT AVG(baseline_avg_pf) FROM savings_intelligence "
+            "WHERE project_id IN :pids AND baseline_avg_pf IS NOT NULL AND baseline_avg_pf > 0"
+        ), {"pids": pids_t}).scalar()
+        if bl and float(bl) > 0:
+            baseline_avg_pf = round(float(bl) * 100, 2)
+            has_pf_baseline = True
+    except Exception:
+        pass
+
+    has_thd_baseline = False  # no baseline THD table yet
+
+    # ── 7d. Weekly cumulative savings for current calendar year ──────────────
+    monthly_trend = []
+    try:
+        year_start_ms = int(datetime(now_dt.year, 1, 1).timestamp() * 1000)
+        wrows = db.session.execute(text(
+            "SELECT "
+            "  WEEK(FROM_UNIXTIME(bucket_ts/1000), 1) AS wk,"
+            "  MIN(DATE(FROM_UNIXTIME(bucket_ts/1000))) AS wstart,"
+            "  project_id, AVG(annual_savings) AS avg_sav "
+            "FROM savings_intelligence "
+            "WHERE project_id IN :pids AND bucket_ts >= :ys "
+            "GROUP BY wk, project_id ORDER BY wk"
+        ), {"pids": pids_t, "ys": year_start_ms}).fetchall()
+
+        weekly = {}
+        for r in wrows:
+            wk = int(r[0]); ws = str(r[1])
+            weekly.setdefault(wk, {"start": ws, "sav": 0})
+            weekly[wk]["sav"] += float(r[3] or 0)
+
+        cumulative = 0.0
+        mon_abbr = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+        for wk in sorted(weekly.keys()):
+            w = weekly[wk]
+            weekly_dollars = w["sav"] / 365 * 7
+            cumulative += weekly_dollars
+            try:
+                import datetime as _dt
+                ws_d = _dt.date.fromisoformat(w["start"])
+                label = mon_abbr[ws_d.month - 1]
+            except Exception:
+                label = ""
+            monthly_trend.append({"month": label, "week": wk, "value": round(cumulative)})
+    except Exception:
+        pass
+
+    # ── Legacy savings_trend (7-day, for sparkline fallback) ─────────────────
+    savings_trend = trend_savings_30d[-7:] if trend_savings_30d else []
 
     return jsonify({
         "meta": {"project_count": len(projects)},
@@ -693,7 +789,20 @@ def get_portfolio_summary():
             "devices_warning": devices_warning,
             "devices_offline": devices_offline,
             "sites": site_list,
-            "savings_trend": savings_trend,
+            # ── Trend series ───────────────────────────────────────────────
+            "savings_trend":      savings_trend,        # legacy 7-day
+            "trend_savings_30d":  trend_savings_30d,    # 30-day daily savings
+            "trend_kva_30d":      trend_kva_30d,        # 30-day daily kVA
+            "trend_pf_30d":       trend_pf_30d,         # 30-day daily PF
+            "trend_thd_30d":      trend_thd_30d,        # 30-day daily THD
+            "monthly_trend":      monthly_trend,         # weekly cumulative YTD
+            # ── Deltas ─────────────────────────────────────────────────────
+            "savings_delta_pct":  savings_delta_pct,
+            "kva_delta":          kva_delta,
+            # ── Baseline ───────────────────────────────────────────────────
+            "baseline_avg_pf":    baseline_avg_pf,
+            "has_pf_baseline":    has_pf_baseline,
+            "has_thd_baseline":   has_thd_baseline,
         }
     })
 

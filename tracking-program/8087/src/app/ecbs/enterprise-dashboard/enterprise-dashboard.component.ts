@@ -94,27 +94,63 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
   get warningSites(): number  { return this.sites.filter((s: any) => s.status === 'Warning').length; }
   get criticalSites(): number { return this.sites.filter((s: any) => s.status === 'Critical').length; }
 
-  // ── Savings trend (from portfolio) ───────────────────────────────────────
-  get savingsTrend(): any[] { return this.portfolio?.savings_trend || []; }
-  get trendMax(): number {
-    const vals = this.savingsTrend.map((t: any) => Number(t.value || 0));
-    return vals.length ? Math.max(...vals, 1) : 1;
-  }
+  // ── Trend series from API ────────────────────────────────────────────────
+  get trend30Savings(): any[]  { return this.portfolio?.trend_savings_30d || []; }
+  get trend30Kva(): any[]      { return this.portfolio?.trend_kva_30d     || []; }
+  get trend30Pf(): any[]       { return this.portfolio?.trend_pf_30d      || []; }
+  get trend30Thd(): any[]      { return this.portfolio?.trend_thd_30d     || []; }
+  get monthlyTrend(): any[]    { return this.portfolio?.monthly_trend      || []; }
+  get savingsDeltaPct(): number{ return Number(this.portfolio?.savings_delta_pct || 0); }
+  get kvaDelta(): number       { return Number(this.portfolio?.kva_delta || 0); }
+  get hasPfBaseline(): boolean { return !!this.portfolio?.has_pf_baseline; }
+  get hasThdBaseline(): boolean{ return !!this.portfolio?.has_thd_baseline; }
+  get baselinePf(): number     { return Number(this.portfolio?.baseline_avg_pf || 0); }
+  get pfVsBaseline(): number   { return this.baselinePf > 0 ? Number((this.avgPf - this.baselinePf).toFixed(1)) : 0; }
 
+  // ── Legacy (used as fallback) ─────────────────────────────────────────────
+  get savingsTrend(): any[] { return this.portfolio?.savings_trend || []; }
+
+  // ── Polyline builder (min-max normalized, no y-axis zero anchor) ──────────
   trendPolyline(w: number, h: number, data?: any[]): string {
-    const pts = data || this.savingsTrend;
+    const pts = data || this.trend30Savings;
     if (!pts || pts.length < 2) return '';
-    const maxV = Math.max(...pts.map((d: any) => Number(d.value || 0)), 1);
+    const vals = pts.map((d: any) => Number(d.value || 0));
+    const minV = Math.min(...vals);
+    const maxV = Math.max(...vals);
+    const range = maxV - minV || 1;
+    const pad = 3;
     return pts.map((d: any, i: number) => {
       const x = (i / (pts.length - 1)) * w;
-      const y = h - (Number(d.value || 0) / maxV) * (h - 4);
+      const y = h - pad - ((Number(d.value || 0) - minV) / range) * (h - pad * 2);
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     }).join(' ');
   }
 
-  sparkline(w: number, h: number): string {
-    // Generate a gently-rising sparkline from 7-day trend data
-    return this.trendPolyline(w, h);
+  // ── Monthly cumulative chart ───────────────────────────────────────────────
+  get monthlyMax(): number {
+    const vals = this.monthlyTrend.map((t: any) => Number(t.value || 0));
+    return vals.length ? Math.max(...vals, 1) : 1;
+  }
+  monthlyPolyline(w: number, h: number): string {
+    const pts = this.monthlyTrend;
+    if (!pts || pts.length < 2) return '';
+    const maxV = this.monthlyMax;
+    const pad = 4;
+    return pts.map((d: any, i: number) => {
+      const x = (i / (pts.length - 1)) * w;
+      const y = h - pad - (Number(d.value || 0) / maxV) * (h - pad * 2);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    }).join(' ');
+  }
+
+  // Unique month labels for x-axis (deduplicated)
+  get monthLabels(): string[] {
+    const seen = new Set<string>();
+    return this.monthlyTrend.reduce((acc: string[], t: any) => {
+      if (!seen.has(t.month)) { seen.add(t.month); acc.push(t.month); }
+      else acc.push('');
+      return acc;
+    }, []);
   }
 
   // ── Capacity aggregates ───────────────────────────────────────────────────
