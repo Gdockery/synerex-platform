@@ -282,8 +282,7 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
       const place = (lat: number, lng: number) => {
         L.marker([lat, lng], { icon })
           .addTo(this._map)
-          .bindPopup(`<b>${site.name}</b><br>${site.location}<br>Savings: ${this.currency(site.annual_savings)}<br>Status: ${site.status}`)
-          .openPopup();
+          .bindPopup(`<b>${site.name}</b><br>${site.location}<br>Savings: ${this.currency(site.annual_savings)}<br>Status: ${site.status}`);
         // Centre map on first site
         if (this.sites.indexOf(site) === 0) this._map.setView([lat, lng], 8);
       };
