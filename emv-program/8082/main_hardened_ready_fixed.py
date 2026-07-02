@@ -42553,7 +42553,7 @@ def projects_save():
                                 cursor.execute("""
                                     INSERT INTO raw_meter_data (file_name, file_path, file_size, fingerprint, uploaded_by)
                                     VALUES (?, ?, ?, ?, ?)
-                                """, (before_file.filename, str(saved_path), file_size, fingerprint, "project_save"))
+                                """, (before_file.filename, str(saved_path), file_size, fingerprint, None))
                                 conn.commit()
                                 before_file_id = cursor.lastrowid
                                 logger.info(f"💾 Saved before_file to database with ID: {before_file_id}")
@@ -42592,7 +42592,7 @@ def projects_save():
                                 cursor.execute("""
                                     INSERT INTO raw_meter_data (file_name, file_path, file_size, fingerprint, uploaded_by)
                                     VALUES (?, ?, ?, ?, ?)
-                                """, (after_file.filename, str(saved_path), file_size, fingerprint, "project_save"))
+                                """, (after_file.filename, str(saved_path), file_size, fingerprint, None))
                                 conn.commit()
                                 after_file_id = cursor.lastrowid
                                 logger.info(f"💾 Saved after_file to database with ID: {after_file_id}")
@@ -44198,10 +44198,31 @@ def upload_raw_meter_data():
                     400,
                 )
 
-        # Get user ID from form data
-        uploaded_by = request.form.get("uploaded_by")
-        if not uploaded_by:
-            return jsonify({"status": "error", "error": "User ID required"}), 400
+        # uploaded_by is an integer FK. Older/cached UI versions may send
+        # strings like "current_user"; never pass those through to MySQL.
+        def _coerce_uploaded_by(value):
+            try:
+                if value in (None, ""):
+                    return None
+                return int(value)
+            except (TypeError, ValueError):
+                return None
+
+        uploaded_by = _coerce_uploaded_by(request.form.get("uploaded_by"))
+        if uploaded_by is None:
+            session_token = (
+                request.headers.get("Authorization", "").replace("Bearer ", "")
+                or request.cookies.get("session_token")
+                or request.form.get("session_token")
+                or request.args.get("session_token")
+            )
+            user = validate_user_session(session_token) if session_token else None
+            if user:
+                uploaded_by = _coerce_uploaded_by(user.get("id"))
+        if uploaded_by is None:
+            logger.warning(
+                "Raw meter upload did not include a numeric uploaded_by; storing NULL uploader"
+            )
 
         # Create organized file structure
         today = datetime.now().strftime("%Y-%m-%d")
