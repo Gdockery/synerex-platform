@@ -15,6 +15,7 @@ from datetime import datetime
 from pathlib import Path
 import re
 import sys
+import html
 
 # Add 8082 to sys.path so we can import sankey_diagram from there.
 # IMPORTANT: Use append, not insert(0). Inserting 8082 at index 0 makes it
@@ -146,6 +147,91 @@ def _fmt_dollar(value, show_dollars, decimals=2):
         return f"${float(value):,.{decimals}f}"
     except (ValueError, TypeError):
         return "—"
+
+
+def _build_chiller_load_compensation_html(results):
+    """Render main-meter chiller-load compensation disclosure when provided."""
+    adj = safe_get(results, "chiller_load_compensation", default={})
+    if not isinstance(adj, dict) or not adj.get("applied"):
+        return ""
+
+    def _fmt(value, decimals=1, suffix=""):
+        try:
+            return f"{float(value):,.{decimals}f}{suffix}"
+        except (TypeError, ValueError):
+            return f"0.{''.join(['0'] * decimals)}{suffix}" if decimals > 0 else f"0{suffix}"
+
+    def _fmt_signed(value, decimals=1, suffix=""):
+        try:
+            return f"{float(value):+,.{decimals}f}{suffix}"
+        except (TypeError, ValueError):
+            return "N/A"
+
+    raw_savings_kw = _safe_float(adj.get("raw_savings_kw"), 0)
+    compensated_savings_kw = _safe_float(adj.get("compensated_savings_kw"), 0)
+    adjustment_kw = _safe_float(adj.get("adjustment_kw"), 0)
+    adjustment_kwh_day = _safe_float(adj.get("adjustment_kwh_per_day"), 0)
+    raw_change_pct = adj.get("raw_change_pct")
+    compensated_change_pct = adj.get("compensated_change_pct")
+    chiller_runtime_pct = adj.get("chiller_runtime_change_pct")
+    before_main_kwh = adj.get("before_main_kwh")
+    after_main_kwh = adj.get("after_main_kwh")
+    xeco_off_label = str(adj.get("xeco_off_period_label") or "").strip()
+    xeco_on_label = str(adj.get("xeco_on_period_label") or "").strip()
+    note = html.escape(str(adj.get("note") or "Chiller-load normalization was applied to the main-meter comparison."))
+
+    if compensated_savings_kw < raw_savings_kw:
+        conclusion = "The chiller compensation reduces the normalized savings compared with the raw main-meter comparison."
+    elif compensated_savings_kw > raw_savings_kw:
+        conclusion = "The chiller compensation improves the normalized savings compared with the raw main-meter comparison."
+    else:
+        conclusion = "The chiller compensation does not materially change the raw main-meter comparison."
+
+    raw_change_label = _fmt_signed(raw_change_pct, 1, "%") if raw_change_pct is not None else "N/A"
+    compensated_change_label = _fmt_signed(compensated_change_pct, 1, "%") if compensated_change_pct is not None else "N/A"
+    runtime_label = _fmt_signed(chiller_runtime_pct, 1, "%") if chiller_runtime_pct is not None else "N/A"
+    before_main_label = _fmt(before_main_kwh, 0, " kWh") if before_main_kwh is not None else "N/A"
+    after_main_label = _fmt(after_main_kwh, 0, " kWh") if after_main_kwh is not None else "N/A"
+    label_line = (
+        f"<p style=\"margin: 0 0 12px 0; color: #444;\"><strong>Period basis:</strong> "
+        f"{html.escape(xeco_off_label)} = XECO off; {html.escape(xeco_on_label)} = XECO on.</p>"
+        if xeco_off_label and xeco_on_label
+        else ""
+    )
+
+    return f"""
+    <div style="margin: 1.5rem 0; padding: 18px 20px; background: #fffbeb; border-left: 5px solid #f59e0b; border-radius: 8px;">
+      <h4 style="margin: 0 0 10px 0; color: #92400e;">Chiller Load Compensation</h4>
+      <p style="margin: 0 0 12px 0; color: #444;">{note}</p>
+      {label_line}
+      <table style="width: 100%; border-collapse: collapse; font-size: 0.92rem;">
+        <tr>
+          <th style="text-align:left; padding:6px; border-bottom:1px solid #fcd34d;">Metric</th>
+          <th style="text-align:right; padding:6px; border-bottom:1px solid #fcd34d;">Value</th>
+        </tr>
+        <tr>
+          <td style="padding:6px;">Raw main-meter comparison</td>
+          <td style="text-align:right; padding:6px;">{raw_change_label} ({before_main_label} to {after_main_label})</td>
+        </tr>
+        <tr>
+          <td style="padding:6px;">Typed chiller compensation</td>
+          <td style="text-align:right; padding:6px;">{_fmt_signed(adjustment_kwh_day, 1, " kWh/day")} ({_fmt_signed(adjustment_kw, 1, " kW")})</td>
+        </tr>
+        <tr>
+          <td style="padding:6px;">Chiller runtime/load change</td>
+          <td style="text-align:right; padding:6px;">{runtime_label}</td>
+        </tr>
+        <tr>
+          <td style="padding:6px;">Compensated main-meter comparison</td>
+          <td style="text-align:right; padding:6px;">{compensated_change_label}</td>
+        </tr>
+      </table>
+      <p style="margin: 12px 0 0 0; color: #555; font-size: 0.9rem;">
+        <strong>Result:</strong> {html.escape(conclusion)}
+        Raw weather-normalized main-meter savings were {_fmt_signed(raw_savings_kw, 1, " kW")}; after chiller compensation they are {_fmt_signed(compensated_savings_kw, 1, " kW")}.
+      </p>
+    </div>
+    """
 
 def _remove_dollar_blocks(html_content, show_dollars):
     """Remove dollar-related blocks when show_dollars is False (engineering-only report).
@@ -4932,6 +5018,7 @@ def generate_exact_template_html(r):
     print(f"*** BREAKDOWN DEBUG: kw_before = {power_quality_for_breakdown.get('kw_before', 'NOT_FOUND')}, kw_after = {power_quality_for_breakdown.get('kw_after', 'NOT_FOUND')} ***")
     
     breakdown_html = generate_kw_normalization_breakdown(r, power_quality_for_breakdown, weather_norm_for_breakdown)
+    breakdown_html += _build_chiller_load_compensation_html(r)
     print(f"*** BREAKDOWN DEBUG: Generated breakdown HTML length: {len(breakdown_html)} characters ***")
     template_content = template_content.replace('{{KW_NORMALIZATION_BREAKDOWN}}', breakdown_html)
     

@@ -14860,6 +14860,201 @@ def _safe_boolean_value(value, default=False):
     return bool(value)
 
 
+def _truthy_config(value) -> bool:
+    """Return True for common checked form values."""
+    try:
+        return str(value).strip().lower() in ("1", "true", "on", "yes", "y", "checked")
+    except Exception:
+        return False
+
+
+def _optional_float_config(config: dict, *keys):
+    """Return the first numeric config value found, otherwise None."""
+    for key in keys:
+        try:
+            value = (config or {}).get(key)
+            if value is None or str(value).strip() == "":
+                continue
+            return float(value)
+        except (TypeError, ValueError):
+            continue
+    return None
+
+
+def _read_meter_interval_rows_for_adjustment(file_path: str) -> list:
+    """Read Start/End/Meter/avgKw rows from meter CSVs without relying on pandas header alignment."""
+    import csv as _csv
+    from datetime import datetime as _dt
+
+    if not file_path or not os.path.exists(file_path):
+        return []
+
+    rows = []
+    with open(file_path, newline="", encoding="utf-8-sig", errors="ignore") as _fh:
+        reader = _csv.reader(_fh)
+        try:
+            header = next(reader)
+        except StopIteration:
+            return []
+
+        header_index = {str(name).strip(): idx for idx, name in enumerate(header)}
+        required = ["Start Time", "End Time", "Meter", "avgKw"]
+        if not all(name in header_index for name in required):
+            return []
+
+        for raw in reader:
+            try:
+                start_raw = raw[header_index["Start Time"]]
+                end_raw = raw[header_index["End Time"]]
+                meter = str(raw[header_index["Meter"]]).strip()
+                kw = float(raw[header_index["avgKw"]])
+                start = _dt.strptime(start_raw, "%Y-%m-%d %H:%M:%S")
+                end = _dt.strptime(end_raw, "%Y-%m-%d %H:%M:%S")
+                seconds = (end - start).total_seconds() + 1
+                hours = seconds / 3600.0 if seconds > 0 else 0.25
+                rows.append({"start": start, "meter": meter, "kw": kw, "hours": hours})
+            except Exception:
+                continue
+
+    return rows
+
+
+def _summarize_meter_context(rows: list, on_threshold_kw: float = 5.0) -> dict:
+    """Summarize multi-meter interval rows by summing meters at each timestamp."""
+    if not rows:
+        return {}
+
+    by_start = {}
+    meters = set()
+    for row in rows:
+        start = row["start"]
+        meters.add(row["meter"])
+        bucket = by_start.setdefault(start, {"kw": 0.0, "hours": row["hours"]})
+        bucket["kw"] += row["kw"]
+        bucket["hours"] = max(bucket["hours"], row["hours"])
+
+    total_hours = sum(bucket["hours"] for bucket in by_start.values())
+    total_kwh = sum(bucket["kw"] * bucket["hours"] for bucket in by_start.values())
+    on_hours = sum(bucket["hours"] for bucket in by_start.values() if bucket["kw"] > on_threshold_kw)
+    avg_kw = total_kwh / total_hours if total_hours > 0 else 0.0
+    days = total_hours / 24.0 if total_hours > 0 else 0.0
+
+    return {
+        "meters": sorted(meters),
+        "interval_count": len(by_start),
+        "total_hours": float(total_hours),
+        "days": float(days),
+        "total_kwh": float(total_kwh),
+        "avg_kw": float(avg_kw),
+        "kwh_per_day": float(total_kwh / days) if days > 0 else 0.0,
+        "on_hours": float(on_hours),
+        "on_threshold_kw": float(on_threshold_kw),
+    }
+
+
+def _looks_like_chiller_meter_name(name: str) -> bool:
+    """Heuristic for chiller meter labels such as PF Ch1 and Ch2 / PF Ch3."""
+    text = f" {str(name or '').strip().lower()} "
+    return any(token in text for token in ("chiller", " chw", " ch1", " ch2", " ch3", " ch "))
+
+
+def calculate_manual_chiller_load_compensation(config: dict, base_savings_kw: float, hours: float) -> dict:
+    """
+    Apply a signed chiller-load normalization to the main-meter savings.
+
+    Positive adjustment means reporting-period chiller load was higher and is
+    added back to savings. Negative adjustment means reporting-period chiller
+    load was lower and reduces savings / increases the reported load increase.
+    """
+    try:
+        adjustment_kw = _optional_float_config(
+            config,
+            "chiller_adjustment_kw",
+            "chiller_load_adjustment_kw",
+            "chiller_runtime_adjustment_kw",
+        )
+        adjustment_kwh_per_day = _optional_float_config(
+            config,
+            "chiller_adjustment_kwh_per_day",
+            "chiller_load_adjustment_kwh_per_day",
+            "chiller_runtime_adjustment_kwh_per_day",
+        )
+
+        if adjustment_kw is None and adjustment_kwh_per_day is not None:
+            adjustment_kw = adjustment_kwh_per_day / 24.0
+        if adjustment_kwh_per_day is None and adjustment_kw is not None:
+            adjustment_kwh_per_day = adjustment_kw * 24.0
+        if adjustment_kw is None:
+            return {}
+
+        raw_savings_kw = float(base_savings_kw or 0.0)
+        compensated_savings_kw = raw_savings_kw + adjustment_kw
+        operating_hours = float(hours or 8760.0)
+        raw_kwh_annual = raw_savings_kw * operating_hours
+        compensated_kwh_annual = compensated_savings_kw * operating_hours
+
+        before_kwh = _optional_float_config(config, "main_meter_before_kwh", "baseline_main_meter_kwh")
+        after_kwh = _optional_float_config(config, "main_meter_after_kwh", "reporting_main_meter_kwh")
+        raw_change_pct = _optional_float_config(config, "main_meter_raw_change_pct", "raw_main_meter_change_pct")
+        compensated_change_pct = _optional_float_config(
+            config,
+            "main_meter_compensated_change_pct",
+            "compensated_main_meter_change_pct",
+            "chiller_compensated_change_pct",
+        )
+        chiller_runtime_pct = _optional_float_config(
+            config,
+            "chiller_runtime_change_pct",
+            "chiller_load_change_pct",
+            "chiller_compensation_pct",
+        )
+
+        if raw_change_pct is None and before_kwh and after_kwh:
+            raw_change_pct = ((after_kwh - before_kwh) / before_kwh * 100.0) if before_kwh else None
+
+        xeco_off_label = str((config or {}).get("xeco_off_period_label") or "").strip()
+        xeco_on_label = str((config or {}).get("xeco_on_period_label") or "").strip()
+        before_label = str((config or {}).get("before_label") or "baseline").strip()
+        after_label = str((config or {}).get("after_label") or "reporting").strip()
+
+        if xeco_off_label and xeco_on_label:
+            default_note = (
+                f"{xeco_off_label} was the XECO-off period and {xeco_on_label} was the XECO-on period. "
+                "The chiller-load compensation normalizes the main-meter comparison for different chiller operation "
+                "between those periods, so the reported savings are not understated or overstated by chiller runtime."
+            )
+        else:
+            default_note = (
+                "Chiller-load normalization was applied to the main-meter comparison so that independently varying "
+                "chiller operation does not distort the before/after savings result."
+            )
+        note = str((config or {}).get("chiller_adjustment_note") or default_note).strip()
+
+        return {
+            "type": "manual_chiller_load_compensation",
+            "applied": True,
+            "raw_savings_kw": raw_savings_kw,
+            "adjustment_kw": float(adjustment_kw),
+            "adjustment_kwh_per_day": float(adjustment_kwh_per_day or adjustment_kw * 24.0),
+            "compensated_savings_kw": compensated_savings_kw,
+            "raw_kwh_annual": raw_kwh_annual,
+            "compensated_kwh_annual": compensated_kwh_annual,
+            "before_main_kwh": before_kwh,
+            "after_main_kwh": after_kwh,
+            "raw_change_pct": raw_change_pct,
+            "compensated_change_pct": compensated_change_pct,
+            "chiller_runtime_change_pct": chiller_runtime_pct,
+            "xeco_off_period_label": xeco_off_label,
+            "xeco_on_period_label": xeco_on_label,
+            "before_label": before_label,
+            "after_label": after_label,
+            "note": note,
+        }
+    except Exception as e:
+        logger.warning(f"Manual chiller load compensation failed: {e}")
+        return {}
+
+
 def _safe_arithmetic_operation(value1, value2, operation="subtract", default="N/A"):
     """
     Safely perform arithmetic operations on values that might be 'N/A'.
@@ -20577,6 +20772,20 @@ def perform_comprehensive_analysis(
         logger.warning(
             f"⚠ Using weather-adjusted kW savings (weather normalization not available): {adjusted_savings_kw:.2f} kW"
         )
+
+    chiller_load_compensation = calculate_manual_chiller_load_compensation(config, adjusted_savings_kw, config.get("operating_hours", 8760))
+    if chiller_load_compensation.get("applied"):
+        adjusted_savings_kw = chiller_load_compensation["compensated_savings_kw"]
+        results["chiller_load_compensation"] = chiller_load_compensation
+        results.setdefault("power_quality", {})["chiller_compensated_kw_savings"] = adjusted_savings_kw
+        results["power_quality"]["chiller_load_adjustment_kw"] = chiller_load_compensation["adjustment_kw"]
+        results["power_quality"]["chiller_load_adjustment_kwh_per_day"] = chiller_load_compensation["adjustment_kwh_per_day"]
+        logger.info(
+            f"Chiller load compensation applied to main-meter savings: "
+            f"raw={chiller_load_compensation['raw_savings_kw']:.2f} kW, "
+            f"adjustment={chiller_load_compensation['adjustment_kw']:.2f} kW, "
+            f"compensated={adjusted_savings_kw:.2f} kW"
+        )
     
     # Get PF-normalized kW savings (for billing calculations only, not kWh)
     pf_normalized_savings = results.get("power_quality", {}).get(
@@ -20632,6 +20841,13 @@ def perform_comprehensive_analysis(
             assumptions.append(
                 "Network I²R/eddy shown diagnostically only (excluded from $ totals)."
             )
+    if chiller_load_compensation.get("applied"):
+        assumptions.append(
+            chiller_load_compensation.get(
+                "note",
+                "Chiller-load compensation applied to main-meter comparison.",
+            )
+        )
     results["assumptions"] = assumptions
 
     # 3. Demand Analysis
@@ -27428,6 +27644,16 @@ def analyze():
                 ("demand_rate_kva", "demand_rate_kva"),
                 ("reactive_rate_per_kvar", "reactive_rate_per_kvar"),
                 ("last_month_bill_cost", "last_month_bill_cost"),
+                # Chiller-load compensation for main-meter normalization
+                ("chiller_adjustment_kw", "chiller_adjustment_kw"),
+                ("chiller_load_adjustment_kw", "chiller_load_adjustment_kw"),
+                ("chiller_adjustment_kwh_per_day", "chiller_adjustment_kwh_per_day"),
+                ("chiller_load_adjustment_kwh_per_day", "chiller_load_adjustment_kwh_per_day"),
+                ("main_meter_before_kwh", "main_meter_before_kwh"),
+                ("main_meter_after_kwh", "main_meter_after_kwh"),
+                ("main_meter_raw_change_pct", "main_meter_raw_change_pct"),
+                ("main_meter_compensated_change_pct", "main_meter_compensated_change_pct"),
+                ("chiller_runtime_change_pct", "chiller_runtime_change_pct"),
                 # Test Parameters
                 ("test_pk_load_percent", "test_pk_load_percent"),
             ]
@@ -27473,6 +27699,11 @@ def analyze():
                 "equipment_description",
                 "meter_name",
                 "facility",
+                "xeco_off_period_label",
+                "xeco_on_period_label",
+                "before_label",
+                "after_label",
+                "chiller_adjustment_note",
                 # Client Profile fields with cp_ prefix
                 "cp_company",
                 "cp_address",
