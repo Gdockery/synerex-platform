@@ -4205,6 +4205,57 @@ class EnhancedDataProcessor:
                 except Exception as _peak_e:
                     logger.warning(f"Peak demand fallback calculation failed: {_peak_e}")
 
+            # Main-meter energy integration for chiller-compensation disclosure.
+            # These values feed read-only UI/report fields; users should not have
+            # to type main-meter kWh when uploaded interval data is available.
+            if "avgKw" in column_mapping:
+                try:
+                    raw_kw_energy = pd.to_numeric(
+                        df[column_mapping["avgKw"]], errors="coerce"
+                    ).dropna()
+                    if len(raw_kw_energy) > 0:
+                        total_kwh = None
+                        total_hours = None
+                        source = "avgKw"
+                        if "timestamp" in column_mapping:
+                            ts_energy = pd.to_datetime(
+                                df[column_mapping["timestamp"]], errors="coerce"
+                            )
+                            valid = ts_energy.notna() & raw_kw_energy.reindex(df.index).notna()
+                            ts_valid = ts_energy[valid].reset_index(drop=True)
+                            kw_valid = raw_kw_energy.reindex(df.index)[valid].reset_index(drop=True)
+                            if len(ts_valid) >= 2:
+                                deltas = ts_valid.diff().dt.total_seconds().shift(-1) / 3600.0
+                                positive_deltas = deltas[(deltas > 0) & (deltas <= 24)]
+                                interval_hours = (
+                                    float(positive_deltas.median())
+                                    if len(positive_deltas) > 0
+                                    else 1.0 / 60.0
+                                )
+                                deltas = deltas.fillna(interval_hours)
+                                deltas = deltas.where((deltas > 0) & (deltas <= 24), interval_hours)
+                                total_kwh = float((kw_valid * deltas).sum())
+                                total_hours = float(deltas.sum())
+                                source = "avgKw_timestamp_integrated"
+                        if total_kwh is None:
+                            # Conservative fallback for legacy one-minute uploads.
+                            interval_hours = 1.0 / 60.0
+                            total_kwh = float(raw_kw_energy.sum() * interval_hours)
+                            total_hours = float(len(raw_kw_energy) * interval_hours)
+                            source = "avgKw_1min_assumed"
+                        results["energy_summary"] = {
+                            "total_kwh": total_kwh,
+                            "total_hours": total_hours,
+                            "avg_kw": float(total_kwh / total_hours) if total_hours else float(raw_kw_energy.mean()),
+                            "source": source,
+                        }
+                        logger.info(
+                            f"Main-meter energy summary calculated: "
+                            f"{total_kwh:,.1f} kWh over {total_hours:,.2f} hours ({source})"
+                        )
+                except Exception as _energy_e:
+                    logger.warning(f"Main-meter energy integration failed: {_energy_e}")
+
             # ── Per-order harmonic spectrum extraction (upgraded meter) ────────
             # Auto-detect whether the CSV contains individual harmonic columns.
             # Canonical key format: h{n}_pct for odd orders 3–49 and even 2,4,6.
@@ -15010,7 +15061,27 @@ def calculate_manual_chiller_load_compensation(config: dict, base_savings_kw: fl
         )
 
         if raw_change_pct is None and before_kwh and after_kwh:
-            raw_change_pct = ((after_kwh - before_kwh) / before_kwh * 100.0) if before_kwh else None
+            raw_change_pct = ((before_kwh - after_kwh) / before_kwh * 100.0) if before_kwh else None
+        if compensated_change_pct is None and before_kwh and after_kwh:
+            period_hours = _optional_float_config(config, "main_meter_period_hours", "period_hours")
+            if period_hours is None:
+                period_days = _optional_float_config(config, "main_meter_period_days", "period_days")
+                period_hours = period_days * 24.0 if period_days is not None else None
+            adjustment_kwh_period = None
+            if period_hours is not None:
+                adjustment_kwh_period = adjustment_kw * period_hours
+            elif adjustment_kwh_per_day is not None:
+                period_days = _optional_float_config(config, "main_meter_period_days", "period_days")
+                if period_days is not None:
+                    adjustment_kwh_period = adjustment_kwh_per_day * period_days
+            if adjustment_kwh_period is not None:
+                compensated_change_pct = (
+                    (before_kwh - after_kwh + adjustment_kwh_period) / before_kwh * 100.0
+                    if before_kwh
+                    else None
+                )
+        if compensated_change_pct is None and raw_change_pct is not None and abs(raw_savings_kw) > 1e-9:
+            compensated_change_pct = raw_change_pct * (compensated_savings_kw / raw_savings_kw)
 
         xeco_off_label = str((config or {}).get("xeco_off_period_label") or "").strip()
         xeco_on_label = str((config or {}).get("xeco_on_period_label") or "").strip()
@@ -16827,6 +16898,33 @@ def perform_comprehensive_analysis(
     for k, v in required_defaults.items():
         if k not in config:
             config[k] = v
+
+    def _main_meter_energy_summary(data: Dict) -> dict:
+        summary = data.get("energy_summary") if isinstance(data, dict) else None
+        return summary if isinstance(summary, dict) else {}
+
+    before_energy_summary = _main_meter_energy_summary(before_data)
+    after_energy_summary = _main_meter_energy_summary(after_data)
+    computed_before_kwh = _optional_float_config(before_energy_summary, "total_kwh")
+    computed_after_kwh = _optional_float_config(after_energy_summary, "total_kwh")
+    computed_before_hours = _optional_float_config(before_energy_summary, "total_hours")
+    computed_after_hours = _optional_float_config(after_energy_summary, "total_hours")
+    if computed_before_kwh is not None:
+        config["main_meter_before_kwh"] = computed_before_kwh
+        config["main_meter_before_kwh_computed"] = True
+    if computed_after_kwh is not None:
+        config["main_meter_after_kwh"] = computed_after_kwh
+        config["main_meter_after_kwh_computed"] = True
+    if computed_before_hours and computed_after_hours:
+        config["main_meter_period_hours"] = min(computed_before_hours, computed_after_hours)
+    if computed_before_kwh is not None and computed_after_kwh is not None and computed_before_kwh > 0:
+        config["main_meter_raw_change_pct"] = (computed_before_kwh - computed_after_kwh) / computed_before_kwh * 100.0
+        logger.info(
+            f"Computed main-meter kWh fields for chiller compensation: "
+            f"off/before={computed_before_kwh:,.1f} kWh, "
+            f"on/after={computed_after_kwh:,.1f} kWh, "
+            f"raw_change={config['main_meter_raw_change_pct']:.2f}%"
+        )
     
     # Handle utility rates with proper priority
     if "energy_rate" not in config or not config.get("energy_rate"):
@@ -20048,12 +20146,34 @@ def perform_comprehensive_analysis(
                             "dewpoint_sensitivity_used": 0.0,
                         }
                 else:
-                    # R² check failed — fall back to basic temperature normalization
-                    logger.warning("🔬 R² check failed — falling back to basic temperature normalization")
-                    weather_norm = WeatherNormalization(config.get("equipment_type"))
-                    results["weather_normalization"] = weather_norm.normalize_consumption(
-                        config["temp_before"], config["temp_after"], kw_before, kw_after
-                    )
+                    # ASHRAE GL14-2023: if the R² check cannot be computed, do not apply
+                    # fallback weather normalization. The prior basic fallback could create
+                    # unsupported savings when temperature/load correlation was unavailable.
+                    logger.warning("🔬 R² check failed — weather normalization NOT APPLIED; raw savings reported")
+                    _temp_b = float(config.get("temp_before") or 0)
+                    _temp_a = float(config.get("temp_after") or 0)
+                    results["weather_normalization"] = {
+                        "method": "Not applied — R² validation unavailable",
+                        "standards_compliance": (
+                            "ASHRAE GL14-2023 §5.2 requires a valid temperature/load regression. "
+                            "R² could not be computed, so weather normalization was skipped and raw savings were reported."
+                        ),
+                        "normalization_applied": False,
+                        "regression_r2": None,
+                        "raw_kw_before": kw_before,
+                        "raw_kw_after": kw_after,
+                        "normalized_kw_before": kw_before,
+                        "normalized_kw_after": kw_after,
+                        "weather_adjusted_savings": kw_before - kw_after,
+                        "temp_before": _temp_b,
+                        "temp_after": _temp_a,
+                        "temp_sensitivity_used": 0.0,
+                        "dewpoint_sensitivity_used": 0.0,
+                        "reason": (
+                            "Weather normalization was skipped because R² validation could not be computed. "
+                            "Raw meter savings are reported without weather adjustment."
+                        ),
+                    }
 
                 # Ensure temp/dewpoint fields are present
                 if "temp_before" not in results["weather_normalization"]:
@@ -20777,14 +20897,46 @@ def perform_comprehensive_analysis(
     if chiller_load_compensation.get("applied"):
         adjusted_savings_kw = chiller_load_compensation["compensated_savings_kw"]
         results["chiller_load_compensation"] = chiller_load_compensation
-        results.setdefault("power_quality", {})["chiller_compensated_kw_savings"] = adjusted_savings_kw
-        results["power_quality"]["chiller_load_adjustment_kw"] = chiller_load_compensation["adjustment_kw"]
-        results["power_quality"]["chiller_load_adjustment_kwh_per_day"] = chiller_load_compensation["adjustment_kwh_per_day"]
+        power_quality_for_chiller = results.setdefault("power_quality", {})
+        chiller_adjustment_kw = chiller_load_compensation["adjustment_kw"]
+        chiller_total_base_kw = (
+            power_quality_for_chiller.get("total_normalized_savings_kw")
+            or power_quality_for_chiller.get("normalized_kw_savings")
+            or chiller_load_compensation["raw_savings_kw"]
+        )
+        try:
+            chiller_total_base_kw = float(chiller_total_base_kw or 0.0)
+        except (TypeError, ValueError):
+            chiller_total_base_kw = chiller_load_compensation["raw_savings_kw"]
+        chiller_total_kw = chiller_total_base_kw + chiller_adjustment_kw
+        chiller_total_pct = None
+        try:
+            chiller_total_before_kw = float(
+                power_quality_for_chiller.get("normalized_kw_before")
+                or power_quality_for_chiller.get("weather_normalized_kw_before")
+                or 0.0
+            )
+            if chiller_total_before_kw > 0:
+                chiller_total_pct = chiller_total_kw / chiller_total_before_kw * 100.0
+        except (TypeError, ValueError):
+            chiller_total_pct = None
+
+        power_quality_for_chiller["chiller_compensated_kw_savings"] = adjusted_savings_kw
+        power_quality_for_chiller["chiller_compensated_equipment_kw_savings"] = adjusted_savings_kw
+        power_quality_for_chiller["chiller_compensated_total_kw_savings"] = chiller_total_kw
+        if chiller_total_pct is not None:
+            power_quality_for_chiller["chiller_compensated_total_savings_percent"] = chiller_total_pct
+        power_quality_for_chiller["customer_final_kw_savings"] = chiller_total_kw
+        if chiller_total_pct is not None:
+            power_quality_for_chiller["customer_final_savings_percent"] = chiller_total_pct
+        power_quality_for_chiller["chiller_load_adjustment_kw"] = chiller_adjustment_kw
+        power_quality_for_chiller["chiller_load_adjustment_kwh_per_day"] = chiller_load_compensation["adjustment_kwh_per_day"]
         logger.info(
             f"Chiller load compensation applied to main-meter savings: "
             f"raw={chiller_load_compensation['raw_savings_kw']:.2f} kW, "
-            f"adjustment={chiller_load_compensation['adjustment_kw']:.2f} kW, "
-            f"compensated={adjusted_savings_kw:.2f} kW"
+            f"adjustment={chiller_adjustment_kw:.2f} kW, "
+            f"compensated_equipment={adjusted_savings_kw:.2f} kW, "
+            f"compensated_total={chiller_total_kw:.2f} kW"
         )
     
     # Get PF-normalized kW savings (for billing calculations only, not kWh)
@@ -22142,6 +22294,18 @@ def perform_comprehensive_analysis(
         "adjusted_kw_savings": adjusted_savings_kw,  # Now includes PF normalization
         "normalized_kw_savings": results.get("power_quality", {}).get(
             "normalized_kw_savings"
+        ),
+        "customer_final_kw_savings": results.get("power_quality", {}).get(
+            "customer_final_kw_savings", adjusted_savings_kw
+        ),
+        "customer_final_savings_percent": results.get("power_quality", {}).get(
+            "customer_final_savings_percent"
+        ),
+        "chiller_compensated_kw_savings": results.get("power_quality", {}).get(
+            "chiller_compensated_kw_savings", adjusted_savings_kw
+        ),
+        "chiller_compensated_total_kw_savings": results.get("power_quality", {}).get(
+            "chiller_compensated_total_kw_savings"
         ),
         "annual_kwh_savings": annual_kwh_savings,
         "total_annual_cost_savings": results["financial"]["total_annual_savings"],
@@ -27649,10 +27813,6 @@ def analyze():
                 ("chiller_load_adjustment_kw", "chiller_load_adjustment_kw"),
                 ("chiller_adjustment_kwh_per_day", "chiller_adjustment_kwh_per_day"),
                 ("chiller_load_adjustment_kwh_per_day", "chiller_load_adjustment_kwh_per_day"),
-                ("main_meter_before_kwh", "main_meter_before_kwh"),
-                ("main_meter_after_kwh", "main_meter_after_kwh"),
-                ("main_meter_raw_change_pct", "main_meter_raw_change_pct"),
-                ("main_meter_compensated_change_pct", "main_meter_compensated_change_pct"),
                 ("chiller_runtime_change_pct", "chiller_runtime_change_pct"),
                 # Test Parameters
                 ("test_pk_load_percent", "test_pk_load_percent"),

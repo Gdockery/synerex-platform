@@ -318,11 +318,11 @@ function extractPeriodFromFiles() {
 
     let duration = '';
     if (beforeDays > 0 && afterDays > 0) {
-      duration = `${beforeDays} Days (Before) | ${afterDays} Days (After)`;
+      duration = `${beforeDays} Days (XECO Equipment Inactive) | ${afterDays} Days (XECO Equipment Active)`;
     } else if (beforeDays > 0) {
-      duration = `${beforeDays} Days (Before)`;
+      duration = `${beforeDays} Days (XECO Equipment Inactive)`;
     } else if (afterDays > 0) {
-      duration = `${afterDays} Days (After)`;
+      duration = `${afterDays} Days (XECO Equipment Active)`;
     } else {
       duration = 'N/A';
     }
@@ -5617,7 +5617,7 @@ async function viewEquipmentHealthReport(r) {
     // Tab navigation
     const tabContainer = document.createElement('div');
     tabContainer.style.cssText = 'margin-bottom: 20px; border-bottom: 2px solid #ddd;';
-    const tabs = ['Overview', 'Equipment Details', 'Before/After Analysis', 'Financial Impact', 'Standards Compliance', 'Harmonic Analysis'];
+  const tabs = ['Overview', 'Equipment Details', 'XECO Equipment Inactive/Active Analysis', 'Financial Impact', 'Standards Compliance', 'Harmonic Analysis'];
     const tabButtons = tabs.map((tab, idx) => {
       const tabBtn = document.createElement('button');
       tabBtn.textContent = tab;
@@ -5885,8 +5885,8 @@ async function viewEquipmentHealthReport(r) {
       div.style.display = 'none';
       
       let html = `
-        <h3 style="color: #1a237e; border-bottom: 2px solid #1a237e; padding-bottom: 10px; margin-bottom: 20px;">Before/After Power Quality Comparison</h3>
-        <p style="color: #666; margin-bottom: 20px;">This section compares power quality metrics before and after improvements to assess equipment health impact.</p>
+        <h3 style="color: #1a237e; border-bottom: 2px solid #1a237e; padding-bottom: 10px; margin-bottom: 20px;">XECO Equipment Inactive/Active Power Quality Comparison</h3>
+        <p style="color: #666; margin-bottom: 20px;">This section compares power quality metrics between XECO equipment inactive and active operating states to assess equipment health impact.</p>
       `;
 
       let hasData = false;
@@ -5906,12 +5906,12 @@ async function viewEquipmentHealthReport(r) {
             <p style="color: #555; font-size: 13px; margin: 0 0 10px 0;">What equipment actually sees at its terminals. High THD accelerates motor/transformer heating, VFD/UPS component aging, and capacitor failures &mdash; regardless of utility billing. This is the number to watch when chasing <em>equipment reliability</em>.</p>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Before</div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">XECO Equipment Inactive</div>
                 <div style="font-size: 24px; font-weight: bold; color: ${thdBefore > 5.0 ? '#dc3545' : '#28a745'};">${thdBefore.toFixed(2)}%</div>
                 <div style="font-size: 11px; color: #666; margin-top: 3px;">${thdBefore > 5.0 ? 'Elevated &mdash; equipment stress' : 'Healthy for equipment'}</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">After</div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">XECO Equipment Active</div>
                 <div style="font-size: 24px; font-weight: bold; color: ${thdAfter > 5.0 ? '#dc3545' : '#28a745'};">${thdAfter.toFixed(2)}%</div>
                 <div style="font-size: 11px; color: #666; margin-top: 3px;">${thdAfter > 5.0 ? 'Elevated &mdash; equipment stress' : 'Healthy for equipment'}</div>
               </div>
@@ -5941,12 +5941,12 @@ async function viewEquipmentHealthReport(r) {
               <p style="color: #555; font-size: 13px; margin: 0 0 10px 0;">What the utility meters at the Point of Common Coupling (PCC). IEEE 519-2014/2022 Table 2 limits are defined against TDD, not THD, because TDD is referenced to the maximum demand load current (I<sub>L</sub>) rather than the instantaneous fundamental. This is the number to watch when chasing <em>utility penalties or interconnection approval</em>.</p>
               <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">
                 <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
-                  <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Before</div>
+                  <div style="font-size: 12px; color: #666; margin-bottom: 5px;">XECO Equipment Inactive</div>
                   <div style="font-size: 24px; font-weight: bold; color: ${tddBeforeLocal > tddLimitLocal ? '#dc3545' : '#28a745'};">${tddBeforeLocal.toFixed(2)}%</div>
                   <div style="font-size: 11px; color: #666; margin-top: 3px;">${tddBeforeLocal > tddLimitLocal ? 'Exceeds IEEE 519 limit' : 'Within IEEE 519 limit'}</div>
                 </div>
                 <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
-                  <div style="font-size: 12px; color: #666; margin-bottom: 5px;">After</div>
+                  <div style="font-size: 12px; color: #666; margin-bottom: 5px;">XECO Equipment Active</div>
                   <div style="font-size: 24px; font-weight: bold; color: ${tddAfterLocal > tddLimitLocal ? '#dc3545' : '#28a745'};">${tddAfterLocal.toFixed(2)}%</div>
                   <div style="font-size: 11px; color: #666; margin-top: 3px;">${tddAfterLocal > tddLimitLocal ? 'Exceeds IEEE 519 limit' : 'Within IEEE 519 limit'}</div>
                 </div>
@@ -5978,11 +5978,11 @@ async function viewEquipmentHealthReport(r) {
             <h4 style="color: #1a237e; margin-top: 0;">Power Factor</h4>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Before</div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">XECO Equipment Inactive</div>
                 <div style="font-size: 24px; font-weight: bold; color: ${pfBefore < 0.90 ? '#dc3545' : '#28a745'};">${pfBefore.toFixed(3)}</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">After</div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">XECO Equipment Active</div>
                 <div style="font-size: 24px; font-weight: bold; color: ${pfAfter < 0.90 ? '#dc3545' : '#28a745'};">${pfAfter.toFixed(3)}</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
@@ -6005,11 +6005,11 @@ async function viewEquipmentHealthReport(r) {
             <h4 style="color: #1a237e; margin-top: 0;">Voltage Unbalance</h4>
             <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-top: 10px;">
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">Before</div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">XECO Equipment Inactive</div>
                 <div style="font-size: 24px; font-weight: bold; color: ${voltageUnbalanceBefore > 1.0 ? '#dc3545' : '#28a745'};">${voltageUnbalanceBefore.toFixed(2)}%</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
-                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">After</div>
+                <div style="font-size: 12px; color: #666; margin-bottom: 5px;">XECO Equipment Active</div>
                 <div style="font-size: 24px; font-weight: bold; color: ${voltageUnbalanceAfter > 1.0 ? '#dc3545' : '#28a745'};">${voltageUnbalanceAfter.toFixed(2)}%</div>
               </div>
               <div style="padding: 15px; background: white; border-radius: 4px; text-align: center;">
@@ -6310,8 +6310,8 @@ async function viewEquipmentHealthReport(r) {
                 <tr style="background: #1a237e; color: white;">
                   <th style="padding: 12px; text-align: left; border: 1px solid #ddd;">Standard</th>
                   <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Metric</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Before</th>
-                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">After</th>
+                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">XECO Equipment Inactive</th>
+                  <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">XECO Equipment Active</th>
                   <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Limit</th>
                   <th style="padding: 12px; text-align: center; border: 1px solid #ddd;">Status</th>
                 </tr>
@@ -6436,7 +6436,7 @@ async function viewEquipmentHealthReport(r) {
                     </td>
                     <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">
                       Min. period days<br/>
-                      <span style="font-size: 11px;">Before: ${beforePeriodDays ?? 'N/A'} d / After: ${afterPeriodDays ?? 'N/A'} d</span>
+                      <span style="font-size: 11px;">XECO Equipment Inactive: ${beforePeriodDays ?? 'N/A'} d / XECO Equipment Active: ${afterPeriodDays ?? 'N/A'} d</span>
                     </td>
                     <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">${minPeriodDays ?? 'N/A'} days</td>
                     <td style="padding: 10px; text-align: center; border: 1px solid #ddd;">≥ 7 days<br/><span style="font-size:11px;">30+ preferred</span></td>
@@ -8075,16 +8075,16 @@ function displayResults(r) {
   );
 
   // Build the label strings for display
-  const beforeLabelDisplay = beforeLabel ? `Baseline Period ${beforeLabel}` : "Baseline Period";
-  const afterLabelDisplay = afterLabel ? `Reporting Period ${afterLabel}` : "Reporting Period";
+  const beforeLabelDisplay = beforeLabel ? `XECO Equipment Inactive ${beforeLabel}` : "XECO Equipment Inactive";
+  const afterLabelDisplay = afterLabel ? `XECO Equipment Active ${afterLabel}` : "XECO Equipment Active";
 
   html += `<h3>Performance</h3>`;
   html +=
     `<div class="compliance-note" style="background: #f8f9fa; padding: 12px; border-radius: 6px; margin: 8px 1; font-size: 14px; color: #1;">`;
   html +=
     `<strong>Network Improvement Standards:</strong> These tests measure the effectiveness of power quality improvements. `;
-  html += `<strong>${beforeLabelDisplay}</strong> shows baseline compliance (typically non-compliant), `;
-  html += `<strong>${afterLabelDisplay}</strong> shows post-retrofit compliance (should show improvement). `;
+  html += `<strong>${beforeLabelDisplay}</strong> shows the XECO-off operating state, `;
+  html += `<strong>${afterLabelDisplay}</strong> shows the XECO-on operating state. `;
   html +=
     `<strong>IEEE 519-2014/2022</strong> measures harmonic distortion reduction, <strong>NEMA MG1-2024</strong> validates voltage unbalance, `;
   html +=
@@ -8105,7 +8105,7 @@ function displayResults(r) {
   html += `</div>`;
   html += `<table class="compliance-table">`;
   html +=
-    `<tr><th>Standard</th><th>Requirement</th><th>${beforeLabelDisplay}</th><th>${afterLabelDisplay}</th><th>Before Value</th><th>After Value</th></tr>`;
+    `<tr><th>Standard</th><th>Requirement</th><th>${beforeLabelDisplay}</th><th>${afterLabelDisplay}</th><th>XECO Equipment Inactive Value</th><th>XECO Equipment Active Value</th></tr>`;
 
   // Use compliance data from backend if available, otherwise use hardcoded standards
   let beforeComp = r.before_compliance || {};
@@ -8732,7 +8732,7 @@ function displayResults(r) {
     html +=
       `<strong>Coincident Peak Analysis:</strong> These metrics show the capacity reduction achieved during peak demand periods. `;
     html +=
-      `<strong>Before/After kW</strong> shows the average coincident peak power consumption, <strong>ΔCP kW</strong> shows the reduction achieved, `;
+      `<strong>XECO Equipment Inactive/Active kW</strong> shows the average coincident peak power consumption, <strong>ΔCP kW</strong> shows the reduction achieved, `;
     html +=
       `and <strong>Capacity Rate</strong> shows the utility's demand charge rate used for financial calculations.`;
     html += `</div>`;
@@ -9221,7 +9221,7 @@ function displayResults(r) {
         const improvementValue = fmt(Math.abs(phase_imbalance_improvement), 1);
         if (phase_imbalance_improvement > 0) {
           powerQuality.ieee_voltage_unbalance_improvement_pct =
-            `${improvementValue}% voltage unbalance reduction (improved phase balance)`;
+            `${improvementValue}% voltage unbalance reduction`;
         } else {
           powerQuality.ieee_voltage_unbalance_improvement_pct =
             `${improvementValue}% voltage unbalance increase (worsened phase balance)`;
@@ -9464,7 +9464,7 @@ function displayResults(r) {
     html +=
       `<strong>kW (Weather Normalized)</strong> shows ASHRAE weather-adjusted power savings, <strong>Volts (L-N)</strong> shows IEC 61000-2-2 voltage quality, `;
     html +=
-      `<strong>THD</strong> shows IEEE 519 harmonic distortion reduction, and <strong>Voltage Unbalance</strong> shows IEEE 519 three-phase voltage balance improvement. `;
+      `<strong>THD</strong> shows IEEE 519 harmonic distortion reduction, and <strong>Voltage Unbalance</strong> shows NEMA MG1 three-phase voltage balance status. `;
     html +=
       (function(){
         var wn = r && r.weather_normalization ? r.weather_normalization : {};
@@ -9923,7 +9923,7 @@ function displayResults(r) {
         // ─────────────────────────────────────────────────────────────────────
 
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
-        html += `<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
+        html += `<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">XECO Equipment Inactive</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">XECO Equipment Active</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
         
         // Base temperature - MUST come from baseline 'before' data
         // Always show 18.3°C (65°F) per ASHRAE Guideline 14 standard
@@ -10356,7 +10356,7 @@ function displayResults(r) {
         }
         
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
-        html += `<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Before</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">After</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
+        html += `<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">XECO Equipment Inactive</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">XECO Equipment Active</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
         const pfBeforeVal = pfBefore != null && !isNaN(pfBefore) ? Number(pfBefore).toFixed(3) : 'N/A';
         const pfAfterVal = pfAfter != null && !isNaN(pfAfter) ? Number(pfAfter).toFixed(3) : 'N/A';
         html += '<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Actual Power Factor</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">' + pfBeforeVal + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">' + pfAfterVal + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Measured values</td></tr>';
@@ -14643,11 +14643,11 @@ function updateTestDurationFromFileIds() {
 
   let duration = '';
   if (beforeDays > 0 && afterDays > 0) {
-    duration = `${beforeDays} Days (Before) | ${afterDays} Days (After)`;
+    duration = `${beforeDays} Days (XECO Equipment Inactive) | ${afterDays} Days (XECO Equipment Active)`;
   } else if (beforeDays > 0) {
-    duration = `${beforeDays} Days (Before)`;
+    duration = `${beforeDays} Days (XECO Equipment Inactive)`;
   } else if (afterDays > 0) {
-    duration = `${afterDays} Days (After)`;
+    duration = `${afterDays} Days (XECO Equipment Active)`;
   } else {
     duration = 'N/A';
   }
@@ -16531,4 +16531,38 @@ document.addEventListener('DOMContentLoaded', function() {
 
   // Run immediately — sessionStorage is readable before DOMContentLoaded
   autoLoadProject();
+})();
+
+(function lockCalculatedMainMeterChillerFields() {
+  var calculatedFields = [
+    'main_meter_before_kwh',
+    'main_meter_after_kwh',
+    'main_meter_raw_change_pct',
+    'main_meter_compensated_change_pct'
+  ];
+
+  function lockFields() {
+    calculatedFields.forEach(function(name) {
+      var el = document.getElementById(name) || document.querySelector('[name="' + name + '"]');
+      if (!el) return;
+      el.value = '';
+      el.readOnly = true;
+      el.setAttribute('readonly', 'readonly');
+      el.classList.add('calculated-field');
+      el.placeholder = 'Calculated when report runs';
+      el.title = 'Computed from uploaded main-meter before/after data during engineering analysis.';
+    });
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', function() {
+      lockFields();
+      setTimeout(lockFields, 300);
+      setTimeout(lockFields, 1000);
+    });
+  } else {
+    lockFields();
+    setTimeout(lockFields, 300);
+    setTimeout(lockFields, 1000);
+  }
 })();
