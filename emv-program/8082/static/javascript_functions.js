@@ -16541,33 +16541,6 @@ document.addEventListener('DOMContentLoaded', function() {
     'main_meter_compensated_change_pct'
   ];
 
-  function findFieldContainer(el) {
-    var selectors = [
-      '.form-group',
-      '.field-group',
-      '.form-field',
-      '.input-group',
-      '.form-col',
-      '.grid-item',
-      '.col',
-      '.mb-3'
-    ];
-    for (var i = 0; i < selectors.length; i++) {
-      if (el.closest) {
-        var match = el.closest(selectors[i]);
-        if (match) return match;
-      }
-    }
-    var parent = el.parentElement;
-    while (parent && parent !== document.body) {
-      if (parent.querySelector && parent.querySelector('label') && parent.querySelector('input, textarea, select')) {
-        return parent;
-      }
-      parent = parent.parentElement;
-    }
-    return el.parentElement || el;
-  }
-
   function hideFields() {
     calculatedFields.forEach(function(name) {
       var el = document.getElementById(name) || document.querySelector('[name="' + name + '"]');
@@ -16578,12 +16551,16 @@ document.addEventListener('DOMContentLoaded', function() {
       el.disabled = true;
       el.classList.add('calculated-field');
       el.setAttribute('data-calculated-hidden', 'true');
+      el.style.display = 'none';
       var label = document.querySelector('label[for="' + name + '"]');
       if (label) label.style.display = 'none';
-      var container = findFieldContainer(el);
-      if (container) {
-        container.style.display = 'none';
-        container.setAttribute('data-calculated-hidden-field', name);
+      var parent = el.parentElement;
+      if (parent) {
+        var helperNodes = parent.querySelectorAll('small, .help-text, .form-text, .field-help, em');
+        for (var i = 0; i < helperNodes.length; i++) {
+          helperNodes[i].style.display = 'none';
+        }
+        parent.setAttribute('data-calculated-field-parent', name);
       }
     });
   }
