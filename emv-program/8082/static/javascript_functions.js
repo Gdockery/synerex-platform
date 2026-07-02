@@ -10313,16 +10313,47 @@ function displayResults(r) {
       }
       html += `</div>`;
       
-      // STEP 3: Power Factor Normalization
+      const chillerComp = r.chiller_load_compensation || {};
+      const chillerCompApplied = !!chillerComp.applied;
+      if (chillerCompApplied) {
+        const rawSavingsKw = Number(chillerComp.raw_savings_kw || weatherSavingsKw || 0);
+        const chillerAdjustmentKw = Number(chillerComp.adjustment_kw || 0);
+        const chillerAdjustmentKwhDay = Number(chillerComp.adjustment_kwh_per_day || (chillerAdjustmentKw * 24));
+        const chillerCompensatedKw = Number(chillerComp.compensated_savings_kw || (rawSavingsKw + chillerAdjustmentKw));
+        const weatherBeforeForChiller = powerQualityNormalized.weather_normalized_kw_before
+          || (r.weather_normalization || {}).normalized_kw_before
+          || powerQualityNormalized.normalized_kw_before;
+        const chillerPct = weatherBeforeForChiller && !isNaN(weatherBeforeForChiller) && Number(weatherBeforeForChiller) > 0
+          ? (chillerCompensatedKw / Number(weatherBeforeForChiller)) * 100
+          : null;
+        const chillerColor = chillerCompensatedKw >= 0 ? 'green' : 'red';
+        html += `<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #f59e0b;">`;
+        html += `<h4 style="margin-top: 0; color: #92400e; font-size: 1.05em;">Step 3: Chiller Load Compensation</h4>`;
+        html += `<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes the weather-screened main-meter savings for different chiller operation before calculating the final billing impact.</p>`;
+        html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
+        html += `<tr style="background: #fffbeb;"><th style="padding: 10px; text-align: left; border: 1px solid #fcd34d;">Metric</th><th style="padding: 10px; text-align: center; border: 1px solid #fcd34d;">Value</th><th style="padding: 10px; text-align: center; border: 1px solid #fcd34d;">Calculation</th></tr>`;
+        html += `<tr><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Weather-Screened Equipment Savings</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d;">${rawSavingsKw.toFixed(2)} kW</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">From Step 2</td></tr>`;
+        html += `<tr><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Chiller Compensation</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d;">${chillerAdjustmentKw.toFixed(2)} kW</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">${chillerAdjustmentKwhDay.toFixed(1)} kWh/day ÷ 24</td></tr>`;
+        html += `<tr style="background: #fef3c7;"><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Chiller-Compensated Equipment Savings</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; font-weight: bold; color: ${chillerColor};">${chillerCompensatedKw.toFixed(2)} kW</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">${rawSavingsKw.toFixed(2)} + ${chillerAdjustmentKw.toFixed(2)}</td></tr>`;
+        if (chillerPct !== null) {
+          html += `<tr style="background: #fde68a;"><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Chiller-Compensated Equipment Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; font-weight: bold; color: ${chillerColor};">${chillerPct.toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">${chillerCompensatedKw.toFixed(2)} ÷ ${Number(weatherBeforeForChiller).toFixed(2)} × 100</td></tr>`;
+        }
+        html += `</table>`;
+        html += `</div>`;
+      }
+
+      // STEP 4: Power Factor / Billing Impact
+      const billingStepNumber = chillerCompApplied ? 4 : 3;
+      const finalStepNumber = chillerCompApplied ? 5 : 4;
       html += `<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #ff9800;">`;
-      html += `<h4 style="margin-top: 0; color: #f57c00; font-size: 1.05em;">Step 3: Power Factor Normalization (Utility Billing Standard)</h4>`;
+      html += `<h4 style="margin-top: 0; color: #f57c00; font-size: 1.05em;">Step ${billingStepNumber}: Power Factor / Billing Impact (Utility Billing Standard)</h4>`;
       // Get targetPF for display in description (use the same value from earlier in the function)
       const targetPFForDescription = r.config?.target_pf || 
                                        r.config?.target_power_factor || 
                                        powerQualityNormalized?.target_pf || 
                                        0.95; // Default to 0.95 if not specified
       const targetPFDescStr = (targetPFForDescription * 100).toFixed(0);
-      html += '<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to target power factor (' + targetPFDescStr + '%) for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Target PF / Actual PF), where Target PF = ' + targetPFDescStr + '% (user-specified from UI form, defaults to 95% per IEEE 519 and utility billing practices)</p>';
+      html += '<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Applies the utility billing power-factor adjustment after the raw/weather' + (chillerCompApplied ? '/chiller' : '') + ' engineering savings are established. <strong>Formula:</strong> Billing impact kW = normalized reporting kW × (Target PF / Actual PF), where Target PF = ' + targetPFDescStr + '% (user-specified from UI form, defaults to 95% per IEEE 519 and utility billing practices)</p>';
       
       if (hasFullyNormalized && pfBefore && pfAfter) {
         // CRITICAL: Use the normalized values calculated by the IEEE 519 section to ensure consistency
@@ -10434,9 +10465,9 @@ function displayResults(r) {
       }
       html += `</div>`;
       
-      // STEP 4: Final Result
+      // FINAL RESULT
       html += `<div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 6px; border-left: 4px solid #4caf50; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">`;
-      html += `<h4 style="margin-top: 0; color: #2e7d32; font-size: 1.05em;">Step 4: Final Normalized Savings Result</h4>`;
+      html += `<h4 style="margin-top: 0; color: #2e7d32; font-size: 1.05em;">Step ${finalStepNumber}: Final Normalized Savings Result</h4>`;
       
       if (hasFullyNormalized) {
         // CRITICAL: Use the normalized values calculated by the IEEE 519 section to ensure consistency
