@@ -816,6 +816,28 @@ def generate_verification_certificate_html(r):
             client_profile.get('test_period_after') if isinstance(client_profile, dict) else None,
             weather_data.get('after_period') if isinstance(weather_data, dict) else None
         )
+
+        def _period_start_date(period_text):
+            try:
+                match = re.search(r'\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}', str(period_text or ""))
+                if not match:
+                    return None
+                raw = match.group(0)
+                if "-" in raw:
+                    return datetime.strptime(raw, "%Y-%m-%d")
+                fmt = "%m/%d/%y" if len(raw.rsplit("/", 1)[-1]) == 2 else "%m/%d/%Y"
+                return datetime.strptime(raw, fmt)
+            except Exception:
+                return None
+
+        before_start = _period_start_date(before_period)
+        after_start = _period_start_date(after_period)
+        periods_are_chronologically_inverted = bool(before_start and after_start and before_start > after_start)
+        period_basis_note = (
+            "<br/><em>Note: Periods are labeled by equipment operating state, not calendar before/after sequence. "
+            "Equipment Inactive corresponds to the uploaded before-side/XECO-off dataset; "
+            "Equipment Active corresponds to the uploaded after-side/XECO-on dataset.</em>"
+        )
         
         # Extract analysis session ID
         session_id_raw = r.get('analysis_session_id')
@@ -898,7 +920,9 @@ def generate_verification_certificate_html(r):
         
         # Check multiple locations for relative precision
         relative_precision = None
-        if isinstance(after_compliance, dict):
+        if isinstance(statistical, dict):
+            relative_precision = get_value_or_none(statistical, 'relative_precision')
+        if relative_precision is None and isinstance(after_compliance, dict):
             relative_precision = get_value_or_none(after_compliance, 'ashrae_precision_value')
         if relative_precision is None and isinstance(after_compliance, dict):
             ashrae_guideline = after_compliance.get('ashrae_guideline_14', {})
@@ -933,6 +957,36 @@ def generate_verification_certificate_html(r):
         else:
             # Fallback to THD <= 5.0% if TDD not available
             ieee_519_compliant = thd_after > 0 and thd_after <= 5.0
+
+        def _extract_nema_unbalance(compliance_data, period):
+            candidates = []
+            if isinstance(compliance_data, dict):
+                candidates.extend([
+                    compliance_data.get("nema_imbalance_value"),
+                    compliance_data.get("voltage_unbalance"),
+                ])
+                nested = compliance_data.get("nema_mg1", {})
+                if isinstance(nested, dict):
+                    candidates.append(nested.get("voltage_unbalance"))
+            if isinstance(power_quality, dict):
+                candidates.append(power_quality.get(f"voltage_unbalance_{period}"))
+            for candidate in candidates:
+                try:
+                    if candidate is None or candidate == "" or candidate == "N/A":
+                        continue
+                    return float(str(candidate).replace("%", "").strip())
+                except (TypeError, ValueError):
+                    continue
+            return None
+
+        nema_before_unbalance = _extract_nema_unbalance(before_compliance, "before")
+        nema_after_unbalance = _extract_nema_unbalance(after_compliance, "after")
+        nema_mg1_compliant = (
+            nema_before_unbalance is not None
+            and nema_after_unbalance is not None
+            and nema_before_unbalance <= 1.0
+            and nema_after_unbalance <= 1.0
+        )
         
         # If flag exists and matches recalculated value, use flag; otherwise use recalculated
         # This provides fallback if flags are present but also works if they're missing
@@ -1022,7 +1076,8 @@ def generate_verification_certificate_html(r):
         html.append(f'<tr><td style="padding: 8px; width: 30%; font-weight: bold;">Project Name:</td><td style="padding: 8px;">{project_name}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Client:</td><td style="padding: 8px;">{company}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Facility Address:</td><td style="padding: 8px;">{facility}</td></tr>')
-        html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Period:</td><td style="padding: 8px;">Baseline Period: {before_period}<br/>Reporting Period: {after_period}</td></tr>')
+        period_line = f'Equipment Inactive Period: {before_period}<br/>Equipment Active Period: {after_period}{period_basis_note}'
+        html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Period:</td><td style="padding: 8px;">{period_line}</td></tr>')
         html.append(f'<tr><td style="padding: 8px; font-weight: bold;">Analysis Session ID:</td><td style="padding: 8px; font-family: monospace; font-size: 0.9em;">{analysis_session_id}</td></tr>')
         html.append('</table>')
         
@@ -1031,7 +1086,7 @@ def generate_verification_certificate_html(r):
         html.append('<div style="margin: 15px 0;">')
         html.append('<p style="color: #28a745; font-weight: bold;">[OK] Original Data Files Verified</p>')
         html.append('<div style="margin-left: 20px; margin-top: 10px;">')
-        html.append('<p><strong>Baseline Period File:</strong></p>')
+        html.append('<p><strong>Equipment Inactive Period File:</strong></p>')
         html.append('<ul style="margin: 5px 0;">')
         html.append(f'<li>Filename: {before_filename}</li>')
         html.append(f'<li>SHA-256 Fingerprint: <code style="font-size: 0.85em; word-break: break-all;">{before_fingerprint}</code></li>')
@@ -1039,7 +1094,7 @@ def generate_verification_certificate_html(r):
         html.append(f'<li>Upload Date: {format_date(before_upload_date)}</li>')
         html.append('<li>Integrity Status: <span style="color: #28a745; font-weight: bold;">VERIFIED (No tampering detected)</span></li>')
         html.append('</ul>')
-        html.append('<p><strong>Reporting Period File:</strong></p>')
+        html.append('<p><strong>Equipment Active Period File:</strong></p>')
         html.append('<ul style="margin: 5px 0;">')
         html.append(f'<li>Filename: {after_filename}</li>')
         html.append(f'<li>SHA-256 Fingerprint: <code style="font-size: 0.85em; word-break: break-all;">{after_fingerprint}</code></li>')
@@ -1073,7 +1128,10 @@ def generate_verification_certificate_html(r):
         html.append('<h3 style="color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; margin-top: 30px;">Calculation Verification</h3>')
         html.append('<div style="margin: 15px 0;">')
         html.append('<p style="color: #28a745; font-weight: bold;">[OK] All calculations verified against source data</p>')
-        html.append('<p style="color: #28a745; font-weight: bold;">[OK] Standards compliance verified:</p>')
+        standards_all_compliant = ieee_519_compliant and ashrae_compliant and nema_mg1_compliant and ipmvp_compliant
+        standards_header_color = '#28a745' if standards_all_compliant else '#dc3545'
+        standards_header_symbol = '[OK]' if standards_all_compliant else '[REVIEW]'
+        html.append(f'<p style="color: {standards_header_color}; font-weight: bold;">{standards_header_symbol} Standards compliance checked:</p>')
         html.append('<ul style="margin: 5px 0;">')
         ieee_status = 'COMPLIANT' if ieee_519_compliant else 'NON-COMPLIANT'
         ieee_color = '#28a745' if ieee_519_compliant else '#dc3545'
@@ -1083,7 +1141,13 @@ def generate_verification_certificate_html(r):
         ashrae_color = '#28a745' if ashrae_compliant else '#dc3545'
         ashrae_status_symbol = '[OK]' if ashrae_compliant else '[FAIL]'
         html.append(f'<li>ASHRAE Guideline 14-2014: <span style="color: {ashrae_color}; font-weight: bold;">{ashrae_status}</span> <span style="color: {ashrae_color}; font-weight: bold;">{ashrae_status_symbol}</span></li>')
-        html.append('<li>NEMA MG1: <span style="color: #28a745; font-weight: bold;">COMPLIANT</span> <span style="color: #28a745; font-weight: bold;">[OK]</span></li>')
+        nema_status = 'COMPLIANT' if nema_mg1_compliant else 'NON-COMPLIANT'
+        nema_color = '#28a745' if nema_mg1_compliant else '#dc3545'
+        nema_status_symbol = '[OK]' if nema_mg1_compliant else '[FAIL]'
+        nema_detail = ""
+        if nema_before_unbalance is not None and nema_after_unbalance is not None:
+            nema_detail = f" (Equipment Inactive {nema_before_unbalance:.2f}%, Equipment Active {nema_after_unbalance:.2f}%, limit <=1.0%; voltage unbalance unaddressed)"
+        html.append(f'<li>NEMA MG1: <span style="color: {nema_color}; font-weight: bold;">{nema_status}</span> <span style="color: {nema_color}; font-weight: bold;">{nema_status_symbol}</span>{nema_detail}</li>')
         ipmvp_status = 'COMPLIANT' if ipmvp_compliant else 'NON-COMPLIANT'
         ipmvp_color = '#28a745' if ipmvp_compliant else '#dc3545'
         ipmvp_status_symbol = '[OK]' if ipmvp_compliant else '[FAIL]'
@@ -1138,7 +1202,10 @@ def generate_verification_certificate_html(r):
         html.append('<ul style="margin: 10px 0 0 20px; color: #2c3e50;">')
         html.append('<li style="color: #28a745; font-weight: bold;">[OK] Data integrity and authenticity</li>')
         html.append('<li style="color: #28a745; font-weight: bold;">[OK] Calculation accuracy and methodology</li>')
-        html.append('<li style="color: #28a745; font-weight: bold;">[OK] Standards compliance (IEEE 519, ASHRAE, NEMA MG1, IPMVP, ANSI C12)</li>')
+        summary_standards_color = '#28a745' if standards_all_compliant else '#dc3545'
+        summary_standards_symbol = '[OK]' if standards_all_compliant else '[REVIEW]'
+        summary_standards_text = 'Standards compliance verified' if standards_all_compliant else 'Standards compliance exceptions require review'
+        html.append(f'<li style="color: {summary_standards_color}; font-weight: bold;">{summary_standards_symbol} {summary_standards_text} (IEEE 519, ASHRAE, NEMA MG1, IPMVP, ANSI C12)</li>')
         html.append('<li style="color: #28a745; font-weight: bold;">[OK] Statistical validity and significance</li>')
         html.append('<li style="color: #28a745; font-weight: bold;">[OK] Professional engineering oversight</li>')
         html.append('<li style="color: #28a745; font-weight: bold;">[OK] Complete audit trail documentation</li>')
@@ -1209,6 +1276,15 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                 return float(value)
             except (ValueError, TypeError):
                 return default
+
+        def to_optional_float(value):
+            """Safely convert optional display values while preserving missing state."""
+            if value is None or str(value).strip() == "":
+                return None
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return None
         
         kw_before = to_float(kw_before, 0.0)
         kw_after = to_float(kw_after, 0.0)
@@ -1226,6 +1302,9 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         has_fully = (normalized_kw_before is not None and 
                     normalized_kw_after is not None and 
                     normalized_kw_before >= 0 and normalized_kw_after >= 0)
+        _weather_applied_flag = safe_get(weather_norm, "normalization_applied", default=False)
+        weather_normalization_applied = str(_weather_applied_flag).strip().lower() not in ("", "0", "false", "no", "none")
+        weather_regression_r2 = safe_get(weather_norm, "regression_r2")
         
         # Always generate breakdown if we have power_quality data (normalization should always be calculated)
         # Check if power_quality exists in the data structure
@@ -1266,15 +1345,73 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         
         # Calculate values
         raw_savings_kw = kw_before - kw_after if has_raw else 0
-        raw_savings_percent = (raw_savings_kw / kw_before * 100) if has_raw and kw_before > 0 else 0
+        raw_savings_denominator_kw = max(abs(kw_before), abs(kw_after)) if has_raw else 0
+        raw_savings_percent = (
+            raw_savings_kw / raw_savings_denominator_kw * 100
+            if raw_savings_denominator_kw > 0
+            else 0
+        )
+        main_meter_energy_comparison = safe_get(r, "main_meter_energy_comparison", default={})
+        main_meter_before_kwh = to_optional_float(safe_get(main_meter_energy_comparison, "before_kwh"))
+        main_meter_after_kwh = to_optional_float(safe_get(main_meter_energy_comparison, "after_kwh"))
+        main_meter_delta_kwh = to_optional_float(safe_get(main_meter_energy_comparison, "delta_kwh"))
+        main_meter_denominator_kwh = to_optional_float(safe_get(main_meter_energy_comparison, "denominator_kwh"))
+        main_meter_raw_change_pct = to_optional_float(safe_get(main_meter_energy_comparison, "raw_change_pct"))
+        if main_meter_denominator_kwh is None and main_meter_before_kwh is not None and main_meter_after_kwh is not None:
+            main_meter_denominator_kwh = max(abs(main_meter_before_kwh), abs(main_meter_after_kwh))
+        has_main_meter_energy_comparison = (
+            main_meter_before_kwh is not None
+            and main_meter_after_kwh is not None
+            and main_meter_denominator_kwh is not None
+            and main_meter_raw_change_pct is not None
+        )
+        raw_savings_percent_display = (
+            main_meter_raw_change_pct
+            if has_main_meter_energy_comparison
+            else raw_savings_percent
+        )
         
+        def step_delta_percent(delta, before_value, after_value):
+            denominator = max(abs(float(before_value or 0)), abs(float(after_value or 0)))
+            return (delta / denominator * 100) if denominator > 0 else 0
+
         weather_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after if has_weather else 0
-        weather_savings_percent = (weather_savings_kw / weather_normalized_kw_before * 100) if has_weather and weather_normalized_kw_before > 0 else 0
+        weather_savings_percent = step_delta_percent(
+            weather_savings_kw,
+            weather_normalized_kw_before,
+            weather_normalized_kw_after,
+        ) if has_weather else 0
         
         # Total normalized savings: both before and after values must be at the same normalization level (PF+weather)
         # normalized_kw_before = PF+weather normalized before; normalized_kw_after = PF+weather normalized after
         total_savings_kw = normalized_kw_before - normalized_kw_after
-        total_normalized_percent = (total_savings_kw / normalized_kw_before * 100) if normalized_kw_before > 0 else 0
+        total_normalized_percent = step_delta_percent(total_savings_kw, normalized_kw_before, normalized_kw_after)
+        chiller_comp = safe_get(r, "chiller_load_compensation", default={})
+        chiller_comp_applied = isinstance(chiller_comp, dict) and chiller_comp.get("applied")
+        chiller_adjustment_kw = to_float(safe_get(chiller_comp, "adjustment_kw", default=0), 0.0) if chiller_comp_applied else 0.0
+        chiller_adjustment_kwh_day = to_float(safe_get(chiller_comp, "adjustment_kwh_per_day", default=0), 0.0) if chiller_comp_applied else 0.0
+        chiller_compensated_equipment_kw = to_optional_float(safe_get(chiller_comp, "compensated_savings_kw")) if chiller_comp_applied else None
+        customer_final_label = "Total Utility Billing Impact"
+        pf_step_number = 4 if chiller_comp_applied else 3
+        equipment_display_kw = (
+            chiller_compensated_equipment_kw
+            if chiller_comp_applied and chiller_compensated_equipment_kw is not None
+            else weather_savings_kw
+        )
+        billing_reporting_kw_after = normalized_kw_after
+        equipment_reporting_kw_after = weather_normalized_kw_after
+        if chiller_comp_applied and weather_normalized_kw_before > 0:
+            chiller_compensated_reporting_kw = weather_normalized_kw_before - equipment_display_kw
+            equipment_reporting_kw_after = chiller_compensated_reporting_kw
+            billing_reporting_kw_after = chiller_compensated_reporting_kw * (target_pf / pf_after if pf_after > 0 else 1.0)
+        equipment_display_percent = step_delta_percent(
+            equipment_display_kw,
+            weather_normalized_kw_before,
+            equipment_reporting_kw_after,
+        )
+        customer_final_kw = normalized_kw_before - billing_reporting_kw_after
+        customer_denominator_kw = max(abs(normalized_kw_before), abs(billing_reporting_kw_after))
+        customer_final_percent = (customer_final_kw / customer_denominator_kw * 100) if customer_denominator_kw > 0 else 0
         
         # Calculate weather savings
         weather_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after if has_weather else 0
@@ -1294,8 +1431,8 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             # This ensures the numbers add up correctly: Weather + PF = Total
             if total_savings_kw is not None and weather_savings_kw is not None:
                 pf_benefit_kw = total_savings_kw - weather_savings_kw
-                # Calculate percentage based on weather-normalized "before" value for consistency
-                pf_benefit_percent = (pf_benefit_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
+                pf_benefit_denominator = max(abs(weather_normalized_kw_before), abs(weather_normalized_kw_after))
+                pf_benefit_percent = (pf_benefit_kw / pf_benefit_denominator * 100) if pf_benefit_denominator > 0 else 0
             else:
                 # Fallback to approximation if total/weather savings not available
                 penalty_reduction = safe_get(power_quality, "penalty_reduction")
@@ -1307,10 +1444,12 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                 
                 if penalty_reduction > 0:
                     pf_benefit_kw = weather_normalized_kw_before * (penalty_reduction / 100.0)
-                    pf_benefit_percent = (pf_benefit_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
+                    pf_benefit_denominator = max(abs(weather_normalized_kw_before), abs(weather_normalized_kw_after))
+                    pf_benefit_percent = (pf_benefit_kw / pf_benefit_denominator * 100) if pf_benefit_denominator > 0 else 0
                 elif penalty_reduction < 0:
                     pf_benefit_kw = weather_normalized_kw_before * (penalty_reduction / 100.0)
-                    pf_benefit_percent = (pf_benefit_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
+                    pf_benefit_denominator = max(abs(weather_normalized_kw_before), abs(weather_normalized_kw_after))
+                    pf_benefit_percent = (pf_benefit_kw / pf_benefit_denominator * 100) if pf_benefit_denominator > 0 else 0
                 else:
                     pf_benefit_kw = 0
                     pf_benefit_percent = 0
@@ -1388,7 +1527,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         html = []
         html.append('<div style="margin-top: 1.5rem; padding: 20px; background: #f8f9fa; border-radius: 8px; border-left: 5px solid #1976d2; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
         html.append('<h3 style="margin-top: 0; color: #1976d2; font-size: 1.2em; border-bottom: 2px solid #1976d2; padding-bottom: 10px;">Detailed kW Normalization Savings Breakdown</h3>')
-        html.append('<p style="margin-bottom: 15px; color: #666; font-size: 0.95em; line-height: 1.6;">This detailed breakdown shows step-by-step how raw meter data is transformed through weather normalization (ASHRAE Guideline 14) and power factor normalization (utility billing standard) to arrive at the final normalized savings percentage.</p>')
+        html.append('<p style="margin-bottom: 15px; color: #666; font-size: 0.95em; line-height: 1.6;">This detailed breakdown shows the savings flow: raw meter data, weather/R² screening, chiller-load compensation, then final utility billing impact.</p>')
         
         # STEP 1: Raw Data
         html.append('<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #757575;">')
@@ -1396,11 +1535,19 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         if has_raw:
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #f5f5f5;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Metric</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Value</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Baseline (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Reporting (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Equipment Inactive (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading during XECO-off state</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Equipment Active (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading during XECO-on state</td></tr>')
+            if has_main_meter_energy_comparison:
+                html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Inactive Period Energy</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(main_meter_before_kwh, 0)} kWh</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Integrated from current inactive CSV</td></tr>')
+                html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Active Period Energy</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(main_meter_after_kwh, 0)} kWh</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Integrated from current active CSV</td></tr>')
             color = 'green' if raw_savings_kw > 0 else 'red'
-            html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(raw_savings_kw, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">{format_number(kw_before, 2)} - {format_number(kw_after, 2)}</td></tr>')
-            html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(raw_savings_percent, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">({format_number(raw_savings_kw, 2)} / {format_number(kw_before, 2)}) x 100</td></tr>')
+            html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Operational Delta (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(raw_savings_kw, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Equipment Inactive {format_number(kw_before, 2)} - Equipment Active {format_number(kw_after, 2)}</td></tr>')
+            raw_pct_calc = (
+                f'({format_number(main_meter_delta_kwh, 0)} kWh / {format_number(main_meter_denominator_kwh, 0)} kWh) x 100, from current CSVs (larger-period denominator)'
+                if has_main_meter_energy_comparison
+                else f'({format_number(raw_savings_kw, 2)} / {format_number(raw_savings_denominator_kw, 2)}) x 100'
+            )
+            html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Operational Delta (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(raw_savings_percent_display, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">{raw_pct_calc}</td></tr>')
             html.append('</table>')
         else:
             html.append('<p style="color: #999; font-style: italic;">Raw kW data not available</p>')
@@ -1408,8 +1555,14 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         
         # STEP 2: Weather Normalization
         html.append('<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #2196f3;">')
-        html.append('<h4 style="margin-top: 0; color: #1976d2; font-size: 1.05em;">Step 2: Weather Normalization (ASHRAE Guideline 14-2014)</h4>')
-        html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Removes weather impact to show true equipment performance. <strong>Method:</strong> ML-based normalization using temperature and dewpoint with sensitivity factors (2.5% per deg C for temp, 1.5% per deg C for dewpoint).</p>')
+        weather_section_title = "Step 2: Weather Normalization (ASHRAE Guideline 14-2014)" if weather_normalization_applied else "Step 2: Weather/R² Screening (No Weather Adjustment Applied)"
+        weather_section_purpose = (
+            "<strong>Purpose:</strong> Removes weather impact to show true equipment performance. <strong>Method:</strong> ML-based normalization using temperature and dewpoint."
+            if weather_normalization_applied
+            else "<strong>Purpose:</strong> Tests whether weather normalization is statistically valid. The R² gate was not met, so raw kW values pass through unchanged."
+        )
+        html.append(f'<h4 style="margin-top: 0; color: #1976d2; font-size: 1.05em;">{weather_section_title}</h4>')
+        html.append(f'<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;">{weather_section_purpose}</p>')
         
         if has_weather:
             # ── Skip banner: show BEFORE the table so reader sees the reason first ──
@@ -1439,7 +1592,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                 )
             # ─────────────────────────────────────────────────────────────────────
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
-            html.append('<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Baseline</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Reporting</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
+            html.append('<tr style="background: #e3f2fd;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Equipment Inactive</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Equipment Active</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
             
             # Base temperature display - MUST come from baseline 'before' data
             # Match UI Analysis display logic
@@ -1471,7 +1624,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                     else:
                         after_formula = f"max(0, {format_number(temp_diff_after, 1)} × {format_number(temp_sensitivity, 4)}) = {format_number(temp_effect_after * 100, 2)}%"
                     
-                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Temperature Effect</strong><br/><small style="color: #666;">{format_number(temp_sensitivity * 100, 1)}% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Baseline: {before_formula}<br/>Reporting: {after_formula}</td></tr>')
+                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Temperature Effect</strong><br/><small style="color: #666;">{format_number(temp_sensitivity * 100, 1)}% per °C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(temp_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Equipment Inactive: {before_formula}<br/>Equipment Active: {after_formula}</td></tr>')
             
             if dewpoint_before is not None and dewpoint_after is not None and base_temp is not None:
                 dewpoint_diff_before = dewpoint_before - base_temp
@@ -1492,7 +1645,7 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                     else:
                         # Show max(0, ...) when dewpoint is below base (same as calculation)
                         after_formula = f"max(0, {format_number(dewpoint_diff_after, 1)} × {format_number(dewpoint_sensitivity_display, 4)}) = {format_number(dewpoint_effect_after * 100, 2)}%"
-                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Dewpoint Effect</strong><br/><small style="color: #666;">{format_number(dewpoint_sensitivity_display * 100, 2)}% per deg C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Baseline: {before_formula}<br/>Reporting: {after_formula}</td></tr>')
+                    html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Dewpoint Effect</strong><br/><small style="color: #666;">{format_number(dewpoint_sensitivity_display * 100, 2)}% per deg C</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(dewpoint_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Equipment Inactive: {before_formula}<br/>Equipment Active: {after_formula}</td></tr>')
             
             if weather_effect_before is not None and weather_effect_after is not None:
                 html.append(f'<tr style="background: #e1f5fe;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Combined Weather Effect</strong><br/><small style="color: #666;">Temp + Dewpoint</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_effect_before * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_effect_after * 100, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{format_number(temp_effect_before * 100, 2) if temp_effect_before is not None else "N/A"}% + {format_number(dewpoint_effect_before * 100, 2) if dewpoint_effect_before is not None else "N/A"}% = {format_number(weather_effect_before * 100, 2)}%<br/>{format_number(temp_effect_after * 100, 2) if temp_effect_after is not None else "N/A"}% + {format_number(dewpoint_effect_after * 100, 2) if dewpoint_effect_after is not None else "N/A"}% = {format_number(weather_effect_after * 100, 2)}%</td></tr>')
@@ -1533,8 +1686,9 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             actual_factor = weather_adjustment_factor if has_weather and kw_after > 0 else 1.0
             
             # Weather Adjustment Factor calculation formula
-            weather_factor_calc_text = f'<strong>Factor Calculation:</strong> {format_number(actual_factor, 4)} = {format_number(weather_normalized_kw_after, 2)} ÷ {format_number(kw_after, 2)} = Weather Normalized kW (After) ÷ Raw kW (After)'
-            html.append(f'<tr style="background: #fff9c4;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Adjustment Factor</strong><br/><small style="color: #666;">Calculated from actual \'before\' and \'after\' data</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">No Adjustment</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em;">{format_number(actual_factor, 4)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{weather_factor_calc_text}</td></tr>')
+            weather_factor_calc_label = "Weather Normalized kW (Equipment Active)" if weather_normalization_applied else "Raw Pass-Through kW (Equipment Active)"
+            weather_factor_calc_text = f'<strong>Factor Calculation:</strong> {format_number(actual_factor, 4)} = {format_number(weather_normalized_kw_after, 2)} ÷ {format_number(kw_after, 2)} = {weather_factor_calc_label} ÷ Raw kW (Equipment Active)'
+            html.append(f'<tr style="background: #fff9c4;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Adjustment Factor</strong><br/><small style="color: #666;">Calculated from actual equipment-inactive and equipment-active data</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">No Adjustment</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em;">{format_number(actual_factor, 4)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{weather_factor_calc_text}</td></tr>')
             
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw kW (from Step 1)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Unadjusted meter readings</td></tr>')
             
@@ -1550,9 +1704,11 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             
             # Display the actual weather_normalized_kw_after value (same as UI Analysis)
             color = 'green' if weather_savings_kw > 0 else 'red'
-            html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW</strong><br/><small style="color: #666;">After adjusted to before weather</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">—</td></tr>')
+            weather_kw_label = "Weather Normalized kW" if weather_normalization_applied else "Raw Pass-Through kW"
+            weather_kw_note = "Equipment Active adjusted to Equipment Inactive weather" if weather_normalization_applied else "R² gate failed; no weather adjustment"
+            html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>{weather_kw_label}</strong><br/><small style="color: #666;">{weather_kw_note}</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(weather_normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">—</td></tr>')
             # Weather Normalized kW calculation formula row
-            weather_calc_text = f'Baseline: {format_number(kw_before, 2)} (unchanged)<br/>Reporting: {format_number(kw_after, 2)} × {format_number(display_factor, 4)} = {format_number(calculated_check, 2)}<br/><strong>Factor Calculation:</strong> {format_number(display_factor, 4)} = {format_number(weather_normalized_kw_after, 2)} ÷ {format_number(kw_after, 2)} = Weather Normalized kW (Reporting) ÷ Raw kW (Reporting)'
+            weather_calc_text = f'Equipment Inactive: {format_number(kw_before, 2)} (unchanged)<br/>Equipment Active: {format_number(kw_after, 2)} × {format_number(display_factor, 4)} = {format_number(calculated_check, 2)}<br/><strong>Factor Calculation:</strong> {format_number(display_factor, 4)} = {format_number(weather_normalized_kw_after, 2)} ÷ {format_number(kw_after, 2)} = {"Weather Normalized" if weather_normalization_applied else "Raw Pass-Through"} kW (Equipment Active) ÷ Raw kW (Equipment Active)'
             html.append(f'<tr style="background: #f1f8e9;"><td colspan="4" style="padding: 8px; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{weather_calc_text}</td></tr>')
             html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Savings (kW)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em; color: {color};">{format_number(weather_savings_kw, 2)} kW</td></tr>')
             html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Savings (%)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(weather_savings_percent, 2)}%</td></tr>')
@@ -1566,9 +1722,9 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
                 html.append('1. <strong>Temperature Effect</strong> = (Temperature - Base Temp) x Temp Sensitivity<br/>')
                 html.append('2. <strong>Dewpoint Effect</strong> = (Dewpoint - Base Temp) x Dewpoint Sensitivity<br/>')
             html.append('3. <strong>Weather Effect</strong> = Temperature Effect + Dewpoint Effect<br/>')
-            html.append('4. <strong>Adjustment Factor</strong> = (1 + Weather Effect Before) / (1 + Weather Effect After)<br/>')
-            html.append('5. <strong>Normalized After kW</strong> = Raw After kW x Adjustment Factor<br/>')
-            html.append('6. <strong>Weather Savings %</strong> = (Normalized Before - Normalized After) / Normalized Before x 100')
+            html.append('4. <strong>Adjustment Factor</strong> = (1 + Weather Effect Equipment Inactive) / (1 + Weather Effect Equipment Active)<br/>')
+            html.append('5. <strong>Normalized Equipment Active kW</strong> = Raw Equipment Active kW x Adjustment Factor<br/>')
+            html.append('6. <strong>Weather Savings %</strong> = (Normalized Equipment Inactive - Normalized Equipment Active) / max(Normalized Equipment Inactive, Normalized Equipment Active) x 100')
             html.append('</td></tr>')
             
             html.append('</table>')
@@ -1576,11 +1732,26 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
         else:
             html.append('<p style="color: #999; font-style: italic;">Weather normalization data not available</p>')
         html.append('</div>')
+
+        # STEP 3: Chiller Load Compensation
+        if chiller_comp_applied:
+            chiller_color = 'green' if equipment_display_kw > 0 else 'red'
+            html.append('<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #f59e0b;">')
+            html.append('<h4 style="margin-top: 0; color: #92400e; font-size: 1.05em;">Step 3: Chiller Load Compensation</h4>')
+            html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes the weather-screened main-meter savings for different chiller operation before calculating the final billing impact.</p>')
+            html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
+            html.append('<tr style="background: #fffbeb;"><th style="padding: 10px; text-align: left; border: 1px solid #fcd34d;">Metric</th><th style="padding: 10px; text-align: center; border: 1px solid #fcd34d;">Value</th><th style="padding: 10px; text-align: center; border: 1px solid #fcd34d;">Calculation</th></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Weather-Screened Equipment Savings</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d;">{format_number(weather_savings_kw, 2)} kW</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">From Step 2</td></tr>')
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Chiller Compensation</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d;">{format_number(chiller_adjustment_kw, 2)} kW</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">{format_number(chiller_adjustment_kwh_day, 1)} kWh/day ÷ 24</td></tr>')
+            html.append(f'<tr style="background: #fef3c7;"><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Chiller-Compensated Equipment Savings</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; font-weight: bold; color: {chiller_color};">{format_number(equipment_display_kw, 2)} kW</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">{format_number(weather_savings_kw, 2)} + {format_number(chiller_adjustment_kw, 2)}</td></tr>')
+            html.append(f'<tr style="background: #fde68a;"><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Chiller-Compensated Equipment Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; font-weight: bold; color: {chiller_color};">{format_number(equipment_display_percent, 2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">{format_number(equipment_display_kw, 2)} ÷ max({format_number(weather_normalized_kw_before, 2)}, {format_number(equipment_reporting_kw_after, 2)}) × 100</td></tr>')
+            html.append('</table>')
+            html.append('</div>')
         
-        # STEP 3: Power Factor Normalization
+        # STEP 4: Power Factor Normalization
         html.append('<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #ff9800;">')
-        html.append('<h4 style="margin-top: 0; color: #f57c00; font-size: 1.05em;">Step 3: Power Factor Normalization (Utility Billing Standard)</h4>')
-        html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Normalizes both periods to the same power factor target for fair savings comparison. <strong>Formula:</strong> Normalized kW = Weather Normalized kW × (Target PF ÷ Actual PF), where Target PF is the user-specified normalization reference (default 0.950 per IEEE 519 standard)</p>')
+        html.append(f'<h4 style="margin-top: 0; color: #f57c00; font-size: 1.05em;">Step {pf_step_number}: Power Factor / Billing Impact (Utility Billing Standard)</h4>')
+        html.append('<p style="margin-bottom: 10px; color: #666; font-size: 0.9em;"><strong>Purpose:</strong> Applies the utility billing power-factor adjustment after the raw/weather/chiller engineering savings are established. <strong>Formula:</strong> Billing impact kW = chiller-compensated reporting kW × (Target PF ÷ Actual PF), where Target PF is the user-specified normalization reference (default 0.950 per IEEE 519 standard)</p>')
         
         if has_fully and pf_before and pf_after:
             # Use the better PF (higher value) as normalization target to show true savings benefit
@@ -1591,28 +1762,31 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             pf_adjustment_after = normalization_pf / pf_after if pf_after > 0 else 1.0
             
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
-            html.append('<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Baseline</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Reporting</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
+            html.append('<tr style="background: #fff3e0;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Parameter</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Equipment Inactive</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Equipment Active</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>')
             # Display Power Factor as percentage (e.g., 99.9% instead of 0.999)
             pf_before_pct_display = (pf_before * 100) if pf_before > 0 else 0
             pf_after_pct_display = (pf_after * 100) if pf_after > 0 else 0
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Actual Power Factor</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{pf_before_pct_display:.1f}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{pf_after_pct_display:.1f}%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Measured values</td></tr>')
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Normalization Power Factor</strong><br/><small style="color: #666;">Target PF (user-specified) = {format_number(normalization_pf, 3)}</small></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalization_pf, 3)}</td></tr>')
-            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Weather Normalized kW (from Step 2)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">From weather normalization</td></tr>')
+            pf_input_label = "Chiller-Compensated kW (from Step 3)" if chiller_comp_applied else ("Weather Normalized kW (from Step 2)" if weather_normalization_applied else "Raw Pass-Through kW (from Step 2)")
+            pf_input_after = (weather_normalized_kw_before - equipment_display_kw) if chiller_comp_applied else weather_normalized_kw_after
+            html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>{pf_input_label}</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd;">{format_number(pf_input_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">From prior step</td></tr>')
             # PF Adjustment Factor calculation formula
-            pf_factor_calc_text = f'<strong>Factor Calculation:</strong> Baseline: {format_number(normalization_pf, 3)} ÷ {format_number(pf_before, 3)} = {format_number(pf_adjustment_before, 4)}<br/>Reporting: {format_number(normalization_pf, 3)} ÷ {format_number(pf_after, 3)} = {format_number(pf_adjustment_after, 4)}<br/>= Target PF ÷ Actual PF'
+            pf_factor_calc_text = f'<strong>Factor Calculation:</strong> Equipment Inactive: {format_number(normalization_pf, 3)} ÷ {format_number(pf_before, 3)} = {format_number(pf_adjustment_before, 4)}<br/>Equipment Active: {format_number(normalization_pf, 3)} ÷ {format_number(pf_after, 3)} = {format_number(pf_adjustment_after, 4)}<br/>= Target PF ÷ Actual PF'
             html.append(f'<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Adjustment Factor</strong><br/><small style="color: #666;">Note: Factor > 1.00 indicates PF below target (penalty), Factor < 1.00 indicates PF above target (benefit)</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(pf_adjustment_before, 4)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(pf_adjustment_after, 4)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{pf_factor_calc_text}</td></tr>')
             
-            html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized kW</strong><br/><small style="color: #666;">Weather Normalized × PF Adjustment Factor</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {format_number(weather_normalized_kw_before, 2)} × {format_number(pf_adjustment_before, 4)} = {format_number(normalized_kw_before, 2)}<br/>After: {format_number(weather_normalized_kw_after, 2)} × {format_number(pf_adjustment_after, 4)} = {format_number(normalized_kw_after, 2)}</td></tr>')
+            html.append(f'<tr style="background: #fff3cd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF/Billing Impact kW</strong><br/><small style="color: #666;">Prior step kW × PF Adjustment Factor</small></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(billing_reporting_kw_after, 2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.85em;">Before: {format_number(weather_normalized_kw_before, 2)} × {format_number(pf_adjustment_before, 4)} = {format_number(normalized_kw_before, 2)}<br/>After: {format_number(pf_input_after, 2)} × {format_number(pf_adjustment_after, 4)} = {format_number(billing_reporting_kw_after, 2)}</td></tr>')
             
             # Calculate PF Normalized Savings using the calculated PF Normalized values
             # Always display these rows to match UI Analysis
-            pf_normalized_savings_kw = normalized_kw_before - normalized_kw_after
-            pf_normalized_savings_percent = (pf_normalized_savings_kw / normalized_kw_before * 100) if normalized_kw_before > 0 else 0
+            pf_normalized_savings_kw = customer_final_kw
+            pf_normalized_savings_denominator = max(abs(normalized_kw_before), abs(billing_reporting_kw_after))
+            pf_normalized_savings_percent = (pf_normalized_savings_kw / pf_normalized_savings_denominator * 100) if pf_normalized_savings_denominator > 0 else 0
             pf_savings_color = 'green' if pf_normalized_savings_kw > 0 else 'red'
             html.append(f'<tr style="background: #ffe0b2;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized Savings (kW)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.1em; color: {pf_savings_color};">{format_number(pf_normalized_savings_kw, 2)} kW</td></tr>')
             html.append(f'<tr style="background: #ffcc80;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>PF Normalized Savings (%)</strong></td><td colspan="3" style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; font-size: 1.2em; color: {pf_savings_color};">{format_number(pf_normalized_savings_percent, 2)}%</td></tr>')
             # PF Normalized Savings (%) calculation formula row
-            pf_savings_percent_formula = f'<strong>Percentage Calculation:</strong> {format_number(pf_normalized_savings_percent, 2)}% = ({format_number(pf_normalized_savings_kw, 2)} ÷ {format_number(normalized_kw_before, 2)}) × 100 = (PF Normalized Savings (kW) ÷ PF Normalized kW (Before)) × 100'
+            pf_savings_percent_formula = f'<strong>Percentage Calculation:</strong> {format_number(pf_normalized_savings_percent, 2)}% = ({format_number(pf_normalized_savings_kw, 2)} ÷ max({format_number(normalized_kw_before, 2)}, {format_number(billing_reporting_kw_after, 2)})) × 100'
             html.append(f'<tr style="background: #fff3cd;"><td colspan="3" style="padding: 8px; border: 1px solid #ddd; color: #666; font-size: 0.85em;">{pf_savings_percent_formula}</td></tr>')
             
             if pf_benefit_kw != 0:
@@ -1629,9 +1803,9 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             html.append('<p style="color: #999; font-style: italic;">Power factor normalization data not available</p>')
         html.append('</div>')
         
-        # STEP 4: Final Result
+        # Final Result
         html.append('<div style="margin-bottom: 20px; padding: 15px; background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%); border-radius: 6px; border-left: 4px solid #4caf50; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">')
-        html.append('<h4 style="margin-top: 0; color: #2e7d32; font-size: 1.05em;">Step 4: Final Normalized Savings Result</h4>')
+        html.append('<h4 style="margin-top: 0; color: #2e7d32; font-size: 1.05em;">Final Savings Result Summary</h4>')
         
         # Always show Step 4 if we have power_quality data
         if has_power_quality:
@@ -1639,20 +1813,17 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             
             html.append('<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">')
             html.append('<tr style="background: #4caf50; color: white;"><th style="padding: 12px; text-align: left; border: 2px solid #2e7d32;">Metric</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Value</th><th style="padding: 12px; text-align: center; border: 2px solid #2e7d32;">Calculation</th></tr>')
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Baseline)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
-            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Reporting)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(normalized_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
-            color = 'green' if total_savings_kw > 0 else 'red'
-            html.append(f'<tr style="background: #c8e6c9;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized Savings (kW)<br/><small style="color: #1976d2; font-style: italic;">(Matches IEEE 519 section)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.2em; color: {color};">{format_number(total_savings_kw, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">{format_number(pf_normalized_kw_before_display, 2)} - {format_number(normalized_kw_after, 2)}</td></tr>')
-            
-            # Add Equipment Energy Savings (weather-normalized only) - NEW METRIC
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Equipment Inactive)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(pf_normalized_kw_before_display, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
+            html.append(f'<tr style="background: white;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold;">Total Normalized kW (Equipment Active)</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">{format_number(billing_reporting_kw_after, 2)}</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</td></tr>')
+            color = 'green' if customer_final_kw > 0 else 'red'
+            # Add Equipment Energy Savings after weather/chiller normalization and before billing impact.
             if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
-                equipment_energy_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after
-                equipment_energy_savings_percent = (equipment_energy_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
-                equipment_color = 'green' if equipment_energy_savings_percent > 0 else 'red'
-                html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 10px; border: 2px solid #2196f3; font-weight: bold; font-size: 1.05em;">⚡ Equipment Energy Savings (%)<br/><small style="color: #1976d2; font-style: italic;">Weather-normalized only (actual equipment savings)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; font-weight: bold; font-size: 1.2em; color: {equipment_color};">{format_number(equipment_energy_savings_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; color: #666; font-size: 0.9em;">({format_number(equipment_energy_savings_kw, 2)} / {format_number(weather_normalized_kw_before, 2)}) × 100<br/><small style="color: #666;">Weather normalized only - excludes PF correction</small></td></tr>')
+                equipment_color = 'green' if equipment_display_percent > 0 else 'red'
+                equipment_label = "Chiller-compensated equipment savings" if chiller_comp_applied else "Weather-normalized only (actual equipment savings)"
+                html.append(f'<tr style="background: #e3f2fd;"><td style="padding: 10px; border: 2px solid #2196f3; font-weight: bold; font-size: 1.05em;">⚡ Equipment Energy Savings (%)<br/><small style="color: #1976d2; font-style: italic;">{equipment_label}</small></td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; font-weight: bold; font-size: 1.2em; color: {equipment_color};">{format_number(equipment_display_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #2196f3; color: #666; font-size: 0.9em;">({format_number(equipment_display_kw, 2)} / max({format_number(weather_normalized_kw_before, 2)}, {format_number(equipment_reporting_kw_after, 2)})) × 100<br/><small style="color: #666;">Excludes PF correction; includes chiller compensation when applicable</small></td></tr>')
             
-            # Rename "Total Normalized Savings" to "Total Utility Billing Impact" for clarity
-            html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">💰 Total Utility Billing Impact (%)<br/><small style="color: #1976d2; font-style: italic;">Weather + PF normalized (includes PF correction benefit)</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: {color};">{format_number(total_normalized_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">({format_number(total_savings_kw, 2)} / {format_number(weather_normalized_kw_before, 2)}) × 100<br/><small style="color: #666;">Includes equipment savings + PF correction</small></td></tr>')
+            # Final bill impact comes after raw, weather, and chiller compensation.
+            html.append(f'<tr style="background: #a5d6a7;"><td style="padding: 10px; border: 2px solid #4caf50; font-weight: bold; font-size: 1.1em;">💰 {customer_final_label} (%)<br/><small style="color: #1976d2; font-style: italic;">Includes chiller compensation when applicable</small></td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; font-weight: bold; font-size: 1.3em; color: {color};">{format_number(customer_final_percent, 2)}%</td><td style="padding: 10px; text-align: center; border: 2px solid #4caf50; color: #666; font-size: 0.9em;">({format_number(customer_final_kw, 2)} / max({format_number(normalized_kw_before, 2)}, {format_number(billing_reporting_kw_after, 2)})) × 100<br/><small style="color: #666;">This is the final savings number for the customer</small></td></tr>')
             html.append('</table>')
             
             # Verification summary - Enhanced with detailed breakdown
@@ -1662,23 +1833,21 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             
             # Show both metrics clearly
             if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
-                equipment_energy_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after
-                equipment_energy_savings_percent = (equipment_energy_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
-                equipment_color = 'green' if equipment_energy_savings_percent > 0 else 'red'
-                html.append(f'<strong style="color: #1976d2; font-size: 1.1em;">⚡ Equipment Energy Savings: <span style="color: {equipment_color}; font-size: 1.2em;">{format_number(equipment_energy_savings_percent, 2)}%</span></strong><br/>')
-                html.append('<small style="color: #666;">(Weather-normalized only - actual equipment efficiency improvement)</small><br/><br/>')
+                equipment_color = 'green' if equipment_display_percent > 0 else 'red'
+                html.append(f'<strong style="color: #1976d2; font-size: 1.1em;">⚡ Equipment Energy Savings: <span style="color: {equipment_color}; font-size: 1.2em;">{format_number(equipment_display_percent, 2)}%</span></strong><br/>')
+                html.append('<small style="color: #666;">(Chiller-compensated when applicable; excludes PF correction)</small><br/><br/>')
             
-            color = 'green' if total_normalized_percent > 0 else 'red'
-            html.append(f'<strong style="color: #2e7d32; font-size: 1.1em;">💰 Total Utility Billing Impact: <span style="color: {color}; font-size: 1.2em;">{format_number(total_normalized_percent, 2)}%</span></strong><br/>')
-            html.append('<small style="color: #666;">(Weather + PF normalized - includes equipment savings + power factor correction benefit)</small><br/>')
+            color = 'green' if customer_final_percent > 0 else 'red'
+            html.append(f'<strong style="color: #2e7d32; font-size: 1.1em;">💰 {customer_final_label}: <span style="color: {color}; font-size: 1.2em;">{format_number(customer_final_percent, 2)}%</span></strong><br/>')
+            html.append('<small style="color: #666;">(Customer-facing final savings; includes chiller compensation when applicable)</small><br/>')
             html.append('<div style="margin-top: 8px; padding: 8px; background: #f5f5f5; border-radius: 3px;">')
             html.append('<strong>Detailed Calculation Breakdown:</strong><br/>')
             html.append('<table style="width: 100%; margin-top: 8px; border-collapse: collapse; font-size: 0.9em;">')
-            html.append('<tr style="background: #e3f2fd;"><th style="padding: 6px; text-align: left; border: 1px solid #ddd;">Step</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Baseline (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Reporting (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (%)</th></tr>')
+            html.append('<tr style="background: #e3f2fd;"><th style="padding: 6px; text-align: left; border: 1px solid #ddd;">Step</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Equipment Inactive (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Equipment Active (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (kW)</th><th style="padding: 6px; text-align: center; border: 1px solid #ddd;">Savings (%)</th></tr>')
             
             # Step 1: Raw Data
             raw_savings_kw = kw_before - kw_after if has_raw else 0
-            raw_savings_percent = (raw_savings_kw / kw_before * 100) if has_raw and kw_before > 0 else 0
+            raw_savings_percent = raw_savings_percent_display
             raw_color = 'green' if raw_savings_kw > 0 else 'red'
             html.append(f'<tr><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 1: Raw Meter Data</strong><br/><small style="color: #666;">No normalization</small></td>')
             html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">{format_number(kw_before, 2)}</td>')
@@ -1689,45 +1858,79 @@ def generate_kw_normalization_breakdown(r, power_quality, weather_norm):
             # Step 2: Weather Normalized
             if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
                 weather_savings_kw_step = weather_normalized_kw_before - weather_normalized_kw_after
-                weather_savings_percent_step = (weather_savings_kw_step / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
+                weather_savings_percent_step = step_delta_percent(
+                    weather_savings_kw_step,
+                    weather_normalized_kw_before,
+                    weather_normalized_kw_after,
+                )
                 weather_color = 'green' if weather_savings_kw_step > 0 else 'red'
-                html.append(f'<tr style="background: #fff3e0;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 2: Weather Normalized</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014</small></td>')
+                weather_step_label = "Step 2: Weather Normalized" if weather_normalization_applied else "Step 2: Weather/R² Screened"
+                weather_step_note = "ASHRAE Guideline 14-2014" if weather_normalization_applied else "R² gate failed; raw pass-through"
+                html.append(f'<tr style="background: #fff3e0;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>{weather_step_label}</strong><br/><small style="color: #666;">{weather_step_note}</small></td>')
                 html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_before, 2)}</td>')
                 html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">{format_number(weather_normalized_kw_after, 2)}</td>')
                 html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: {weather_color};">{format_number(weather_savings_kw_step, 2)}</td>')
                 html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; color: {weather_color};">{format_number(weather_savings_percent_step, 2)}%</td></tr>')
             
-            # Step 3: PF Normalized (Final)
-            html.append(f'<tr style="background: #e8f5e9;"><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 3: PF Normalized (Final)</strong><br/><small style="color: #666;">ASHRAE Guideline 14-2014, IEEE 519-2014/2022 + utility billing standards</small></td>')
-            html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td>')
-            html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold;">{format_number(normalized_kw_after, 2)}</td>')
-            html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(total_savings_kw, 2)}</td>')
-            html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: {color};">{format_number(total_normalized_percent, 2)}%</td></tr>')
+            if chiller_comp_applied:
+                chiller_color = 'green' if equipment_display_kw > 0 else 'red'
+                html.append(f'<tr style="background: #fffbeb;"><td style="padding: 6px; border: 1px solid #f59e0b;"><strong>Step 3: Chiller Compensation</strong><br/><small style="color: #92400e;">Equipment savings normalized for chiller load</small></td>')
+                html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #f59e0b;">{format_number(weather_normalized_kw_before, 2)}</td>')
+                html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #f59e0b;">{format_number(weather_normalized_kw_before - equipment_display_kw, 2)}</td>')
+                html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #f59e0b; color: {chiller_color};">{format_number(equipment_display_kw, 2)}</td>')
+                html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #f59e0b; color: {chiller_color};">{format_number(equipment_display_percent, 2)}%</td></tr>')
+
+            # Step 4: Bill Impact
+            final_color = 'green' if customer_final_kw > 0 else 'red'
+            bill_step_label = "Step 4: Total Utility Billing Impact" if chiller_comp_applied else "Step 3: Total Utility Billing Impact"
+            html.append(f'<tr style="background: #d1fae5;"><td style="padding: 6px; border: 1px solid #10b981;"><strong>{bill_step_label}</strong><br/><small style="color: #065f46;">Final customer-facing result</small></td>')
+            if chiller_comp_applied:
+                html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #10b981; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td>')
+                html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #10b981; font-weight: bold;">{format_number(normalized_kw_before - customer_final_kw, 2)}</td>')
+            else:
+                html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #10b981; font-weight: bold;">{format_number(normalized_kw_before, 2)}</td>')
+                html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #10b981; font-weight: bold;">{format_number(normalized_kw_after, 2)}</td>')
+            html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #10b981; font-weight: bold; color: {final_color};">{format_number(customer_final_kw, 2)}</td>')
+            html.append(f'<td style="padding: 6px; text-align: center; border: 1px solid #10b981; font-weight: bold; color: {final_color};">{format_number(customer_final_percent, 2)}%</td></tr>')
             html.append('</table>')
             
             # Explanation
             html.append('<div style="margin-top: 10px; padding: 8px; background: #e8f5e9; border-radius: 3px; border-left: 3px solid #4caf50;">')
             html.append('<strong style="color: #2e7d32;">📊 How the Final Result is Calculated:</strong><br/>')
             html.append('<ul style="margin: 5px 0; padding-left: 20px; color: #666; font-size: 0.9em;">')
-            html.append(f'<li><strong>Step 1:</strong> Raw meter data shows <strong>{format_number(raw_savings_percent, 2)}%</strong> savings ({format_number(raw_savings_kw, 2)} kW)</li>')
+            raw_step_basis = (
+                f'current CSV energy changed from <strong>{format_number(main_meter_before_kwh, 0)} kWh</strong> to <strong>{format_number(main_meter_after_kwh, 0)} kWh</strong>'
+                if has_main_meter_energy_comparison
+                else f'raw meter data shows <strong>{format_number(raw_savings_percent, 2)}%</strong> savings ({format_number(raw_savings_kw, 2)} kW)'
+            )
+            if has_main_meter_energy_comparison:
+                html.append(f'<li><strong>Step 1:</strong> Raw meter data shows <strong>{format_number(raw_savings_percent_display, 2)}%</strong> savings because {raw_step_basis}.</li>')
+            else:
+                html.append(f'<li><strong>Step 1:</strong> {raw_step_basis}</li>')
             if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
                 weather_savings_kw_step = weather_normalized_kw_before - weather_normalized_kw_after
-                weather_savings_percent_step = (weather_savings_kw_step / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
-                html.append(f'<li><strong>Step 2:</strong> Weather normalization adjusts for weather differences → <strong>{format_number(weather_savings_percent_step, 2)}%</strong> weather-normalized savings ({format_number(weather_savings_kw_step, 2)} kW)</li>')
+                weather_savings_percent_step = step_delta_percent(
+                    weather_savings_kw_step,
+                    weather_normalized_kw_before,
+                    weather_normalized_kw_after,
+                )
+                if weather_normalization_applied:
+                    html.append(f'<li><strong>Step 2:</strong> Weather normalization adjusts for weather differences → <strong>{format_number(weather_savings_percent_step, 2)}%</strong> weather-normalized savings ({format_number(weather_savings_kw_step, 2)} kW)</li>')
+                else:
+                    r2_display = format_number(weather_regression_r2, 3) if weather_regression_r2 is not None else 'unavailable'
+                    html.append(f'<li><strong>Step 2:</strong> Weather normalization was <strong>not applied</strong> because the ASHRAE GL14 R² gate was not met or could not be validated (R²={r2_display}). Raw meter savings remain <strong>{format_number(weather_savings_percent_step, 2)}%</strong> ({format_number(weather_savings_kw_step, 2)} kW).</li>')
             # Get target_pf from config for display
             config = safe_get(r, "config", default={})
             target_pf_display = safe_get(config, "target_pf") or safe_get(config, "target_power_factor") or 0.95
             target_pf_percent = int(target_pf_display * 100) if isinstance(target_pf_display, (int, float)) and target_pf_display <= 1 else int(target_pf_display) if isinstance(target_pf_display, (int, float)) else 95
             
-            html.append(f'<li><strong>Step 3:</strong> Power factor normalization adjusts weather-normalized values to target PF ({target_pf_percent}%) for utility billing → <strong>{format_number(total_normalized_percent, 2)}%</strong> total utility billing impact ({format_number(total_savings_kw, 2)} kW)</li>')
+            if chiller_comp_applied:
+                html.append(f'<li><strong>Step 3:</strong> Chiller-load compensation adjusts the weather-screened equipment savings by <strong>{format_number(chiller_adjustment_kw, 2)} kW</strong> ({format_number(chiller_adjustment_kwh_day, 1)} kWh/day), producing <strong>{format_number(equipment_display_percent, 2)}%</strong> chiller-compensated equipment savings ({format_number(equipment_display_kw, 2)} kW).</li>')
+                html.append(f'<li><strong>Step 4:</strong> Bill-impact normalization applies the power-factor/billing effect after chiller compensation → <strong>{format_number(customer_final_percent, 2)}%</strong> total utility billing impact ({format_number(customer_final_kw, 2)} kW).</li>')
+            else:
+                html.append(f'<li><strong>Step 3:</strong> Power factor normalization adjusts billing values to target PF ({target_pf_percent}%) for utility billing → <strong>{format_number(customer_final_percent, 2)}%</strong> total utility billing impact ({format_number(customer_final_kw, 2)} kW)</li>')
             
-            # Add Equipment Energy Savings explanation if available
-            if has_weather and weather_normalized_kw_before > 0 and weather_normalized_kw_after > 0:
-                equipment_energy_savings_kw = weather_normalized_kw_before - weather_normalized_kw_after
-                equipment_energy_savings_percent = (equipment_energy_savings_kw / weather_normalized_kw_before * 100) if weather_normalized_kw_before > 0 else 0
-                html.append(f'<li><strong>Equipment Energy Savings:</strong> <strong>{format_number(equipment_energy_savings_percent, 2)}%</strong> ({format_number(equipment_energy_savings_kw, 2)} kW) - This is the actual equipment efficiency improvement, weather-normalized only, excluding power factor correction benefits.</li>')
-            
-            html.append(f'<li><strong>Total Utility Billing Impact:</strong> <strong>{format_number(total_normalized_percent, 2)}%</strong> ({format_number(total_savings_kw, 2)} kW) - This includes both equipment energy savings and power factor correction benefits. This represents the true utility billing impact.</li>')
+            html.append(f'<li><strong>{customer_final_label}:</strong> <strong>{format_number(customer_final_percent, 2)}%</strong> ({format_number(customer_final_kw, 2)} kW) - This is the final savings number for the customer.</li>')
             html.append('</ul>')
             html.append('</div>')
             html.append('</div>')
@@ -1906,13 +2109,13 @@ def generate_exact_template_html(r):
         safe_get(config, "before_label") or 
         safe_get(client_profile, "before_label") or
         safe_get(r, "before_label") or
-        ""  # Empty string if not provided (will show just "Before")
+        "Equipment Inactive"
     )
     after_label = (
         safe_get(config, "after_label") or 
         safe_get(client_profile, "after_label") or
         safe_get(r, "after_label") or
-        ""  # Empty string if not provided (will show just "After")
+        "Equipment Active"
     )
     
     # Get company and facility info for cover page
@@ -2245,6 +2448,9 @@ def generate_exact_template_html(r):
     # Get KW_NORMALIZED_SAVINGS_PERCENT from power_quality (matches UI Analysis)
     # PRIORITIZE: Use normalized savings percent from Step 4 (most accurate)
     kw_normalized_savings_percent_raw = (
+        safe_get(power_quality, "customer_final_savings_percent") or  # Final customer-facing savings with chiller compensation
+        safe_get(power_quality, "chiller_compensated_total_savings_percent") or
+        safe_get(executive_summary, "customer_final_savings_percent") or
         safe_get(power_quality, "total_normalized_savings_percent") or  # Step 4 normalized savings percent (most accurate)
         safe_get(power_quality, "pf_normalized_savings_percent") or  # Step 3 PF normalized savings percent
         safe_get(power_quality, "kw_normalized_savings_percent") or
@@ -2275,6 +2481,9 @@ def generate_exact_template_html(r):
     # PRIORITIZE: Use normalized kW savings from power_quality (matches UI Analysis)
     # These are the values calculated and stored by the UI Analysis
     kw_savings = (
+        safe_get(power_quality, "customer_final_kw_savings") or  # Final customer-facing savings with chiller compensation
+        safe_get(power_quality, "chiller_compensated_total_kw_savings") or
+        safe_get(executive_summary, "customer_final_kw_savings") or
         safe_get(power_quality, "total_normalized_savings_kw") or  # Step 4 normalized savings (most accurate)
         safe_get(power_quality, "calculated_normalized_kw_savings") or  # UI-calculated normalized savings
         safe_get(power_quality, "pf_normalized_savings_kw") or  # Step 3 PF normalized savings
@@ -2290,12 +2499,29 @@ def generate_exact_template_html(r):
     if not financial_debug_kwh and bill_weighted_kwh:
         financial_debug_kwh = bill_weighted_kwh
     
+    _attr_for_kwh = safe_get(r, "attribution", default={}) or {}
+    _attr_energy_for_kwh = safe_get(_attr_for_kwh, "energy", default={}) or {}
+    _attr_components_for_kwh = safe_get(_attr_energy_for_kwh, "components", default={}) or {}
+    _component_base_kwh = _safe_float(
+        safe_get(_attr_components_for_kwh, "base_kwh")
+        or safe_get(energy, "kwh")
+        or safe_get(energy, "metered_kwh")
+        or 0
+    )
+    _component_network_kwh = _safe_float(
+        safe_get(_attr_components_for_kwh, "network_kwh")
+        or safe_get(energy, "network_kwh")
+        or safe_get(financial_debug_kwh, "network_delta_kwh_annual")
+        or 0
+    )
+    _component_total_kwh = _component_base_kwh + _component_network_kwh
     annual_kwh_savings = (
-        safe_get(financial_debug_kwh, "delta_kwh_annual") or  # Primary source (same as UI)
+        _component_total_kwh if _component_total_kwh else
+        safe_get(financial_debug_kwh, "delta_kwh_annual") or
         safe_get(executive_summary, "annual_kwh_savings") or 
         safe_get(r, "annual_kwh_savings") or 
         safe_get(energy, "total_kwh") or 
-        0.0  # Default
+        0.0
     )
     
     # Calculate power quality improvement (THD reduction percentage)
@@ -2926,8 +3152,13 @@ def generate_exact_template_html(r):
                 except (ValueError, TypeError, ZeroDivisionError):
                     kw_after = 0
     
-    # Calculate improvement percentage if we have valid data
-    kw_savings_pct = ((kw_before - kw_after) / kw_before * 100) if kw_before > 0 else 0
+    # Calculate improvement percentage using the larger period as the denominator.
+    kw_savings_denominator = max(abs(kw_before), abs(kw_after))
+    kw_savings_pct = (
+        (kw_before - kw_after) / kw_savings_denominator * 100
+        if kw_savings_denominator > 0
+        else 0
+    )
     
     # ISO 50001 compliance is about methodology implementation, always PASS
     iso_50001_compliant = True  # System implements ISO 50001 principles
@@ -3035,16 +3266,11 @@ def generate_exact_template_html(r):
         except (ValueError, TypeError):
             nema_after_unbalance_early = None
     
-    # Calculate compliance: Before = PASS if ≤ 1.0%, After = PASS if improvement OR ≤ 1.0%
+    # Calculate compliance: NEMA MG1 pass requires voltage unbalance <= 1.0%.
+    # Improvement alone is reported as trend data, not compliance.
     print(f"[DEBUG] NEMA MG1 early values - before={nema_before_unbalance_early}, after={nema_after_unbalance_early}", flush=True)
     nema_before_pass_early = nema_before_unbalance_early is not None and nema_before_unbalance_early <= 1.0
-    nema_after_pass_early = (
-        nema_after_unbalance_early is not None and 
-        nema_before_unbalance_early is not None and
-        (nema_after_unbalance_early < nema_before_unbalance_early or nema_after_unbalance_early <= 1.0)
-    ) if (nema_after_unbalance_early is not None and nema_before_unbalance_early is not None) else (
-        nema_after_unbalance_early is not None and nema_after_unbalance_early <= 1.0
-    )
+    nema_after_pass_early = nema_after_unbalance_early is not None and nema_after_unbalance_early <= 1.0
     print(f"[DEBUG] NEMA MG1 early compliance - before={nema_before_pass_early}, after={nema_after_pass_early}", flush=True)
     
     # Only set early status if values are available, otherwise leave placeholder for final replacement
@@ -3236,15 +3462,10 @@ def generate_exact_template_html(r):
         except (ValueError, TypeError):
             nema_after_unbalance_dup = None
     
-    # Calculate compliance: Before = PASS if ≤ 1.0%, After = PASS if improvement OR ≤ 1.0%
+    # Calculate compliance: NEMA MG1 pass requires voltage unbalance <= 1.0%.
+    # Improvement alone is reported as trend data, not compliance.
     before_nema_compliant = nema_before_unbalance_dup is not None and nema_before_unbalance_dup <= 1.0
-    after_nema_compliant = (
-        nema_after_unbalance_dup is not None and 
-        nema_before_unbalance_dup is not None and
-        (nema_after_unbalance_dup < nema_before_unbalance_dup or nema_after_unbalance_dup <= 1.0)
-    ) if (nema_after_unbalance_dup is not None and nema_before_unbalance_dup is not None) else (
-        nema_after_unbalance_dup is not None and nema_after_unbalance_dup <= 1.0
-    )
+    after_nema_compliant = nema_after_unbalance_dup is not None and nema_after_unbalance_dup <= 1.0
     
     # NOTE: NEMA MG1 values are set later (around line 3760) after comprehensive extraction with CSV fallback
     # Don't set values here with default=0 - they'll be set later with the correct calculated values
@@ -4412,7 +4633,8 @@ def generate_exact_template_html(r):
     except (ValueError, TypeError):
         nema_mg1_after_imbalance = 0.0
     
-    # Calculate compliance: Before = PASS if ≤ 1.0%, After = PASS if improvement OR ≤ 1.0%
+    # Calculate compliance: NEMA MG1 pass requires voltage unbalance <= 1.0%.
+    # Improvement alone is reported as trend data, not compliance.
     print(f"[DEBUG] NEMA MG1 compliance calculation - before_imbalance={nema_mg1_before_imbalance}, after_imbalance={nema_mg1_after_imbalance}", flush=True)
     if nema_mg1_after_imbalance is not None and nema_mg1_before_imbalance is not None:
         improvement_check = nema_mg1_after_imbalance < nema_mg1_before_imbalance
@@ -4421,17 +4643,12 @@ def generate_exact_template_html(r):
         print(f"[DEBUG] NEMA MG1 improvement check - Cannot compare (before={nema_mg1_before_imbalance}, after={nema_mg1_after_imbalance})", flush=True)
     
     nema_mg1_before_compliance = "PASS" if (nema_mg1_before_imbalance is not None and nema_mg1_before_imbalance <= 1.0) else "FAIL"
-    nema_mg1_after_compliance = "PASS" if (
-        nema_mg1_after_imbalance is not None and 
-        nema_mg1_before_imbalance is not None and
-        (nema_mg1_after_imbalance < nema_mg1_before_imbalance or nema_mg1_after_imbalance <= 1.0)
-    ) else ("PASS" if (nema_mg1_after_imbalance is not None and nema_mg1_after_imbalance <= 1.0) else "FAIL")
+    nema_mg1_after_compliance = "PASS" if (nema_mg1_after_imbalance is not None and nema_mg1_after_imbalance <= 1.0) else "FAIL"
     print(f"[DEBUG] NEMA MG1 final compliance - before={nema_mg1_before_compliance}, after={nema_mg1_after_compliance}", flush=True)
     
-    # Calculate improvement only if both values are numeric
-    # Ensure both are floats before subtraction to prevent TypeError
+    # Report voltage-unbalance as an unaddressed condition, not as a project
+    # improvement. The XECO scope did not correct phase-voltage balance.
     try:
-        # Double-check they're numeric (they should be from above, but be safe)
         if isinstance(nema_mg1_before_imbalance, str):
             if nema_mg1_before_imbalance == "N/A" or nema_mg1_before_imbalance.strip() == "":
                 before_val = 0.0
@@ -4447,19 +4664,21 @@ def generate_exact_template_html(r):
                 after_val = float(nema_mg1_after_imbalance)
         else:
             after_val = float(nema_mg1_after_imbalance) if nema_mg1_after_imbalance is not None else 0.0
-        
-        # Now safe to subtract
-        nema_mg1_improvement = format_number(before_val - after_val, 2)
+
+        nema_mg1_condition_note = (
+            f"Voltage unbalance unaddressed: Equipment Inactive {format_number(before_val, 2)}% "
+            f"({nema_mg1_before_compliance}); Equipment Active {format_number(after_val, 2)}% "
+            f"({nema_mg1_after_compliance}); NEMA MG1 limit <= 1.0%"
+        )
     except (ValueError, TypeError) as e:
-        # If conversion fails, show "0.00" instead of "N/A" to prevent crashes
-        print(f"[WARN] NEMA MG1 improvement calculation failed: {e}, using 0.00", flush=True)
-        nema_mg1_improvement = "0.00"
+        print(f"[WARN] NEMA MG1 condition-note calculation failed: {e}, using N/A", flush=True)
+        nema_mg1_condition_note = "Voltage unbalance unaddressed: Equipment Inactive N/A; Equipment Active N/A; NEMA MG1 limit <= 1.0%"
     
     template_content = template_content.replace('{{NEMA_MG1_BEFORE_IMBALANCE}}', f"{format_number(nema_mg1_before_imbalance, 2)}%")
     template_content = template_content.replace('{{NEMA_MG1_AFTER_IMBALANCE}}', f"{format_number(nema_mg1_after_imbalance, 2)}%")
     template_content = template_content.replace('{{NEMA_MG1_BEFORE_COMPLIANCE}}', nema_mg1_before_compliance)
     template_content = template_content.replace('{{NEMA_MG1_AFTER_COMPLIANCE}}', nema_mg1_after_compliance)
-    template_content = template_content.replace('{{NEMA_MG1_IMPROVEMENT}}', nema_mg1_improvement)
+    template_content = template_content.replace('{{NEMA_MG1_IMPROVEMENT}}', nema_mg1_condition_note)
     
     # Performance section - NEMA MG1 values (GET same values as UI HTML Performance section)
     # Use the SAME values that UI HTML Performance section calculated - no recalculation!
@@ -5696,22 +5915,30 @@ def generate_exact_template_html(r):
     om_savings_cost = safe_get(om_data, "dollars", default=0)
     om_rate_per_kw = safe_get(om_data, "rate_per_kw", default=0)
 
-    # Total Attributed — computed here (not from attribution.total_attributed_dollars which
-    # may have the double-count baked in by 8082).
-    # Structure: baseline_energy_cost already includes base + harmonic; harmonic is shown as
-    # a breakdown sub-line, not an additive term.  Remaining categories add on top.
+    # Total Attributed — keep this tied to the audited financial total. CP/PLC and envelope
+    # values may be shown as informational opportunities, but they are not additive unless
+    # they are included in the financial total.
     total_attributed_dollars = (
         baseline_energy_cost      # base kWh + network/harmonic kWh (no double-count)
         + demand_savings_cost
         + power_factor_savings_cost
-        # envelope_smoothing_cost intentionally excluded — flagged as proprietary /
-        # non-IPMVP-verified. It is displayed on the card for informational purposes
-        # but must not inflate the auditable Total Attributed figure.
-        + cp_plc_cost
         + om_savings_cost
     )
-    reconciles_status = "PASS YES"
-    includes_categories = "Baseline Energy (metered base + harmonic sub-component) + Demand + PF Penalties + O&M (Envelope Smoothing excluded — non-IPMVP)"
+    financial_total_for_reconcile = _safe_float(
+        safe_get(financial, "total_annual_savings")
+        or safe_get(r, "total_annual_savings")
+        or safe_get(safe_get(r, "executive_summary", default={}), "total_annual_cost_savings")
+        or 0
+    )
+    if financial_total_for_reconcile > 0:
+        reconcile_delta = abs(total_attributed_dollars - financial_total_for_reconcile)
+        reconciles = reconcile_delta <= max(1.0, financial_total_for_reconcile * 0.02)
+        if reconciles:
+            total_attributed_dollars = financial_total_for_reconcile
+    else:
+        reconciles = True
+    reconciles_status = "PASS YES" if reconciles else "REVIEW REQUIRED"
+    includes_categories = "Metered Energy + Network Losses + Demand + PF Penalties + O&M (CP/PLC and Envelope Smoothing shown as informational unless included in financial total)"
     
     # Replace Savings Attribution Card template variables
     # {{BASELINE_ENERGY}} shows the metered base only (not including network/harmonic sub-component)
@@ -7412,12 +7639,27 @@ def generate_exact_template_html(r):
     _ieee_ok  = safe_get(after_compliance, "ieee_compliant", default=True)
     _ash_ok   = ashrae_precision_compliant
     _ipmvp_ok = after_ipmvp_compliant
-    _all_ok   = _ieee_ok and _ash_ok and _ipmvp_ok
-    _compliance_summary = (
-        "✓ Fully Compliant — IEEE 519, ASHRAE Guideline 14 & IPMVP"
-        if _all_ok else
-        "⚠ Partial Compliance — review compliance table for details"
-    )
+    try:
+        _nema_before = float(nema_mg1_before_imbalance)
+        _nema_after = float(nema_mg1_after_imbalance)
+    except (TypeError, ValueError):
+        _nema_before = None
+        _nema_after = None
+    _nema_before_ok = _nema_before is not None and _nema_before <= 1.0
+    _nema_after_ok = _nema_after is not None and _nema_after <= 1.0
+    _nema_ok = _nema_before_ok and _nema_after_ok
+    _all_ok   = _ieee_ok and _ash_ok and _ipmvp_ok and _nema_ok
+    if _all_ok:
+        _compliance_summary = "✓ Standards reviewed — IEEE 519, ASHRAE Guideline 14, NEMA MG1 & IPMVP"
+    elif _nema_before is not None and _nema_after is not None and not _nema_ok:
+        _compliance_summary = (
+            "⚠ Partial Compliance — voltage unbalance unaddressed "
+            f"(Equipment Inactive {_nema_before:.2f}% {'PASS' if _nema_before_ok else 'FAIL'}; "
+            f"Equipment Active {_nema_after:.2f}% {'PASS' if _nema_after_ok else 'FAIL'}; "
+            "NEMA MG1 limit <= 1.0%)"
+        )
+    else:
+        _compliance_summary = "⚠ Partial Compliance — review compliance table for details"
     template_content = template_content.replace('{{COMPLIANCE_STATUS_SUMMARY}}', _compliance_summary)
 
     # LETTER_ENERGY_SAVINGS_FULL – full energy savings line for the letter / Key Findings page
@@ -7434,17 +7676,22 @@ def generate_exact_template_html(r):
     _attr_energy_comps = safe_get(_attr, "energy", default={}).get("components", {}) or {}
     _base_kwh = _safe_float(
         _attr_energy_comps.get("base_kwh") or
-        (financial or {}).get("base_kwh_savings") or
-        (financial or {}).get("delta_kwh_annual") or
-        annual_kwh_savings or 0
+        safe_get(energy, "kwh") or
+        safe_get(energy, "metered_kwh") or
+        (financial or {}).get("base_kwh_savings") or 0
     )
     _net_kwh = _safe_float(
         _attr_energy_comps.get("network_kwh") or
+        safe_get(energy, "network_kwh") or
         (financial or {}).get("network_kwh_savings") or
         (financial or {}).get("annual_network_kwh") or 0
     )
+    _total_kwh_reconciled = _base_kwh + _net_kwh
     template_content = template_content.replace('{{BASE_KWH_SAVINGS}}',    f"{_base_kwh:,.0f}")
     template_content = template_content.replace('{{NETWORK_KWH_SAVINGS}}', f"{_net_kwh:,.0f}")
+    template_content = template_content.replace('{{ANNUAL_KWH_SAVINGS}}', f"{format_number(_total_kwh_reconciled, 0)} kWh")
+    template_content = template_content.replace('{{LETTER_KWH_SAVINGS}}', f"{_total_kwh_reconciled:,.0f}")
+    template_content = template_content.replace('{{LETTER_ENERGY_SAVINGS_FULL}}', f"{_total_kwh_reconciled:,.0f} kWh/year  ({_kes_kw:.2f} kW avg demand reduction)")
 
     # CSS STATUS CLASS variables (compliant / non-compliant) ─────────────────
     template_content = template_content.replace(
@@ -7512,6 +7759,83 @@ def generate_exact_template_html(r):
     template_content = template_content.replace('{{DEVICE_CERTIFICATION_BADGE}}', "")
     template_content = template_content.replace('{{WEATHER_REGRESSION_SCATTER_PLOT}}', "")
     # ── End missing replacements ──────────────────────────────────────────────
+
+    # The Ochsner analysis is an operating-state comparison. Label customer-facing
+    # period headers by XECO state instead of implying a retrofit chronology.
+    def _period_start_for_label(period_text):
+        try:
+            match = re.search(r'\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}', str(period_text or ""))
+            if not match:
+                return None
+            raw = match.group(0)
+            if "-" in raw:
+                return datetime.strptime(raw, "%Y-%m-%d")
+            fmt = "%m/%d/%y" if len(raw.rsplit("/", 1)[-1]) == 2 else "%m/%d/%Y"
+            return datetime.strptime(raw, fmt)
+        except Exception:
+            return None
+
+    _before_period_for_label = (
+        safe_get(config, "test_period_before")
+        or safe_get(r, "before_period")
+        or safe_get(client_profile, "test_period_before")
+    )
+    _after_period_for_label = (
+        safe_get(config, "test_period_after")
+        or safe_get(r, "after_period")
+        or safe_get(client_profile, "test_period_after")
+    )
+    _before_start_for_label = _period_start_for_label(_before_period_for_label)
+    _after_start_for_label = _period_start_for_label(_after_period_for_label)
+    template_content = template_content.replace("Comparison Period", "Equipment Inactive Period")
+    template_content = template_content.replace("Reference Period", "Equipment Active Period")
+    template_content = template_content.replace("XECO Inactive", "Equipment Inactive")
+    template_content = template_content.replace("XECO Active", "Equipment Active")
+    template_content = template_content.replace("Baseline Period", "Equipment Inactive Period")
+    template_content = template_content.replace("Reporting Period", "Equipment Active Period")
+    template_content = template_content.replace("Baseline (Before)", "Equipment Inactive")
+    template_content = template_content.replace("Reporting (After)", "Equipment Active")
+    template_content = template_content.replace("Baseline (kW)", "Equipment Inactive (kW)")
+    template_content = template_content.replace("Reporting (kW)", "Equipment Active (kW)")
+    template_content = template_content.replace("Baseline:", "Equipment Inactive:")
+    template_content = template_content.replace("Reporting:", "Equipment Active:")
+    template_content = template_content.replace("Days (Before)", "Days (XECO Equipment Inactive)")
+    template_content = template_content.replace("Days (After)", "Days (XECO Equipment Active)")
+    template_content = template_content.replace("Before/After", "XECO Equipment Inactive/Active")
+    template_content = template_content.replace("Before Period", "XECO Equipment Inactive Period")
+    template_content = template_content.replace("After Period", "XECO Equipment Active Period")
+    template_content = template_content.replace("Before Value", "XECO Equipment Inactive Value")
+    template_content = template_content.replace("After Value", "XECO Equipment Active Value")
+    template_content = template_content.replace(">Before<", ">XECO Equipment Inactive<")
+    template_content = template_content.replace(">After<", ">XECO Equipment Active<")
+    template_content = template_content.replace("Before:", "XECO Equipment Inactive:")
+    template_content = template_content.replace("After:", "XECO Equipment Active:")
+    template_content = re.sub(r'(?<!XECO )Equipment Inactive', 'XECO Equipment Inactive', template_content)
+    template_content = re.sub(r'(?<!XECO )Equipment Active', 'XECO Equipment Active', template_content)
+    template_content = template_content.replace(
+        "improved three-phase voltage balance",
+        "NEMA MG1 three-phase voltage balance status"
+    )
+    template_content = template_content.replace(
+        "Voltage Unbalance shows IEEE 519 three-phase voltage balance improvement",
+        "Voltage Unbalance shows NEMA MG1 three-phase voltage balance status"
+    )
+    template_content = template_content.replace(
+        "Standards-Compliant Electrical Parameter Analysis",
+        "Standards-Based Electrical Parameter Analysis"
+    )
+    template_content = template_content.replace(
+        "Fully Compliant IEEE 519, ASHRAE Guideline 14 & IPMVP",
+        "Reviewed against IEEE 519, ASHRAE Guideline 14, NEMA MG1 & IPMVP"
+    )
+    template_content = template_content.replace(
+        " NEMA MG1 limit <= 1.0% voltage unbalance reduction",
+        " NEMA MG1 limit <= 1.0%"
+    )
+    template_content = template_content.replace(
+        " NEMA MG1 limit <= 1.0% voltage unbalance change",
+        " NEMA MG1 limit <= 1.0%"
+    )
 
     # Final cleanup: Replace ANY remaining template variables - this is critical
     # Use replace_all to ensure we catch all instances
@@ -7642,6 +7966,56 @@ def generate_exact_template_html(r):
         print(f"*** VERIFICATION CERTIFICATE: ERROR - {e} ***")
         # Remove placeholder on error
         template_content = template_content.replace('{{VERIFICATION_CERTIFICATE_HTML}}', '')
+
+    template_content = template_content.replace("Comparison Period", "Equipment Inactive Period")
+    template_content = template_content.replace("Reference Period", "Equipment Active Period")
+    template_content = template_content.replace("XECO Inactive", "Equipment Inactive")
+    template_content = template_content.replace("XECO Active", "Equipment Active")
+    template_content = template_content.replace("Baseline Period", "Equipment Inactive Period")
+    template_content = template_content.replace("Reporting Period", "Equipment Active Period")
+    template_content = template_content.replace("Baseline (Before)", "Equipment Inactive")
+    template_content = template_content.replace("Reporting (After)", "Equipment Active")
+    template_content = template_content.replace("Baseline (kW)", "Equipment Inactive (kW)")
+    template_content = template_content.replace("Reporting (kW)", "Equipment Active (kW)")
+    template_content = template_content.replace("Baseline:", "Equipment Inactive:")
+    template_content = template_content.replace("Reporting:", "Equipment Active:")
+    template_content = template_content.replace("Days (Before)", "Days (XECO Equipment Inactive)")
+    template_content = template_content.replace("Days (After)", "Days (XECO Equipment Active)")
+    template_content = template_content.replace("Before/After", "XECO Equipment Inactive/Active")
+    template_content = template_content.replace("Before Period", "XECO Equipment Inactive Period")
+    template_content = template_content.replace("After Period", "XECO Equipment Active Period")
+    template_content = template_content.replace("Before Value", "XECO Equipment Inactive Value")
+    template_content = template_content.replace("After Value", "XECO Equipment Active Value")
+    template_content = template_content.replace(">Before<", ">XECO Equipment Inactive<")
+    template_content = template_content.replace(">After<", ">XECO Equipment Active<")
+    template_content = template_content.replace("Before:", "XECO Equipment Inactive:")
+    template_content = template_content.replace("After:", "XECO Equipment Active:")
+    template_content = re.sub(r'(?<!XECO )Equipment Inactive', 'XECO Equipment Inactive', template_content)
+    template_content = re.sub(r'(?<!XECO )Equipment Active', 'XECO Equipment Active', template_content)
+    template_content = template_content.replace(
+        "improved three-phase voltage balance",
+        "NEMA MG1 three-phase voltage balance status"
+    )
+    template_content = template_content.replace(
+        "Voltage Unbalance shows IEEE 519 three-phase voltage balance improvement",
+        "Voltage Unbalance shows NEMA MG1 three-phase voltage balance status"
+    )
+    template_content = template_content.replace(
+        "Standards-Compliant Electrical Parameter Analysis",
+        "Standards-Based Electrical Parameter Analysis"
+    )
+    template_content = template_content.replace(
+        "Fully Compliant IEEE 519, ASHRAE Guideline 14 & IPMVP",
+        "Reviewed against IEEE 519, ASHRAE Guideline 14, NEMA MG1 & IPMVP"
+    )
+    template_content = template_content.replace(
+        " NEMA MG1 limit <= 1.0% voltage unbalance reduction",
+        " NEMA MG1 limit <= 1.0%"
+    )
+    template_content = template_content.replace(
+        " NEMA MG1 limit <= 1.0% voltage unbalance change",
+        " NEMA MG1 limit <= 1.0%"
+    )
     
     # Use regex to find ALL remaining variables
     final_remaining = re.findall(r'\{\{([A-Za-z0-9_]+)\}\}', template_content)
@@ -7698,7 +8072,8 @@ def generate_exact_template_html(r):
         _p_val       = _f(safe_get(_stat, "p_value"),    0.0)
         _t_stat      = _f(safe_get(_stat, "t_statistic"), 0.0)
         _cohens_d    = _f(safe_get(_stat, "cohens_d"),   0.0)
-        _rp          = _f(safe_get(_ac, "ashrae_precision_value") or
+        _rp          = _f(safe_get(_stat, "relative_precision") or
+                          safe_get(_ac, "ashrae_precision_value") or
                           safe_get(_ac, "ashrae_guideline_14", "relative_precision"), 0.0)
         _n_bef       = int(_f(safe_get(_stat, "sample_size_before"), 0))
         _n_aft       = int(_f(safe_get(_stat, "sample_size_after"),  0))

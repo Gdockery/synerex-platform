@@ -4043,15 +4043,17 @@ class EnhancedDataProcessor:
                         else:
                             clean_values = values
 
-                        # Calculate clean data statistics first
+                        # Preserve true raw CSV statistics for engineering analysis.
+                        # Chauvenet-cleaned values are diagnostic only; they must not
+                        # replace the raw meter values used in Step 1 calculations.
+                        raw_mean = values.mean()
+                        raw_std = values.std()
                         clean_mean = clean_values.mean()
                         clean_std = clean_values.std()
 
                         # STANDARDS COMPLIANCE: Use RAW meter data per ASHRAE Guideline 14-2014
                         # NO data modification allowed - raw meter readings must be preserved for audit
-                        normalized_values = (
-                            clean_values.copy()
-                        )  # Keep raw data unchanged
+                        normalized_values = values.copy()
 
                         # AUDIT COMPLIANCE: Raw meter data must not be modified per ASHRAE Guideline 14-2014
                         # Weather normalization is applied separately in analysis, not to raw meter data
@@ -4059,7 +4061,7 @@ class EnhancedDataProcessor:
                             f"AUDIT COMPLIANCE: Using RAW meter data for {param} - no modification applied per ASHRAE Guideline 14-2014"
                         )
                         logger.info(
-                            f"AUDIT COMPLIANCE: Raw {param} data preserved: mean={clean_mean:.2f}, std={clean_std:.2f}, CV={clean_std/clean_mean*100:.2f}%"
+                            f"AUDIT COMPLIANCE: Raw {param} data preserved: mean={raw_mean:.2f}, std={raw_std:.2f}, CV={raw_std/raw_mean*100:.2f}%"
                         )
 
                         # Calculate CV(RMSE) for data quality using RAW meter data
@@ -4078,27 +4080,29 @@ class EnhancedDataProcessor:
 
                         # AUDIT COMPLIANCE: Store RAW meter statistics per ASHRAE Guideline 14-2014
                         results[param] = {
-                            "mean": float(clean_mean),  # Raw mean from meter data
+                            "mean": float(raw_mean),  # Raw mean from meter data
                             "median": float(
-                                np.median(clean_values)
+                                np.median(values)
                             ),  # Raw median from meter data
                             "std": float(
-                                clean_std
+                                raw_std
                             ),  # Raw standard deviation from meter data
                             "min": float(
-                                clean_values.min()
+                                values.min()
                             ),  # Raw minimum from meter data
                             "max": float(
-                                clean_values.max()
+                                values.max()
                             ),  # Raw maximum from meter data
-                            "count": len(clean_values),  # Raw count from meter data
+                            "count": len(values),  # Raw count from meter data
                             "cv_rmse": (
-                                float(clean_std / clean_mean * 100)
-                                if clean_mean > 0
+                                float(raw_std / raw_mean * 100)
+                                if raw_mean > 0
                                 else 0.0
                             ),  # Raw CV from meter data
                             "outliers_removed": len(values) - len(clean_values),
-                            "values": clean_values.tolist(),  # AUDIT COMPLIANCE: Store RAW meter data
+                            "cleaned_mean_diagnostic": float(clean_mean),
+                            "cleaned_std_diagnostic": float(clean_std),
+                            "values": values.tolist(),  # AUDIT COMPLIANCE: Store RAW meter data
                             "normalization_applied": False,  # AUDIT COMPLIANCE: No normalization of raw meter data
                         }
 
@@ -15061,7 +15065,12 @@ def calculate_manual_chiller_load_compensation(config: dict, base_savings_kw: fl
         )
 
         if raw_change_pct is None and before_kwh and after_kwh:
-            raw_change_pct = ((before_kwh - after_kwh) / before_kwh * 100.0) if before_kwh else None
+            raw_change_denominator = max(abs(before_kwh), abs(after_kwh))
+            raw_change_pct = (
+                (before_kwh - after_kwh) / raw_change_denominator * 100.0
+                if raw_change_denominator
+                else None
+            )
         if compensated_change_pct is None and before_kwh and after_kwh:
             period_hours = _optional_float_config(config, "main_meter_period_hours", "period_hours")
             if period_hours is None:
@@ -16917,13 +16926,19 @@ def perform_comprehensive_analysis(
         config["main_meter_after_kwh_computed"] = True
     if computed_before_hours and computed_after_hours:
         config["main_meter_period_hours"] = min(computed_before_hours, computed_after_hours)
-    if computed_before_kwh is not None and computed_after_kwh is not None and computed_before_kwh > 0:
-        config["main_meter_raw_change_pct"] = (computed_before_kwh - computed_after_kwh) / computed_before_kwh * 100.0
+    if computed_before_kwh is not None and computed_after_kwh is not None:
+        raw_change_denominator_kwh = max(abs(computed_before_kwh), abs(computed_after_kwh))
+        if raw_change_denominator_kwh > 0:
+            config["main_meter_raw_change_pct"] = (
+                (computed_before_kwh - computed_after_kwh) / raw_change_denominator_kwh * 100.0
+            )
+        else:
+            config["main_meter_raw_change_pct"] = None
         logger.info(
             f"Computed main-meter kWh fields for chiller compensation: "
             f"off/before={computed_before_kwh:,.1f} kWh, "
             f"on/after={computed_after_kwh:,.1f} kWh, "
-            f"raw_change={config['main_meter_raw_change_pct']:.2f}%"
+            f"raw_change={config['main_meter_raw_change_pct'] if config['main_meter_raw_change_pct'] is not None else 'N/A'}%"
         )
     
     # Handle utility rates with proper priority
@@ -16984,6 +16999,24 @@ def perform_comprehensive_analysis(
             "equipment": config.get("equipment", "-"),
         },
     }
+    if computed_before_kwh is not None and computed_after_kwh is not None:
+        main_meter_delta_kwh = computed_before_kwh - computed_after_kwh
+        main_meter_denominator_kwh = max(abs(computed_before_kwh), abs(computed_after_kwh))
+        main_meter_raw_change_pct = (
+            main_meter_delta_kwh / main_meter_denominator_kwh * 100.0
+            if main_meter_denominator_kwh > 0
+            else None
+        )
+        results["main_meter_energy_comparison"] = {
+            "source": "current_csv_energy_summary",
+            "before_kwh": computed_before_kwh,
+            "after_kwh": computed_after_kwh,
+            "delta_kwh": main_meter_delta_kwh,
+            "denominator_kwh": main_meter_denominator_kwh,
+            "raw_change_pct": main_meter_raw_change_pct,
+            "before_hours": computed_before_hours,
+            "after_hours": computed_after_hours,
+        }
 
     # Extract key metrics - prioritize occupancy-normalized values when available
     # Check for occupancy-normalized values first, fallback to regular mean
@@ -20116,7 +20149,7 @@ def perform_comprehensive_analysis(
                                 f"R²={_r2_val:.3f} — energy consumption is not significantly "
                                 "correlated with outdoor temperature at this facility. "
                                 f"Raw savings ({kw_before - kw_after:.1f} kW = "
-                                f"{(kw_before - kw_after) / kw_before * 100:.1f}%) "
+                                f"{((kw_before - kw_after) / max(abs(kw_before), abs(kw_after)) * 100) if max(abs(kw_before), abs(kw_after)) > 0 else 0:.1f}%) "
                                 "reported without weather adjustment per ASHRAE GL14-2023."
                             ),
                         }
@@ -20229,7 +20262,7 @@ def perform_comprehensive_analysis(
                                     f"R²={_r2_val:.3f}: energy consumption is not significantly "
                                     "correlated with outdoor temperature at this facility. "
                                     f"Raw savings ({kw_before - kw_after:.1f} kW = "
-                                    f"{(kw_before - kw_after) / kw_before * 100:.1f}%) "
+                                    f"{((kw_before - kw_after) / max(abs(kw_before), abs(kw_after)) * 100) if max(abs(kw_before), abs(kw_after)) > 0 else 0:.1f}%) "
                                     "reported without weather adjustment per ASHRAE GL14-2023."
                                 ),
                             })
@@ -27683,6 +27716,135 @@ def analyze():
 
         processor = EnhancedDataProcessor()
 
+        def _parse_analysis_period_window(period_text):
+            """Return inclusive day start/end timestamps parsed from a UI period string."""
+            try:
+                import re as _re_period
+                matches = _re_period.findall(
+                    r"\d{4}-\d{2}-\d{2}|\d{1,2}/\d{1,2}/\d{2,4}",
+                    str(period_text or ""),
+                )
+                if len(matches) < 2:
+                    return None
+
+                def _parse_one(raw):
+                    if "-" in raw:
+                        return pd.to_datetime(raw, errors="coerce")
+                    parts = raw.split("/")
+                    year_fmt = "%y" if len(parts[-1]) == 2 else "%Y"
+                    return pd.to_datetime(raw, format=f"%m/%d/{year_fmt}", errors="coerce")
+
+                start = _parse_one(matches[0])
+                end = _parse_one(matches[1])
+                if pd.isna(start) or pd.isna(end):
+                    return None
+                start = pd.Timestamp(start).normalize()
+                end = pd.Timestamp(end).normalize() + pd.Timedelta(days=1)
+                if end <= start:
+                    return None
+                return start, end
+            except Exception:
+                return None
+
+        def _recalculate_filtered_metric(metric_data, values):
+            metric_data["values"] = values.tolist()
+            metric_data["mean"] = float(values.mean())
+            metric_data["median"] = float(values.median())
+            metric_data["std"] = float(values.std())
+            metric_data["min"] = float(values.min())
+            metric_data["max"] = float(values.max())
+            metric_data["count"] = int(len(values))
+            metric_data["cv_rmse"] = (
+                float(values.std() / values.mean() * 100.0)
+                if len(values) > 0 and values.mean() > 0
+                else 0.0
+            )
+
+        def _apply_analysis_period_filter(data, period_text, label):
+            """Filter processed CSV-derived arrays to the user-selected analysis window."""
+            window = _parse_analysis_period_window(period_text)
+            if not window or not isinstance(data, dict) or not data.get("timestamps"):
+                return data
+            start, end = window
+            timestamps = pd.to_datetime(data.get("timestamps", []), errors="coerce")
+            if len(timestamps) == 0:
+                return data
+            mask = (timestamps >= start) & (timestamps < end)
+            kept = int(mask.sum())
+            if kept <= 0 or kept == len(timestamps):
+                return data
+
+            original_count = len(timestamps)
+            filtered_ts = pd.Series(timestamps[mask]).dt.strftime("%Y-%m-%d %H:%M:%S").tolist()
+            data["timestamps"] = filtered_ts
+            data["analysis_period_filter"] = {
+                "applied": True,
+                "label": label,
+                "requested_period": str(period_text),
+                "start": start.strftime("%Y-%m-%d"),
+                "end": (end - pd.Timedelta(days=1)).strftime("%Y-%m-%d"),
+                "rows_before": original_count,
+                "rows_after": kept,
+            }
+
+            for metric_name in ["avgKw", "avgKva", "avgKvar", "avgPf", "avgTHD"]:
+                metric_data = data.get(metric_name)
+                if not isinstance(metric_data, dict) or "values" not in metric_data:
+                    continue
+                values = pd.to_numeric(pd.Series(metric_data.get("values", [])), errors="coerce")
+                if len(values) != original_count:
+                    continue
+                filtered_values = values[mask].dropna()
+                if len(filtered_values) > 0:
+                    _recalculate_filtered_metric(metric_data, filtered_values)
+
+            avg_kw_values = pd.to_numeric(
+                pd.Series(data.get("avgKw", {}).get("values", [])),
+                errors="coerce",
+            ).dropna()
+            if len(avg_kw_values) > 0 and data.get("timestamps"):
+                ts_energy = pd.to_datetime(data["timestamps"], errors="coerce")
+                usable_len = min(len(ts_energy), len(avg_kw_values))
+                ts_energy = pd.Series(ts_energy[:usable_len]).reset_index(drop=True)
+                kw_energy = avg_kw_values.iloc[:usable_len].reset_index(drop=True)
+                deltas = ts_energy.diff().dt.total_seconds().shift(-1) / 3600.0
+                positive_deltas = deltas[(deltas > 0) & (deltas <= 24)]
+                interval_hours = (
+                    float(positive_deltas.median())
+                    if len(positive_deltas) > 0
+                    else 1.0 / 60.0
+                )
+                deltas = deltas.fillna(interval_hours)
+                deltas = deltas.where((deltas > 0) & (deltas <= 24), interval_hours)
+                total_kwh = float((kw_energy * deltas).sum())
+                total_hours = float(deltas.sum())
+                data["energy_summary"] = {
+                    "total_kwh": total_kwh,
+                    "total_hours": total_hours,
+                    "avg_kw": float(total_kwh / total_hours) if total_hours else float(kw_energy.mean()),
+                    "source": "avgKw_timestamp_integrated_filtered",
+                }
+                kw_series = pd.Series(kw_energy.values, index=ts_energy).dropna()
+                if len(kw_series) > 0:
+                    demand_15min = kw_series.resample("15min").mean().dropna()
+                    if len(demand_15min) > 0:
+                        data["peak_demand"] = {
+                            "maximum": float(demand_15min.max()),
+                            "average_peak": float(demand_15min.mean()),
+                            "95th_percentile": float(demand_15min.quantile(0.95)),
+                            "interval_minutes": 15,
+                            "source": "avgKw_15min_resample_filtered",
+                        }
+
+            logger.info(
+                "Applied analysis period filter to %s data: %s rows -> %s rows (%s)",
+                label,
+                original_count,
+                kept,
+                period_text,
+            )
+            return data
+
         if before_data is None:
             if "before" not in saved_files:
                 logger.error("Missing 'before_file' or 'before_file_id'")
@@ -27741,6 +27903,21 @@ def analyze():
             except Exception as e:
                 logger.error(f"Error processing after file: {e}")
                 return jsonify({"error": f"Error processing after file: {str(e)}"}), 500
+
+        before_data = _apply_analysis_period_filter(
+            before_data,
+            request.form.get("test_period_before")
+            or request.form.get("before_period")
+            or request.form.get("period_before"),
+            "before",
+        )
+        after_data = _apply_analysis_period_filter(
+            after_data,
+            request.form.get("test_period_after")
+            or request.form.get("after_period")
+            or request.form.get("period_after"),
+            "after",
+        )
 
         # 2) Build config from form fields (with validation)
         cfg_raw = dict(CONFIG_DEFAULTS)
@@ -28179,6 +28356,29 @@ def analyze():
                     cfg_raw["test_period"] = period_from_files
             except Exception as e:
                 logger.warning(f"Could not extract period from files: {e}")
+
+        # Generated/calculated values must never be reused from a saved project.
+        # Each Run Engineering Analysis call recomputes these from the selected CSVs.
+        for _generated_key in (
+            "analysis_results",
+            "analysisResults",
+            "results",
+            "power_quality",
+            "financial",
+            "weather_normalization",
+            "chiller_load_compensation",
+            "main_meter_energy_comparison",
+            "main_meter_before_kwh",
+            "main_meter_after_kwh",
+            "main_meter_raw_change_pct",
+            "main_meter_compensated_change_pct",
+            "raw_main_meter_change_pct",
+            "compensated_main_meter_change_pct",
+            "chiller_compensated_change_pct",
+            "customer_final_savings_percent",
+            "customer_final_kw_savings",
+        ):
+            cfg_raw.pop(_generated_key, None)
 
         cfg, errors, warnings = validate_and_normalize_config(cfg_raw)
 

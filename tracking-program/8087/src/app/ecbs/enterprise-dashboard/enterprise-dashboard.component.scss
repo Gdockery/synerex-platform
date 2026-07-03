@@ -38,23 +38,32 @@ $sb-w:    210px;
 }
 
 .ent-sb-logo {
-  padding: 16px 16px 12px;
+  padding: 14px 16px 12px;
   border-bottom: 1px solid $border;
-  .ent-sb-ecbs {
+  .ent-sb-xeco {
     display: block;
-    font-size: 26px;
+    font-size: 32px;
     font-weight: 900;
-    color: $green;
-    letter-spacing: 0.08em;
-    line-height: 1;
-    text-shadow: 0 0 16px rgba(0,230,118,0.35);
+    color: #f2f6fb;
+    font-style: italic;
+    letter-spacing: -0.06em;
+    line-height: 0.9;
+    text-shadow: 0 0 14px rgba(41,182,246,0.20);
+
+    span {
+      color: $green;
+      letter-spacing: -0.12em;
+    }
   }
   .ent-sb-sub {
     display: block;
-    font-size: 7px;
-    color: $muted;
-    letter-spacing: 0.12em;
-    margin-top: 3px;
+    font-size: 11px;
+    color: $green;
+    letter-spacing: 0.42em;
+    margin-top: 5px;
+    margin-left: 4px;
+    font-weight: 800;
+    line-height: 1;
   }
 }
 
@@ -157,7 +166,7 @@ $sb-w:    210px;
   gap: 12px;
   min-height: 52px;
 }
-.ent-topbar-title { font-size: 14px; font-weight: 700; color: $text; letter-spacing: 0.05em; }
+.ent-topbar-title { font-size: 15px; font-weight: 800; color: $text; letter-spacing: 0.05em; }
 .ent-topbar-sub   { font-size: 11px; color: $green; margin-top: 1px; font-weight: 500; }
 .ent-topbar-right { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 
@@ -195,6 +204,23 @@ $sb-w:    210px;
 .ent-tb-info { display: flex; flex-direction: column; }
 .ent-tb-name { font-size: 12px; font-weight: 600; color: $text; }
 .ent-tb-role { font-size: 10px; color: $muted; }
+
+.ent-state-banner {
+  margin: 8px 10px 0;
+  padding: 8px 12px;
+  border: 1px solid rgba(41,182,246,0.18);
+  border-radius: 7px;
+  background: rgba(7,18,32,0.92);
+  color: $dim;
+  font-size: 11px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.ent-state-banner--loading { color: $blue; }
+.ent-state-banner--error {
+  border-color: rgba(244,67,54,0.36);
+  color: #ff8a80;
+}
 
 // ── KPI Strip ─────────────────────────────────────────────────────────────────
 .ent-kpi-strip {

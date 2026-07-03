@@ -1,0 +1,14 @@
+# .NET
+**/bin/
+**/obj/
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+
+# Local environment
+*.user
+.env
+.env.local
+.env.*.local

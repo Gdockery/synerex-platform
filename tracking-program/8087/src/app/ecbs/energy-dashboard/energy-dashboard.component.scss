@@ -181,6 +181,11 @@ $sb-w:       200px;
     margin: 2px 0 0;
     font-size: 10px;
     color: $text-muted;
+    span {
+      color: $green;
+      margin-left: 6px;
+      white-space: nowrap;
+    }
   }
 }
 
@@ -290,21 +295,32 @@ $sb-w:       200px;
   gap: 0;
   border-bottom: 1px solid $border;
   flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
 }
 
 .ed-kpi {
-  flex: 1;
+  flex: 1 0 150px;
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 10px 12px;
   border-right: 1px solid $border;
   &:last-child { border-right: none; }
 }
 
 .ed-kpi-icon {
-  font-size: 18px;
-  margin-top: 2px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid $border;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  margin-top: 1px;
   flex-shrink: 0;
 }
 .ed-kpi-title {
@@ -315,10 +331,11 @@ $sb-w:       200px;
   margin-bottom: 3px;
 }
 .ed-kpi-val {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   color: $text;
   line-height: 1.1;
+  white-space: nowrap;
 }
 .ed-kpi-sub {
   font-size: 9px;
@@ -345,7 +362,7 @@ $sb-w:       200px;
 // ── Cards ─────────────────────────────────────────────────────────────────────
 .ed-card {
   background: $bg-card;
-  padding: 12px 14px;
+  padding: 11px 13px;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -358,6 +375,36 @@ $sb-w:       200px;
   color: $text-muted;
   margin-bottom: 8px;
   flex-shrink: 0;
+}
+
+@media (max-width: 1180px) {
+  .ed-root { font-size: 11px; }
+  .ed-topbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .ed-topbar-controls {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+  .ed-row {
+    flex-wrap: wrap;
+  }
+  .ed-card,
+  .ed-card--rate,
+  .ed-card--trend,
+  .ed-card--baseline,
+  .ed-card--waterfall,
+  .ed-card--roi,
+  .ed-card--cbi,
+  .ed-card--cap,
+  .ed-card--util,
+  .ed-card--breakdown,
+  .ed-card--opps,
+  .ed-card--health,
+  .ed-card--alerts {
+    flex: 1 1 320px;
+  }
 }
 
 .ed-card-hdr {

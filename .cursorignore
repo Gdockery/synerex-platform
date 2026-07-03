@@ -15,7 +15,8 @@
 **/*.db
 **/*.sqlite
 **/*.sqlite3
-**/*.html
+**/reports/**/*.html
+**/files/**/*.html
 
 # Exclude generated files
 **/*.pyc

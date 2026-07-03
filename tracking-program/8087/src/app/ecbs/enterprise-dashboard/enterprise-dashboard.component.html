@@ -3,8 +3,8 @@
   <!-- ══ SIDEBAR ══ -->
   <aside class="ent-sidebar">
     <div class="ent-sb-logo">
-      <span class="ent-sb-ecbs">ECBS</span>
-      <span class="ent-sb-sub">INTELLIGENCE PLATFORM™</span>
+      <span class="ent-sb-xeco"><span>X</span>ECO</span>
+      <span class="ent-sb-sub">ENERGY</span>
     </div>
 
     <nav class="ent-sb-nav">
@@ -95,14 +95,14 @@
     </nav>
 
     <div class="ent-sb-cbi">
-      <div class="ent-sb-cbi-label">ECBS Current<br>Balance Index™</div>
+      <div class="ent-sb-cbi-label">XECO Current<br>Balance Index™</div>
       <div class="ent-sb-cbi-score">{{ cbiScore }}</div>
       <div class="ent-sb-cbi-grade">A (Excellent)</div>
       <div class="ent-sb-cbi-target">Target &gt; 90</div>
       <a class="ent-sb-cbi-link" (click)="nav('current-analysis')">Learn More &rsaquo;</a>
     </div>
     <div class="ent-sb-footer">
-      &copy; 2026 Synerex™<br>All rights reserved.
+      &copy; 2025 XECO Energy Corporation.<br>All rights reserved.
     </div>
   </aside>
 
@@ -112,7 +112,7 @@
     <!-- Top bar -->
     <div class="ent-topbar">
       <div class="ent-topbar-left">
-        <div class="ent-topbar-title">ECBS INTELLIGENCE PORTAL</div>
+        <div class="ent-topbar-title">XECO ENERGY INTELLIGENCE PORTAL</div>
         <div class="ent-topbar-sub">Enterprise Dashboard</div>
       </div>
       <div class="ent-topbar-right">
@@ -136,6 +136,10 @@
         </div>
       </div>
     </div>
+
+    <div class="ent-state-banner ent-state-banner--loading" *ngIf="loading">Loading portfolio data...</div>
+    <div class="ent-state-banner ent-state-banner--error" *ngIf="errorMessage">{{ errorMessage }}</div>
+    <div class="ent-state-banner" *ngIf="emptyState">No portfolio data is available for this view.</div>
 
     <!-- KPI Strip -->
     <div class="ent-kpi-strip">
@@ -513,12 +517,12 @@
         <div class="ent-card-title">NETWORK LOSSES REDUCTION</div>
         <div class="ent-losses-cols">
           <div class="ent-losses-col">
-            <div class="ent-losses-lbl">Before ECBS</div>
+            <div class="ent-losses-lbl">Before XECO</div>
             <div class="ent-losses-val">{{ lossesBeforeKw | number:'1.1-1' }} <span class="ent-losses-unit">kW</span></div>
             <div class="ent-losses-bar-track"><div class="ent-losses-bar" style="width:100%;background:#f44336"></div></div>
           </div>
           <div class="ent-losses-col">
-            <div class="ent-losses-lbl">After ECBS</div>
+            <div class="ent-losses-lbl">After XECO</div>
             <div class="ent-losses-val">{{ lossesAfterKw | number:'1.1-1' }} <span class="ent-losses-unit">kW</span></div>
             <div class="ent-losses-bar-track">
               <div class="ent-losses-bar" [style.width.%]="lossesBeforeKw > 0 ? (lossesAfterKw/lossesBeforeKw*100) : 60" style="background:#00e676"></div>

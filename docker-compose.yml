@@ -21,6 +21,7 @@ services:
       - 'emv-program:172.18.1.13'
       - 'tracking-program:172.18.1.14'
       - 'html-report-service:172.18.1.15'
+      - 'ecbs-os-frontend:172.18.1.22'
       - 'redis:172.18.0.3'
       - 'chromadb:172.18.0.2'
     volumes:
@@ -40,12 +41,32 @@ services:
         condition: service_healthy
       tracking-program:
         condition: service_healthy
+      ecbs-os-frontend:
+        condition: service_started
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://127.0.0.1/"]
       interval: 30s
       timeout: 5s
       retries: 3
+
+  ecbs-os-frontend:
+    build:
+      context: ./ecbs-os/frontend
+    networks:
+      synerex:
+        ipv4_address: 172.18.1.22
+    environment:
+      NODE_ENV: production
+      TRACKING_DB_HOST: mysql-tracking
+      TRACKING_DB_PORT: "3306"
+      TRACKING_DB_NAME: tracking
+      TRACKING_DB_USER: tracking_user
+      TRACKING_DB_PASSWORD: TrackingPass123
+    depends_on:
+      mysql-tracking:
+        condition: service_healthy
+    restart: unless-stopped
 
   license-service:
     build:

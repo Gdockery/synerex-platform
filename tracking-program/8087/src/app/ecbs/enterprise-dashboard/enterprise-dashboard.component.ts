@@ -12,6 +12,7 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
 
   // ── State ─────────────────────────────────────────────────────────────────
   loading = true;
+  errorMessage = '';
   currentUser: any = null;
 
   // ── Date range ────────────────────────────────────────────────────────────
@@ -62,14 +63,22 @@ export class EnterpriseDashboardComponent implements OnInit, AfterViewInit, OnDe
   // ── Load ──────────────────────────────────────────────────────────────────
   loadAll() {
     this.loading = true;
+    this.errorMessage = '';
     this.api.get('/api/portfolio/summary').subscribe({
       next: (r: any) => {
         this.portfolio = r?.response || r;
         this.loading   = false;
         if (this._map) this._addMarkers();
       },
-      error: () => { this.loading = false; }
+      error: () => {
+        this.loading = false;
+        this.errorMessage = 'Portfolio summary is unavailable.';
+      }
     });
+  }
+
+  get emptyState(): boolean {
+    return !this.loading && !this.errorMessage && !this.portfolio;
   }
 
   // ── Computed: KPIs ────────────────────────────────────────────────────────

@@ -1,0 +1,35 @@
+# ECBS OS Approved Stack Foundation
+
+This folder is the clean ECBS OS implementation foundation. It follows the current `ECBS Software Development Project` documentation as the sole source of truth.
+
+## Stack
+
+- Backend: ASP.NET Core on .NET 9, C#, Clean Architecture.
+- Frontend: React, Next.js, TypeScript, Tailwind CSS.
+- Database: MySQL 8.x with EF Core and Pomelo MySQL provider.
+- Legacy Angular, Flask, and Python services are migration evidence only.
+
+## Layout
+
+- `backend/src/ECBS.Api`: ASP.NET Core API host.
+- `backend/src/ECBS.Application`: application contracts and use cases.
+- `backend/src/ECBS.Domain`: ECBS domain model.
+- `backend/src/ECBS.Infrastructure`: EF Core/MySQL persistence and infrastructure services.
+- `backend/tests/ECBS.Tests`: backend test project.
+- `frontend`: Next.js app router frontend.
+- `docs`: foundation decisions and implementation notes.
+
+## Local Commands
+
+```bash
+export PATH="$HOME/.dotnet:$PATH"
+dotnet build ECBS.sln
+dotnet tool restore
+dotnet tool run dotnet-ef database update --project backend/src/ECBS.Infrastructure/ECBS.Infrastructure.csproj --startup-project backend/src/ECBS.Api/ECBS.Api.csproj
+```
+
+```bash
+cd frontend
+npm run lint
+npm run build
+```

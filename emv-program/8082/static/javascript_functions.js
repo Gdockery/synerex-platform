@@ -2123,9 +2123,18 @@ function reanalyzeProject() {
       throw new Error('Failed to parse project data');
     }
     
+    // Use the currently selected CSVs when present. Re-analysis must recompute
+    // from the current file selections, not from file IDs saved on the project.
+    const currentBeforeFileId = (document.getElementById('before_file_id') || document.querySelector('input[name="before_file_id"]'))?.value?.trim()
+      || sessionStorage.getItem('selected_before_file_id')
+      || sessionStorage.getItem('selectedBeforeFileId');
+    const currentAfterFileId = (document.getElementById('after_file_id') || document.querySelector('input[name="after_file_id"]'))?.value?.trim()
+      || sessionStorage.getItem('selected_after_file_id')
+      || sessionStorage.getItem('selectedAfterFileId');
+
     // Extract file IDs and config
-    const beforeFileId = projectData.before_file_id || projectData.beforeFileId;
-    const afterFileId = projectData.after_file_id || projectData.afterFileId;
+    const beforeFileId = currentBeforeFileId || projectData.before_file_id || projectData.beforeFileId;
+    const afterFileId = currentAfterFileId || projectData.after_file_id || projectData.afterFileId;
     
     if (!beforeFileId || !afterFileId) {
       throw new Error('Project missing before_file_id or after_file_id. Cannot re-analyze.');
@@ -2138,9 +2147,30 @@ function reanalyzeProject() {
     formData.append('before_file_id', beforeFileId);
     formData.append('after_file_id', afterFileId);
     
-    // Add all other project data as form fields
+    const generatedAnalysisFields = new Set([
+      'analysis_results',
+      'analysisResults',
+      'results',
+      'power_quality',
+      'financial',
+      'weather_normalization',
+      'chiller_load_compensation',
+      'main_meter_energy_comparison',
+      'main_meter_before_kwh',
+      'main_meter_after_kwh',
+      'main_meter_raw_change_pct',
+      'main_meter_compensated_change_pct',
+      'raw_main_meter_change_pct',
+      'compensated_main_meter_change_pct',
+      'chiller_compensated_change_pct',
+      'customer_final_savings_percent',
+      'customer_final_kw_savings'
+    ]);
+
+    // Add all other project data as form fields. Skip generated/calculated
+    // outputs so every run is derived from the selected CSVs.
     for (const [key, value] of Object.entries(projectData)) {
-      if (key !== 'before_file_id' && key !== 'after_file_id' && key !== 'beforeFileId' && key !== 'afterFileId') {
+      if (key !== 'before_file_id' && key !== 'after_file_id' && key !== 'beforeFileId' && key !== 'afterFileId' && !generatedAnalysisFields.has(key)) {
         if (value !== null && value !== undefined) {
           formData.append(key, value);
         }
@@ -9696,21 +9726,38 @@ function displayResults(r) {
       let pfContributionPercent = null;
       let totalSavingsKw = null;
       let totalNormalizedPercent = null;
+      function stepDeltaPercent(delta, beforeValue, afterValue) {
+        const denominator = Math.max(Math.abs(Number(beforeValue) || 0), Math.abs(Number(afterValue) || 0));
+        return denominator > 0 ? (delta / denominator) * 100 : 0;
+      }
+      const mainMeterEnergyComparison = r.main_meter_energy_comparison || {};
+      const csvBeforeKwh = Number(mainMeterEnergyComparison.before_kwh);
+      const csvAfterKwh = Number(mainMeterEnergyComparison.after_kwh);
+      const csvDeltaKwh = Number(mainMeterEnergyComparison.delta_kwh);
+      const csvDenominatorKwh = Number(mainMeterEnergyComparison.denominator_kwh || Math.max(Math.abs(csvBeforeKwh), Math.abs(csvAfterKwh)));
+      const csvRawChangePct = Number(mainMeterEnergyComparison.raw_change_pct);
+      const hasCsvEnergyComparison = isFinite(csvBeforeKwh) && isFinite(csvAfterKwh) && isFinite(csvRawChangePct);
       
       // Step 1: Raw calculations
       // NOTE: This section is informational only - values are calculated for display purposes only
       // and are NOT stored in r.power_quality to prevent double-counting in other sections
       if (hasRawKw) {
         rawSavingsKw = powerQualityNormalized.kw_before - powerQualityNormalized.kw_after;
-        rawSavingsPercent = (rawSavingsKw / powerQualityNormalized.kw_before) * 100;
+        const rawSavingsDenominatorKw = Math.max(Math.abs(powerQualityNormalized.kw_before), Math.abs(powerQualityNormalized.kw_after));
+        rawSavingsPercent = rawSavingsDenominatorKw > 0 ? (rawSavingsKw / rawSavingsDenominatorKw) * 100 : 0;
       }
+      const rawPercentForDisplay = hasCsvEnergyComparison ? csvRawChangePct : rawSavingsPercent;
       
       // Step 2: Weather normalization
       // NOTE: This section is informational only - values are calculated for display purposes only
       // and are NOT stored in r.power_quality to prevent double-counting in other sections
       if (hasWeatherNormalized) {
         weatherSavingsKw = powerQualityNormalized.weather_normalized_kw_before - powerQualityNormalized.weather_normalized_kw_after;
-        weatherSavingsPercent = (weatherSavingsKw / powerQualityNormalized.weather_normalized_kw_before) * 100;
+        weatherSavingsPercent = stepDeltaPercent(
+          weatherSavingsKw,
+          powerQualityNormalized.weather_normalized_kw_before,
+          powerQualityNormalized.weather_normalized_kw_after
+        );
       }
       
       // Step 3: Total normalized (calculate FIRST so we can use it for PF contribution)
@@ -9722,14 +9769,17 @@ function displayResults(r) {
             powerQualityNormalized.calculated_pf_normalized_kw_after) {
           totalSavingsKw = powerQualityNormalized.calculated_pf_normalized_kw_before - 
                            powerQualityNormalized.calculated_pf_normalized_kw_after;
-          // CRITICAL: Use weather_normalized_before as denominator so percentages are additive
-          // Weather Savings % + PF Contribution % = Total Utility Billing Impact %
           const weatherBeforeForTotal = powerQualityNormalized.weather_normalized_kw_before || powerQualityNormalized.calculated_pf_normalized_kw_before;
-          totalNormalizedPercent = weatherBeforeForTotal > 0 ? (totalSavingsKw / weatherBeforeForTotal) * 100 : 0;
+          const weatherAfterForTotal = powerQualityNormalized.weather_normalized_kw_after || powerQualityNormalized.calculated_pf_normalized_kw_after;
+          totalNormalizedPercent = stepDeltaPercent(totalSavingsKw, weatherBeforeForTotal, weatherAfterForTotal);
         } else {
           // Fallback to weather-normalized only if PF not available
           totalSavingsKw = powerQualityNormalized.normalized_kw_before - powerQualityNormalized.normalized_kw_after;
-          totalNormalizedPercent = (totalSavingsKw / powerQualityNormalized.normalized_kw_before) * 100;
+          totalNormalizedPercent = stepDeltaPercent(
+            totalSavingsKw,
+            powerQualityNormalized.normalized_kw_before,
+            powerQualityNormalized.normalized_kw_after
+          );
         }
       }
       
@@ -9743,8 +9793,8 @@ function displayResults(r) {
         // This ensures the numbers add up correctly: Weather + PF = Total
         if (totalSavingsKw !== null && weatherSavingsKw !== null) {
           pfSavingsKw = totalSavingsKw - weatherSavingsKw;
-          // Calculate percentage based on weather-normalized "before" value for consistency
-          pfContributionPercent = (pfSavingsKw / weatherBefore) * 100;
+          const weatherAfter = powerQualityNormalized.weather_normalized_kw_after;
+          pfContributionPercent = stepDeltaPercent(pfSavingsKw, weatherBefore, weatherAfter);
         } else {
           // Fallback to approximation if total/weather savings not available
           let penaltyReduction = powerQualityNormalized.penalty_reduction;
@@ -9757,10 +9807,10 @@ function displayResults(r) {
           
           if (penaltyReduction > 0) {
             pfSavingsKw = weatherBefore * (penaltyReduction / 100.0);
-            pfContributionPercent = (pfSavingsKw / weatherBefore) * 100;
+            pfContributionPercent = stepDeltaPercent(pfSavingsKw, weatherBefore, powerQualityNormalized.weather_normalized_kw_after);
           } else if (penaltyReduction < 0) {
             pfSavingsKw = weatherBefore * (penaltyReduction / 100.0);
-            pfContributionPercent = (pfSavingsKw / weatherBefore) * 100;
+            pfContributionPercent = stepDeltaPercent(pfSavingsKw, weatherBefore, powerQualityNormalized.weather_normalized_kw_after);
           } else {
             pfSavingsKw = 0;
             pfContributionPercent = 0;
@@ -9779,19 +9829,26 @@ function displayResults(r) {
       html += `<h4 style="margin-top: 0; color: #424242; font-size: 1.05em;">Step 1: Raw Meter Data (No Normalization)</h4>`;
       if (hasRawKw && powerQualityNormalized.kw_before != null && powerQualityNormalized.kw_after != null && 
           !isNaN(powerQualityNormalized.kw_before) && !isNaN(powerQualityNormalized.kw_after) &&
-          rawSavingsKw != null && !isNaN(rawSavingsKw) && rawSavingsPercent != null && !isNaN(rawSavingsPercent)) {
+          rawSavingsKw != null && !isNaN(rawSavingsKw) && rawPercentForDisplay != null && !isNaN(rawPercentForDisplay)) {
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
         html += `<tr style="background: #f5f5f5;"><th style="padding: 10px; text-align: left; border: 1px solid #ddd;">Metric</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Value</th><th style="padding: 10px; text-align: center; border: 1px solid #ddd;">Calculation</th></tr>`;
         html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Before (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${Number(powerQualityNormalized.kw_before).toFixed(2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>`;
         html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>After (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${Number(powerQualityNormalized.kw_after).toFixed(2)}</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Raw meter reading</td></tr>`;
+        if (hasCsvEnergyComparison) {
+          html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>Before Period Energy</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${csvBeforeKwh.toFixed(0)} kWh</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Integrated from current before CSV</td></tr>`;
+          html += `<tr><td style="padding: 8px; border: 1px solid #ddd;"><strong>After Period Energy</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold;">${csvAfterKwh.toFixed(0)} kWh</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">Integrated from current after CSV</td></tr>`;
+        }
         const rawSavingsKwColor = rawSavingsKw > 0 ? 'green' : 'red';
         const rawSavingsKwVal = Number(rawSavingsKw).toFixed(2);
         const rawKwBeforeFormatted = Number(powerQualityNormalized.kw_before).toFixed(2);
         const rawKwAfterFormatted = Number(powerQualityNormalized.kw_after).toFixed(2);
         html += '<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (kW)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ' + rawSavingsKwColor + ';">' + rawSavingsKwVal + '</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">' + rawKwBeforeFormatted + ' - ' + rawKwAfterFormatted + '</td></tr>';
-        const rawSavingsPctColor = rawSavingsPercent > 0 ? 'green' : 'red';
-        const rawSavingsPctVal = Number(rawSavingsPercent).toFixed(2);
-        html += '<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ' + rawSavingsPctColor + ';">' + rawSavingsPctVal + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">(' + rawSavingsKwVal + ' / ' + rawKwBeforeFormatted + ') × 100</td></tr>';
+        const rawSavingsPctColor = rawPercentForDisplay > 0 ? 'green' : 'red';
+        const rawSavingsPctVal = Number(rawPercentForDisplay).toFixed(2);
+        const rawPctCalculation = hasCsvEnergyComparison
+          ? '(' + csvDeltaKwh.toFixed(0) + ' kWh / ' + csvDenominatorKwh.toFixed(0) + ' kWh) × 100, from current CSVs (larger-period denominator)'
+          : '(' + rawSavingsKwVal + ' / ' + Math.max(Math.abs(Number(powerQualityNormalized.kw_before)), Math.abs(Number(powerQualityNormalized.kw_after))).toFixed(2) + ') × 100';
+        html += '<tr style="background: #e3f2fd;"><td style="padding: 8px; border: 1px solid #ddd;"><strong>Raw Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; font-weight: bold; color: ' + rawSavingsPctColor + ';">' + rawSavingsPctVal + '%</td><td style="padding: 8px; text-align: center; border: 1px solid #ddd; color: #666; font-size: 0.9em;">' + rawPctCalculation + '</td></tr>';
         html += `</table>`;
       } else {
         html += `<p style="color: #999; font-style: italic;">Raw kW data not available</p>`;
@@ -10323,8 +10380,9 @@ function displayResults(r) {
         const weatherBeforeForChiller = powerQualityNormalized.weather_normalized_kw_before
           || (r.weather_normalization || {}).normalized_kw_before
           || powerQualityNormalized.normalized_kw_before;
-        const chillerPct = weatherBeforeForChiller && !isNaN(weatherBeforeForChiller) && Number(weatherBeforeForChiller) > 0
-          ? (chillerCompensatedKw / Number(weatherBeforeForChiller)) * 100
+        const weatherAfterForChiller = Number(weatherBeforeForChiller) - chillerCompensatedKw;
+        const chillerPct = weatherBeforeForChiller && !isNaN(weatherBeforeForChiller)
+          ? stepDeltaPercent(chillerCompensatedKw, weatherBeforeForChiller, weatherAfterForChiller)
           : null;
         const chillerColor = chillerCompensatedKw >= 0 ? 'green' : 'red';
         html += `<div style="margin-bottom: 20px; padding: 15px; background: white; border-radius: 6px; border-left: 4px solid #f59e0b;">`;
@@ -10336,7 +10394,7 @@ function displayResults(r) {
         html += `<tr><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Chiller Compensation</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d;">${chillerAdjustmentKw.toFixed(2)} kW</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">${chillerAdjustmentKwhDay.toFixed(1)} kWh/day ÷ 24</td></tr>`;
         html += `<tr style="background: #fef3c7;"><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Chiller-Compensated Equipment Savings</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; font-weight: bold; color: ${chillerColor};">${chillerCompensatedKw.toFixed(2)} kW</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">${rawSavingsKw.toFixed(2)} + ${chillerAdjustmentKw.toFixed(2)}</td></tr>`;
         if (chillerPct !== null) {
-          html += `<tr style="background: #fde68a;"><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Chiller-Compensated Equipment Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; font-weight: bold; color: ${chillerColor};">${chillerPct.toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">${chillerCompensatedKw.toFixed(2)} ÷ ${Number(weatherBeforeForChiller).toFixed(2)} × 100</td></tr>`;
+          html += `<tr style="background: #fde68a;"><td style="padding: 8px; border: 1px solid #fcd34d;"><strong>Chiller-Compensated Equipment Savings (%)</strong></td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; font-weight: bold; color: ${chillerColor};">${chillerPct.toFixed(2)}%</td><td style="padding: 8px; text-align: center; border: 1px solid #fcd34d; color: #666; font-size: 0.85em;">${chillerCompensatedKw.toFixed(2)} ÷ max(${Number(weatherBeforeForChiller).toFixed(2)}, ${Number(weatherAfterForChiller).toFixed(2)}) × 100</td></tr>`;
         }
         html += `</table>`;
         html += `</div>`;
@@ -10420,7 +10478,11 @@ function displayResults(r) {
         
         // Calculate PF Normalized Savings using the calculated PF Normalized values
         const pfNormalizedSavingsKw = pfNormalizedKwBefore - pfNormalizedKwAfter;
-        const pfNormalizedSavingsPercent = (pfNormalizedKwBefore > 0) ? (pfNormalizedSavingsKw / pfNormalizedKwBefore) * 100 : 0;
+        const pfNormalizedSavingsPercent = stepDeltaPercent(
+          pfNormalizedSavingsKw,
+          pfNormalizedKwBefore,
+          pfNormalizedKwAfter
+        );
         
         // REMOVED: Don't store these values - this section is informational only to prevent double-counting
         // The actual normalized savings used in other sections are calculated independently in the IEEE 519 section
@@ -10439,7 +10501,8 @@ function displayResults(r) {
         const pfSavingsPct = pfNormalizedSavingsPercent != null && !isNaN(pfNormalizedSavingsPercent) ? Number(pfNormalizedSavingsPercent).toFixed(2) : 'N/A';
         const pfSavingsKw = pfNormalizedSavingsKw != null && !isNaN(pfNormalizedSavingsKw) ? Number(pfNormalizedSavingsKw).toFixed(2) : 'N/A';
         const pfKwBefore = pfNormalizedKwBefore != null && !isNaN(pfNormalizedKwBefore) ? Number(pfNormalizedKwBefore).toFixed(2) : 'N/A';
-        const pfSavingsPercentFormula = '<strong>Percentage Calculation:</strong> ' + pfSavingsPct + '% = (' + pfSavingsKw + ' ÷ ' + pfKwBefore + ') × 100 = (PF Normalized Savings (kW) ÷ PF Normalized kW (Before)) × 100';
+        const pfKwAfterForPct = pfNormalizedKwAfter != null && !isNaN(pfNormalizedKwAfter) ? Number(pfNormalizedKwAfter).toFixed(2) : 'N/A';
+        const pfSavingsPercentFormula = '<strong>Percentage Calculation:</strong> ' + pfSavingsPct + '% = (' + pfSavingsKw + ' ÷ max(' + pfKwBefore + ', ' + pfKwAfterForPct + ')) × 100';
         html += `<tr style="background: #fff3cd;"><td colspan="4" style="padding: 8px; border: 1px solid #ddd; color: #666; font-size: 0.85em;">${pfSavingsPercentFormula}</td></tr>`;
         
         // Check if PF is included in billing
@@ -10523,7 +10586,11 @@ function displayResults(r) {
           console.warn('[WARNING] [STEP 4 WARNING] Falling back would use wrong denominator - check backend data');
         }
         
-        const totalNormalizedPercentStep4 = (pfNormalizedKwBeforeStep4 > 0) ? (totalSavingsKwStep4 / pfNormalizedKwBeforeStep4) * 100 : 0;
+        const totalNormalizedPercentStep4 = stepDeltaPercent(
+          totalSavingsKwStep4,
+          pfNormalizedKwBeforeStep4,
+          pfNormalizedKwAfterStep4
+        );
         console.log('[SEARCH] [STEP 4 DEBUG] totalNormalizedPercentStep4 =', totalNormalizedPercentStep4, '%');
         console.log('[SEARCH] [STEP 4 DEBUG] Calculation: (' + totalSavingsKwStep4 + ' / ' + weatherBeforeForStep4 + ') × 100 = ' + totalNormalizedPercentStep4 + '%');
         
@@ -10538,7 +10605,7 @@ function displayResults(r) {
         let equipmentEnergySavingsPercent = null;
         if (weatherBeforeForStep4 && weatherAfterForStep4) {
           equipmentEnergySavingsKw = weatherBeforeForStep4 - weatherAfterForStep4;
-          equipmentEnergySavingsPercent = weatherBeforeForStep4 > 0 ? (equipmentEnergySavingsKw / weatherBeforeForStep4) * 100 : 0;
+          equipmentEnergySavingsPercent = stepDeltaPercent(equipmentEnergySavingsKw, weatherBeforeForStep4, weatherAfterForStep4);
         }
         
         html += `<table style="width: 100%; border-collapse: collapse; margin-top: 10px;">`;
@@ -10594,7 +10661,8 @@ function displayResults(r) {
         const rawKwBefore = powerQualityNormalized.kw_before;
         const rawKwAfter = powerQualityNormalized.kw_after;
         const rawSavingsKw = rawKwBefore - rawKwAfter;
-        const rawSavingsPercent = rawKwBefore > 0 ? (rawSavingsKw / rawKwBefore) * 100 : 0;
+        const rawSavingsDenominator = Math.max(Math.abs(rawKwBefore), Math.abs(rawKwAfter));
+        const rawSavingsPercent = hasCsvEnergyComparison ? csvRawChangePct : (rawSavingsDenominator > 0 ? (rawSavingsKw / rawSavingsDenominator) * 100 : 0);
         html += `<tr><td style="padding: 6px; border: 1px solid #ddd;"><strong>Step 1: Metered Energy Savings</strong><br/><small style="color: #666;">ANSI C12.20 revenue-grade meter — captures I²R, eddy currents, harmonics, motor efficiency simultaneously</small></td>`;
         html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">${rawKwBefore.toFixed(2)}</td>`;
         html += `<td style="padding: 6px; text-align: center; border: 1px solid #ddd;">${rawKwAfter.toFixed(2)}</td>`;
@@ -10638,7 +10706,10 @@ function displayResults(r) {
         html += `<div style="margin-top: 10px; padding: 8px; background: #e8f5e9; border-radius: 3px; border-left: 3px solid #4caf50;">`;
         html += `<strong style="color: #2e7d32;">📊 How These Results Are Calculated:</strong><br/>`;
         html += `<ul style="margin: 5px 0; padding-left: 20px; color: #666; font-size: 0.9em;">`;
-        html += `<li><strong>Step 1 — Metered Energy Savings:</strong> The revenue-grade utility meter (ANSI C12.20) recorded a reduction from <strong>${rawKwBefore.toFixed(2)} kW</strong> to <strong>${rawKwAfter.toFixed(2)} kW</strong> (<strong>${rawSavingsPercent.toFixed(2)}%</strong>). This metered difference is the primary M&V result. It simultaneously captures all physical effects of the Synerex system: reduced I²R losses from lower reactive current, reduced eddy current and copper losses in transformer and motor windings, reduced harmonic-induced losses, and improved motor operating efficiency from better voltage regulation. Cited per IPMVP Volume I Option B; ANSI C12.20.</li>`;
+        const rawSavingsBasis = hasCsvEnergyComparison
+          ? `integrated current CSV energy changed from <strong>${csvBeforeKwh.toFixed(0)} kWh</strong> to <strong>${csvAfterKwh.toFixed(0)} kWh</strong>`
+          : `average demand changed from <strong>${rawKwBefore.toFixed(2)} kW</strong> to <strong>${rawKwAfter.toFixed(2)} kW</strong>`;
+        html += `<li><strong>Step 1 — Metered Energy Savings:</strong> The revenue-grade utility meter (ANSI C12.20) recorded that ${rawSavingsBasis} (<strong>${rawSavingsPercent.toFixed(2)}%</strong>). This metered difference is the primary M&V result. It simultaneously captures all physical effects of the Synerex system: reduced I²R losses from lower reactive current, reduced eddy current and copper losses in transformer and motor windings, reduced harmonic-induced losses, and improved motor operating efficiency from better voltage regulation. Cited per IPMVP Volume I Option B; ANSI C12.20.</li>`;
         if (weatherBeforeForStep4 && weatherAfterForStep4) {
           const weatherSavingsKwStep4 = weatherBeforeForStep4 - weatherAfterForStep4;
           const weatherSavingsPercentStep4 = weatherBeforeForStep4 > 0 ? (weatherSavingsKwStep4 / weatherBeforeForStep4) * 100 : 0;

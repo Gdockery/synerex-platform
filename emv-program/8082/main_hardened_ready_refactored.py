@@ -4542,13 +4542,15 @@ class WeatherNormalizationML:
                             logger.info(f"[INFO] Normalized_kw_after ({normalized_kw_after:.2f}) > kw_before ({kw_before:.2f})")
                             logger.info(f"   This is expected when normalizing cooler weather to warmer weather")
                             logger.info(f"   Base_temp: {self.base_temp:.1f}°C, Weather effects: {weather_effect_before_ref:.3f} (before ref)")
-                            logger.info(f"   Raw savings: {kw_before - kw_after:.2f} kW ({((kw_before - kw_after) / kw_before * 100):.1f}%)")
+                            _raw_denominator = max(abs(kw_before), abs(kw_after))
+                            logger.info(f"   Raw savings: {kw_before - kw_after:.2f} kW ({(((kw_before - kw_after) / _raw_denominator * 100) if _raw_denominator > 0 else 0):.1f}%)")
                             logger.info(f"   Normalized savings: {kw_before - normalized_kw_after:.2f} kW ({((kw_before - normalized_kw_after) / kw_before * 100):.1f}%)")
                             # Don't cap - allow the mathematically correct normalization
                         else:
                             # Normalization validation failed - apply safety fix with higher threshold
                             # This occurs when base_temp validation fails or weather effects are invalid
-                            raw_savings_pct = (kw_before - kw_after) / kw_before if kw_before > 0 else 0
+                            raw_savings_denominator = max(abs(kw_before), abs(kw_after))
+                            raw_savings_pct = (kw_before - kw_after) / raw_savings_denominator if raw_savings_denominator > 0 else 0
                             min_normalized_savings_pct = raw_savings_pct * 0.8  # Preserve at least 80% of raw savings (was 50%)
                             max_normalized_kw_after = kw_before * (1 - min_normalized_savings_pct)
                             
@@ -4702,7 +4704,8 @@ class WeatherNormalizationML:
                 # When SYNEREX equipment is more efficient (generates less heat), normalized savings should be BETTER
                 # Set normalized_kw_after to be LESS than raw kw_after to show efficiency gain
                 # This reflects that efficient equipment consumes less power even when normalized to same weather
-                raw_savings_pct = (kw_before - kw_after) / kw_before if kw_before > 0 else 0
+                raw_savings_denominator = max(abs(kw_before), abs(kw_after))
+                raw_savings_pct = (kw_before - kw_after) / raw_savings_denominator if raw_savings_denominator > 0 else 0
                 
                 # ENHANCED: Normalized savings should be at least as good as raw savings, ideally better
                 # Set normalized_kw_after to kw_after (or slightly less) to show efficiency improvement
@@ -4819,7 +4822,8 @@ class WeatherNormalizationML:
                     logger.info(f"  Actual adjustment factor: {weather_adjustment_factor:.4f} (from timestamp normalization) vs Theoretical: {theoretical_adjustment_factor:.4f} (from average effects)")
                     logger.info(f"  Note: Actual factor differs from theoretical due to timestamp-by-timestamp normalization capturing intraday variations")
             
-            logger.info(f"  Raw kW: {kw_before:.1f} (before) -> {kw_after:.1f} (after) = {raw_savings:.1f} kW savings ({raw_savings/kw_before*100:.1f}%)")
+            raw_savings_denominator = max(abs(kw_before), abs(kw_after))
+            logger.info(f"  Raw kW: {kw_before:.1f} (before) -> {kw_after:.1f} (after) = {raw_savings:.1f} kW savings ({(raw_savings/raw_savings_denominator*100) if raw_savings_denominator > 0 else 0:.1f}%)")
             logger.info(f"  Normalized kW: {normalized_kw_before:.1f} (before, unchanged) -> {normalized_kw_after:.1f} (after, adjusted) = {weather_adjusted_savings:.1f} kW savings ({weather_adjusted_savings/normalized_kw_before*100:.1f}%)")
             
             # CRITICAL VALIDATION: Ensure normalized_kw_after is correctly calculated
@@ -26997,7 +27001,8 @@ def generate_iso_50001_report(results_data):
         )
         
         kw_savings = kw_before - kw_after if kw_before > 0 else 0
-        kw_savings_pct = (kw_savings / kw_before * 100) if kw_before > 0 else 0
+        kw_savings_denominator = max(abs(kw_before), abs(kw_after))
+        kw_savings_pct = (kw_savings / kw_savings_denominator * 100) if kw_savings_denominator > 0 else 0
         
         weather_norm_kw_savings = weather_norm_kw_before - weather_norm_kw_after if weather_norm_kw_before > 0 else 0
         weather_norm_kw_savings_pct = (weather_norm_kw_savings / weather_norm_kw_before * 100) if weather_norm_kw_before > 0 else 0

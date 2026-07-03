@@ -53,6 +53,7 @@ export class EnergyDashboardComponent implements OnInit, OnDestroy {
   // ── Real-time ticker ─────────────────────────────────────────────────────
   private _ticker: any = null;
   tickerSeconds = 0;
+  lastUpdated = '';
 
   constructor(
     private api: ApiRequestService,
@@ -87,6 +88,7 @@ export class EnergyDashboardComponent implements OnInit, OnDestroy {
     this.dateFrom = this._fmt(week);
 
     if (this.selectedProjectId) this.loadAll();
+    this._touchUpdated();
 
     // Real-time ticker (every second)
     this._ticker = setInterval(() => { this.tickerSeconds++; }, 1000);
@@ -98,6 +100,15 @@ export class EnergyDashboardComponent implements OnInit, OnDestroy {
 
   private _fmt(d: Date): string {
     return d.toISOString().slice(0, 10);
+  }
+
+  private _touchUpdated() {
+    this.lastUpdated = new Date().toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
   }
 
   // ── Project switch ────────────────────────────────────────────────────────
@@ -126,7 +137,7 @@ export class EnergyDashboardComponent implements OnInit, OnDestroy {
     this.loading = true;
 
     this.api.get(`/api/savings/intelligence?project_id=${pid}&from_ts=${from}&to_ts=${to}`).subscribe({
-      next: (r: any) => { this.siData = r?.latest || r?.response || r; this.loading = false; },
+      next: (r: any) => { this.siData = r?.latest || r?.response || r; this.loading = false; this._touchUpdated(); },
       error: () => { this.loading = false; }
     });
 
