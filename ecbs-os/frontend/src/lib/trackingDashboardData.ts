@@ -200,6 +200,7 @@ export type DigitalTwinData = {
   dateRange: string;
   headroomKva: number;
   projectName: string;
+  recoveredCapacityKva: number;
   relationships: DigitalTwinRelationship[];
   siteName: string;
   state: "data" | "empty" | "error";
@@ -866,7 +867,7 @@ export async function getOchsnerDigitalTwinData(): Promise<DigitalTwinData> {
     );
     const [capacityRows] = await pool.query<mysql.RowDataPacket[]>(
       `
-        SELECT installed_capacity, used_capacity, available_capacity
+        SELECT installed_capacity, used_capacity, available_capacity, recoverable_capacity
         FROM capacity_intelligence
         WHERE project_id = 13
         ORDER BY bucket_ts DESC
@@ -914,6 +915,7 @@ export async function getOchsnerDigitalTwinData(): Promise<DigitalTwinData> {
     const transformerKva = toNumber(capacity?.installed_capacity) || transformer?.kvaRating || 0;
     const currentLoadKva = toNumber(capacity?.used_capacity);
     const headroomKva = Math.max(0, transformerKva - currentLoadKva);
+    const recoveredCapacityKva = toNumber(capacity?.recoverable_capacity);
 
     return {
       activeMeters: toNumber(metrics?.meter_count),
@@ -923,6 +925,7 @@ export async function getOchsnerDigitalTwinData(): Promise<DigitalTwinData> {
       dateRange: "Approved Digital Twin",
       headroomKva,
       projectName: site.project_name,
+      recoveredCapacityKva,
       relationships,
       siteName: site.site_name,
       state: "data",
@@ -1306,6 +1309,7 @@ function emptyDigitalTwin(message: string): DigitalTwinData {
     dateRange: "Tracking DB",
     headroomKva: 0,
     projectName: "Ochsner Project",
+    recoveredCapacityKva: 0,
     relationships: [],
     siteName: "Ochsner Site",
     state: "error",

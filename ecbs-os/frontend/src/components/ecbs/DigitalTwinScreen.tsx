@@ -24,7 +24,7 @@ export function DigitalTwinScreen({ data }: { data: DigitalTwinData }) {
   const selected = transformer ?? data.assets[0];
   const selectedLoad = data.currentLoadKva;
   const selectedUtilization = data.transformerKva > 0 ? Math.min(100, (selectedLoad / data.transformerKva) * 100) : 0;
-  const recoveredCapacity = Math.max(0, data.transformerKva - data.currentLoadKva - data.headroomKva);
+  const recoveredCapacity = data.recoveredCapacityKva;
   const panelCapacity = sumAmpCapacity(panels);
   const feederCapacity = sumAmpCapacity(feeders);
   const switchgearCapacity = sumAmpCapacity(switchgear ? [switchgear] : []);
@@ -86,7 +86,12 @@ export function DigitalTwinScreen({ data }: { data: DigitalTwinData }) {
           <div className="space-y-2 overflow-hidden">
             <DashboardPanel title="Selected Asset" variant="enterprise">
               {selected ? (
-                <SelectedAssetCard asset={selected} loadKva={selectedLoad} utilization={selectedUtilization} />
+                <SelectedAssetCard
+                  asset={selected}
+                  loadKva={selectedLoad}
+                  recoveredCapacityKva={recoveredCapacity}
+                  utilization={selectedUtilization}
+                />
               ) : (
                 <div className="p-4 text-[11px] text-slate-400">No asset selected.</div>
               )}
@@ -277,10 +282,12 @@ function AssetNode({
 function SelectedAssetCard({
   asset,
   loadKva,
+  recoveredCapacityKva,
   utilization,
 }: {
   asset: DigitalTwinAsset;
   loadKva: number;
+  recoveredCapacityKva: number;
   utilization: number;
 }) {
   return (
@@ -304,7 +311,7 @@ function SelectedAssetCard({
       <MetricLine label="Load" value={`${formatNumber(loadKva)} kVA (${formatNumber(utilization)}%)`} />
       <MeterBar value={utilization} />
       <MetricLine label="Available Capacity" value={`${formatNumber(Math.max(0, asset.kvaRating - loadKva))} kVA`} valueClass="text-[#29b6f6]" />
-      <MetricLine label="Recovered Capacity" value="DB-linked" valueClass="text-[#05ff5e]" />
+      <MetricLine label="Recovered Capacity" value={`${formatNumber(recoveredCapacityKva)} kVA`} valueClass="text-[#05ff5e]" />
       <MetricLine label="Utilization" value={`${formatNumber(utilization)}%`} />
       <MetricLine label="Health Status" value={utilization >= 80 ? "Warning" : "Healthy"} valueClass={utilization >= 80 ? "text-yellow-300" : "text-[#05ff5e]"} />
     </div>
