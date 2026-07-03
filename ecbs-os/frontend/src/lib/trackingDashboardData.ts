@@ -499,11 +499,14 @@ export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> 
 
     const [savingsTrendRows] = await pool.query<mysql.RowDataPacket[]>(
       `
-        SELECT FLOOR(bucket_ts / 3600000) * 3600000 AS bucket_ts, AVG(annual_savings) AS value
-        FROM savings_intelligence
-        WHERE project_id = 13
-        GROUP BY FLOOR(bucket_ts / 3600000)
-        ORDER BY bucket_ts DESC
+        SELECT hour_bucket AS bucket_ts, AVG(annual_savings) AS value
+        FROM (
+          SELECT FLOOR(bucket_ts / 3600000) * 3600000 AS hour_bucket, annual_savings
+          FROM savings_intelligence
+          WHERE project_id = 13
+        ) hourly
+        GROUP BY hour_bucket
+        ORDER BY hour_bucket DESC
         LIMIT 12
       `,
     );
