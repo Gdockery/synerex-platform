@@ -248,6 +248,43 @@ export type SiteDashboardData = {
   updatedAt: string;
 };
 
+export type TransformerPhaseSummary = {
+  currentA: string;
+  imbalance: string;
+  kva: string;
+  phase: string;
+  voltage: string;
+};
+
+export type TransformerDetailRow = {
+  label: string;
+  value: string;
+};
+
+export type TransformerDashboardData = {
+  annualSavings: string;
+  availableCapacityKva: number;
+  capacityRecoveredKva: number;
+  cbiScore: number;
+  dateRange: string;
+  details: TransformerDetailRow[];
+  health: string;
+  kpis: DashboardKpi[];
+  kvaTrend: TrendCardData;
+  loadKva: number;
+  loadProfile: TrendCardData;
+  phaseSummary: TransformerPhaseSummary[];
+  powerQuality: TransformerDetailRow[];
+  ratingKva: number;
+  recoveryTrend: TrendCardData;
+  savingsRows: TransformerDetailRow[];
+  siteName: string;
+  state: "data" | "empty" | "error";
+  transformerName: string;
+  updatedAt: string;
+  utilizationPct: number;
+};
+
 const ochsnerQuery = "ochsner";
 
 export async function getEnterpriseDashboardData(): Promise<EnterpriseDashboardData> {
@@ -690,6 +727,183 @@ export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> 
         { label: "Site ID", value: "3" },
       ],
     };
+  } finally {
+    await pool.end();
+  }
+}
+
+export async function getOchsnerTransformerDashboardData(): Promise<TransformerDashboardData> {
+  const pool = createTrackingPool();
+
+  try {
+    const [siteRows] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT s.id, s.name AS site_name, p.name AS project_name
+        FROM site s
+        JOIN project p ON p.id = s.project_id
+        WHERE s.id = 3 AND p.id = 13
+        LIMIT 1
+      `,
+    );
+    const site = siteRows[0] as { id: number; project_name: string; site_name: string } | undefined;
+
+    if (!site) {
+      return emptyTransformerDashboard("Ochsner site record was not found in tracking DB.");
+    }
+
+    const [assetRows] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT id, name, asset_type, kva_rating, amp_rating, voltage_primary, voltage_secondary,
+               meter_id, status, notes, drawing_ref, bus_id
+        FROM asset
+        WHERE site_id = 3 AND asset_type = 'transformer' AND is_deleted = 0
+        ORDER BY id
+        LIMIT 1
+      `,
+    );
+    const transformer = firstRow<AssetRow>(assetRows);
+
+    if (!transformer) {
+      return emptyTransformerDashboard("No transformer asset was found for Ochsner site.");
+    }
+
+    const [meterRows] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT id, name, isMain, isSub, isFilter, lastTotalVolt, lastTotalAmp, lastTotalKw,
+               lastTotalKva, lastTotalPf, lastTotalKvar, lastTotalTHD, lastTimestamp, avg15MinuteKva
+        FROM meter
+        WHERE project = 13 AND isDeleted = 0
+        ORDER BY isMain DESC, id
+      `,
+    );
+    const meters = meterRows as LatestMeterRow[];
+    const mainMeter = meters.find((meter) => meter.isMain === 1) ?? meters[0];
+
+    const [capacityRows] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT bucket_ts, installed_capacity, used_capacity, available_capacity, recoverable_capacity,
+               utilization_pct, capacity_health_score, calculated_at
+        FROM capacity_intelligence
+        WHERE project_id = 13
+        ORDER BY bucket_ts DESC
+        LIMIT 1
+      `,
+    );
+    const capacity = firstRow<CapacitySummaryRow>(capacityRows);
+
+    const [savingsRows] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT annual_savings, demand_savings, capacity_value, current_avg_kw, current_avg_kva, current_avg_pf,
+               baseline_avg_pf, recoverable_kva, co2_reduction_tons
+        FROM savings_intelligence
+        WHERE project_id = 13
+        ORDER BY bucket_ts DESC
+        LIMIT 1
+      `,
+    );
+    const savings = firstRow<SavingsSummaryRow & {
+      capacity_value?: number | null;
+      current_avg_kva?: number | null;
+      current_avg_pf?: number | null;
+      demand_savings?: number | null;
+    }>(savingsRows);
+
+    const [minuteRows] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT recordedAt AS bucket_ts, totalKva, totalKw, totalPf, totalTHD,
+               totalAmp, totalKvar, l1Volt, l2Volt, l3Volt, l1Amp, l2Amp, l3Amp
+        FROM meterdata
+        WHERE meter = ?
+          AND recordedAt IS NOT NULL
+        ORDER BY recordedAt DESC
+        LIMIT 180
+      `,
+      [mainMeter?.id ?? 0],
+    );
+
+    const minuteTrend = (minuteRows as Array<MeterMinuteTrendRow & {
+      l1Volt?: number | null;
+      l2Volt?: number | null;
+      l3Volt?: number | null;
+    }>).reverse();
+    const latestMinute = minuteTrend[minuteTrend.length - 1];
+    const ratingKva = toNumber(capacity?.installed_capacity) || toNumber(transformer.kva_rating);
+    const loadKva = toNumber(latestMinute?.totalKva) || toNumber(capacity?.used_capacity ?? mainMeter?.lastTotalKva);
+    const utilizationPct = ratingKva > 0 ? Math.min(100, (loadKva / ratingKva) * 100) : toNumber(capacity?.utilization_pct);
+    const availableCapacityKva = Math.max(0, ratingKva - loadKva);
+    const capacityRecoveredKva = toNumber(capacity?.recoverable_capacity ?? savings?.recoverable_kva);
+    const cbiScore = latestMinute ? scoreMinuteCbi(latestMinute) : 0;
+    const annualSavings = toNumber(savings?.annual_savings);
+    const pf = normalizePf(toNumber(latestMinute?.totalPf) || toNumber(mainMeter?.lastTotalPf));
+    const thd = toNumber(latestMinute?.totalTHD) || toNumber(mainMeter?.lastTotalTHD);
+
+    return {
+      annualSavings: formatCurrency(annualSavings),
+      availableCapacityKva,
+      capacityRecoveredKva,
+      cbiScore,
+      dateRange: "1-minute main-meter telemetry",
+      details: [
+        { label: "Transformer ID", value: transformer.asset_uid ?? `XF-${transformer.id}` },
+        { label: "Name", value: transformer.name },
+        { label: "Type", value: titleCase(transformer.asset_type) },
+        { label: "Drawing Ref", value: transformer.drawing_ref ?? "0-000" },
+        { label: "Rating", value: `${formatNumber(ratingKva, 0)} kVA` },
+        { label: "Primary Voltage", value: `${formatNumber(toNumber(transformer.voltage_primary), 0)} V` },
+        { label: "Secondary Voltage", value: `${formatNumber(toNumber(transformer.voltage_secondary), 0)} V` },
+        { label: "Status", value: titleCase(transformer.status ?? "active") },
+      ],
+      health: utilizationPct >= 90 || thd > 20 ? "Warning" : "Healthy",
+      kpis: [
+        { icon: "◉", label: "Utilization", value: `${formatNumber(utilizationPct, 0)}%`, detail: `${formatNumber(loadKva, 0)} kVA current load`, color: utilizationPct > 85 ? "#f59e0b" : "#05ff5e" },
+        { icon: "↯", label: "Capacity Recovered", value: `${formatNumber(capacityRecoveredKva, 0)} kVA`, detail: `${formatNumber((capacityRecoveredKva / Math.max(ratingKva, 1)) * 100, 0)}% of rating`, color: "#05ff5e" },
+        { icon: "A", label: "Available Capacity", value: `${formatNumber(availableCapacityKva, 0)} kVA`, detail: `${formatNumber((availableCapacityKva / Math.max(ratingKva, 1)) * 100, 0)}% of rating`, color: "#147dff" },
+        { icon: "96", label: "Current Balance Index™", value: `${formatNumber(cbiScore, 0)}`, detail: cbiScore >= 90 ? "Excellent Balance" : "Needs Review", color: cbiScore >= 90 ? "#05ff5e" : "#f59e0b" },
+        { icon: "✓", label: "Transformer Health", value: utilizationPct >= 90 || thd > 20 ? "Warning" : "Healthy", detail: thd > 20 ? "THD above target" : "From active issues", color: utilizationPct >= 90 || thd > 20 ? "#f59e0b" : "#05ff5e" },
+        { icon: "$", label: "Total Annual Savings", value: formatCurrency(annualSavings), detail: "From this transformer", color: "#ab47bc" },
+      ],
+      kvaTrend: {
+        detail: "1-min apparent power vs. rating",
+        labels: labelsFromRows(minuteTrend.map((row) => ({ bucket_ts: row.bucket_ts, value: toNumber(row.totalKva) }))),
+        points: pointsFromRows(minuteTrend.map((row) => ({ bucket_ts: row.bucket_ts, value: toNumber(row.totalKva) }))),
+        value: `${formatNumber(loadKva, 0)} kVA`,
+      },
+      loadKva,
+      loadProfile: {
+        detail: "1-min real power load profile",
+        labels: labelsFromRows(minuteTrend.map((row) => ({ bucket_ts: row.bucket_ts, value: toNumber(row.totalKw) }))),
+        points: pointsFromRows(minuteTrend.map((row) => ({ bucket_ts: row.bucket_ts, value: toNumber(row.totalKw) }))),
+        value: `${formatNumber(toNumber(latestMinute?.totalKw), 0)} kW`,
+      },
+      phaseSummary: buildTransformerPhases(latestMinute),
+      powerQuality: [
+        { label: "THD Voltage (Avg)", value: `${formatNumber(thd, 1)}%` },
+        { label: "Power Factor (Avg)", value: pf > 0 ? pf.toFixed(3) : "N/A" },
+        { label: "Frequency", value: "60.0 Hz" },
+        { label: "Voltage Unbalance", value: `${formatNumber(phaseVoltageImbalance(latestMinute), 1)}%` },
+      ],
+      ratingKva,
+      recoveryTrend: {
+        detail: "Capacity recovery rollup",
+        labels: labelsFromRows(minuteTrend.map((row) => ({ bucket_ts: row.bucket_ts, value: capacityRecoveredKva }))),
+        points: pointsFromRows(minuteTrend.map((row) => ({ bucket_ts: row.bucket_ts, value: capacityRecoveredKva }))),
+        value: `${formatNumber(capacityRecoveredKva, 0)} kVA`,
+      },
+      savingsRows: [
+        { label: "Energy Cost Savings", value: formatCurrency(annualSavings - toNumber(savings?.demand_savings)) },
+        { label: "Demand Cost Savings", value: formatCurrency(toNumber(savings?.demand_savings)) },
+        { label: "Capacity Value", value: formatCurrency(toNumber(savings?.capacity_value)) },
+        { label: "Total Annual Savings", value: formatCurrency(annualSavings) },
+      ],
+      siteName: site.site_name,
+      state: "data",
+      transformerName: transformer.name,
+      updatedAt: formatTimestamp(toNumber(capacity?.calculated_at ?? capacity?.bucket_ts) || Date.now()),
+      utilizationPct,
+    };
+  } catch (error) {
+    console.error("Failed to load Transformer dashboard data from tracking DB", error);
+    return emptyTransformerDashboard("Tracking DB data is unavailable for Transformer dashboard.");
   } finally {
     await pool.end();
   }
@@ -1378,6 +1592,34 @@ function emptyDigitalTwin(message: string): DigitalTwinData {
   };
 }
 
+function emptyTransformerDashboard(message: string): TransformerDashboardData {
+  return {
+    annualSavings: "N/A",
+    availableCapacityKva: 0,
+    capacityRecoveredKva: 0,
+    cbiScore: 0,
+    dateRange: "Tracking DB",
+    details: [{ label: "Status", value: message }],
+    health: "Unavailable",
+    kpis: [
+      { icon: "!", label: "Transformer Data", value: "N/A", detail: message, color: "#f59e0b" },
+    ],
+    kvaTrend: { value: "N/A", detail: message, labels: [], points: pointsFromRows([]) },
+    loadKva: 0,
+    loadProfile: { value: "N/A", detail: message, labels: [], points: pointsFromRows([]) },
+    phaseSummary: [],
+    powerQuality: [],
+    ratingKva: 0,
+    recoveryTrend: { value: "N/A", detail: message, labels: [], points: pointsFromRows([]) },
+    savingsRows: [],
+    siteName: "Ochsner Site",
+    state: "error",
+    transformerName: "Transformer Unavailable",
+    updatedAt: formatTimestamp(Date.now()),
+    utilizationPct: 0,
+  };
+}
+
 function firstRow<T>(rows: mysql.RowDataPacket[]): T | undefined {
   return rows[0] as T | undefined;
 }
@@ -1458,6 +1700,58 @@ function pointsFromRows(rows: TrendPointRow[], invert = false) {
       return `${x.toFixed(0)},${y.toFixed(0)}`;
     })
     .join(" ");
+}
+
+function buildTransformerPhases(row: (MeterMinuteTrendRow & { l1Volt?: number | null; l2Volt?: number | null; l3Volt?: number | null }) | undefined): TransformerPhaseSummary[] {
+  if (!row) {
+    return [];
+  }
+
+  const phases = [
+    { amp: row.l1Amp, phase: "A", voltage: row.l1Volt },
+    { amp: row.l2Amp, phase: "B", voltage: row.l2Volt },
+    { amp: row.l3Amp, phase: "C", voltage: row.l3Volt },
+  ];
+  const avgAmp = averagePositive(phases.map((phase) => phase.amp));
+
+  return phases.map((phase) => {
+    const current = toNumber(phase.amp);
+    const imbalance = avgAmp > 0 ? Math.abs(current - avgAmp) / avgAmp * 100 : 0;
+    const voltage = toNumber(phase.voltage);
+    const kva = voltage > 0 && current > 0 ? (voltage * current) / 1000 : 0;
+
+    return {
+      currentA: formatNumber(current, 0),
+      imbalance: `${formatNumber(imbalance, 1)}%`,
+      kva: formatNumber(kva, 0),
+      phase: phase.phase,
+      voltage: formatNumber(voltage, 0),
+    };
+  });
+}
+
+function normalizePf(value: number) {
+  if (value > 1) {
+    return value / 100;
+  }
+
+  return value;
+}
+
+function phaseVoltageImbalance(row: (MeterMinuteTrendRow & { l1Volt?: number | null; l2Volt?: number | null; l3Volt?: number | null }) | undefined) {
+  if (!row) {
+    return 0;
+  }
+
+  const values = [toNumber(row.l1Volt), toNumber(row.l2Volt), toNumber(row.l3Volt)].filter((value) => value > 0);
+
+  if (values.length < 3) {
+    return 0;
+  }
+
+  const avg = values.reduce((sum, value) => sum + value, 0) / values.length;
+
+  return avg > 0 ? Math.max(...values.map((value) => Math.abs(value - avg))) / avg * 100 : 0;
 }
 
 function scoreMinuteCbi(row: MeterMinuteTrendRow) {
