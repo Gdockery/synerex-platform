@@ -64,7 +64,7 @@ export function EnergyDashboardScreen({
         </section>
 
         <section className="mt-1.5 grid h-[118px] grid-cols-3 gap-1.5">
-          <DashboardPanel title="Savings Trend (15 Min)" action="View Report →">
+          <DashboardPanel title="Savings Trend (Hourly)" action="View Report →">
             <TrendCard {...data.savingsTrend} />
           </DashboardPanel>
           <DashboardPanel title="CBI Trend (15 Min)" action="View Report →">
