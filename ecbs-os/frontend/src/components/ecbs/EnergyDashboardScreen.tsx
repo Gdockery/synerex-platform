@@ -31,9 +31,15 @@ const quickActions: QuickActionItem[] = [
   { label: "Add Note", icon: "note", color: "#f59e0b" },
 ];
 
-export function EnergyDashboardScreen({ data }: { data: SiteDashboardData }) {
+export function EnergyDashboardScreen({
+  activeHref = "/enterprise/energy-dashboard",
+  data,
+}: {
+  activeHref?: string;
+  data: SiteDashboardData;
+}) {
   return (
-    <EcbsAppShell activeHref="/enterprise/energy-dashboard">
+    <EcbsAppShell activeHref={activeHref}>
       <div className="flex h-[682px] flex-col overflow-hidden px-2 py-1.5">
         <DashboardHeader dateRange="Latest tracking DB rollup" subtitle={data.siteName} title="Site Dashboard" />
 
