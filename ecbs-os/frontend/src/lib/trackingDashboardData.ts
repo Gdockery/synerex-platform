@@ -499,33 +499,33 @@ export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> 
 
     const [savingsTrendRows] = await pool.query<mysql.RowDataPacket[]>(
       `
-        SELECT annual_savings AS value
+        SELECT bucket_ts, annual_savings AS value
         FROM savings_intelligence
         WHERE project_id = 13
         ORDER BY bucket_ts DESC
-        LIMIT 12
+        LIMIT 16
       `,
     );
 
     const [balanceTrendRows] = await pool.query<mysql.RowDataPacket[]>(
       `
-        SELECT AVG(cbi_score) AS value
+        SELECT bucket_ts, AVG(cbi_score) AS value
         FROM current_balance_metrics
         WHERE project_id = 13
         GROUP BY bucket_ts
         ORDER BY bucket_ts DESC
-        LIMIT 12
+        LIMIT 16
       `,
     );
 
     const [thdTrendRows] = await pool.query<mysql.RowDataPacket[]>(
       `
-        SELECT AVG(avg_thd) AS value
+        SELECT bucket_ts, AVG(avg_thd) AS value
         FROM current_balance_metrics
         WHERE project_id = 13
         GROUP BY bucket_ts
         ORDER BY bucket_ts DESC
-        LIMIT 12
+        LIMIT 16
       `,
     );
 
@@ -589,17 +589,20 @@ export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> 
       ],
       savingsTrend: {
         value: formatCurrency(annualSavings),
-        detail: "Latest savings intelligence",
+        detail: "Latest 15-min tracking buckets",
+        labels: labelsFromRows(savingsTrendRows),
         points: pointsFromRows(savingsTrendRows),
       },
       balanceTrend: {
         value: cbi > 0 ? cbi.toFixed(0) : "N/A",
-        detail: cbi >= 90 ? "A+ Rating" : "Needs Review",
+        detail: cbi >= 90 ? "15-min buckets - A+ Rating" : "15-min buckets - Needs Review",
+        labels: labelsFromRows(balanceTrendRows),
         points: pointsFromRows(balanceTrendRows),
       },
       thdTrend: {
         value: avgThd > 0 ? `${avgThd.toFixed(1)}%` : "N/A",
-        detail: avgThd <= 5 ? "Good (<5%)" : "Above target",
+        detail: avgThd <= 5 ? "15-min buckets - Good (<5%)" : "15-min buckets - Above target",
+        labels: labelsFromRows(thdTrendRows),
         points: pointsFromRows(thdTrendRows, true),
         color: "#2f8cff",
       },
@@ -700,7 +703,7 @@ export async function getOchsnerCapacityIntelligenceData(): Promise<CapacityInte
         FROM capacity_intelligence
         WHERE project_id = 13
         ORDER BY bucket_ts DESC
-        LIMIT 14
+        LIMIT 16
       `,
     );
     const [assetRows] = await pool.query<mysql.RowDataPacket[]>(
@@ -767,7 +770,7 @@ export async function getOchsnerCapacityIntelligenceData(): Promise<CapacityInte
       ],
       capacityHealthScore: health,
       co2Tons: `${formatNumber(co2, 0)} tons`,
-      dateRange: "Latest tracking DB rollup",
+      dateRange: "15-minute tracking DB buckets",
       deferredCapitalValue: deferred,
       hiddenKva: hidden,
       installedKva: installed,
@@ -796,7 +799,7 @@ export async function getOchsnerCapacityIntelligenceData(): Promise<CapacityInte
         .map((row) => ({
           available: toNumber(row.available_capacity) + toNumber(row.recoverable_capacity),
           installed: toNumber(row.installed_capacity),
-          label: formatShortDate(toNumber(row.bucket_ts)),
+          label: formatShortTime(toNumber(row.bucket_ts)),
           used: toNumber(row.used_capacity),
         })),
       updatedAt: formatTimestamp(toNumber(capacity.calculated_at ?? capacity.bucket_ts) || Date.now()),
@@ -1248,7 +1251,7 @@ function emptyDashboard(message: string): EnterpriseDashboardData {
 function emptySiteDashboard(message: string): SiteDashboardData {
   return {
     alarms: [{ title: "Site Data Unavailable", detail: message, time: "Now", tone: "yellow" }],
-    balanceTrend: { value: "N/A", detail: message, points: pointsFromRows([]) },
+    balanceTrend: { value: "N/A", detail: message, labels: [], points: pointsFromRows([]) },
     capacityAfter: [],
     capacityBefore: [],
     deviceHealth: [],
@@ -1263,10 +1266,10 @@ function emptySiteDashboard(message: string): SiteDashboardData {
     liveSnapshot: [],
     monitoringHealth: [],
     panels: [],
-    savingsTrend: { value: "N/A", detail: message, points: pointsFromRows([]) },
+    savingsTrend: { value: "N/A", detail: message, labels: [], points: pointsFromRows([]) },
     siteInfo: [{ label: "Status", value: message }],
     siteName: "Ochsner Site",
-    thdTrend: { value: "N/A", detail: message, points: pointsFromRows([]), color: "#2f8cff" },
+    thdTrend: { value: "N/A", detail: message, labels: [], points: pointsFromRows([]), color: "#2f8cff" },
     transformerMetrics: [],
     transformerUtilization: "N/A",
     updatedAt: formatTimestamp(Date.now()),
@@ -1345,6 +1348,32 @@ function formatShortDate(timestamp: number) {
     day: "numeric",
     timeZone: "America/Chicago",
   });
+}
+
+function formatShortTime(timestamp: number) {
+  if (!timestamp) {
+    return "";
+  }
+
+  return new Date(timestamp).toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone: "America/Chicago",
+  });
+}
+
+function labelsFromRows(rows: mysql.RowDataPacket[]) {
+  const values = rows
+    .filter((row) => toNumber(row.value) > 0)
+    .reverse();
+
+  if (values.length === 0) {
+    return [];
+  }
+
+  return values
+    .filter((_, index) => index % 5 === 0 || index === values.length - 1)
+    .map((row) => formatShortTime(toNumber(row.bucket_ts)));
 }
 
 function pointsFromRows(rows: mysql.RowDataPacket[], invert = false) {

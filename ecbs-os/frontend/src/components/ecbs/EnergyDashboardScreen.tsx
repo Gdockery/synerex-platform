@@ -64,13 +64,13 @@ export function EnergyDashboardScreen({
         </section>
 
         <section className="mt-1.5 grid h-[118px] grid-cols-3 gap-1.5">
-          <DashboardPanel title="Savings Trend (12 Months)" action="View Report →">
+          <DashboardPanel title="Savings Trend (15-Min Intervals)" action="View Report →">
             <TrendCard {...data.savingsTrend} />
           </DashboardPanel>
-          <DashboardPanel title="Current Balance Index™ Trend (30 Days)" action="View Report →">
+          <DashboardPanel title="Current Balance Index™ Trend (15-Min Intervals)" action="View Report →">
             <TrendCard {...data.balanceTrend} />
           </DashboardPanel>
-          <DashboardPanel title="THD Trend (30 Days)" action="View Report →">
+          <DashboardPanel title="THD Trend (15-Min Intervals)" action="View Report →">
             <TrendCard {...data.thdTrend} />
           </DashboardPanel>
         </section>

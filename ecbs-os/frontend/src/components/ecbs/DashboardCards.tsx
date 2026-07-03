@@ -26,6 +26,7 @@ export type PortfolioSite = {
 export type TrendCardData = {
   color?: string;
   detail: string;
+  labels?: string[];
   points: string;
   value: string;
 };
@@ -322,12 +323,12 @@ export function ScreenStateBanner({ state }: { state: string }) {
   );
 }
 
-export function TrendCard({ color = "#05ff5e", detail, points, value }: TrendCardData) {
+export function TrendCard({ color = "#05ff5e", detail, labels, points, value }: TrendCardData) {
   return (
     <>
       <div className="text-[20px] font-light leading-none text-white">{value}</div>
       <p className={color === "#05ff5e" ? "text-[8px] text-[#05ff5e]" : "text-[8px] text-slate-400"}>{detail}</p>
-      <TrendChart color={color} points={points} />
+      <TrendChart color={color} labels={labels} points={points} />
     </>
   );
 }
@@ -795,13 +796,20 @@ function Sparkline({ color = "#05ff5e", compact = false }: { color?: string; com
   );
 }
 
-function TrendChart({ color, points }: { color: string; points: string }) {
+function TrendChart({ color, labels, points }: { color: string; labels?: string[]; points: string }) {
   return (
-    <svg className="mt-1 h-[68px] w-full" viewBox="0 0 308 100" aria-hidden="true">
-      {[25, 50, 75].map((y) => <line key={y} x1="0" x2="308" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" />)}
-      <polyline fill="none" points={points} stroke={color} strokeWidth="2" />
-      <polyline fill="none" opacity="0.25" points={`${points} 308,100 0,100`} stroke={color} />
-    </svg>
+    <div className="mt-1">
+      <svg className="h-[58px] w-full" viewBox="0 0 308 100" aria-hidden="true">
+        {[25, 50, 75].map((y) => <line key={y} x1="0" x2="308" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" />)}
+        <polyline fill="none" points={points} stroke={color} strokeWidth="2" />
+        <polyline fill="none" opacity="0.25" points={`${points} 308,100 0,100`} stroke={color} />
+      </svg>
+      {labels && labels.length > 0 ? (
+        <div className="mt-0.5 flex justify-between text-[7px] text-slate-500">
+          {labels.map((label) => <span key={label}>{label}</span>)}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
