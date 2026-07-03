@@ -509,6 +509,8 @@ export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> 
         ORDER BY isMain DESC, isSub DESC, id
       `,
     );
+    const meters = meterRows as LatestMeterRow[];
+    const mainMeter = meters.find((meter) => meter.isMain === 1) ?? meters[0];
 
     const [savingsTrendRows] = await pool.query<mysql.RowDataPacket[]>(
       `
@@ -551,14 +553,12 @@ export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> 
         SELECT md.recordedAt AS bucket_ts, md.totalKw, md.totalKva, md.totalPf,
                md.totalTHD, md.totalAmp, md.l1Amp, md.l2Amp, md.l3Amp, md.totalKvar
         FROM meterdata md
-        JOIN meter m ON m.id = md.meter
-        WHERE m.project = 13
-          AND m.isMain = 1
-          AND m.isDeleted = 0
+        WHERE md.meter = ?
           AND md.recordedAt IS NOT NULL
         ORDER BY md.recordedAt DESC
         LIMIT 180
       `,
+      [mainMeter?.id ?? 0],
     );
 
     const metrics = firstRow<MetricSummaryRow>(metricRows);
@@ -570,8 +570,6 @@ export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> 
       current_avg_pf?: number | null;
       pf_improvement?: number | null;
     }>(savingsRows);
-    const meters = meterRows as LatestMeterRow[];
-    const mainMeter = meters.find((meter) => meter.isMain === 1) ?? meters[0];
     const transformerKva = toNumber(capacity?.installed_capacity) || 1000;
     const usedKva = toNumber(capacity?.used_capacity ?? mainMeter?.lastTotalKva);
     const utilization = toNumber(capacity?.utilization_pct) || (transformerKva ? (usedKva / transformerKva) * 100 : 0);
@@ -742,19 +740,6 @@ export async function getOchsnerCapacityIntelligenceData(): Promise<CapacityInte
         LIMIT 16
       `,
     );
-    const [minuteCapacityRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT md.recordedAt AS bucket_ts, md.totalKva
-        FROM meterdata md
-        JOIN meter m ON m.id = md.meter
-        WHERE m.project = 13
-          AND m.isMain = 1
-          AND m.isDeleted = 0
-          AND md.recordedAt IS NOT NULL
-        ORDER BY md.recordedAt DESC
-        LIMIT 180
-      `,
-    );
     const [assetRows] = await pool.query<mysql.RowDataPacket[]>(
       `
         SELECT id, name, asset_type, kva_rating, amp_rating, voltage_primary, voltage_secondary, meter_id, status
@@ -779,6 +764,19 @@ export async function getOchsnerCapacityIntelligenceData(): Promise<CapacityInte
         ORDER BY isMain DESC, id
       `,
     );
+    const capacityMeters = meterRows as LatestMeterRow[];
+    const capacityMainMeter = capacityMeters.find((meter) => meter.isMain === 1) ?? capacityMeters[0];
+    const [minuteCapacityRows] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT md.recordedAt AS bucket_ts, md.totalKva
+        FROM meterdata md
+        WHERE md.meter = ?
+          AND md.recordedAt IS NOT NULL
+        ORDER BY md.recordedAt DESC
+        LIMIT 180
+      `,
+      [capacityMainMeter?.id ?? 0],
+    );
     const [savingsRows] = await pool.query<mysql.RowDataPacket[]>(
       `
         SELECT annual_savings, co2_reduction_tons
@@ -790,7 +788,7 @@ export async function getOchsnerCapacityIntelligenceData(): Promise<CapacityInte
     );
 
     const assets = assetRows as AssetRow[];
-    const meters = meterRows as LatestMeterRow[];
+    const meters = capacityMeters;
     const savings = firstRow<SavingsSummaryRow>(savingsRows);
     const installed = toNumber(capacity.installed_capacity);
     const used = toNumber(capacity.used_capacity);
