@@ -95,6 +95,19 @@ type LatestMeterRow = {
   name: string;
 };
 
+type MeterMinuteTrendRow = {
+  bucket_ts: number | null;
+  l1Amp: number | null;
+  l2Amp: number | null;
+  l3Amp: number | null;
+  totalAmp: number | null;
+  totalKva: number | null;
+  totalKvar: number | null;
+  totalKw: number | null;
+  totalPf: number | null;
+  totalTHD: number | null;
+};
+
 type AssetRow = {
   amp_rating: number | null;
   asset_uid: string | null;
@@ -533,6 +546,21 @@ export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> 
       `,
     );
 
+    const [minuteTrendRows] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT md.recordedAt AS bucket_ts, md.totalKw, md.totalKva, md.totalPf,
+               md.totalTHD, md.totalAmp, md.l1Amp, md.l2Amp, md.l3Amp, md.totalKvar
+        FROM meterdata md
+        JOIN meter m ON m.id = md.meter
+        WHERE m.project = 13
+          AND m.isMain = 1
+          AND m.isDeleted = 0
+          AND md.recordedAt IS NOT NULL
+        ORDER BY md.recordedAt DESC
+        LIMIT 180
+      `,
+    );
+
     const metrics = firstRow<MetricSummaryRow>(metricRows);
     const capacity = firstRow<CapacitySummaryRow & { installed_capacity?: number | null; used_capacity?: number | null }>(capacityRows);
     const savings = firstRow<SavingsSummaryRow & {
@@ -552,6 +580,10 @@ export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> 
     const avgThd = toNumber(metrics?.avg_thd);
     const annualSavings = toNumber(savings?.annual_savings);
     const recoverableKva = toNumber(capacity?.recoverable_capacity ?? savings?.recoverable_kva);
+    const minuteRows = minuteTrendRows as MeterMinuteTrendRow[];
+    const minutePowerRows = minuteRows.map((row) => ({ bucket_ts: row.bucket_ts, value: toNumber(row.totalKw) }));
+    const minuteCbiRows = minuteRows.map((row) => ({ bucket_ts: row.bucket_ts, value: scoreMinuteCbi(row) }));
+    const minuteThdRows = minuteRows.map((row) => ({ bucket_ts: row.bucket_ts, value: toNumber(row.totalTHD) }));
 
     return {
       siteName: site.name,
@@ -593,21 +625,21 @@ export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> 
       ],
       savingsTrend: {
         value: formatCurrency(annualSavings),
-        detail: "Hourly savings rollup",
-        labels: labelsFromRows(savingsTrendRows),
-        points: pointsFromRows(savingsTrendRows),
+        detail: "1-min main-meter kW movement",
+        labels: labelsFromRows(minutePowerRows),
+        points: pointsFromRows(minutePowerRows),
       },
       balanceTrend: {
         value: cbi > 0 ? cbi.toFixed(0) : "N/A",
-        detail: cbi >= 90 ? "15-min buckets - A+ Rating" : "15-min buckets - Needs Review",
-        labels: labelsFromRows(balanceTrendRows),
-        points: pointsFromRows(balanceTrendRows),
+        detail: cbi >= 90 ? "1-min main-meter telemetry - A+ Rating" : "1-min main-meter telemetry - Needs Review",
+        labels: labelsFromRows(minuteCbiRows),
+        points: pointsFromRows(minuteCbiRows),
       },
       thdTrend: {
         value: avgThd > 0 ? `${avgThd.toFixed(1)}%` : "N/A",
-        detail: avgThd <= 5 ? "15-min buckets - Good (<5%)" : "15-min buckets - Above target",
-        labels: labelsFromRows(thdTrendRows),
-        points: pointsFromRows(thdTrendRows, true),
+        detail: avgThd <= 5 ? "1-min main-meter telemetry - Good (<5%)" : "1-min main-meter telemetry - Above target",
+        labels: labelsFromRows(minuteThdRows),
+        points: pointsFromRows(minuteThdRows, true),
         color: "#2f8cff",
       },
       capacityBefore: [
@@ -710,6 +742,19 @@ export async function getOchsnerCapacityIntelligenceData(): Promise<CapacityInte
         LIMIT 16
       `,
     );
+    const [minuteCapacityRows] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT md.recordedAt AS bucket_ts, md.totalKva
+        FROM meterdata md
+        JOIN meter m ON m.id = md.meter
+        WHERE m.project = 13
+          AND m.isMain = 1
+          AND m.isDeleted = 0
+          AND md.recordedAt IS NOT NULL
+        ORDER BY md.recordedAt DESC
+        LIMIT 180
+      `,
+    );
     const [assetRows] = await pool.query<mysql.RowDataPacket[]>(
       `
         SELECT id, name, asset_type, kva_rating, amp_rating, voltage_primary, voltage_secondary, meter_id, status
@@ -774,7 +819,7 @@ export async function getOchsnerCapacityIntelligenceData(): Promise<CapacityInte
       ],
       capacityHealthScore: health,
       co2Tons: `${formatNumber(co2, 0)} tons`,
-      dateRange: "15-minute tracking DB buckets",
+      dateRange: "1-minute main-meter telemetry",
       deferredCapitalValue: deferred,
       hiddenKva: hidden,
       installedKva: installed,
@@ -798,14 +843,19 @@ export async function getOchsnerCapacityIntelligenceData(): Promise<CapacityInte
         { label: "Harmonic Impact", value: scoreHarmonics(meters) },
         { label: "Thermal Headroom", value: scoreThermalHeadroom(utilization) },
       ],
-      trend: (trendRows as CapacitySummaryRow[])
+      trend: ((minuteCapacityRows.length > 0 ? minuteCapacityRows : trendRows) as Array<CapacitySummaryRow & { totalKva?: number | null }>)
         .reverse()
-        .map((row) => ({
-          available: toNumber(row.available_capacity) + toNumber(row.recoverable_capacity),
-          installed: toNumber(row.installed_capacity),
-          label: formatShortTime(toNumber(row.bucket_ts)),
-          used: toNumber(row.used_capacity),
-        })),
+        .map((row) => {
+          const minuteUsed = toNumber(row.totalKva);
+          const usedKva = minuteUsed > 0 ? minuteUsed : toNumber(row.used_capacity);
+
+          return {
+            available: Math.max(0, installed - usedKva) + recovered,
+            installed,
+            label: formatShortTime(toNumber(row.bucket_ts)),
+            used: usedKva,
+          };
+        }),
       updatedAt: formatTimestamp(toNumber(capacity.calculated_at ?? capacity.bucket_ts) || Date.now()),
       utilizationPct: utilization,
     };
@@ -1366,7 +1416,12 @@ function formatShortTime(timestamp: number) {
   });
 }
 
-function labelsFromRows(rows: mysql.RowDataPacket[]) {
+type TrendPointRow = {
+  bucket_ts?: number | null;
+  value?: number | null;
+};
+
+function labelsFromRows(rows: TrendPointRow[]) {
   const values = rows
     .filter((row) => toNumber(row.value) > 0)
     .reverse();
@@ -1375,12 +1430,14 @@ function labelsFromRows(rows: mysql.RowDataPacket[]) {
     return [];
   }
 
+  const step = Math.max(1, Math.ceil((values.length - 1) / 3));
+
   return values
-    .filter((_, index) => index % 5 === 0 || index === values.length - 1)
+    .filter((_, index) => index % step === 0 || index === values.length - 1)
     .map((row) => formatShortTime(toNumber(row.bucket_ts)));
 }
 
-function pointsFromRows(rows: mysql.RowDataPacket[], invert = false) {
+function pointsFromRows(rows: TrendPointRow[], invert = false) {
   const values = rows
     .map((row) => toNumber(row.value))
     .filter((value) => value > 0)
@@ -1403,6 +1460,61 @@ function pointsFromRows(rows: mysql.RowDataPacket[], invert = false) {
       return `${x.toFixed(0)},${y.toFixed(0)}`;
     })
     .join(" ");
+}
+
+function scoreMinuteCbi(row: MeterMinuteTrendRow) {
+  const totalAmp = toNumber(row.totalAmp) || averagePositive([row.l1Amp, row.l2Amp, row.l3Amp]);
+  const rawPf = toNumber(row.totalPf);
+  const totalPf = clamp(rawPf > 1 ? rawPf / 100 : rawPf, 0, 1);
+  const totalThd = toNumber(row.totalTHD);
+  const totalKw = toNumber(row.totalKw);
+  const totalKvar = toNumber(row.totalKvar);
+  const l1Amp = toNumber(row.l1Amp);
+  const l2Amp = toNumber(row.l2Amp);
+  const l3Amp = toNumber(row.l3Amp);
+
+  if (totalAmp <= 0) {
+    return 0;
+  }
+
+  let reactiveAmp = totalAmp * Math.sqrt(Math.max(0, 1 - totalPf ** 2));
+  const apparent = Math.sqrt(totalKw ** 2 + totalKvar ** 2);
+
+  if (totalKvar > 0 && totalKw > 0 && apparent > 0) {
+    reactiveAmp = (reactiveAmp + (totalKvar / apparent) * totalAmp) / 2;
+  }
+
+  const thdFrac = totalThd / 100;
+  const harmonicAmp = thdFrac > 0 ? totalAmp * thdFrac / Math.sqrt(1 + thdFrac ** 2) : 0;
+  const phases = [l1Amp, l2Amp, l3Amp].filter((amp) => amp > 0);
+  const meanPhase = phases.length === 3 ? phases.reduce((sum, amp) => sum + amp, 0) / 3 : 0;
+  const imbalanceAmp = meanPhase > 0 ? Math.max(...phases.map((amp) => Math.abs(amp - meanPhase))) : 0;
+  const neutralAmp = imbalanceAmp * 0.5;
+  const harmonicBurdenPct = clamp((harmonicAmp / totalAmp) * 100, 0, 60);
+  const reactiveBurdenPct = clamp((reactiveAmp / totalAmp) * 100, 0, 80);
+  const imbalancePct = clamp((imbalanceAmp / totalAmp) * 100, 0, 50);
+  const neutralBurdenPct = clamp((neutralAmp / totalAmp) * 100, 0, 30);
+  const penalty =
+    35 * (harmonicBurdenPct / 60) +
+    30 * (reactiveBurdenPct / 80) +
+    20 * (imbalancePct / 50) +
+    15 * (neutralBurdenPct / 30);
+
+  return clamp(100 - penalty, 0, 100);
+}
+
+function averagePositive(values: Array<number | null>) {
+  const clean = values.map(toNumber).filter((value) => value > 0);
+
+  if (clean.length === 0) {
+    return 0;
+  }
+
+  return clean.reduce((sum, value) => sum + value, 0) / clean.length;
+}
+
+function clamp(value: number, min: number, max: number) {
+  return Math.max(min, Math.min(max, value));
 }
 
 function toNumber(value: unknown): number {
