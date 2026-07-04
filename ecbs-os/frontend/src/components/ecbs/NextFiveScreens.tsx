@@ -132,6 +132,55 @@ export function AlarmEventsRuleScreen() {
   );
 }
 
+export function ConfigureAlertRuleScreen() {
+  return (
+    <ScreenshotShell activeHref="/enterprise/alerts-events" nav={adminNav} subtitle="Define conditions, thresholds, and notifications for monitoring your electrical network." title="Configure Alerts / Create Alert Rule" user="John Smith">
+      <div className="flex h-[42px] items-center justify-between">
+        <Breadcrumb items={["Home", "Alarms & Events", "Configure Alerts"]} />
+        <div className="flex gap-2"><Button>← Back to Alerts</Button><Button>Save as Draft</Button><Button primary>Create Alert Rule</Button></div>
+      </div>
+      <div className="grid h-[504px] grid-cols-[1fr_250px] gap-2">
+        <div className="space-y-2">
+          <Panel title="1. Alert Information">
+            <div className="grid grid-cols-[1fr_1.4fr_90px_90px] gap-3 text-[8px]">
+              <Field label="Alert Name" value="High Demand Alert" />
+              <Field label="Description" value="Alert when demand exceeds threshold" />
+              <Field label="Priority" value="↑ High" />
+              <Field label="Status" value="● Active" />
+            </div>
+          </Panel>
+          <Panel title="2. Scope">
+            <div className="grid grid-cols-[170px_1fr_190px] gap-6 text-[8px]">
+              <div><div className="mb-2 text-slate-400">Apply To</div><div>○ Entire Network</div><div className="mt-2 text-blue-400">● Specific Assets</div><Field label="Asset Type" value="Transformer⌄" /></div>
+              <Field label="Assets" value={"Main Transformer (TXFR-01) ×\nTransformer T-2 (TXFR-02) ×"} />
+              <div><Field label="Site" value="Flex Tijuana Manufacturing⌄" /><Field label="Electrical Room / Location" value="Main Electrical Room⌄" /></div>
+            </div>
+          </Panel>
+          <Panel title="3. Trigger Conditions">
+            <SimpleTable headers={["", "Parameter", "Condition", "Threshold", "Duration", ""]} rows={[["◎", "Demand (kW)", "Greater Than (>)", "1,200 kW", "15 min", "🗑"], ["OR", "Power Factor (PF)", "Less Than (<)", "0.90 PF", "10 min", "🗑"]]} />
+            <a className="mt-2 block text-[8px] text-blue-400" href="/enterprise/alarms-events/configure-alerts-page-alert-rules">+ Add Condition</a>
+          </Panel>
+          <Panel title="4. Notification Settings">
+            <div className="grid grid-cols-[180px_220px_1fr] gap-5 text-[8px]">
+              <div><div className="text-slate-400">Notification Channels</div>{["In-Portal Alerts", "Email", "SMS / Text", "Push Notification", "Webhook"].map((item) => <div className="mt-1" key={item}>☑ {item}</div>)}</div>
+              <Field label="Recipients" value={"john.smith@flex.com ×\nmaintenance@flex.com ×\nfacility.manager@flex.com ×"} />
+              <div><div>☑ Enable Escalation</div><div className="mt-2 grid grid-cols-2 gap-2"><Field label="Escalate after" value="30 min" /><Field label="Escalate to" value="operations.manager@flex.com⌄" /></div></div>
+            </div>
+          </Panel>
+          <Panel title="5. Advanced Settings (Optional)">
+            <div className="grid grid-cols-5 gap-3 text-[8px]">{["Alert Evaluation Frequency", "Clear Condition", "Hysteresis (Optional)", "Debounce Time (Optional)", "Suppress Alerts"].map((label) => <Field key={label} label={label} value={label === "Suppress Alerts" ? "○ Off" : label === "Alert Evaluation Frequency" ? "1 minute⌄" : label === "Hysteresis (Optional)" ? "5 %" : label === "Debounce Time (Optional)" ? "2 min" : "Auto⌄"} />)}</div>
+          </Panel>
+        </div>
+        <div className="space-y-2">
+          <Panel title="Alert Rule Summary"><RuleSummary /></Panel>
+          <Panel title="How It Works"><p className="text-[8px] leading-relaxed text-slate-400">You will be notified when any of the defined conditions are met for the specified duration. The alert will automatically clear when the parameters return to normal based on the selected clear condition.</p><a className="mt-3 block text-[8px] text-[#05ff5e]" href="/enterprise/alarms-events/configure-alerts-page-alert-rules">Learn more about alerts →</a></Panel>
+          <Panel title="Recent Alert Activity (Preview)"><RelatedAlarms /></Panel>
+        </div>
+      </div>
+    </ScreenshotShell>
+  );
+}
+
 export function SetNotificationsScreen() {
   return (
     <ScreenshotShell activeHref="/enterprise/alerts-events" nav={enterpriseNav} subtitle="Define how and when notifications are sent for this alert rule." title="Set Notifications">
@@ -146,6 +195,22 @@ export function SetNotificationsScreen() {
       </div>
     </ScreenshotShell>
   );
+}
+
+export function LoginErrorScreen() {
+  return <AuthScreen mode="login" />;
+}
+
+export function ForgotPasswordScreen() {
+  return <AuthScreen mode="forgot" />;
+}
+
+export function MfaVerificationScreen() {
+  return <AuthScreen mode="mfa" />;
+}
+
+export function ResetPasswordScreen() {
+  return <AuthScreen mode="reset" />;
 }
 
 function ScreenshotShell({ activeHref, children, nav = enterpriseNav, subtitle, title, user = "Greg Dockery" }: ShellProps) {
@@ -348,4 +413,159 @@ function SimpleTable({ headers, rows }: { headers: string[]; rows: string[][] })
 
 function Summary({ label, red = false, value }: { label: string; red?: boolean; value: string }) {
   return <div className="rounded border border-cyan-300/12 bg-[#07131f] p-2"><div className="text-slate-400">{label}</div><div className={red ? "text-red-400" : "text-white"}>{value}</div></div>;
+}
+
+function Field({ label, value }: { label: string; value: string }) {
+  return <label className="block text-[8px] text-slate-400">{label}<div className="mt-1 whitespace-pre-line rounded border border-slate-700 bg-[#07131f] px-2 py-1.5 text-slate-200">{value}</div></label>;
+}
+
+function AuthScreen({ mode }: { mode: "forgot" | "login" | "mfa" | "reset" }) {
+  return (
+    <div className="h-[682px] w-[1024px] overflow-hidden bg-[#02080d] text-slate-100">
+      <div className="grid h-full grid-cols-[610px_414px]">
+        <AuthMarketing />
+        <main className="flex flex-col justify-center bg-[radial-gradient(circle_at_top,rgba(14,165,233,0.13),transparent_38%),linear-gradient(180deg,#091827,#07111c)] px-28">
+          <div className="rounded-2xl border border-cyan-300/10 bg-[#0c1b29]/92 p-7 shadow-2xl shadow-black/40">
+            {mode !== "login" ? <a className="mb-8 block text-[12px] text-sky-400" href="/login">← Back to Sign In</a> : null}
+            <div className="mx-auto mb-5 grid size-14 place-items-center rounded-full border border-slate-500 bg-[#07131f] text-[28px] text-[#7ed321]">▣</div>
+            {mode === "login" ? <LoginForm /> : null}
+            {mode === "forgot" ? <ForgotForm /> : null}
+            {mode === "mfa" ? <MfaForm /> : null}
+            {mode === "reset" ? <ResetForm /> : null}
+          </div>
+          <div className="mt-5 flex justify-between text-[10px] text-slate-400">
+            <span>© 2024 All rights reserved.</span>
+            <span>Version 2.0.0</span>
+          </div>
+          <div className="mt-2 flex justify-center gap-5 text-[10px] text-slate-400"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a></div>
+        </main>
+      </div>
+    </div>
+  );
+}
+
+function AuthMarketing() {
+  const features = [
+    ["Current Balance Intelligence™", "Understand how current is utilized across your entire electrical network.", "#7ed321"],
+    ["Capacity Intelligence™", "Identify available and recovered capacity to optimize performance and defer capital.", "#00a6ff"],
+    ["Digital Twin Intelligence™", "Interactive 3D model of your electrical infrastructure for better decisions.", "#a855f7"],
+    ["Savings Intelligence™", "Quantify operational and financial value with real-time accuracy.", "#f59e0b"],
+    ["Deployment Intelligence™", "Manage deployments, commissioning, and AI Checks Clear™ certification.", "#00c7b7"],
+  ];
+
+  return (
+    <section className="relative overflow-hidden bg-[radial-gradient(circle_at_70%_22%,rgba(0,166,255,.24),transparent_22%),linear-gradient(90deg,#02080d,#07111c)] px-5 py-5">
+      <div className="text-[54px] font-black leading-none tracking-[-0.08em]"><span className="text-white">ECB</span><span className="text-[#7ed321]">S</span><span className="align-top text-[12px]">™</span></div>
+      <div className="mt-1 text-[14px] font-semibold uppercase tracking-[0.22em]">Operating System™</div>
+      <div className="mt-2 text-[8px] font-semibold uppercase tracking-wide text-slate-300">Electrical Infrastructure Intelligence Platform</div>
+      <div className="absolute left-[260px] top-[34px] h-[460px] w-[330px] rounded-xl border border-cyan-500/20 bg-[linear-gradient(150deg,rgba(14,165,233,.14),rgba(2,8,13,.15))]" />
+      <div className="absolute left-[250px] top-[32px] text-[11px] font-bold uppercase text-cyan-400">Digital Twin Model</div>
+      <div className="absolute left-[515px] top-[30px] text-[11px] font-bold uppercase text-cyan-400">PQ Meter</div>
+      <div className="absolute left-[512px] top-[92px] grid h-[62px] w-[68px] place-items-center rounded border border-cyan-500/50 bg-[#07131f] text-[9px]">Meter</div>
+      <div className="absolute left-[512px] top-[184px] grid h-[62px] w-[68px] place-items-center rounded border border-cyan-500/50 bg-[#111827] text-[13px]">ECBS</div>
+      <div className="absolute left-[512px] top-[284px] grid h-[74px] w-[68px] place-items-center rounded border border-cyan-500/50 bg-[#07131f] text-[11px]">ECBS<br />Device</div>
+      <div className="relative mt-12 w-[250px]">
+        <h1 className="text-[27px] font-bold leading-tight">Intelligence That<br />Optimizes <span className="text-[#7ed321]">Every Amp.</span></h1>
+        <p className="mt-4 text-[12px] leading-relaxed text-slate-200">The ECBS Operating System™ delivers network-wide visibility, intelligence, and optimization for electrical infrastructure.</p>
+        <div className="mt-5 space-y-3">
+          {features.map(([title, text, color]) => (
+            <div className="grid grid-cols-[34px_1fr] gap-3" key={title}>
+              <div className="grid size-8 place-items-center rounded-full border text-[15px]" style={{ borderColor: color, color }}>⌁</div>
+              <div><div className="text-[12px] font-semibold" style={{ color }}>{title}</div><p className="text-[10px] leading-snug text-slate-300">{text}</p></div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="absolute bottom-[70px] left-5 right-5 rounded border border-cyan-300/10 bg-[#061421]/80 p-3">
+        <div className="mb-1 text-center text-[8px] font-bold text-[#7ed321]">TRUSTED BY INDUSTRY LEADERS</div>
+        <div className="flex items-center justify-around text-[18px] font-bold"><span className="text-sky-400">flex.</span><span>HCA</span><span className="text-purple-400">N:</span><span>Lineage</span><span className="text-[10px]">Data Centers</span><span className="text-[10px]">Manufacturing</span></div>
+      </div>
+      <footer className="absolute bottom-0 left-0 right-0 grid h-[58px] grid-cols-3 border-t border-white/8 px-5 text-[10px] text-slate-400">
+        <div className="flex items-center gap-2"><span className="text-[#7ed321]">▣</span><span><b className="text-[#7ed321]">Enterprise Grade Security</b><br />SOC 2 Type II Compliant</span></div>
+        <div className="grid place-items-center text-center"><b className="text-[#7ed321]">Powered by ECBS Technology™</b><br />Electricity Current Balance System™</div>
+        <div className="grid place-items-center">ISO 27001 Aligned</div>
+      </footer>
+    </section>
+  );
+}
+
+function AuthTitle({ subtitle, title }: { subtitle: string; title: string }) {
+  return <div className="text-center"><h1 className="text-[25px] font-semibold">{title}</h1><p className="mt-2 text-[12px] text-slate-300">{subtitle}</p></div>;
+}
+
+function AuthInput({ label, value = "" }: { label: string; value?: string }) {
+  return <label className="mt-4 block text-[11px] font-semibold text-slate-300">{label}<div className="mt-2 rounded border border-slate-600 bg-[#07131f] px-3 py-3 text-[13px] text-slate-300">▣ {value || `Enter your ${label.toLowerCase()}`}</div></label>;
+}
+
+function AuthButton({ children }: { children: ReactNode }) {
+  return <button className="mt-5 w-full rounded-md bg-[#68bf20] py-3 text-[16px] font-semibold text-white shadow-lg shadow-green-900/20">{children} →</button>;
+}
+
+function LoginForm() {
+  return (
+    <div>
+      <AuthTitle subtitle="Sign in to access the ECBS Operating System™" title="Welcome Back" />
+      <div className="mt-5 rounded border border-red-500 bg-red-950/20 p-4 text-[12px]"><b className="text-red-400">● Login Failed</b><p className="mt-1 text-slate-300">The email or password you entered is incorrect. Please try again.</p></div>
+      <AuthInput label="Email Address" value="user@ecbs.com" />
+      <AuthInput label="Password" value="••••••••" />
+      <div className="mt-2 text-[12px] text-red-400">● Invalid email or password.</div>
+      <div className="mt-4 flex justify-between text-[11px] text-slate-300"><span>☐ Remember me</span><a className="text-sky-400" href="/login/forgot-password">Forgot Password?</a></div>
+      <AuthButton>Sign In</AuthButton>
+      <div className="my-5 flex items-center gap-3 text-[11px] text-slate-400"><span className="h-px flex-1 bg-slate-700" />or continue with<span className="h-px flex-1 bg-slate-700" /></div>
+      <div className="grid grid-cols-2 gap-3"><Button>▦ Microsoft SSO</Button><Button>G Google SSO</Button></div>
+      <p className="mt-6 text-center text-[11px] text-slate-300">Need help? <a className="text-sky-400" href="/support">Contact Support</a></p>
+    </div>
+  );
+}
+
+function ForgotForm() {
+  return (
+    <div>
+      <AuthTitle subtitle="" title="Forgot Password" />
+      <Progress active={1} labels={["Request", "Verify", "Reset", "Complete"]} />
+      <div className="mx-auto my-6 grid size-16 place-items-center rounded-full border border-sky-500 text-[30px] text-sky-400">✉</div>
+      <AuthTitle subtitle="Enter your email address and we'll send you a secure link to reset your password." title="Let’s reset your password" />
+      <AuthInput label="Email Address" />
+      <AuthButton>Send Reset Link</AuthButton>
+      <p className="mt-6 text-center text-[11px] text-slate-300">Remember your password? <a className="text-sky-400" href="/login">Sign In</a></p>
+      <p className="mt-6 text-center text-[11px] text-slate-300">Need help? <a className="text-sky-400" href="/support">Contact Support</a></p>
+    </div>
+  );
+}
+
+function MfaForm() {
+  return (
+    <div>
+      <AuthTitle subtitle="Enter the verification code sent to your device" title="Multi-Factor Authentication" />
+      <div className="mx-auto my-6 grid size-16 place-items-center rounded-full border border-sky-600 text-[28px] text-sky-400">▯</div>
+      <p className="text-center text-[12px] text-slate-300">We sent a 6-digit code to<br /><b>g****y@ecbs.com</b></p>
+      <div className="mt-5 text-[11px] font-semibold text-slate-300">Verification Code</div>
+      <div className="mt-2 grid grid-cols-6 gap-2">{Array.from({ length: 6 }).map((_, index) => <div className={`grid h-12 place-items-center rounded border ${index === 0 ? "border-sky-500" : "border-slate-600"} bg-[#07131f] text-[20px]`} key={index}>{index === 0 ? "|" : ""}</div>)}</div>
+      <div className="mt-5 text-[12px] text-slate-300">☐ Trust this device for 30 days ⓘ</div>
+      <AuthButton>Verify Code</AuthButton>
+      <div className="my-5 flex items-center gap-3 text-[11px] text-slate-400"><span className="h-px flex-1 bg-slate-700" />or<span className="h-px flex-1 bg-slate-700" /></div>
+      <Button>▿ Use Backup Code</Button>
+      <p className="mt-6 text-center text-[11px] text-slate-300">Didn’t receive the code? <a className="text-sky-400" href="/login/mfa">Resend Code</a> (00:45)</p>
+      <p className="mt-6 text-center text-[11px]"><a className="text-sky-400" href="/login">Back to Sign In</a></p>
+    </div>
+  );
+}
+
+function ResetForm() {
+  return (
+    <div>
+      <AuthTitle subtitle="Create a new password for your account." title="Reset Password" />
+      <Progress active={3} labels={["Request", "Verify", "Reset", "Complete"]} />
+      <AuthInput label="New Password" value="••••••••••••" />
+      <div className="mt-3 space-y-1 text-[11px] text-slate-300">{["At least 8 characters", "One uppercase letter", "One lowercase letter", "One number", "One special character"].map((item) => <div key={item}><span className="text-[#7ed321]">●</span> {item}</div>)}</div>
+      <AuthInput label="Confirm New Password" value="••••••••••••" />
+      <AuthButton>Reset Password</AuthButton>
+      <p className="mt-5 text-center text-[11px] text-slate-300">Remember your password? <a className="text-sky-400" href="/login">Sign In</a></p>
+      <p className="mt-5 text-center text-[11px] text-slate-300">Need help? <a className="text-sky-400" href="/support">Contact Support</a></p>
+    </div>
+  );
+}
+
+function Progress({ active, labels }: { active: number; labels: string[] }) {
+  return <div className="my-6 grid grid-cols-4 gap-2 text-center text-[11px]">{labels.map((label, index) => <div className={index + 1 <= active ? "text-[#7ed321]" : "text-slate-400"} key={label}><span className={`mx-auto mb-2 grid size-7 place-items-center rounded-full border ${index + 1 <= active ? "border-[#7ed321] bg-[#7ed321] text-[#061421]" : "border-slate-500"}`}>{index + 1 < active ? "✓" : index + 1}</span>{label}</div>)}</div>;
 }
