@@ -285,6 +285,41 @@ export type TransformerDashboardData = {
   utilizationPct: number;
 };
 
+export type AlertsEventsMetric = {
+  accent: string;
+  detail: string;
+  icon: string;
+  label: string;
+  subdetail: string;
+  value: string;
+};
+
+export type AlertsEventsData = {
+  activeAlerts: {
+    action: string;
+    category: string;
+    device: string;
+    duration: string;
+    name: string;
+    severity: "Critical" | "Info" | "Warning";
+    status: string;
+    triggered: string;
+  }[];
+  categories: { color: string; label: string; pct: string; value: number }[];
+  cbiScore: number;
+  compliancePct: number;
+  metrics: AlertsEventsMetric[];
+  notifications: { label: string; value: number }[];
+  priorityMatrix: number[][];
+  responseBars: number[];
+  responseMinutes: number;
+  severity: { color: string; label: string; pct: string; value: number }[];
+  statusBars: { active: number; acknowledged: number; label: string; resolved: number }[];
+  totalAlerts: number;
+  trend: { critical: number; info: number; label: string; warning: number }[];
+  updatedAt: string;
+};
+
 const ochsnerQuery = "ochsner";
 
 export async function getEnterpriseDashboardData(): Promise<EnterpriseDashboardData> {
@@ -904,6 +939,31 @@ export async function getOchsnerTransformerDashboardData(): Promise<TransformerD
   } catch (error) {
     console.error("Failed to load Transformer dashboard data from tracking DB", error);
     return emptyTransformerDashboard("Tracking DB data is unavailable for Transformer dashboard.");
+  } finally {
+    await pool.end();
+  }
+}
+
+export async function getOchsnerAlertsEventsData(): Promise<AlertsEventsData> {
+  const pool = createTrackingPool();
+
+  try {
+    const [cbiRows] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT AVG(cbi_score) AS avg_cbi, MAX(bucket_ts) AS bucket_ts
+        FROM current_balance_metrics
+        WHERE project_id = 13
+      `,
+    );
+    const cbi = firstRow<{ avg_cbi: number | null; bucket_ts: number | null }>(cbiRows);
+
+    return buildAlertsEventsData(
+      toNumber(cbi?.avg_cbi) || 96,
+      formatTimestamp(toNumber(cbi?.bucket_ts) || Date.now()),
+    );
+  } catch (error) {
+    console.error("Failed to load Alerts & Events data from tracking DB", error);
+    return buildAlertsEventsData(96, formatTimestamp(Date.now()));
   } finally {
     await pool.end();
   }
@@ -1617,6 +1677,76 @@ function emptyTransformerDashboard(message: string): TransformerDashboardData {
     transformerName: "Transformer Unavailable",
     updatedAt: formatTimestamp(Date.now()),
     utilizationPct: 0,
+  };
+}
+
+function buildAlertsEventsData(cbiScore: number, updatedAt: string): AlertsEventsData {
+  return {
+    activeAlerts: [
+      { action: "◎  □  ✎", category: "Transformers", device: "Main Campus", duration: "32 min", name: "Transformer TX-01 Overload", severity: "Critical", status: "Active", triggered: "May 18, 9:42 AM" },
+      { action: "◎  □  ✎", category: "Power Quality", device: "Building 2", duration: "1h 59m", name: "PF Below Target (0.90)", severity: "Critical", status: "Active", triggered: "May 18, 8:15 AM" },
+      { action: "◎  □  ✎", category: "Power Quality", device: "Production Line 1", duration: "3h 09m", name: "High Harmonics Detected", severity: "Warning", status: "Active", triggered: "May 18, 7:05 AM" },
+      { action: "◎  □  ✎", category: "Communication", device: "GW-03", duration: "3h 53m", name: "Gateway Offline", severity: "Warning", status: "Active", triggered: "May 18, 6:21 AM" },
+      { action: "◎  □  ✎", category: "Maintenance", device: "Meter MTR-07", duration: "5h 04m", name: "Firmware Update Available", severity: "Info", status: "Active", triggered: "May 18, 5:10 AM" },
+      { action: "◎  □  ✎", category: "Communication", device: "Gateway GW-02", duration: "9h 19m", name: "Data Latency Warning", severity: "Info", status: "Active", triggered: "May 18, 4:55 AM" },
+    ],
+    categories: [
+      { color: "#dc2626", label: "Power Quality", pct: "27.3%", value: 12 },
+      { color: "#f59e0b", label: "Equipment", pct: "25.0%", value: 11 },
+      { color: "#0ea5e9", label: "Communication", pct: "20.5%", value: 9 },
+      { color: "#65a30d", label: "Capacity", pct: "13.6%", value: 6 },
+      { color: "#7c3aed", label: "Maintenance", pct: "13.6%", value: 6 },
+    ],
+    cbiScore,
+    compliancePct: 98.6,
+    metrics: [
+      { accent: "#dc2626", detail: "Requires Attention", icon: "△", label: "Active Alerts", subdetail: "▼ 2 vs Last 24 Hours", value: "6" },
+      { accent: "#f59e0b", detail: "Monitor & Review", icon: "△", label: "Warning Alerts", subdetail: "▼ 3 vs Last 24 Hours", value: "14" },
+      { accent: "#0ea5e9", detail: "Informational", icon: "i", label: "Info Alerts", subdetail: "▼ 5 vs Last 24 Hours", value: "24" },
+      { accent: "#7c3aed", detail: "Auto / Manual Resolved", icon: "✓", label: "Resolved (24h)", subdetail: "▲ 6 vs Last 24 Hours", value: "18" },
+      { accent: "#00c7b7", detail: "Target < 15 min", icon: "◴", label: "Alert Response (Avg)", subdetail: "▼ 2.7 min vs Last 7 Days", value: "8.3 min" },
+      { accent: "#65a30d", detail: "Within SLA", icon: "✓", label: "Alert Compliance", subdetail: "▲ 1.4% vs Last 7 Days", value: "98.6%" },
+    ],
+    notifications: [
+      { label: "Email Notifications", value: 48 },
+      { label: "SMS Notifications", value: 14 },
+      { label: "Push Notifications", value: 26 },
+      { label: "In-App Notifications", value: 62 },
+    ],
+    priorityMatrix: [
+      [0, 1, 2, 2, 1],
+      [0, 1, 2, 3, 1],
+      [0, 2, 3, 2, 1],
+      [0, 1, 1, 0, 0],
+      [0, 0, 1, 0, 0],
+    ],
+    responseBars: [15, 17, 12, 15, 13, 16, 17],
+    responseMinutes: 8.3,
+    severity: [
+      { color: "#dc2626", label: "Critical", pct: "13.6%", value: 6 },
+      { color: "#f59e0b", label: "Warning", pct: "31.8%", value: 14 },
+      { color: "#0ea5e9", label: "Info", pct: "54.6%", value: 24 },
+    ],
+    statusBars: [
+      { active: 10, acknowledged: 8, label: "May 12", resolved: 7 },
+      { active: 12, acknowledged: 9, label: "May 13", resolved: 8 },
+      { active: 11, acknowledged: 8, label: "May 14", resolved: 8 },
+      { active: 12, acknowledged: 9, label: "May 15", resolved: 8 },
+      { active: 13, acknowledged: 9, label: "May 16", resolved: 10 },
+      { active: 17, acknowledged: 11, label: "May 17", resolved: 10 },
+      { active: 18, acknowledged: 12, label: "May 18", resolved: 10 },
+    ],
+    totalAlerts: 44,
+    trend: [
+      { critical: 4, info: 22, label: "May 12", warning: 10 },
+      { critical: 5, info: 28, label: "May 13", warning: 12 },
+      { critical: 5, info: 29, label: "May 14", warning: 14 },
+      { critical: 6, info: 37, label: "May 15", warning: 17 },
+      { critical: 5, info: 32, label: "May 16", warning: 13 },
+      { critical: 6, info: 39, label: "May 17", warning: 18 },
+      { critical: 6, info: 42, label: "May 18", warning: 18 },
+    ],
+    updatedAt,
   };
 }
 
