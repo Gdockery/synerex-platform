@@ -178,19 +178,24 @@ export function TransformerDashboardScreen({ data }: { data: TransformerDashboar
 
 function TransformerSidebar({ cbi }: { cbi: number }) {
   const items = [
-    "Enterprise Dashboard",
-    "Energy Dashboard",
-    "Capacity Intelligence",
-    "Digital Twin",
-    "Sites",
-    "Transformers",
-    "Electrical Network",
-    "Current Analysis",
-    "Savings & Forecast",
-    "Alarms & Events",
-    "Reports",
+    { href: "/enterprise/dashboard", label: "Enterprise Dashboard" },
+    { href: "/enterprise/energy-dashboard", label: "Energy Dashboard" },
+    { href: "/enterprise/capacity-intelligence", label: "Capacity Intelligence" },
+    { href: "/enterprise/digital-twin", label: "Digital Twin" },
+    { href: "/enterprise/sites", label: "Sites" },
+    { href: "/enterprise/transformers", label: "Transformers" },
+    { href: "/enterprise/electrical-network", label: "Electrical Network" },
+    { href: "/enterprise/current-analysis", label: "Current Analysis" },
+    { href: "/enterprise/savings-forecast", label: "Savings & Forecast" },
+    { href: "/enterprise/alerts-events", label: "Alarms & Events" },
+    { href: "/enterprise/reports", label: "Reports" },
   ];
-  const devices = ["Gateways", "Meters", "Switches", "Repeaters"];
+  const devices = [
+    { href: "/devices/gateways", label: "Gateways" },
+    { href: "/devices/meters", label: "Meters" },
+    { href: "/devices/switches", label: "Switches" },
+    { href: "/devices/repeaters", label: "Repeaters" },
+  ];
 
   return (
     <aside className="flex h-full flex-col border-r border-cyan-300/10 bg-[#030c15] px-2 py-2">
@@ -201,10 +206,10 @@ function TransformerSidebar({ cbi }: { cbi: number }) {
 
       <nav className="space-y-1 text-[9px]">
         {items.map((item) => (
-          <a className={`flex h-[22px] items-center gap-1.5 rounded px-1.5 ${item === "Transformers" ? "border-l-2 border-[#05ff5e] bg-[#063b27] text-[#05ff5e]" : "text-slate-300"}`} href={item === "Transformers" ? "/enterprise/transformers" : "#"} key={item}>
-            <span className="text-[11px]">{item === "Transformers" ? "♜" : item === "Alarms & Events" ? "⚠" : "⌾"}</span>
-            <span>{item}</span>
-            {item === "Alarms & Events" ? <b className="ml-auto rounded-full bg-orange-500 px-1 text-[8px] text-white">2</b> : null}
+          <a className={`flex h-[22px] items-center gap-1.5 rounded px-1.5 ${item.href === "/enterprise/transformers" ? "border-l-2 border-[#05ff5e] bg-[#063b27] text-[#05ff5e]" : "text-slate-300"}`} href={item.href} key={item.href}>
+            <span className="text-[11px]">{item.href === "/enterprise/transformers" ? "♜" : item.href === "/enterprise/alerts-events" ? "⚠" : "⌾"}</span>
+            <span>{item.label}</span>
+            {item.href === "/enterprise/alerts-events" ? <b className="ml-auto rounded-full bg-orange-500 px-1 text-[8px] text-white">2</b> : null}
           </a>
         ))}
       </nav>
@@ -213,18 +218,18 @@ function TransformerSidebar({ cbi }: { cbi: number }) {
         <div className="mb-1 flex items-center justify-between text-[9px] font-semibold uppercase text-slate-300">Devices <span>⌄</span></div>
         <div className="space-y-1">
           {devices.map((item) => (
-            <a className="flex h-[20px] items-center gap-1.5 rounded px-2 text-[9px] text-slate-300" href="#" key={item}>⊙ {item}</a>
+            <a className="flex h-[20px] items-center gap-1.5 rounded px-2 text-[9px] text-slate-300" href={item.href} key={item.href}>⊙ {item.label}</a>
           ))}
         </div>
       </div>
 
-      <a className="mt-2 flex h-[22px] items-center gap-1.5 rounded px-1.5 text-[9px] text-slate-300" href="#">⚙ Settings</a>
+      <a className="mt-2 flex h-[22px] items-center gap-1.5 rounded px-1.5 text-[9px] text-slate-300" href="/administration/settings">⚙ Settings</a>
 
       <div className="mt-auto rounded border border-cyan-300/12 bg-[#041722] p-2 text-center">
         <div className="text-[9px] leading-snug text-slate-300">XECO Current<br />Balance Index™</div>
         <div className="mt-1 text-[36px] font-light leading-none text-[#05ff5e]">{formatNumber(cbi)}</div>
         <div className="mt-1 text-[9px] text-slate-300">A+ Rating</div>
-        <a className="mt-3 block text-[9px] text-[#05ff5e]" href="#">View Details →</a>
+        <a className="mt-3 block text-[9px] text-[#05ff5e]" href="/enterprise/current-analysis">View Details →</a>
       </div>
 
       <div className="mt-3 text-[7px] leading-snug text-slate-500">© 2025 XECO Energy Corporation.<br />All rights reserved.</div>

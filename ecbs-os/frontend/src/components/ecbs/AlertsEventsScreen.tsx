@@ -2,19 +2,24 @@ import type { ReactNode } from "react";
 import type { AlertsEventsData } from "@/lib/trackingDashboardData";
 
 const navItems = [
-  "Enterprise Dashboard",
-  "Energy Dashboard",
-  "Capacity Intelligence",
-  "Digital Twin",
-  "Sites",
-  "Transformers",
-  "Current Analysis",
-  "Savings & Forecast",
-  "Alerts & Events",
-  "Reports",
+  { href: "/enterprise/dashboard", label: "Enterprise Dashboard" },
+  { href: "/enterprise/energy-dashboard", label: "Energy Dashboard" },
+  { href: "/enterprise/capacity-intelligence", label: "Capacity Intelligence" },
+  { href: "/enterprise/digital-twin", label: "Digital Twin" },
+  { href: "/enterprise/sites", label: "Sites" },
+  { href: "/enterprise/transformers", label: "Transformers" },
+  { href: "/enterprise/current-analysis", label: "Current Analysis" },
+  { href: "/enterprise/savings-forecast", label: "Savings & Forecast" },
+  { href: "/enterprise/alerts-events", label: "Alerts & Events" },
+  { href: "/enterprise/reports", label: "Reports" },
 ];
 
-const devices = ["Gateways", "Meters", "Switches", "Repeaters"];
+const devices = [
+  { href: "/devices/gateways", label: "Gateways" },
+  { href: "/devices/meters", label: "Meters" },
+  { href: "/devices/switches", label: "Switches" },
+  { href: "/devices/repeaters", label: "Repeaters" },
+];
 
 export function AlertsEventsScreen({ data }: { data: AlertsEventsData }) {
   return (
@@ -101,23 +106,23 @@ function AlertsSidebar({ cbi }: { cbi: number }) {
       </div>
       <nav className="space-y-1 text-[8px]">
         {navItems.map((item) => (
-          <a className={`flex h-[20px] items-center gap-1.5 rounded px-1 ${item === "Alerts & Events" ? "border-l-2 border-[#05ff5e] bg-[#063b27] text-[#05ff5e]" : "text-slate-300"}`} href={item === "Alerts & Events" ? "/enterprise/alerts-events" : "#"} key={item}>
-            <span>{item === "Alerts & Events" ? "⚠" : "⌾"}</span>
-            <span className="truncate">{item}</span>
-            {item === "Alerts & Events" ? <b className="ml-auto rounded-full bg-red-500 px-1 text-[7px] text-white">6</b> : null}
+          <a className={`flex h-[20px] items-center gap-1.5 rounded px-1 ${item.href === "/enterprise/alerts-events" ? "border-l-2 border-[#05ff5e] bg-[#063b27] text-[#05ff5e]" : "text-slate-300"}`} href={item.href} key={item.href}>
+            <span>{item.href === "/enterprise/alerts-events" ? "⚠" : "⌾"}</span>
+            <span className="truncate">{item.label}</span>
+            {item.href === "/enterprise/alerts-events" ? <b className="ml-auto rounded-full bg-red-500 px-1 text-[7px] text-white">6</b> : null}
           </a>
         ))}
       </nav>
       <div className="mt-2 border-t border-white/8 pt-1">
         <div className="mb-1 flex justify-between text-[8px] text-slate-300">Devices <span>⌄</span></div>
-        {devices.map((device) => <a className="block h-[18px] px-2 text-[8px] text-slate-300" href="#" key={device}>⊙ {device}</a>)}
+        {devices.map((device) => <a className="block h-[18px] px-2 text-[8px] text-slate-300" href={device.href} key={device.href}>⊙ {device.label}</a>)}
       </div>
-      <a className="mt-2 block text-[8px] text-slate-300" href="#">⚙ Settings</a>
+      <a className="mt-2 block text-[8px] text-slate-300" href="/administration/settings">⚙ Settings</a>
       <div className="mt-auto rounded border border-cyan-300/12 bg-[#041722] p-2 text-center">
         <div className="text-[8px] leading-snug text-slate-300">XECO Current<br />Balance Index™</div>
         <div className="mt-1 text-[31px] font-light leading-none text-[#7ed321]">{formatInt(cbi)}</div>
         <div className="mt-1 text-[8px] text-slate-300">A+ Rating</div>
-        <a className="mt-2 block text-[8px] text-[#7ed321]" href="#">View Details →</a>
+        <a className="mt-2 block text-[8px] text-[#7ed321]" href="/enterprise/current-analysis">View Details →</a>
       </div>
       <div className="mt-4 text-[7px] leading-snug text-slate-500">Last Updated<br />May 18, 2025 10:15 AM<br /><span className="text-[#7ed321]">●</span> Real-time</div>
       <div className="mt-6 text-[6px] leading-snug text-slate-500">© 2025 XECO Energy Corporation.<br />All rights reserved.</div>
@@ -184,7 +189,7 @@ function SeverityDonut({ data }: { data: AlertsEventsData }) {
           </div>
         ))}
       </div>
-      <a className="col-span-2 text-[8px] text-[#0ea5e9]" href="#">View Severity Report →</a>
+      <a className="col-span-2 text-[8px] text-[#0ea5e9]" href="/enterprise/alerts-events">View Severity Report →</a>
     </div>
   );
 }
@@ -200,7 +205,7 @@ function AlertTrend({ data }: { data: AlertsEventsData }) {
         <TrendLine color="#0ea5e9" values={data.trend.map((point) => point.info)} max={50} />
       </svg>
       <Labels labels={data.trend.map((point) => point.label)} />
-      <a className="mt-2 block text-[8px] text-[#0ea5e9]" href="#">View Trend Analysis →</a>
+      <a className="mt-2 block text-[8px] text-[#0ea5e9]" href="/enterprise/alerts-events">View Trend Analysis →</a>
     </div>
   );
 }
@@ -219,7 +224,7 @@ function StatusBars({ data }: { data: AlertsEventsData }) {
         ))}
       </div>
       <Labels labels={data.statusBars.map((bar) => bar.label)} />
-      <a className="mt-2 block text-[8px] text-[#0ea5e9]" href="#">View Status History →</a>
+      <a className="mt-2 block text-[8px] text-[#0ea5e9]" href="/enterprise/alerts-events">View Status History →</a>
     </div>
   );
 }
@@ -248,7 +253,7 @@ function ActiveAlertsTable({ data }: { data: AlertsEventsData }) {
           ))}
         </tbody>
       </table>
-      <a className="mt-1 block text-[8px] text-[#0ea5e9]" href="#">View All Active Alerts →</a>
+      <a className="mt-1 block text-[8px] text-[#0ea5e9]" href="/enterprise/alerts-events">View All Active Alerts →</a>
     </div>
   );
 }
@@ -276,7 +281,7 @@ function PriorityMatrix({ data }: { data: AlertsEventsData }) {
           {cols.map((col) => <span key={col}>{col}</span>)}
         </div>
         <div className="mt-1 text-center text-[8px] text-slate-400">LIKELIHOOD</div>
-        <a className="mt-2 block text-[8px] text-[#0ea5e9]" href="#">View Risk Analysis →</a>
+        <a className="mt-2 block text-[8px] text-[#0ea5e9]" href="/enterprise/alerts-events">View Risk Analysis →</a>
       </div>
     </div>
   );
@@ -295,7 +300,7 @@ function ResponsePerformance({ data }: { data: AlertsEventsData }) {
         {data.responseBars.map((value, index) => <span className="w-4 bg-[#65a30d]" key={index} style={{ height: `${value * 2}px` }} />)}
       </div>
       <Labels labels={["May 12", "May 13", "May 14", "May 15", "May 16", "May 17", "May 18"]} />
-      <a className="mt-1 block text-[8px] text-[#0ea5e9]" href="#">View Performance Report →</a>
+      <a className="mt-1 block text-[8px] text-[#0ea5e9]" href="/enterprise/alerts-events">View Performance Report →</a>
     </div>
   );
 }
@@ -310,7 +315,7 @@ function CategoryBars({ data }: { data: AlertsEventsData }) {
           <span className="text-slate-400">{category.value} ({category.pct})</span>
         </div>
       ))}
-      <a className="block pt-2 text-[8px] text-[#0ea5e9]" href="#">View Category Report →</a>
+      <a className="block pt-2 text-[8px] text-[#0ea5e9]" href="/enterprise/alerts-events">View Category Report →</a>
     </div>
   );
 }
@@ -319,7 +324,7 @@ function Notifications({ data }: { data: AlertsEventsData }) {
   return (
     <div className="space-y-3 pt-1 text-[8px]">
       {data.notifications.map((item) => <MetricLine key={item.label} label={item.label} value={`${item.value}`} />)}
-      <a className="block pt-1 text-[#0ea5e9]" href="#">View Notification Log →</a>
+      <a className="block pt-1 text-[#0ea5e9]" href="/enterprise/alerts-events">View Notification Log →</a>
     </div>
   );
 }
@@ -330,7 +335,7 @@ function QuickActions() {
       {["Acknowledge All Alerts", "Manage Alert Rules", "Alert Escalation Setup", "Notification Preferences", "Maintenance Mode"].map((action) => (
         <div className="border-b border-white/5 pb-1 text-slate-300" key={action}>◎ {action}</div>
       ))}
-      <a className="block pt-1 text-[#0ea5e9]" href="#">View All Actions →</a>
+      <a className="block pt-1 text-[#0ea5e9]" href="/enterprise/alerts-events">View All Actions →</a>
     </div>
   );
 }
