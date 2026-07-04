@@ -213,6 +213,10 @@ export function ResetPasswordScreen() {
   return <AuthScreen mode="reset" />;
 }
 
+export function SessionTimeoutScreen() {
+  return <AuthScreen mode="timeout" />;
+}
+
 function ScreenshotShell({ activeHref, children, nav = enterpriseNav, subtitle, title, user = "Greg Dockery" }: ShellProps) {
   return (
     <div className="h-[682px] w-[1024px] overflow-hidden bg-[#020a12] text-slate-100">
@@ -419,7 +423,7 @@ function Field({ label, value }: { label: string; value: string }) {
   return <label className="block text-[8px] text-slate-400">{label}<div className="mt-1 whitespace-pre-line rounded border border-slate-700 bg-[#07131f] px-2 py-1.5 text-slate-200">{value}</div></label>;
 }
 
-function AuthScreen({ mode }: { mode: "forgot" | "login" | "mfa" | "reset" }) {
+function AuthScreen({ mode }: { mode: "forgot" | "login" | "mfa" | "reset" | "timeout" }) {
   return (
     <div className="h-[682px] w-[1024px] overflow-hidden bg-[#02080d] text-slate-100">
       <div className="grid h-full grid-cols-[610px_414px]">
@@ -432,6 +436,7 @@ function AuthScreen({ mode }: { mode: "forgot" | "login" | "mfa" | "reset" }) {
             {mode === "forgot" ? <ForgotForm /> : null}
             {mode === "mfa" ? <MfaForm /> : null}
             {mode === "reset" ? <ResetForm /> : null}
+            {mode === "timeout" ? <TimeoutForm /> : null}
           </div>
           <div className="mt-5 flex justify-between text-[10px] text-slate-400">
             <span>© 2024 All rights reserved.</span>
@@ -562,6 +567,26 @@ function ResetForm() {
       <AuthButton>Reset Password</AuthButton>
       <p className="mt-5 text-center text-[11px] text-slate-300">Remember your password? <a className="text-sky-400" href="/login">Sign In</a></p>
       <p className="mt-5 text-center text-[11px] text-slate-300">Need help? <a className="text-sky-400" href="/support">Contact Support</a></p>
+    </div>
+  );
+}
+
+function TimeoutForm() {
+  return (
+    <div>
+      <AuthTitle subtitle="For your security, you have been signed out due to inactivity." title="Session Timed Out" />
+      <div className="mx-auto my-6 grid size-24 place-items-center rounded-full border-2 border-sky-600 text-[46px] text-sky-500">◷</div>
+      <p className="text-center text-[14px] leading-relaxed text-slate-300">
+        You will be redirected to the sign in page<br />in <span className="text-sky-400">15</span> seconds.
+      </p>
+      <div className="mx-auto mt-5 max-w-[300px] rounded-lg border border-cyan-300/10 bg-slate-700/20 p-4 text-[12px]">
+        <div className="font-semibold text-slate-100"><span className="mr-2 text-sky-400">●</span>Why did this happen?</div>
+        <p className="mt-1 leading-relaxed text-slate-300">Your session timed out after 15 minutes of inactivity.</p>
+      </div>
+      <AuthButton>Return to Sign In</AuthButton>
+      <p className="mt-5 text-center text-[13px]"><a className="text-sky-400" href="/login">Sign In Again Now</a></p>
+      <div className="mx-auto my-6 h-px w-[250px] bg-slate-700" />
+      <p className="text-center text-[11px] text-slate-300">Need help? <a className="text-sky-400" href="/support">Contact Support</a></p>
     </div>
   );
 }
