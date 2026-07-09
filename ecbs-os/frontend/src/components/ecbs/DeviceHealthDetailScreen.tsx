@@ -61,8 +61,6 @@ export function DeviceScreen({ variant }: { variant: DeviceScreenVariant }) {
       ? { title: "Meters", active: "/devices/meters", total: "38", online: "34", warning: "3", offline: "1", health: "93", firmware: "97%", noun: "Meter", model: "Power Quality Meter", description: "Meters collect and transmit power quality data from devices." }
       : variant === "repeaters"
         ? { title: "Repeaters", active: "/devices/repeaters", total: "16", online: "14", warning: "1", offline: "1", health: "91", firmware: "94%", noun: "Repeater", model: "XRPT-200", description: "Repeaters extend network coverage and ensure reliable communication." }
-        : variant === "switchesList"
-          ? { title: "Switches", active: "/devices/switches", total: "24", online: "21", warning: "2", offline: "1", health: "90", firmware: "96%", noun: "Switch", model: "Molded Case Switch", description: "Switches control and protect electrical loads at this site." }
         : { title: "Gateways", active: "/devices/gateways", total: "12", online: "11", warning: "1", offline: "0", health: "92", firmware: "100%", noun: "Gateway", model: "XGW-500", description: "Gateways collect and transmit data from meters and devices." };
 
   return (
