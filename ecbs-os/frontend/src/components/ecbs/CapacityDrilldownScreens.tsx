@@ -2271,7 +2271,13 @@ function OptimizationWaterfall() {
   return (
     <svg className="h-full w-full" viewBox="0 0 500 180" preserveAspectRatio="none" aria-hidden="true">
       {[35, 70, 105, 140].map((y) => <line key={y} x1="35" x2="490" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" />)}
-      {[["Installed", 55, 52, 46, "#94a3b8", "3,250"], ["Used", 130, 52, 92, "#ef4444", "-2,438"], ["Available", 205, 92, 38, "#147dff", "812"], ["Recovery", 300, 64, 34, "#65a30d", "420"], ["Effective", 410, 38, 106, "#05ff5e", "3,670"]].map(([label, x, y, h, color, value]) => <g key={label}><rect fill={color} height={h} rx="2" width="45" x={x} y={y} /><text fill="#cbd5e1" fontSize="9" textAnchor="middle" x={Number(x) + 22} y={Number(y) - 5}>{value}</text><text fill="#94a3b8" fontSize="8" textAnchor="middle" x={Number(x) + 22} y="168">{label}</text></g>)}
+      {([
+        ["Installed", 55, 52, 46, "#94a3b8", "3,250"],
+        ["Used", 130, 52, 92, "#ef4444", "-2,438"],
+        ["Available", 205, 92, 38, "#147dff", "812"],
+        ["Recovery", 300, 64, 34, "#65a30d", "420"],
+        ["Effective", 410, 38, 106, "#05ff5e", "3,670"],
+      ] as Array<[string, number, number, number, string, string]>).map(([label, x, y, h, color, value]) => <g key={label}><rect fill={color} height={h} rx="2" width="45" x={x} y={y} /><text fill="#cbd5e1" fontSize="9" textAnchor="middle" x={x + 22} y={y - 5}>{value}</text><text fill="#94a3b8" fontSize="8" textAnchor="middle" x={x + 22} y="168">{label}</text></g>)}
       {[4000, 3000, 2000, 1000, 0].map((label, index) => <text fill="#94a3b8" fontSize="8" key={label} textAnchor="end" x="28" y={36 + index * 34}>{label}</text>)}
     </svg>
   );
