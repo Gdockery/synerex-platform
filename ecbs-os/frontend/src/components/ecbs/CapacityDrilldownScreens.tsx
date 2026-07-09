@@ -2120,7 +2120,15 @@ function SimulateResultsSummary() {
         <svg className="h-[190px] w-full" viewBox="0 0 520 210" preserveAspectRatio="none" aria-hidden="true">
           {[4000, 3500, 3000, 2500, 2000, 1500, 1000, 500, 0].map((label, index) => <text fill="#94a3b8" fontSize="8" key={label} textAnchor="end" x="28" y={18 + index * 19}>{label}</text>)}
           {[35, 70, 105, 140, 175].map((y) => <line key={y} x1="35" x2="510" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" />)}
-          {[["Current", 55, 86, 58, "#94a3b8", "2,600"], ["Load", 130, 66, 40, "#22c55e", "+220"], ["PF", 205, 52, 34, "#22c55e", "+150"], ["Harmonic", 280, 43, 29, "#22c55e", "+120"], ["Transformer", 355, 36, 25, "#22c55e", "+110"], ["Motor", 430, 26, 20, "#22c55e", "+50"], ["New Effective", 490, 17, 83, "#147dff", "3,250"]].map(([label, x, y, h, color, value]) => <g key={label}><rect fill={color} height={h} rx="2" width="38" x={x} y={y} /><text fill="#dbeafe" fontSize="9" textAnchor="middle" x={Number(x) + 19} y={Number(y) - 5}>{value}</text><text fill="#94a3b8" fontSize="7" textAnchor="middle" x={Number(x) + 19} y="198">{label}</text></g>)}
+          {([
+            ["Current", 55, 86, 58, "#94a3b8", "2,600"],
+            ["Load", 130, 66, 40, "#22c55e", "+220"],
+            ["PF", 205, 52, 34, "#22c55e", "+150"],
+            ["Harmonic", 280, 43, 29, "#22c55e", "+120"],
+            ["Transformer", 355, 36, 25, "#22c55e", "+110"],
+            ["Motor", 430, 26, 20, "#22c55e", "+50"],
+            ["New Effective", 490, 17, 83, "#147dff", "3,250"],
+          ] as Array<[string, number, number, number, string, string]>).map(([label, x, y, h, color, value]) => <g key={label}><rect fill={color} height={h} rx="2" width="38" x={x} y={y} /><text fill="#dbeafe" fontSize="9" textAnchor="middle" x={x + 19} y={y - 5}>{value}</text><text fill="#94a3b8" fontSize="7" textAnchor="middle" x={x + 19} y="198">{label}</text></g>)}
         </svg>
       </div>
       <SimulateMetricRows rows={[["Current Effective Capacity", "2.60 MW", "#05ff5e"], ["Simulated Additional Capacity", "650 kVA", "#05ff5e"], ["New Effective Capacity", "3.25 MW", "#05ff5e"], ["Percent Increase", "+25.0%", "#05ff5e"], ["Capacity Utilization (Projected)", "68%", "#cbd5e1"], ["Reserve Margin (Projected)", "24%", "#cbd5e1"], ["Peak Demand (Projected)", "2.47 MW", "#cbd5e1"], ["Deferred CAPEX", "$1,780,000", "#cbd5e1"]]} />
