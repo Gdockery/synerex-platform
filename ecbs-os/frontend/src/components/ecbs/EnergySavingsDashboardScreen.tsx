@@ -1638,7 +1638,7 @@ function BaselineSummaryTable() {
 }
 
 function BaselineDemandChart() {
-  return <MiniBaselineBars footer={["Peak Reduction|540 kW", "Max Reduction Day|Jan 18, 2025", "% Reduction|-12.8%"]} line points="42,92 80,88 118,86 156,82 194,80 232,76 270,72 308,70 346,68 384,66" title="View Demand Analysis →" />;
+  return <MiniBaselineBars footer={["Peak Reduction|540 kW", "Max Reduction Day|Jan 18, 2025", "% Reduction|-12.8%"]} line="42,92 80,88 118,86 156,82 194,80 232,76 270,72 308,70 346,68 384,66" title="View Demand Analysis →" />;
 }
 
 function BaselinePowerFactorChart() {
