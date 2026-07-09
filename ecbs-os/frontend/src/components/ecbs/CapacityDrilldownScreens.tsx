@@ -2577,7 +2577,7 @@ function LineChart({ compact = false, legend, maxLabel, points, showDots = true,
 function parseChartPoints(points: string) {
   return points.split(" ").map((pair) => {
     const [x, y] = pair.split(",").map(Number);
-    return [x, y] as const;
+    return [x, y] as [number, number];
   }).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
 }
 
