@@ -126,7 +126,7 @@ function SwitchesInventoryScreen() {
 }
 
 function SwitchesInventoryTable() {
-  const rows = [
+  const rows: Array<[string, string, string, string, string, string, boolean]> = [
     ["SW-MAIN-01", "Air Circuit Breaker", "Main Switchgear MSB", "Online", "96", "Auto (Always On)", true],
     ["SW-MAIN-02", "Molded Case Switch", "Substation A", "Online", "94", "Auto (Always On)", true],
     ["SW-FEEDER-01", "Molded Case Switch", "Feeder A", "Online", "92", "Auto (Time Schedule)", true],
