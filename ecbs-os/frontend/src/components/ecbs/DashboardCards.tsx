@@ -506,8 +506,8 @@ export function ActiveAlarmsCard({ alarms }: { alarms: AlarmItem[] }) {
 
   return (
     <div className="space-y-1">
-      {alarms.map((alarm) => (
-        <div className="grid grid-cols-[18px_1fr_54px] items-center rounded bg-slate-100 px-1.5 py-1 text-[8px] text-slate-800" key={alarm.title}>
+      {alarms.map((alarm, index) => (
+        <div className="grid grid-cols-[18px_1fr_54px] items-center rounded bg-slate-100 px-1.5 py-1 text-[8px] text-slate-800" key={`${alarm.time}-${index}`}>
           <span className={toneClass[alarm.tone]}>△</span>
           <span><b>{alarm.title}</b><br />{alarm.detail}</span>
           <span className="text-right text-[7px]">{alarm.time}</span>
