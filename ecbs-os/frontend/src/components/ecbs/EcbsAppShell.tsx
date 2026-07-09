@@ -20,6 +20,7 @@ const navSections: NavSection[] = [
       { label: "Energy Dashboard", href: "/enterprise/energy-dashboard", icon: "energy" },
       { label: "Capacity Intelligence", href: "/enterprise/capacity-intelligence", icon: "gauge" },
       { label: "Digital Twin", href: "/enterprise/digital-twin", icon: "network" },
+      { label: "Electrical Network", href: "/enterprise/digital-twin/electrical-network", icon: "energy" },
       { label: "Sites", href: "/enterprise/sites", icon: "site" },
       { label: "Transformers", href: "/enterprise/transformers", icon: "transformer" },
       { label: "Current Analysis", href: "/enterprise/current-analysis", icon: "wave" },
@@ -65,10 +66,18 @@ const navSections: NavSection[] = [
     ],
   },
   {
-    title: "Administration",
+    title: "Financials",
+    items: [
+      { label: "Job Costing & Invoicing", href: "/financials/job-costing-invoicing", icon: "savings" },
+      { label: "Rates & Tariffs", href: "/financials/rates-tariffs", icon: "report" },
+      { label: "Contracts", href: "/financials/contracts", icon: "form" },
+      { label: "Payments", href: "/financials/payments", icon: "power" },
+    ],
+  },
+  {
+    title: "System",
     items: [
       { label: "Settings", href: "/administration/settings", icon: "settings" },
-      { label: "Audit Logs", href: "/administration/audit-logs", icon: "audit" },
     ],
   },
 ];
@@ -105,8 +114,8 @@ export function EcbsAppShell({
   children: ReactNode;
 }) {
   return (
-    <div className="ecbs-dashboard-frame h-[682px] w-[1024px] overflow-hidden bg-[#020a12] text-slate-100">
-      <div className="grid h-full grid-cols-[138px_886px]">
+    <div className="ecbs-dashboard-frame h-screen min-h-[682px] w-screen min-w-[1024px] overflow-hidden bg-[#020a12] text-slate-100">
+      <div className="grid h-full grid-cols-[150px_1fr]">
         <aside className="h-full overflow-y-auto overflow-x-hidden border-r border-cyan-300/10 bg-[#030c15] px-2.5 py-2 shadow-2xl shadow-black/50 [scrollbar-color:#0ea5b7_#061521] [scrollbar-width:thin]">
           <div className="mb-3 border-b border-white/8 pb-2.5">
             <div className="text-[26px] font-black italic leading-none tracking-[-0.12em]">

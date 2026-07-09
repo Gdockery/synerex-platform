@@ -307,13 +307,15 @@ export type AlertsEventsData = {
   }[];
   categories: { color: string; label: string; pct: string; value: number }[];
   cbiScore: number;
-  compliancePct: number;
+  compliancePct: number | null;
+  message?: string | null;
   metrics: AlertsEventsMetric[];
   notifications: { label: string; value: number }[];
   priorityMatrix: number[][];
   responseBars: number[];
-  responseMinutes: number;
+  responseMinutes: number | null;
   severity: { color: string; label: string; pct: string; value: number }[];
+  state?: "data" | "no-data";
   statusBars: { active: number; acknowledged: number; label: string; resolved: number }[];
   totalAlerts: number;
   trend: { critical: number; info: number; label: string; warning: number }[];

@@ -25,10 +25,10 @@ export function AlertsEventsScreen({ data }: { data: AlertsEventsData }) {
   return (
     <div className="h-[682px] w-[1024px] overflow-hidden bg-[#020a12] text-slate-100">
       <div className="grid h-full grid-cols-[106px_918px]">
-        <AlertsSidebar cbi={data.cbiScore} />
+        <AlertsSidebar activeAlerts={data.activeAlerts.length} cbi={data.cbiScore} updatedAt={data.updatedAt} />
 
         <main className="flex min-w-0 flex-col bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,0.08),transparent_32%),linear-gradient(180deg,#03101a,#020910)] px-2.5">
-          <Topbar />
+          <Topbar activeAlerts={data.activeAlerts.length} updatedAt={data.updatedAt} />
 
           <div className="flex h-[50px] items-start justify-between pt-2">
             <div>
@@ -45,10 +45,16 @@ export function AlertsEventsScreen({ data }: { data: AlertsEventsData }) {
             </div>
           </div>
 
+          {data.message ? (
+            <div className="mb-1 rounded border border-amber-400/30 bg-amber-500/10 px-3 py-1 text-[8px] text-amber-200">
+              {data.message}
+            </div>
+          ) : null}
+
           <section className="grid h-[78px] grid-cols-6 gap-1.5">
-            {data.metrics.map((metric) => (
+            {data.metrics.length ? data.metrics.map((metric) => (
               <MetricCard key={metric.label} metric={metric} />
-            ))}
+            )) : <NoDataPanel className="col-span-6" message="No applicable alarm metrics were found in tracking." />}
           </section>
 
           <section className="mt-2 grid h-[164px] grid-cols-[1fr_1.2fr_1.32fr] gap-2">
@@ -64,7 +70,7 @@ export function AlertsEventsScreen({ data }: { data: AlertsEventsData }) {
           </section>
 
           <section className="mt-2 grid h-[164px] grid-cols-[1.63fr_1.2fr] gap-2">
-            <Panel title="Active Alerts (6)">
+            <Panel title={`Active Alerts (${data.activeAlerts.length})`}>
               <ActiveAlertsTable data={data} />
             </Panel>
             <Panel title="Alert Priority Matrix">
@@ -88,8 +94,8 @@ export function AlertsEventsScreen({ data }: { data: AlertsEventsData }) {
           </section>
 
           <footer className="mt-auto flex h-[28px] items-center justify-between border-t border-cyan-300/10 text-[8px] text-slate-500">
-            <span>ⓘ Alerts are generated in real time based on system thresholds and predictive analytics.</span>
-            <span><i className="mr-1 inline-block size-1.5 rounded-full bg-[#05ff5e]" />All Systems Operational</span>
+            <span>ⓘ Alerts are shown only when applicable tracking records or calculations exist.</span>
+            <span><i className={`mr-1 inline-block size-1.5 rounded-full ${data.state === "no-data" ? "bg-amber-400" : "bg-[#05ff5e]"}`} />{data.state === "no-data" ? "No Applicable Alarm Data" : "Alarm Data Loaded"}</span>
           </footer>
         </main>
       </div>
@@ -97,7 +103,7 @@ export function AlertsEventsScreen({ data }: { data: AlertsEventsData }) {
   );
 }
 
-function AlertsSidebar({ cbi }: { cbi: number }) {
+function AlertsSidebar({ activeAlerts, cbi, updatedAt }: { activeAlerts: number; cbi: number; updatedAt: string }) {
   return (
     <aside className="flex h-full flex-col border-r border-cyan-300/10 bg-[#030c15] px-2 py-2">
       <div className="mb-3">
@@ -109,7 +115,7 @@ function AlertsSidebar({ cbi }: { cbi: number }) {
           <a className={`flex h-[20px] items-center gap-1.5 rounded px-1 ${item.href === "/enterprise/alerts-events" ? "border-l-2 border-[#05ff5e] bg-[#063b27] text-[#05ff5e]" : "text-slate-300"}`} href={item.href} key={item.href}>
             <span>{item.href === "/enterprise/alerts-events" ? "⚠" : "⌾"}</span>
             <span className="truncate">{item.label}</span>
-            {item.href === "/enterprise/alerts-events" ? <b className="ml-auto rounded-full bg-red-500 px-1 text-[7px] text-white">6</b> : null}
+            {item.href === "/enterprise/alerts-events" && activeAlerts > 0 ? <b className="ml-auto rounded-full bg-red-500 px-1 text-[7px] text-white">{activeAlerts}</b> : null}
           </a>
         ))}
       </nav>
@@ -120,23 +126,23 @@ function AlertsSidebar({ cbi }: { cbi: number }) {
       <a className="mt-2 block text-[8px] text-slate-300" href="/administration/settings">⚙ Settings</a>
       <div className="mt-auto rounded border border-cyan-300/12 bg-[#041722] p-2 text-center">
         <div className="text-[8px] leading-snug text-slate-300">XECO Current<br />Balance Index™</div>
-        <div className="mt-1 text-[31px] font-light leading-none text-[#7ed321]">{formatInt(cbi)}</div>
-        <div className="mt-1 text-[8px] text-slate-300">A+ Rating</div>
+        <div className="mt-1 text-[31px] font-light leading-none text-[#7ed321]">{cbi > 0 ? formatInt(cbi) : "No Data"}</div>
+        <div className="mt-1 text-[8px] text-slate-300">{cbi > 0 ? "Tracking CBI" : "No CBI Data"}</div>
         <a className="mt-2 block text-[8px] text-[#7ed321]" href="/enterprise/current-analysis">View Details →</a>
       </div>
-      <div className="mt-4 text-[7px] leading-snug text-slate-500">Last Updated<br />May 18, 2025 10:15 AM<br /><span className="text-[#7ed321]">●</span> Real-time</div>
+      <div className="mt-4 text-[7px] leading-snug text-slate-500">Last Updated<br />{updatedAt}<br /><span className="text-[#7ed321]">●</span> Tracking DB</div>
       <div className="mt-6 text-[6px] leading-snug text-slate-500">© 2025 XECO Energy Corporation.<br />All rights reserved.</div>
     </aside>
   );
 }
 
-function Topbar() {
+function Topbar({ activeAlerts, updatedAt }: { activeAlerts: number; updatedAt: string }) {
   return (
     <header className="flex h-[42px] items-center justify-end border-b border-cyan-300/10">
       <div className="flex items-center gap-3 text-[8px] text-slate-300">
-        <button className="min-w-[88px] rounded border border-slate-700 bg-[#061421] px-2 py-1.5 text-left">Flex Tijuana <span className="float-right">⌄</span></button>
-        <button className="min-w-[130px] rounded border border-slate-700 bg-[#061421] px-2 py-1.5">▣ May 12 - May 18, 2025 ⌄</button>
-        <div className="relative text-[15px]">♧<span className="absolute -right-1 -top-1 grid size-3 place-items-center rounded-full bg-red-500 text-[7px] text-white">6</span></div>
+        <button className="min-w-[88px] rounded border border-slate-700 bg-[#061421] px-2 py-1.5 text-left">Ochsner <span className="float-right">⌄</span></button>
+        <button className="min-w-[130px] rounded border border-slate-700 bg-[#061421] px-2 py-1.5">▣ {updatedAt} ⌄</button>
+        <div className="relative text-[15px]">♧{activeAlerts > 0 ? <span className="absolute -right-1 -top-1 grid size-3 place-items-center rounded-full bg-red-500 text-[7px] text-white">{activeAlerts}</span> : null}</div>
         <div className="grid size-5 place-items-center rounded-full border border-slate-500">?</div>
         <div className="grid size-5 place-items-center rounded-full border border-slate-500">⚙</div>
         <div className="grid size-7 place-items-center rounded-full border border-slate-500 bg-slate-200 text-[#020a12]">●</div>
@@ -153,9 +159,9 @@ function MetricCard({ metric }: { metric: AlertsEventsData["metrics"][number] })
       <div className="flex gap-2">
         <div className="grid size-8 shrink-0 place-items-center rounded-full border text-[18px]" style={{ borderColor: metric.accent, color: metric.accent }}>{metric.icon}</div>
         <div>
-          <div className="text-[8px] font-semibold uppercase text-slate-400">{metric.label}</div>
-          <div className="mt-1 text-[22px] font-light leading-none text-white">{metric.value}</div>
-          <div className="mt-1 text-[8px] text-slate-400">{metric.detail}</div>
+          <div className="text-[7px] font-semibold uppercase leading-[0.95] text-slate-400">{metric.label}</div>
+          <div className="mt-1 whitespace-nowrap text-[17px] font-light leading-none text-white">{metric.value}</div>
+          <div className="mt-1 truncate text-[7px] leading-none text-slate-400">{metric.detail}</div>
           <div className="mt-1 text-[7px]" style={{ color: metric.accent }}>{metric.subdetail}</div>
         </div>
       </div>
@@ -239,7 +245,7 @@ function ActiveAlertsTable({ data }: { data: AlertsEventsData }) {
           <tr>{["Severity", "Alert Name", "Device / Location", "Category", "Triggered", "Duration", "Status", "Actions"].map((head) => <th className="pb-1 font-medium" key={head}>{head}</th>)}</tr>
         </thead>
         <tbody>
-          {data.activeAlerts.map((alert) => (
+          {data.activeAlerts.length ? data.activeAlerts.map((alert) => (
             <tr className="border-t border-white/5" key={alert.name}>
               <td className={`py-1 ${tone[alert.severity]}`}>△ {alert.severity}</td>
               <td className="py-1 text-slate-200">{alert.name}</td>
@@ -250,7 +256,11 @@ function ActiveAlertsTable({ data }: { data: AlertsEventsData }) {
               <td className="py-1 text-red-400">{alert.status}</td>
               <td className="py-1 text-slate-400">{alert.action}</td>
             </tr>
-          ))}
+          )) : (
+            <tr className="border-t border-white/5">
+              <td className="py-4 text-center text-amber-200" colSpan={8}>No applicable active alarm records were found.</td>
+            </tr>
+          )}
         </tbody>
       </table>
       <a className="mt-1 block text-[8px] text-[#0ea5e9]" href="/enterprise/alerts-events">View All Active Alerts →</a>
@@ -270,7 +280,7 @@ function PriorityMatrix({ data }: { data: AlertsEventsData }) {
           {rows.map((row, rowIndex) => (
             <div className="contents" key={row}>
               <div className="grid h-[18px] items-center text-slate-300">{row}</div>
-              {data.priorityMatrix[rowIndex].map((value, colIndex) => (
+              {(data.priorityMatrix[rowIndex] ?? [0, 0, 0, 0, 0]).map((value, colIndex) => (
                 <div className="grid h-[18px] place-items-center border border-[#153522]" key={`${row}-${colIndex}`} style={{ backgroundColor: matrixColor(rowIndex, colIndex) }}>{value}</div>
               ))}
             </div>
@@ -291,10 +301,10 @@ function ResponsePerformance({ data }: { data: AlertsEventsData }) {
   return (
     <div>
       <div className="grid grid-cols-4 text-center text-[8px]">
-        <Summary value="62" label="Total Alerts" />
-        <Summary value={`${data.responseMinutes} min`} label="Avg Response Time" />
+        <Summary value={`${data.totalAlerts}`} label="Total Alerts" />
+        <Summary value={data.responseMinutes == null ? "No Data" : `${data.responseMinutes} min`} label="Avg Response Time" />
         <Summary value="15 min" label="SLA Target" />
-        <Summary value={`${data.compliancePct}%`} label="Within SLA" />
+        <Summary value={data.compliancePct == null ? "No Data" : `${data.compliancePct}%`} label="Within SLA" />
       </div>
       <div className="mt-2 flex h-[54px] items-end justify-between border-l border-b border-slate-700/60 px-3">
         {data.responseBars.map((value, index) => <span className="w-4 bg-[#65a30d]" key={index} style={{ height: `${value * 2}px` }} />)}
@@ -306,6 +316,10 @@ function ResponsePerformance({ data }: { data: AlertsEventsData }) {
 }
 
 function CategoryBars({ data }: { data: AlertsEventsData }) {
+  if (!data.categories.length) {
+    return <NoDataPanel message="No alert category records were found." />;
+  }
+
   return (
     <div className="space-y-2 pt-1 text-[8px]">
       {data.categories.map((category) => (
@@ -321,6 +335,10 @@ function CategoryBars({ data }: { data: AlertsEventsData }) {
 }
 
 function Notifications({ data }: { data: AlertsEventsData }) {
+  if (!data.notifications.length) {
+    return <NoDataPanel message="No alert notification rules were found." />;
+  }
+
   return (
     <div className="space-y-3 pt-1 text-[8px]">
       {data.notifications.map((item) => <MetricLine key={item.label} label={item.label} value={`${item.value}`} />)}
@@ -336,6 +354,14 @@ function QuickActions() {
         <div className="border-b border-white/5 pb-1 text-slate-300" key={action}>◎ {action}</div>
       ))}
       <a className="block pt-1 text-[#0ea5e9]" href="/enterprise/alerts-events">View All Actions →</a>
+    </div>
+  );
+}
+
+function NoDataPanel({ className = "", message }: { className?: string; message: string }) {
+  return (
+    <div className={`grid h-full place-items-center rounded border border-amber-400/25 bg-amber-500/8 p-3 text-center text-[9px] text-amber-200 ${className}`}>
+      {message}
     </div>
   );
 }

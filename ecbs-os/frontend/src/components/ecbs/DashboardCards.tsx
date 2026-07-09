@@ -75,7 +75,7 @@ export type HealthLegendItem = {
 export type AlarmItem = {
   detail: string;
   time: string;
-  title: string;
+  title: ReactNode;
   tone: "blue" | "red" | "yellow";
 };
 
@@ -160,35 +160,44 @@ const solidToneColor: Record<DashboardKpiTone, string> = {
 
 export function DashboardPanel({
   action,
+  actionHref,
   children,
   className = "",
   title,
   variant = "site",
 }: {
   action?: string;
+  actionHref?: string;
   children: ReactNode;
   className?: string;
-  title: string;
+  title: ReactNode;
   variant?: "enterprise" | "site";
 }) {
   if (variant === "enterprise") {
     return (
-      <article className={`min-h-0 overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-2 shadow-[0_0_22px_rgba(0,220,255,0.05)] ${className}`}>
-        <h2 className="mb-1.5 text-[12px] font-medium uppercase tracking-wide text-slate-300">
-          {title}
-        </h2>
-        {children}
+      <article className={`flex min-h-0 flex-col overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-2 shadow-[0_0_22px_rgba(0,220,255,0.05)] ${className}`}>
+        <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
+          <h2 className="truncate text-[12px] font-semibold text-slate-100">
+            {title}
+          </h2>
+          {action ? <a className="whitespace-nowrap rounded border border-cyan-300/10 bg-[#061421] px-2 py-1 text-[8px] font-medium text-slate-300" href={actionHref ?? "#"}>{action}</a> : null}
+        </div>
+        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
+          {children}
+        </div>
       </article>
     );
   }
 
   return (
-    <section className={`h-full overflow-hidden rounded border border-cyan-300/12 bg-[#061825]/88 p-1.5 shadow-[0_0_18px_rgba(0,220,255,0.04)] ${className}`}>
-      <div className="mb-1 flex items-center justify-between">
+    <section className={`flex h-full min-h-0 flex-col overflow-hidden rounded border border-cyan-300/12 bg-[#061825]/88 p-1.5 shadow-[0_0_18px_rgba(0,220,255,0.04)] ${className}`}>
+      <div className="mb-1 flex shrink-0 items-center justify-between">
         <h2 className="truncate text-[9px] font-semibold uppercase tracking-wide text-slate-100">{title}</h2>
-        {action ? <a className="whitespace-nowrap text-[7px] font-semibold text-[#05ff5e]" href="#">{action}</a> : null}
+        {action && actionHref ? <a className="whitespace-nowrap text-[7px] font-semibold text-[#05ff5e]" href={actionHref}>{action}</a> : null}
       </div>
-      {children}
+      <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden pr-1">
+        {children}
+      </div>
     </section>
   );
 }
@@ -204,17 +213,17 @@ export function DashboardKpiCard({
     const tone = kpi.tone ?? "green";
 
     return (
-      <article className="h-[78px] overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061825]/90 p-2 shadow-[0_0_22px_rgba(0,220,255,0.06)]">
-        <div className="flex items-start gap-2">
-          <div className={`grid size-7 shrink-0 place-items-center rounded-full bg-gradient-to-br ${enterpriseToneClass[tone]} text-xs font-black text-white`}>
+      <article className="h-full min-h-[88px] overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061825]/90 p-3 shadow-[0_0_22px_rgba(0,220,255,0.06)]">
+        <div className="flex items-start gap-3">
+          <div className={`grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br ${enterpriseToneClass[tone]} text-sm font-black text-white`}>
             {kpi.icon ?? kpi.label.charAt(0)}
           </div>
           <div className="min-w-0 flex-1">
-            <div className={tone === "yellow" ? "text-[9px] font-bold uppercase leading-tight text-yellow-300" : "text-[9px] font-semibold uppercase leading-tight text-slate-300"}>
+            <div className={tone === "yellow" ? "text-[7.5px] font-bold uppercase leading-[0.95] text-yellow-300" : "text-[7.5px] font-semibold uppercase leading-[0.95] text-slate-300"}>
               {kpi.label}
             </div>
-            <div className="mt-0.5 text-[17px] font-light leading-none text-white">{kpi.value}</div>
-            <div className="mt-0.5 truncate text-[8px] text-slate-400">{kpi.detail}</div>
+            <div className="mt-1 whitespace-nowrap text-[20px] font-light leading-none text-white">{kpi.value}</div>
+            <div className="mt-1 truncate text-[8px] leading-none text-slate-400">{kpi.detail}</div>
           </div>
         </div>
         <Sparkline color={tone === "yellow" ? "#ffbf00" : "#05ff5e"} />
@@ -229,9 +238,9 @@ export function DashboardKpiCard({
           {kpi.icon ?? kpi.label.charAt(0)}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="truncate text-[7px] font-bold uppercase text-slate-300">{kpi.label}</div>
-          <div className="mt-0.5 text-[18px] font-light leading-none text-white">{kpi.value}</div>
-          <div className="mt-0.5 truncate text-[8px] text-slate-400">{kpi.detail}</div>
+          <div className="truncate text-[6.5px] font-bold uppercase leading-[0.95] text-slate-300">{kpi.label}</div>
+          <div className="mt-0.5 whitespace-nowrap text-[15px] font-light leading-none text-white">{kpi.value}</div>
+          <div className="mt-0.5 truncate text-[7px] leading-none text-slate-400">{kpi.detail}</div>
         </div>
       </div>
       <Sparkline />
@@ -326,7 +335,7 @@ export function ScreenStateBanner({ state }: { state: string }) {
 export function TrendCard({ color = "#05ff5e", detail, labels, points, value }: TrendCardData) {
   return (
     <>
-      <div className="text-[20px] font-light leading-none text-white">{value}</div>
+      <div className="whitespace-nowrap text-[16px] font-light leading-none text-white">{value}</div>
       <p className={color === "#05ff5e" ? "text-[8px] text-[#05ff5e]" : "text-[8px] text-slate-400"}>{detail}</p>
       <TrendChart color={color} labels={labels} points={points} />
     </>
@@ -555,7 +564,7 @@ export function PortfolioMapCard({ sites }: { sites: PortfolioSite[] }) {
   const mappedSites = sites.filter((site) => site.lat != null && site.lng != null);
 
   return (
-    <div className="relative h-[159px] overflow-hidden rounded-md bg-[#03111d]">
+    <div className="relative h-full min-h-[200px] overflow-hidden rounded-md bg-[#03111d]">
       {mappedSites.length > 0 ? (
         <LeafletPortfolioMap sites={mappedSites} />
       ) : (
@@ -575,11 +584,11 @@ export function PortfolioMapCard({ sites }: { sites: PortfolioSite[] }) {
 export function AiEnergySummaryCard({ summary }: { summary: string[] }) {
   return (
     <>
-      <div className="flex gap-2">
-        <div className="grid size-8 shrink-0 place-items-center rounded-md border border-[#05ff5e] text-xs text-[#05ff5e]">
+      <div className="flex gap-3">
+        <div className="grid size-10 shrink-0 place-items-center rounded-md border border-[#05ff5e] text-sm text-[#05ff5e]">
           AI
         </div>
-        <div className="space-y-1.5 text-[10px] leading-snug text-slate-300">
+        <div className="space-y-2 text-[11px] leading-snug text-slate-300">
           {summary.map((item, index) => (
             <div className="flex items-start gap-1.5" key={item}>
               <span className={index === summary.length - 1 ? "text-yellow-300" : "text-[#05ff5e]"}>
@@ -590,7 +599,7 @@ export function AiEnergySummaryCard({ summary }: { summary: string[] }) {
           ))}
         </div>
       </div>
-      <a className="mt-2 inline-block rounded border border-[#05ff5e]/60 px-7 py-1.5 text-[11px] font-semibold text-[#05ff5e]" href="/enterprise/reports">
+      <a className="mt-4 inline-block rounded border border-[#05ff5e]/60 px-8 py-2 text-[11px] font-semibold text-[#05ff5e]" href="/enterprise/reports">
         View Full Report
       </a>
     </>
@@ -600,15 +609,15 @@ export function AiEnergySummaryCard({ summary }: { summary: string[] }) {
 export function NetworkHealthCard({ data }: { data: NetworkHealthData }) {
   return (
     <>
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-4">
         {data.metrics.map((metric) => (
           <EnterpriseGauge key={metric.label} label={metric.label} value={metric.value} tone={metric.tone} />
         ))}
       </div>
-      <div className="mt-1.5 border-t border-white/10 pt-1.5">
-        <div className="text-[9px] text-slate-400">Overall Network Health</div>
-        <div className="mt-0.5 flex items-center gap-3">
-          <span className="text-base font-semibold leading-none text-[#05ff5e]">{data.overall}</span>
+      <div className="mt-4 border-t border-white/10 pt-3">
+        <div className="text-[10px] text-slate-400">Overall Network Health</div>
+        <div className="mt-2 flex items-center gap-3">
+          <span className="text-xl font-semibold leading-none text-[#05ff5e]">{data.overall}</span>
           <div className="h-2 flex-1 rounded-full bg-slate-800">
             <div className="h-full rounded-full bg-[#05ff5e]" style={{ width: data.overall }} />
           </div>
@@ -620,7 +629,7 @@ export function NetworkHealthCard({ data }: { data: NetworkHealthData }) {
 
 export function EnterpriseSavingsTrendCard({ points }: { points: string }) {
   return (
-    <div className="relative h-[130px] overflow-hidden rounded bg-[#03111d] px-3 py-2">
+    <div className="relative h-full min-h-[158px] overflow-hidden rounded bg-[#03111d] px-3 py-2">
       <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.04)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.04)_1px,transparent_1px)] bg-[size:100%_25%,8.33%_100%]" />
       <svg className="relative h-full w-full" viewBox="0 0 370 96" preserveAspectRatio="none" aria-hidden="true">
         <defs>
@@ -631,8 +640,9 @@ export function EnterpriseSavingsTrendCard({ points }: { points: string }) {
         </defs>
         <polygon fill="url(#trendFill)" points={`0,96 ${points} 370,96`} />
         <polyline fill="none" points={points} stroke="#05ff5e" strokeWidth="2" />
+        {parseTrendPoints(points).map(([x, y]) => <circle cx={x} cy={y} fill="#03111d" key={`${x}-${y}`} r="3" stroke="#05ff5e" strokeWidth="2" />)}
       </svg>
-      <div className="absolute left-3 top-2 space-y-[11px] text-[10px] text-slate-400">
+      <div className="absolute left-3 top-3 space-y-[16px] text-[10px] text-slate-400">
         <div>$250K</div>
         <div>$200K</div>
         <div>$150K</div>
@@ -651,8 +661,8 @@ export function EnterpriseSavingsTrendCard({ points }: { points: string }) {
 export function TopSitesSavingsCard({ sites }: { sites: PortfolioSite[] }) {
   return (
     <>
-      <div className="max-h-[101px] overflow-y-auto pr-1 [scrollbar-color:#0ea5b7_#061521] [scrollbar-width:thin]">
-        <table className="w-full text-left text-[10px]">
+      <div className="max-h-[132px] overflow-y-auto pr-1 [scrollbar-color:#0ea5b7_#061521] [scrollbar-width:thin]">
+        <table className="w-full text-left text-[9px]">
           <thead className="sticky top-0 z-10 bg-[#092130] text-slate-400">
             <tr>
               <th className="px-2 py-1 font-medium">Site</th>
@@ -690,15 +700,15 @@ export function TopSitesSavingsCard({ sites }: { sites: PortfolioSite[] }) {
 export function TransformerCapacityOverviewCard({ data }: { data: TransformerCapacityData }) {
   return (
     <>
-      <div className="grid grid-cols-[54px_62px_1fr] items-center gap-1.5">
-        <div className="rounded bg-slate-800/70 p-1.5 text-center text-[9px] text-slate-400">
+      <div className="grid grid-cols-[64px_76px_1fr] items-center gap-3">
+        <div className="rounded bg-slate-800/70 p-2 text-center text-[9px] text-slate-400">
           Transformer
-          <div className="mt-1.5 grid h-10 place-items-center rounded bg-gradient-to-b from-slate-700 to-slate-900">
+          <div className="mt-2 grid h-14 place-items-center rounded bg-gradient-to-b from-slate-700 to-slate-900">
             <TransformerSymbol />
           </div>
         </div>
         <EnterpriseMiniDonut value={data.utilization.replace("%", "")} />
-        <div className="space-y-0.5 text-[8px] leading-tight text-slate-300">
+        <div className="space-y-1 text-[8.5px] leading-tight text-slate-300">
           <p>Total Capacity</p>
           <p className="font-semibold text-white">{data.total}</p>
           <p><Dot className="bg-yellow-300" /> Loaded {data.loaded}</p>
@@ -706,7 +716,7 @@ export function TransformerCapacityOverviewCard({ data }: { data: TransformerCap
           <p><Dot className="bg-[#05ff5e]" /> Recovered {data.recovered}</p>
         </div>
       </div>
-      <a className="mt-1 inline-block text-[10px] font-semibold text-[#05ff5e]" href="/enterprise/transformers">
+      <a className="mt-3 inline-block text-[10px] font-semibold text-[#05ff5e]" href="/enterprise/transformers">
         View Transformer Fleet
       </a>
     </>
@@ -715,11 +725,11 @@ export function TransformerCapacityOverviewCard({ data }: { data: TransformerCap
 
 export function HiddenCapacityRecoveredCard({ data }: { data: HiddenCapacityRecoveredData }) {
   return (
-    <div className="grid h-[92px] grid-cols-[1fr_52px] gap-2">
+    <div className="grid h-full min-h-[126px] grid-cols-[1fr_72px] gap-3">
       <div>
-        <div className="text-xl font-semibold leading-none text-[#05ff5e]">{data.value}</div>
+        <div className="whitespace-nowrap text-[22px] font-semibold leading-none text-[#05ff5e]">{data.value}</div>
         <p className="mt-1 text-[9px] text-slate-400">Equivalent to:</p>
-        <ul className="mt-1 space-y-0.5 text-[8px] leading-tight text-[#05ff5e]">
+        <ul className="mt-2 space-y-1 text-[8.5px] leading-tight text-[#05ff5e]">
           {data.equivalents.map((equivalent) => (
             <li key={equivalent}>{equivalent}</li>
           ))}
@@ -733,12 +743,12 @@ export function HiddenCapacityRecoveredCard({ data }: { data: HiddenCapacityReco
 export function NetworkLossesReductionCard({ data }: { data: NetworkLossesReductionData }) {
   return (
     <>
-      <div className="grid grid-cols-2 gap-3 text-[10px] text-slate-300">
+      <div className="grid grid-cols-2 gap-4 text-[11px] text-slate-300">
         <MetricBar label="Before ECBS" value={data.before} tone="yellow" width={data.beforeWidth} />
         <MetricBar label="After ECBS" value={data.after} tone="green" width={data.afterWidth} />
       </div>
-      <div className="mt-1.5 text-[10px] text-slate-400">
-        Reduction <span className="ml-2 text-2xl font-light text-[#05ff5e]">{data.reduction}</span>
+      <div className="mt-4 text-[11px] text-slate-400">
+        Reduction <span className="ml-3 whitespace-nowrap text-[28px] font-light text-[#05ff5e]">{data.reduction}</span>
       </div>
     </>
   );
@@ -747,15 +757,15 @@ export function NetworkLossesReductionCard({ data }: { data: NetworkLossesReduct
 export function EnterpriseDeviceHealthCard({ data }: { data: EnterpriseDeviceHealthData }) {
   return (
     <>
-      <div className="grid grid-cols-[78px_1fr] items-center gap-3">
+      <div className="grid grid-cols-[92px_1fr] items-center gap-4">
         <EnterpriseMiniDonut value={data.value.replace("%", "")} label="Healthy" />
-        <div className="space-y-2 text-[10px]">
+        <div className="space-y-3 text-[10px]">
           {data.items.map((item) => (
             <EnterpriseLegend key={item.label} color={item.color} label={item.label} value={item.value} />
           ))}
         </div>
       </div>
-      <a className="mt-1 inline-block text-[10px] font-semibold text-[#05ff5e]" href="/devices">
+      <a className="mt-3 inline-block text-[10px] font-semibold text-[#05ff5e]" href="/devices">
         View All Devices
       </a>
     </>
@@ -803,6 +813,7 @@ function TrendChart({ color, labels, points }: { color: string; labels?: string[
         {[25, 50, 75].map((y) => <line key={y} x1="0" x2="308" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" />)}
         <polyline fill="none" points={points} stroke={color} strokeWidth="2" />
         <polyline fill="none" opacity="0.25" points={`${points} 308,100 0,100`} stroke={color} />
+        {parseTrendPoints(points).map(([x, y]) => <circle cx={x} cy={y} fill="#061825" key={`${x}-${y}`} r="3" stroke={color} strokeWidth="2" />)}
       </svg>
       {labels && labels.length > 0 ? (
         <div className="mt-0.5 flex justify-between text-[7px] text-slate-500">
@@ -811,6 +822,13 @@ function TrendChart({ color, labels, points }: { color: string; labels?: string[
       ) : null}
     </div>
   );
+}
+
+function parseTrendPoints(points: string) {
+  return points.split(" ").map((pair) => {
+    const [x, y] = pair.split(",").map(Number);
+    return [x, y] as const;
+  }).filter(([x, y]) => Number.isFinite(x) && Number.isFinite(y));
 }
 
 function Gauge({ label, small = false, value }: { label: string; small?: boolean; value: string }) {
@@ -993,7 +1011,7 @@ function MetricBar({
   return (
     <div>
       <div className="text-slate-400">{label}</div>
-      <div className="text-xl font-light text-white">{value}</div>
+      <div className="whitespace-nowrap text-[16px] font-light text-white">{value}</div>
       <div className="mt-2 h-2 rounded-full bg-slate-800">
         <div className={`h-full rounded-full ${tone === "green" ? "bg-[#05ff5e]" : "bg-yellow-400"}`} style={{ width }} />
       </div>

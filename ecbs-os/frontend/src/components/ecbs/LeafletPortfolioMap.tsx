@@ -1,7 +1,3 @@
-"use client";
-
-import { useEffect, useRef } from "react";
-
 type PortfolioMapSite = {
   annualSavings: string;
   lat?: number;
@@ -11,159 +7,48 @@ type PortfolioMapSite = {
   status: "Healthy" | "Warning";
 };
 
-type LeafletBounds = {
-  extend: (coordinate: [number, number]) => void;
-  isValid: () => boolean;
-};
-
-type LeafletMap = {
-  fitBounds: (
-    bounds: LeafletBounds,
-    options: { maxZoom: number; padding: [number, number] },
-  ) => void;
-  invalidateSize: () => void;
-  remove: () => void;
-  setView: (coordinate: [number, number], zoom: number) => LeafletMap;
-};
-
-type LeafletApi = {
-  divIcon: (options: {
-    className: string;
-    html: string;
-    iconAnchor: [number, number];
-    iconSize: [number, number];
-  }) => unknown;
-  latLngBounds: (coordinates: [number, number][]) => LeafletBounds;
-  map: (
-    element: HTMLElement,
-    options: {
-      attributionControl: boolean;
-      scrollWheelZoom: boolean;
-      zoomControl: boolean;
-    },
-  ) => LeafletMap;
-  marker: (
-    coordinate: [number, number],
-    options: { icon: unknown },
-  ) => {
-    addTo: (map: LeafletMap) => {
-      bindPopup: (html: string) => void;
-    };
-  };
-  tileLayer: (
-    urlTemplate: string,
-    options: { maxZoom: number },
-  ) => {
-    addTo: (map: LeafletMap) => void;
-  };
-};
-
-declare global {
-  interface Window {
-    L?: LeafletApi;
-  }
-}
-
-const leafletCssHref = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
-const leafletScriptSrc = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
-
-function ensureLeaflet(): Promise<LeafletApi | undefined> {
-  if (window.L) {
-    return Promise.resolve(window.L);
-  }
-
-  if (!document.querySelector(`link[href="${leafletCssHref}"]`)) {
-    const link = document.createElement("link");
-    link.href = leafletCssHref;
-    link.rel = "stylesheet";
-    document.head.appendChild(link);
-  }
-
-  const existingScript = document.querySelector<HTMLScriptElement>(
-    `script[src="${leafletScriptSrc}"]`,
-  );
-
-  if (existingScript) {
-    return new Promise((resolve) => {
-      existingScript.addEventListener("load", () => resolve(window.L), {
-        once: true,
-      });
-    });
-  }
-
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = leafletScriptSrc;
-    script.onload = () => resolve(window.L);
-    script.onerror = reject;
-    document.head.appendChild(script);
-  });
-}
-
 export function LeafletPortfolioMap({ sites }: { sites: PortfolioMapSite[] }) {
-  const mapEl = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<LeafletMap | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    ensureLeaflet().then((L) => {
-      if (cancelled || !L || !mapEl.current || mapRef.current) {
-        return;
-      }
-
-      const map = L.map(mapEl.current, {
-        attributionControl: false,
-        scrollWheelZoom: false,
-        zoomControl: true,
-      }).setView([24, -55], 2);
-
-      L.tileLayer(
-        "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png",
-        { maxZoom: 19 },
-      ).addTo(map);
-
-      const bounds = L.latLngBounds([]);
-
-      sites.filter((site) => site.lat != null && site.lng != null).forEach((site) => {
-        const color = site.status === "Healthy" ? "#00e676" : "#ffd740";
-        const icon = L.divIcon({
-          className: "",
-          html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid rgba(255,255,255,0.85);box-shadow:0 0 12px ${color};"></div>`,
-          iconAnchor: [7, 7],
-          iconSize: [14, 14],
-        });
-
-        L.marker([site.lat as number, site.lng as number], { icon })
-          .addTo(map)
-          .bindPopup(
-            `<b>${site.site}</b><br>${site.location}<br>Savings: ${site.annualSavings}<br>Status: ${site.status}`,
-          );
-
-        bounds.extend([site.lat as number, site.lng as number]);
-      });
-
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { maxZoom: 5, padding: [24, 24] });
-      }
-
-      setTimeout(() => map.invalidateSize(), 0);
-      mapRef.current = map;
-    });
-
-    return () => {
-      cancelled = true;
-      if (mapRef.current) {
-        mapRef.current.remove();
-        mapRef.current = null;
-      }
-    };
-  }, [sites]);
-
   return (
-    <div className="relative h-full min-h-0 overflow-hidden rounded-md bg-[#0d1829] shadow-[inset_0_0_32px_rgba(0,0,0,0.35)]">
-      <div className="h-full w-full" ref={mapEl} />
+    <div className="relative h-full min-h-0 overflow-hidden rounded-md bg-[#03111d] shadow-[inset_0_0_32px_rgba(0,0,0,0.35)]">
+      <div className="absolute inset-0 opacity-80">
+        <div className="absolute left-[8%] top-[32%] h-10 w-20 rounded-[55%] bg-[#0b3148]/80 blur-[1px]" />
+        <div className="absolute left-[20%] top-[48%] h-8 w-10 rounded-[50%] bg-[#0b3148]/80 blur-[1px]" />
+        <div className="absolute left-[39%] top-[27%] h-9 w-16 rounded-[55%] bg-[#0b3148]/80 blur-[1px]" />
+        <div className="absolute left-[48%] top-[44%] h-12 w-14 rounded-[55%] bg-[#0b3148]/80 blur-[1px]" />
+        <div className="absolute left-[66%] top-[34%] h-10 w-20 rounded-[55%] bg-[#0b3148]/80 blur-[1px]" />
+        <div className="absolute left-[77%] top-[54%] h-7 w-12 rounded-[55%] bg-[#0b3148]/80 blur-[1px]" />
+      </div>
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(20,125,255,0.18),transparent_58%)]" />
+      <div className="absolute left-2 top-2 grid gap-1">
+        <button className="grid size-6 place-items-center rounded border border-cyan-300/20 bg-[#061421] text-xs text-slate-300">+</button>
+        <button className="grid size-6 place-items-center rounded border border-cyan-300/20 bg-[#061421] text-xs text-slate-300">−</button>
+        <button className="grid size-6 place-items-center rounded border border-cyan-300/20 bg-[#061421] text-[10px] text-slate-300">⌖</button>
+      </div>
+      {sites.map((site, index) => {
+        const position = markerPosition(site, index);
+        const color = site.status === "Healthy" ? "#05ff5e" : "#ffd740";
+        return <div className="absolute size-3 rounded-full border-2 border-white/70 shadow-[0_0_12px_currentColor]" key={site.site} style={{ background: color, color, left: `${position.x}%`, top: `${position.y}%` }} title={`${site.site}: ${site.annualSavings}`} />;
+      })}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 h-12 bg-gradient-to-t from-[#03111d] to-transparent" />
     </div>
   );
+}
+
+function markerPosition(site: PortfolioMapSite, index: number) {
+  if (site.lat != null && site.lng != null) {
+    return {
+      x: Math.max(8, Math.min(88, ((site.lng + 180) / 360) * 100)),
+      y: Math.max(14, Math.min(70, ((90 - site.lat) / 180) * 100)),
+    };
+  }
+
+  const fallback = [
+    { x: 31, y: 52 },
+    { x: 35, y: 48 },
+    { x: 39, y: 46 },
+    { x: 68, y: 42 },
+    { x: 74, y: 52 },
+  ];
+
+  return fallback[index % fallback.length];
 }

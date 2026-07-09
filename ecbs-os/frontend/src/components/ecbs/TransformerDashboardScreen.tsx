@@ -4,14 +4,14 @@ export function TransformerDashboardScreen({ data }: { data: TransformerDashboar
   const currentLoadPct = `${formatNumber(data.utilizationPct)}%`;
 
   return (
-    <div className="h-[682px] w-[1024px] overflow-hidden bg-[#020a12] text-slate-100">
-      <div className="grid h-full grid-cols-[126px_898px]">
+    <div className="h-screen w-screen overflow-hidden bg-[#020a12] text-slate-100">
+      <div className="grid h-full grid-cols-[150px_1fr]">
         <TransformerSidebar cbi={data.cbiScore} />
 
-        <main className="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,0.08),transparent_32%),linear-gradient(180deg,#03101a,#020910)] px-2.5">
+        <main className="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,0.08),transparent_32%),linear-gradient(180deg,#03101a,#020910)] px-4">
           <PortalTopbar />
 
-          <section className="border-b border-cyan-300/10 pb-1.5 pt-2">
+          <section className="border-b border-cyan-300/10 pb-2 pt-3">
             <div className="flex items-start justify-between">
               <div>
                 <div className="mb-1 text-[9px] text-slate-400">
@@ -38,7 +38,7 @@ export function TransformerDashboardScreen({ data }: { data: TransformerDashboar
               </div>
             </div>
 
-            <nav className="mt-4 flex h-[22px] gap-6 text-[9px] text-slate-400">
+            <nav className="mt-5 flex h-[26px] gap-8 text-[10px] text-slate-400">
               {["Overview", "Performance", "Load Profile", "Power Quality", "Capacity & Savings", "Alarms & Events", "Maintenance", "Documents"].map((tab) => (
                 <span className={tab === "Overview" ? "border-b-2 border-[#05ff5e] pb-1.5 font-semibold text-[#05ff5e]" : ""} key={tab}>
                   {tab}{tab === "Alarms & Events" ? <b className="ml-1 rounded-full bg-orange-500 px-1 text-[8px] text-white">2</b> : null}
@@ -47,12 +47,12 @@ export function TransformerDashboardScreen({ data }: { data: TransformerDashboar
             </nav>
           </section>
 
-          <section className="mt-1.5 grid h-[116px] grid-cols-[148px_140px_150px_140px_140px_132px] gap-1.5">
+          <section className="mt-3 grid h-[118px] shrink-0 grid-cols-[1fr_1fr_1.08fr_1fr_1fr_1fr] gap-3">
             <KpiPanel title="Utilization">
               <div className="grid grid-cols-[62px_1fr] items-center gap-2">
                 <RingGauge value={data.utilizationPct} />
                 <div className="pt-1">
-                  <div className="text-[18px] font-light leading-none text-white">{formatNumber(data.loadKva)} <span className="text-[11px]">kVA</span></div>
+                  <div className="whitespace-nowrap text-[15px] font-light leading-none text-white">{formatNumber(data.loadKva)} <span className="text-[10px]">kVA</span></div>
                   <div className="mt-1 text-[8px] text-slate-400">Current Load</div>
                   <div className="mt-3 text-[8px] leading-snug text-slate-400">of {formatNumber(data.ratingKva)} kVA<br />Rated Capacity</div>
                 </div>
@@ -108,7 +108,7 @@ export function TransformerDashboardScreen({ data }: { data: TransformerDashboar
             </KpiPanel>
           </section>
 
-          <section className="mt-1.5 grid h-[154px] grid-cols-[1.05fr_0.95fr] gap-1.5">
+          <section className="mt-3 grid h-[205px] shrink-0 grid-cols-[1.05fr_0.95fr] gap-3">
             <Panel title="KVA Load Trend" action="Last 7 Days⌄">
               <LineChart
                 labels={["May 12", "May 13", "May 14", "May 15", "May 16", "May 17", "May 18"]}
@@ -122,7 +122,7 @@ export function TransformerDashboardScreen({ data }: { data: TransformerDashboar
             </Panel>
           </section>
 
-          <section className="mt-1.5 grid h-[128px] grid-cols-[1.25fr_1.06fr_1.05fr_1fr] gap-1.5">
+          <section className="mt-3 grid h-[168px] shrink-0 grid-cols-[1.25fr_1.06fr_1.05fr_1fr] gap-3">
             <Panel title="Capacity & Utilization">
               <div className="grid h-[98px] grid-cols-[90px_1fr] items-center gap-2">
                 <Donut value={data.utilizationPct} />
@@ -148,7 +148,7 @@ export function TransformerDashboardScreen({ data }: { data: TransformerDashboar
             </Panel>
           </section>
 
-          <section className="mt-1.5 grid h-[101px] grid-cols-[1.65fr_1fr] gap-1.5">
+          <section className="mt-3 grid min-h-0 flex-1 grid-cols-[1.65fr_1fr] gap-3">
             <Panel title="Capacity Recovery Over Time">
               <BarChart labels={["Jun '24", "Jul '24", "Aug '24", "Sep '24", "Oct '24", "Nov '24", "Dec '24", "Jan '25", "Feb '25", "Mar '25", "Apr '25", "May '25"]} value={data.capacityRecoveredKva} />
             </Panel>
@@ -161,7 +161,7 @@ export function TransformerDashboardScreen({ data }: { data: TransformerDashboar
             </Panel>
           </section>
 
-          <footer className="mt-auto flex h-[22px] items-center justify-between text-[8px] text-slate-500">
+          <footer className="mt-2 flex h-[28px] shrink-0 items-center justify-between text-[9px] text-slate-500">
             <div />
             <div className="flex gap-7 text-[#05ff5e]">
               <a href="/privacy">Privacy Policy</a>
@@ -198,15 +198,15 @@ function TransformerSidebar({ cbi }: { cbi: number }) {
   ];
 
   return (
-    <aside className="flex h-full flex-col border-r border-cyan-300/10 bg-[#030c15] px-2 py-2">
+    <aside className="flex h-full flex-col border-r border-cyan-300/10 bg-[#030c15] px-3 py-3">
       <div className="mb-3">
         <div className="text-[31px] font-black italic leading-none tracking-[-0.13em]"><span className="text-[#03f45f]">X</span><span className="text-white">ECO</span></div>
         <div className="mt-0.5 text-[8px] font-bold uppercase tracking-[0.48em] text-[#16ff5d]">Energy</div>
       </div>
 
-      <nav className="space-y-1 text-[9px]">
+      <nav className="space-y-1.5 text-[10px]">
         {items.map((item) => (
-          <a className={`flex h-[22px] items-center gap-1.5 rounded px-1.5 ${item.href === "/enterprise/transformers" ? "border-l-2 border-[#05ff5e] bg-[#063b27] text-[#05ff5e]" : "text-slate-300"}`} href={item.href} key={item.href}>
+          <a className={`flex h-[24px] items-center gap-2 rounded px-1.5 ${item.href === "/enterprise/transformers" ? "border-l-2 border-[#05ff5e] bg-[#063b27] text-[#05ff5e]" : "text-slate-300"}`} href={item.href} key={item.href}>
             <span className="text-[11px]">{item.href === "/enterprise/transformers" ? "♜" : item.href === "/enterprise/alerts-events" ? "⚠" : "⌾"}</span>
             <span>{item.label}</span>
             {item.href === "/enterprise/alerts-events" ? <b className="ml-auto rounded-full bg-orange-500 px-1 text-[8px] text-white">2</b> : null}
@@ -216,14 +216,14 @@ function TransformerSidebar({ cbi }: { cbi: number }) {
 
       <div className="mt-2 border-t border-white/8 pt-1">
         <div className="mb-1 flex items-center justify-between text-[9px] font-semibold uppercase text-slate-300">Devices <span>⌄</span></div>
-        <div className="space-y-1">
+        <div className="space-y-1.5">
           {devices.map((item) => (
-            <a className="flex h-[20px] items-center gap-1.5 rounded px-2 text-[9px] text-slate-300" href={item.href} key={item.href}>⊙ {item.label}</a>
+            <a className="flex h-[22px] items-center gap-2 rounded px-2 text-[10px] text-slate-300" href={item.href} key={item.href}>⊙ {item.label}</a>
           ))}
         </div>
       </div>
 
-      <a className="mt-2 flex h-[22px] items-center gap-1.5 rounded px-1.5 text-[9px] text-slate-300" href="/administration/settings">⚙ Settings</a>
+      <a className="mt-2 flex h-[24px] items-center gap-2 rounded px-1.5 text-[10px] text-slate-300" href="/administration/settings">⚙ Settings</a>
 
       <div className="mt-auto rounded border border-cyan-300/12 bg-[#041722] p-2 text-center">
         <div className="text-[9px] leading-snug text-slate-300">XECO Current<br />Balance Index™</div>
@@ -239,7 +239,7 @@ function TransformerSidebar({ cbi }: { cbi: number }) {
 
 function PortalTopbar() {
   return (
-    <header className="flex h-[48px] items-center justify-between border-b border-cyan-300/10">
+    <header className="flex h-[54px] shrink-0 items-center justify-between border-b border-cyan-300/10">
       <div>
         <div className="text-[12px] font-semibold tracking-wide text-slate-100">XECO ENERGY INTELLIGENCE PORTAL</div>
         <div className="mt-1 text-[8px] text-slate-400">Transformers</div>
@@ -258,8 +258,8 @@ function PortalTopbar() {
 
 function KpiPanel({ children, title }: { children: React.ReactNode; title: string }) {
   return (
-    <article className="overflow-hidden rounded border border-cyan-300/12 bg-[#061521]/92 p-2 shadow-[0_0_18px_rgba(0,220,255,0.04)]">
-      <h2 className="mb-1.5 text-center text-[9px] font-semibold uppercase text-slate-300">{title}</h2>
+    <article className="overflow-hidden rounded border border-cyan-300/12 bg-[#061521]/92 p-3 shadow-[0_0_18px_rgba(0,220,255,0.04)]">
+      <h2 className="mb-2 text-center text-[10px] font-semibold uppercase text-slate-300">{title}</h2>
       {children}
     </article>
   );
@@ -267,9 +267,9 @@ function KpiPanel({ children, title }: { children: React.ReactNode; title: strin
 
 function Panel({ action, children, title }: { action?: string; children: React.ReactNode; title: string }) {
   return (
-    <section className="overflow-hidden rounded border border-cyan-300/12 bg-[#061521]/92 p-2 shadow-[0_0_18px_rgba(0,220,255,0.04)]">
-      <div className="mb-1 flex items-center justify-between">
-        <h2 className="text-[9px] font-semibold uppercase tracking-wide text-slate-100">{title}</h2>
+    <section className="overflow-hidden rounded border border-cyan-300/12 bg-[#061521]/92 p-3 shadow-[0_0_18px_rgba(0,220,255,0.04)]">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="text-[10px] font-semibold uppercase tracking-wide text-slate-100">{title}</h2>
         {action ? <button className="rounded border border-slate-700 bg-[#061421] px-2 py-1 text-[8px] text-slate-400">{action}</button> : null}
       </div>
       {children}
@@ -278,12 +278,12 @@ function Panel({ action, children, title }: { action?: string; children: React.R
 }
 
 function BigMetric({ color, value }: { color: string; value: string }) {
-  return <div className="text-[21px] font-light leading-none" style={{ color }}>{value}</div>;
+  return <div className="whitespace-nowrap text-[22px] font-light leading-none" style={{ color }}>{value}</div>;
 }
 
 function MiniCompare({ after, before }: { after: number; before: number }) {
   return (
-    <div className="mt-3 space-y-1 text-[8px] text-slate-400">
+    <div className="mt-4 space-y-1.5 text-[8.5px] text-slate-400">
       <MetricLine label="Before XECO:" value={`${formatNumber(before)} kVA`} />
       <MetricLine label="After XECO:" value={`${formatNumber(after)} kVA`} />
     </div>
@@ -292,7 +292,7 @@ function MiniCompare({ after, before }: { after: number; before: number }) {
 
 function PhaseSummary({ phases }: { phases: TransformerPhaseSummary[] }) {
   return (
-    <div className="h-[96px] overflow-hidden">
+    <div className="h-full overflow-hidden">
       <table className="w-full text-left text-[9px]">
         <thead className="text-slate-500">
           <tr>
@@ -306,11 +306,11 @@ function PhaseSummary({ phases }: { phases: TransformerPhaseSummary[] }) {
         <tbody>
           {phases.map((phase) => (
             <tr className="border-t border-white/5" key={phase.phase}>
-              <td className="py-1 text-slate-200">{phase.phase}</td>
-              <td className="py-1 text-slate-300">{phase.voltage}</td>
-              <td className="py-1 text-slate-300">{phase.currentA}</td>
-              <td className="py-1 text-slate-300">{phase.kva}</td>
-              <td className="py-1 text-[#05ff5e]">{phase.imbalance}</td>
+              <td className="py-1.5 text-slate-200">{phase.phase}</td>
+              <td className="py-1.5 text-slate-300">{phase.voltage}</td>
+              <td className="py-1.5 text-slate-300">{phase.currentA}</td>
+              <td className="py-1.5 text-slate-300">{phase.kva}</td>
+              <td className="py-1.5 text-[#05ff5e]">{phase.imbalance}</td>
             </tr>
           ))}
         </tbody>
@@ -321,7 +321,7 @@ function PhaseSummary({ phases }: { phases: TransformerPhaseSummary[] }) {
 
 function DetailRows({ rows }: { rows: TransformerDetailRow[] }) {
   return (
-    <div className="grid grid-cols-2 gap-x-2 gap-y-1 text-[8px]">
+    <div className="grid grid-cols-2 gap-x-3 gap-y-1 text-[8px]">
       {rows.slice(0, 10).map((row) => (
         <MetricLine key={row.label} label={row.label} value={row.value} />
       ))}
@@ -331,7 +331,7 @@ function DetailRows({ rows }: { rows: TransformerDetailRow[] }) {
 
 function QualityRows({ rows }: { rows: TransformerDetailRow[] }) {
   return (
-    <div className="space-y-1 text-[8px]">
+    <div className="space-y-1.5 text-[8.5px]">
       {rows.map((row) => (
         <div className="grid grid-cols-[1fr_40px_42px] gap-2" key={row.label}>
           <span className="text-slate-400">{row.label}</span>
@@ -365,7 +365,7 @@ function RingGauge({ value }: { value: number }) {
   const clamped = Math.max(0, Math.min(100, value));
 
   return (
-    <div className="relative mx-auto size-[58px] rounded-full p-[7px]" style={{ background: `conic-gradient(#05ff5e 0 ${clamped}%, #243447 ${clamped}% 100%)` }}>
+    <div className="relative mx-auto size-[70px] rounded-full p-[8px]" style={{ background: `conic-gradient(#05ff5e 0 ${clamped}%, #243447 ${clamped}% 100%)` }}>
       <div className="grid h-full w-full place-items-center rounded-full bg-[#061825] text-center">
         <div className="text-[15px] font-semibold leading-none text-[#05ff5e]">{formatNumber(clamped)}%</div>
       </div>
@@ -393,7 +393,7 @@ function Donut({ value }: { value: number }) {
     <div className="relative mx-auto size-[76px] rounded-full p-[10px]" style={{ background: `conic-gradient(#05ff5e 0 ${clamped}%, #147dff ${clamped}% 100%)` }}>
       <div className="grid h-full w-full place-items-center rounded-full bg-[#061825] text-center">
         <div>
-          <div className="text-[13px] leading-none text-white">{formatNumber(clamped)}%</div>
+          <div className="text-[16px] leading-none text-white">{formatNumber(clamped)}%</div>
           <div className="mt-1 text-[7px] text-slate-400">Utilized</div>
         </div>
       </div>
@@ -403,10 +403,10 @@ function Donut({ value }: { value: number }) {
 
 function LineChart({ labels, primary, rating, secondary }: { labels: string[]; primary: string; rating: number; secondary: string }) {
   return (
-    <div className="grid h-[122px] grid-cols-[26px_1fr] gap-1">
+    <div className="grid h-[165px] grid-cols-[34px_1fr] gap-2">
       <YAxis max={Math.max(rating, 1)} />
       <div>
-        <svg className="h-[94px] w-full" viewBox="0 0 308 100" preserveAspectRatio="none" aria-hidden="true">
+        <svg className="h-[134px] w-full" viewBox="0 0 308 100" preserveAspectRatio="none" aria-hidden="true">
           {[25, 50, 75].map((y) => <line key={y} x1="0" x2="308" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" />)}
           <line x1="0" x2="308" y1="18" y2="18" stroke="#147dff" strokeDasharray="4 3" />
           <polyline fill="none" points={secondary} stroke="rgba(203,213,225,0.75)" strokeWidth="1.2" />
@@ -421,10 +421,10 @@ function LineChart({ labels, primary, rating, secondary }: { labels: string[]; p
 
 function AreaChart({ labels, points, rating, value }: { labels: string[]; points: string; rating: number; value: number }) {
   return (
-    <div className="grid h-[122px] grid-cols-[26px_1fr_62px] gap-1">
+    <div className="grid h-[165px] grid-cols-[34px_1fr_76px] gap-2">
       <YAxis max={Math.max(rating, 1)} />
       <div>
-        <svg className="h-[94px] w-full" viewBox="0 0 308 100" preserveAspectRatio="none" aria-hidden="true">
+        <svg className="h-[134px] w-full" viewBox="0 0 308 100" preserveAspectRatio="none" aria-hidden="true">
           {[25, 50, 75].map((y) => <line key={y} x1="0" x2="308" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" />)}
           <line x1="0" x2="308" y1="18" y2="18" stroke="#147dff" strokeDasharray="4 3" />
           <polygon fill="rgba(5,255,94,0.42)" points={`0,100 ${points} 308,100`} />
@@ -432,7 +432,7 @@ function AreaChart({ labels, points, rating, value }: { labels: string[]; points
         </svg>
         <Labels labels={labels} />
       </div>
-      <div className="pt-8 text-[8px] leading-snug">
+      <div className="pt-12 text-[8px] leading-snug">
         <div className="text-[#147dff]">Rated Capacity<br />{formatNumber(rating)} kVA</div>
         <div className="mt-3 text-[#05ff5e]">Current Load<br />{formatNumber(value)} kVA</div>
       </div>
@@ -442,20 +442,20 @@ function AreaChart({ labels, points, rating, value }: { labels: string[]; points
 
 function BarChart({ labels, value }: { labels: string[]; value: number }) {
   return (
-    <div className="grid h-[74px] grid-cols-[26px_1fr] gap-1">
+    <div className="relative grid h-full min-h-[118px] grid-cols-[34px_1fr] gap-2">
       <div className="flex flex-col justify-between text-right text-[8px] text-slate-500"><span>300</span><span>200</span><span>100</span><span>0</span></div>
       <div>
-        <div className="flex h-[54px] items-end justify-between gap-2 border-l border-b border-slate-700/60 pl-1">
+        <div className="flex h-[90px] items-end justify-between gap-2 border-l border-b border-slate-700/60 pl-1">
           {labels.map((label, index) => (
             <div className="flex flex-1 flex-col items-center gap-1" key={label}>
-              <div className="w-full rounded-t-sm bg-[#08bf55]" style={{ height: `${18 + (index % 5) * 5}px` }} />
+              <div className="w-full rounded-t-sm bg-[#08bf55]" style={{ height: `${28 + (index % 5) * 9}px` }} />
             </div>
           ))}
         </div>
         <div className="mt-1 flex justify-between text-[7px] text-slate-500">
           {labels.map((label) => <span key={label}>{label}</span>)}
         </div>
-        <div className="absolute right-12 top-auto rounded border border-slate-700 bg-[#07131f] px-2 py-1 text-[8px] text-slate-300">May 18, 2025<br />{formatNumber(value)} kVA<br />Recovered</div>
+        <div className="absolute right-3 top-2 rounded border border-slate-700 bg-[#07131f] px-2 py-1 text-[8px] text-slate-300">May 18, 2025<br />{formatNumber(value)} kVA<br />Recovered</div>
       </div>
     </div>
   );
@@ -463,7 +463,7 @@ function BarChart({ labels, value }: { labels: string[]; value: number }) {
 
 function YAxis({ max }: { max: number }) {
   return (
-    <div className="flex h-[94px] flex-col justify-between text-right text-[8px] text-slate-500">
+    <div className="flex h-[134px] flex-col justify-between text-right text-[8px] text-slate-500">
       <span>{formatNumber(max)}</span>
       <span>{formatNumber(max * 0.75)}</span>
       <span>{formatNumber(max * 0.5)}</span>

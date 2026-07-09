@@ -1,5 +1,7 @@
 using ECBS.Application.Common.Interfaces;
+using ECBS.Application.ScreenData;
 using ECBS.Infrastructure.Persistence;
+using ECBS.Infrastructure.ScreenData;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -22,6 +24,8 @@ public static class DependencyInjection
 
         services.AddScoped<IEcbsDbContext>(provider =>
             provider.GetRequiredService<EcbsDbContext>());
+
+        services.AddScoped<IAlarmEventsDataService, TrackingAlarmEventsDataService>();
 
         return services;
     }

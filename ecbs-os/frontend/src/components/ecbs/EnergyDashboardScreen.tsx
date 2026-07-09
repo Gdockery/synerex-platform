@@ -50,7 +50,7 @@ export function EnergyDashboardScreen({
         </section>
 
         <section className="mt-1.5 grid h-[188px] grid-cols-[1.28fr_1.05fr_1.35fr] gap-1.5">
-          <DashboardPanel title="Electrical Network Overview" action="View Full Network →">
+          <DashboardPanel title="Electrical Network Overview" action="View Full Network →" actionHref="/enterprise/digital-twin">
             <ElectricalNetworkOverviewCard nodes={data.electricalNodes} panels={data.panels} />
           </DashboardPanel>
 
@@ -58,25 +58,25 @@ export function EnergyDashboardScreen({
             <TransformerStatusCard value={data.transformerUtilization} metrics={data.transformerMetrics} />
           </DashboardPanel>
 
-          <DashboardPanel title="Live Power Snapshot" action="View Live Data →">
+          <DashboardPanel title="Live Power Snapshot" action="View Live Data →" actionHref="/enterprise/energy-dashboard">
             <LivePowerSnapshotCard metrics={data.liveSnapshot} />
           </DashboardPanel>
         </section>
 
         <section className="mt-1.5 grid h-[118px] grid-cols-3 gap-1.5">
-          <DashboardPanel title="Savings Trend (1 Min)" action="View Report →">
+          <DashboardPanel title="Savings Trend (1 Min)" action="View Report →" actionHref="/enterprise/savings-forecast">
             <TrendCard {...data.savingsTrend} />
           </DashboardPanel>
-          <DashboardPanel title="CBI Trend (1 Min)" action="View Report →">
+          <DashboardPanel title="CBI Trend (1 Min)" action="View Report →" actionHref="/enterprise/current-analysis">
             <TrendCard {...data.balanceTrend} />
           </DashboardPanel>
-          <DashboardPanel title="THD Trend (1 Min)" action="View Report →">
+          <DashboardPanel title="THD Trend (1 Min)" action="View Report →" actionHref="/data-analytics/power-quality">
             <TrendCard {...data.thdTrend} />
           </DashboardPanel>
         </section>
 
         <section className="mt-1.5 grid h-[96px] grid-cols-[1.25fr_1.65fr_0.85fr_0.85fr] gap-1.5">
-          <DashboardPanel title="Hidden Capacity Recovery (ECBS Impact)" action="View Analysis →">
+          <DashboardPanel title="Hidden Capacity Recovery (ECBS Impact)" action="View Analysis →" actionHref="/enterprise/capacity-intelligence">
             <HiddenCapacityRecoveryCard before={data.capacityBefore} after={data.capacityAfter} />
           </DashboardPanel>
           <DashboardPanel title="ECBS Impact (vs. Baseline)">
@@ -91,16 +91,16 @@ export function EnergyDashboardScreen({
         </section>
 
         <section className="mt-1.5 grid h-[116px] grid-cols-[1fr_1fr_0.9fr_1.6fr] gap-1.5">
-          <DashboardPanel title="Active Alarms (3)" action="View All Alarms →">
+          <DashboardPanel title="Active Alarms (3)" action="View All Alarms →" actionHref="/enterprise/alerts-events">
             <ActiveAlarmsCard alarms={data.alarms} />
           </DashboardPanel>
-          <DashboardPanel title="Recent Events" action="View All Events →">
+          <DashboardPanel title="Recent Events" action="View All Events →" actionHref="/enterprise/alerts-events">
             <RecentEventsCard events={data.events} />
           </DashboardPanel>
           <DashboardPanel title="Quick Actions">
             <QuickActionsCard actions={quickActions} />
           </DashboardPanel>
-          <DashboardPanel title="Site Information" action="View Site Details →">
+          <DashboardPanel title="Site Information" action="View Site Details →" actionHref="/enterprise/sites">
             <SiteInformationCard rows={data.siteInfo} />
           </DashboardPanel>
         </section>
