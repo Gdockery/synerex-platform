@@ -222,9 +222,6 @@ export function CapacityDrilldownScreen({ variant }: { variant: CapacityDrilldow
         {variant === "capex" ? <CapexDeferral /> : null}
         {variant === "insight" ? <IntelligenceSummary /> : null}
         {variant === "carbon" ? <CarbonImpact /> : null}
-        {variant === "simulate" ? <SimulateCapacityExpansion /> : null}
-        {variant === "opportunities" ? <OptimizationOpportunities /> : null}
-        {variant === "networkDetail" ? <ElectricalCapacityDetail /> : null}
 
         {isRecovery ? <RecoveryFooter /> : isHealth ? <HealthFooter /> : isCapex ? <CapexFooter /> : isTrend || isAsset ? <TrendFooter /> : <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />}
       </div>
