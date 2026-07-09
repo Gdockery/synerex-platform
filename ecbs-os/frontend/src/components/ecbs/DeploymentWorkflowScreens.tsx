@@ -53,7 +53,6 @@ export function DeploymentWorkflowScreen({ variant }: { variant: DeploymentWorkf
     variant === "siteDetails" ? "Site & Installation Details" :
     variant === "testingAddIssue" ? "Testing & Verification" :
     variant === "testingVerification" ? "Testing & Verification" :
-    variant === "testingVerification" ? "Testing & Verification" :
     variant === "testingViewDetails" ? "View Details" :
     variant === "testingViewTrend" ? "System Performance Trend" :
     variant === "uploadWizard" ? "Upload Document Wizard" :
