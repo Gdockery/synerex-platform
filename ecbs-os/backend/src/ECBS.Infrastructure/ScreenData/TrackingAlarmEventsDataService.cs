@@ -144,7 +144,7 @@ public sealed class TrackingAlarmEventsDataService(
             normalizeSeverity: true);
         var total = counts.Values.Sum();
 
-        return ["Critical", "Warning", "Info"]
+        return new[] { "Critical", "Warning", "Info" }
             .Select(label => new AlarmEventsCategory(SeverityColor(label), label, Percent(counts.GetValueOrDefault(label), total), counts.GetValueOrDefault(label)))
             .ToList();
     }
