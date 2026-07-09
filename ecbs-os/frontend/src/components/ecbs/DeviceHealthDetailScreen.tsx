@@ -54,7 +54,6 @@ export function DeviceScreen({ variant }: { variant: DeviceScreenVariant }) {
   if (variant === "meterDetail") return <MeterDetailScreen />;
   if (variant === "repeaterDetail") return <RepeaterDetailScreen />;
   if (variant === "switchDetail") return <SwitchDetailScreen />;
-  if (variant === "gatewayDetail" || variant === "meterDetail" || variant === "repeaterDetail" || variant === "switchDetail") return <DeviceDetailScreen variant={variant} />;
   if (variant === "switchesList") return <SwitchesInventoryScreen />;
 
   const config =
