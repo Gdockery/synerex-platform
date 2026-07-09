@@ -195,10 +195,10 @@ function DeviceListTable({ model, variant }: { model: string; variant: DeviceScr
   ];
   const rows = variant === "meters" ? meterRows : variant === "repeaters" ? repeaterRows : deviceRows.slice(0, 12).map((row, index) => [
     `${prefix}-${row[0].split("-").slice(1).join("-")}`,
-    variant === "repeaters" ? (index % 3 === 0 ? "XRPT-200" : "XRPT-100") : variant === "switchesList" ? (index % 4 === 0 ? "Air Circuit Breaker" : index % 4 === 1 ? "Molded Case Switch" : index % 4 === 2 ? "Disconnect Switch" : "Transfer Switch") : model,
+    model,
     row[2],
     row[3],
-    variant === "repeaters" ? `${-62 - index} dBm` : row[4],
+    row[4],
     row[5],
     row[6],
     "◎ ⋮",
