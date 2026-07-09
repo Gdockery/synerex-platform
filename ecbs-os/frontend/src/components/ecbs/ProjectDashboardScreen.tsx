@@ -1,4 +1,4 @@
-const projectRows = [
+const projectRows: Array<[string, string, string, string, string, number, string, string]> = [
   ["Flex Tijuana Manufacturing", "🇲🇽 Tijuana, Mexico", "Manufacturing", "3.2 MW", "In Progress", 75, "Feb 01, 2025", "Jun 30, 2025"],
   ["Flex Juarez Plant", "🇲🇽 Juarez, Mexico", "Manufacturing", "2.8 MW", "In Progress", 60, "Mar 15, 2025", "Jul 15, 2025"],
   ["Flex DFW Campus", "🇺🇸 Dallas, TX, USA", "Manufacturing", "4.6 MW", "In Progress", 40, "Apr 01, 2025", "Aug 31, 2025"],
