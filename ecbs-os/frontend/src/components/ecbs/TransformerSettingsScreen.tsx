@@ -126,7 +126,7 @@ function OperatingSettings() {
         {operatingLeft.map(([label,value,suffix])=><OpField key={label} label={label} suffix={suffix} value={value} />)}
       </div>
       <div className="space-y-2.5 pt-1">
-        {operatingToggles.map(([label,value])=>typeof value==="boolean"?<div className="flex items-center justify-between" key={label}><span>{label}</span><Toggle on={value} /></div>:<OpField key={label} label={label} suffix="%" value={String(value)} />)}
+        {operatingToggles.map(([label,value])=>typeof value==="boolean"?<div className="flex items-center justify-between" key={String(label)}><span>{label}</span><Toggle on={value} /></div>:<OpField key={String(label)} label={String(label)} suffix="%" value={String(value)} />)}
       </div>
       <div className="col-span-2 grid h-[48px] grid-cols-3 rounded border border-cyan-300/12 bg-[#061421] text-center text-[9.5px]">
         <MetricBadge color="#f59e0b" label="Current Load" value="68% (1,023 kVA)" />
