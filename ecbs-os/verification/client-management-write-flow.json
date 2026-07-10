@@ -1,0 +1,142 @@
+{
+  "name": "Client Management write flow",
+  "baseUrl": "http://100.91.109.59:8080",
+  "apiBaseUrl": "http://100.91.109.59:5090",
+  "commands": [
+    {
+      "label": "Backend build",
+      "cwd": "/Users/euphoria/Downloads/deploy synerex/synerex-platform/ecbs-os",
+      "run": "export DOTNET_ROOT=\"$HOME/.dotnet\" && export PATH=\"$HOME/.dotnet:$HOME/.dotnet/tools:$PATH\" && dotnet build ECBS.sln"
+    },
+    {
+      "label": "Frontend lint",
+      "cwd": "/Users/euphoria/Downloads/deploy synerex/synerex-platform/ecbs-os/frontend",
+      "run": "npm run lint"
+    },
+    {
+      "label": "Frontend build",
+      "cwd": "/Users/euphoria/Downloads/deploy synerex/synerex-platform/ecbs-os/frontend",
+      "run": "npm run build"
+    }
+  ],
+  "routes": [
+    {
+      "path": "/client-management/clients",
+      "expectHrefs": [
+        "/client-management/clients/new",
+        "/client-management/clients/1"
+      ]
+    },
+    {
+      "path": "/client-management/clients/new",
+      "expectText": [
+        "client-create-form",
+        "+ Save Client"
+      ]
+    },
+    {
+      "path": "/client-management/clients/1",
+      "expectHrefs": [
+        "/client-management/clients/1/projects"
+      ]
+    },
+    {
+      "path": "/client-management/clients/1/projects",
+      "expectHrefs": [
+        "/client-management/clients?workflow=new-project-scanning"
+      ]
+    },
+    {
+      "path": "/client-management/clients?workflow=new-project-scanning",
+      "expectText": [
+        "project-draft-form",
+        "Save &amp; Continue"
+      ],
+      "expectHrefs": [
+        "/client-management/clients?workflow=new-project-generate-reports"
+      ]
+    },
+    {
+      "path": "/client-management/clients?workflow=new-project-generate-reports",
+      "expectText": [
+        "Generate Reports"
+      ],
+      "expectHrefs": [
+        "/client-management/clients?workflow=new-project-scanning"
+      ]
+    }
+  ],
+  "apiGets": [
+    {
+      "path": "/api/v1/client-management",
+      "expectJson": [
+        {
+          "path": "state",
+          "equals": "data"
+        },
+        {
+          "path": "selectedClient.name",
+          "exists": true
+        }
+      ]
+    }
+  ],
+  "apiPosts": [
+    {
+      "path": "/api/v1/client-management/clients",
+      "body": {
+        "clientName": "Verifier Client",
+        "legalName": "Verifier Client LLC",
+        "status": "Active"
+      },
+      "expectJson": [
+        {
+          "path": "state",
+          "equals": "saved"
+        },
+        {
+          "path": "id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/client-management/projects/drafts",
+      "body": {
+        "projectName": "Verifier Project Draft",
+        "status": "Planning"
+      },
+      "expectJson": [
+        {
+          "path": "state",
+          "equals": "saved"
+        },
+        {
+          "path": "id",
+          "exists": true
+        }
+      ]
+    },
+    {
+      "path": "/api/v1/client-management/report-requests",
+      "body": {
+        "includeDetailedCalculations": true,
+        "includeEquipmentRecommendations": false,
+        "requestedReportTypes": [
+          "Proposal Report",
+          "Site Assessment Report"
+        ]
+      },
+      "expectJson": [
+        {
+          "path": "state",
+          "equals": "saved"
+        },
+        {
+          "path": "id",
+          "exists": true
+        }
+      ]
+    }
+  ]
+}
