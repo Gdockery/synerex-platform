@@ -30,4 +30,12 @@ public sealed class CapacityIntelligenceController(ICapacityIntelligenceDataServ
 
         return Ok(data);
     }
+
+    [HttpGet("utilization-trend")]
+    public async Task<ActionResult<CapacityUtilizationTrendData>> GetUtilizationTrend(CancellationToken cancellationToken)
+    {
+        var data = await capacityIntelligenceDataService.GetOchsnerUtilizationTrendAsync(cancellationToken);
+
+        return Ok(data);
+    }
 }

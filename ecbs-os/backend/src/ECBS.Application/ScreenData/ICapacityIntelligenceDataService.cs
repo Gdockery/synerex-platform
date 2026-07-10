@@ -7,4 +7,6 @@ public interface ICapacityIntelligenceDataService
     Task<CapacityHealthDiagnosticsData> GetOchsnerHealthDiagnosticsAsync(CancellationToken cancellationToken = default);
 
     Task<CapacityRecoveryBreakdownData> GetOchsnerRecoveryBreakdownAsync(CancellationToken cancellationToken = default);
+
+    Task<CapacityUtilizationTrendData> GetOchsnerUtilizationTrendAsync(CancellationToken cancellationToken = default);
 }

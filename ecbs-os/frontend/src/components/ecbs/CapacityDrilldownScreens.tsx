@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { CapacityHealthDiagnosticsData } from "@/lib/capacityHealthDiagnosticsData";
 import type { CapacityRecoveryBreakdownData } from "@/lib/capacityRecoveryBreakdownData";
+import type { CapacityUtilizationTrendData } from "@/lib/capacityUtilizationTrendData";
 import { DashboardFooter, DashboardHeader, DashboardKpiCard, DashboardPanel, type DashboardKpi } from "./DashboardCards";
 import { EcbsAppShell } from "./EcbsAppShell";
 
@@ -182,9 +183,9 @@ const configs: Record<CapacityDrilldownVariant, CapacityScreenConfig> = {
   },
 };
 
-export function CapacityDrilldownScreen({ healthData, recoveryData, variant }: { healthData?: CapacityHealthDiagnosticsData; recoveryData?: CapacityRecoveryBreakdownData; variant: CapacityDrilldownVariant }) {
+export function CapacityDrilldownScreen({ healthData, recoveryData, trendData, variant }: { healthData?: CapacityHealthDiagnosticsData; recoveryData?: CapacityRecoveryBreakdownData; trendData?: CapacityUtilizationTrendData; variant: CapacityDrilldownVariant }) {
   const config = configs[variant];
-  const kpis = variant === "recovery" && recoveryData ? recoveryData.kpis : variant === "health" && healthData ? healthData.kpis : config.kpis;
+  const kpis = variant === "recovery" && recoveryData ? recoveryData.kpis : variant === "health" && healthData ? healthData.kpis : variant === "trend" && trendData ? trendData.kpis : config.kpis;
 
   if (variant === "simulate") return <SimulateCapacityExpansionShell />;
   if (variant === "opportunities") return <OptimizationOpportunitiesShell />;
@@ -201,7 +202,7 @@ export function CapacityDrilldownScreen({ healthData, recoveryData, variant }: {
   return (
     <EcbsAppShell activeHref="/enterprise/capacity-intelligence">
       <div className={isWideDrilldown ? "flex h-screen min-h-0 flex-col overflow-hidden px-4 py-3" : "flex h-full min-h-[682px] flex-col overflow-hidden px-3 py-2"}>
-        <DashboardHeader dateRange={isRecovery && recoveryData ? `Tracking DB • ${recoveryData.updatedAt}` : isHealth && healthData ? `Tracking DB • ${healthData.updatedAt}` : "May 12 - May 18, 2025"} subtitle={config.subtitle} title={config.title} variant="enterprise" />
+        <DashboardHeader dateRange={isRecovery && recoveryData ? `Tracking DB • ${recoveryData.updatedAt}` : isHealth && healthData ? `Tracking DB • ${healthData.updatedAt}` : isTrend && trendData ? `Tracking DB • ${trendData.updatedAt}` : "May 12 - May 18, 2025"} subtitle={config.subtitle} title={config.title} variant="enterprise" />
         <div className={isWideDrilldown ? "mt-2 flex h-[32px] shrink-0 items-center justify-between text-[10px]" : "mt-1 flex items-center justify-between text-[9px]"}>
           <Breadcrumb items={config.breadcrumb} />
           <div className="flex gap-2">
@@ -219,14 +220,14 @@ export function CapacityDrilldownScreen({ healthData, recoveryData, variant }: {
 
         {variant === "recovery" && recoveryData ? <RecoveryBreakdown data={recoveryData} /> : null}
         {variant === "health" && healthData ? <HealthDiagnostics data={healthData} /> : null}
-        {variant === "trend" ? <TrendDetail /> : null}
+        {variant === "trend" && trendData ? <TrendDetail data={trendData} /> : null}
         {variant === "asset" ? <AssetDetailTree /> : null}
         {variant === "equivalent" ? <EquivalentAttribution /> : null}
         {variant === "capex" ? <CapexDeferral /> : null}
         {variant === "insight" ? <IntelligenceSummary /> : null}
         {variant === "carbon" ? <CarbonImpact /> : null}
 
-        {isRecovery ? <RecoveryFooter data={recoveryData} /> : isHealth ? <HealthFooter data={healthData} /> : isCapex ? <CapexFooter /> : isTrend || isAsset ? <TrendFooter /> : <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />}
+        {isRecovery ? <RecoveryFooter data={recoveryData} /> : isHealth ? <HealthFooter data={healthData} /> : isTrend ? <TrendFooter data={trendData} /> : isCapex ? <CapexFooter /> : isAsset ? <TrendFooter /> : <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />}
       </div>
     </EcbsAppShell>
   );
@@ -813,54 +814,54 @@ function HealthSystemSummary({ data }: { data: CapacityHealthDiagnosticsData }) 
   );
 }
 
-function TrendDetail() {
+function TrendDetail({ data }: { data: CapacityUtilizationTrendData }) {
   return (
     <>
       <section className="mt-3 grid h-[265px] shrink-0 grid-cols-[1.75fr_0.85fr] gap-3">
         <DashboardPanel title={<span className="flex items-center justify-between"><span>Capacity Utilization Over Time</span><TrendRangeButtons /></span>} variant="enterprise">
-          <TrendMainChart />
+          <TrendMainChart data={data} />
         </DashboardPanel>
         <div className="grid min-h-0 grid-rows-[170px_1fr] gap-3 overflow-hidden">
           <DashboardPanel title={<span>Utilization Summary <span className="text-[8px] normal-case text-slate-500">(Last 7 Days)</span></span>} variant="enterprise">
-            <TrendUtilizationSummary />
+            <TrendUtilizationSummary data={data} />
           </DashboardPanel>
           <DashboardPanel title={<span>Utilization Distribution <span className="text-[8px] normal-case text-slate-500">(Last 7 Days)</span></span>} variant="enterprise">
-            <TrendDistribution />
+            <TrendDistribution data={data} />
           </DashboardPanel>
         </div>
       </section>
       <section className="mt-3 grid h-[220px] shrink-0 grid-cols-[1.22fr_1.22fr_0.86fr] gap-3">
         <DashboardPanel title="Daily Utilization Summary" variant="enterprise">
-          <TrendDailyTable />
+          <TrendDailyTable data={data} />
         </DashboardPanel>
         <DashboardPanel title={<span>Utilization By Time Of Day <span className="text-[8px] normal-case text-slate-500">(Average %)</span></span>} variant="enterprise">
-          <TrendHeatmap />
+          <TrendHeatmap data={data} />
         </DashboardPanel>
         <DashboardPanel title={<span>Peak Utilization Events <span className="text-[8px] normal-case text-slate-500">(Last 7 Days)</span></span>} variant="enterprise">
-          <TrendPeakEvents />
+          <TrendPeakEvents data={data} />
         </DashboardPanel>
       </section>
       <section className="mt-3 grid h-[145px] shrink-0 grid-cols-[1.05fr_1.05fr_0.95fr] gap-3">
         <DashboardPanel title="Utilization Benchmarking" variant="enterprise">
-          <TrendBenchmark />
+          <TrendBenchmark data={data} />
         </DashboardPanel>
         <DashboardPanel title="Forecast & Projection" variant="enterprise">
-          <TrendForecast />
+          <TrendForecast data={data} />
         </DashboardPanel>
         <DashboardPanel title="Recommendations" variant="enterprise">
-          <TrendRecommendations />
+          <TrendRecommendations data={data} />
         </DashboardPanel>
       </section>
     </>
   );
 }
 
-function TrendFooter() {
+function TrendFooter({ data }: { data?: CapacityUtilizationTrendData }) {
   return (
     <footer className="mt-auto flex h-[31px] shrink-0 items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500">
       <span>© 2025 XECO Energy Corporation. All rights reserved.</span>
       <span className="flex gap-8 text-[#05ff5e]"><a href="/privacy">Privacy Policy</a><a href="/terms">Terms of Service</a><a href="/support">Support</a></span>
-      <span>Data updated: May 18, 2025 10:15 AM <b className="ml-4 text-[#05ff5e]">▥ Live</b></span>
+      <span>Data updated: {data?.updatedAt ?? "No Data"} <b className="ml-4 text-[#05ff5e]">▥ {data?.state === "data" ? "Live" : "No Data"}</b></span>
     </footer>
   );
 }
@@ -897,10 +898,12 @@ function TrendRangeButtons() {
   return <span className="flex gap-1 text-[7px] font-medium normal-case tracking-normal">{["7D", "30D", "90D", "12M"].map((item) => <span className={item === "7D" ? "rounded bg-[#1f4db8] px-2 py-0.5 text-white" : "rounded border border-cyan-300/12 bg-[#061421] px-2 py-0.5 text-slate-400"} key={item}>{item}</span>)}</span>;
 }
 
-function TrendMainChart() {
-  const utilized = "0,82 25,68 50,60 75,48 100,38 125,70 150,72 175,68 200,52 225,42 250,45 275,48 300,38 325,40 350,62 375,44 400,48 425,35 450,62 475,70 500,58";
-  const available = "0,112 25,102 50,96 75,88 100,78 125,112 150,115 175,108 200,92 225,86 250,88 275,94 300,84 325,90 350,98 375,92 400,100 425,86 450,108 475,112 500,104";
-  const peakPoints = [[95, 35], [250, 38], [350, 62], [425, 35]] as const;
+function TrendMainChart({ data }: { data: CapacityUtilizationTrendData }) {
+  const chart = trendChartPoints(data.trend);
+  const peakPoints = [...data.trend]
+    .sort((left, right) => right.utilizationPct - left.utilizationPct)
+    .slice(0, 4)
+    .map((point) => chart.usedPoints.find((item) => item.source === point));
   return (
     <div className="h-full overflow-hidden text-[8px]">
       <div className="mb-2 flex flex-wrap gap-4 text-slate-400">
@@ -908,35 +911,37 @@ function TrendMainChart() {
       </div>
       <div className="grid grid-cols-[40px_1fr_62px] gap-2">
         <div className="flex h-[164px] flex-col justify-between text-right text-[7px] text-slate-500"><span>4,000</span><span>3,500</span><span>3,000</span><span>2,500</span><span>2,000</span><span>1,500</span><span>1,000</span><span>500</span><span>0</span></div>
-        <svg className="h-[164px] w-full" viewBox="0 0 500 165" preserveAspectRatio="none" aria-hidden="true">
-          <defs>
-            <linearGradient id="trendUtilArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#65a30d" stopOpacity="0.4" /><stop offset="100%" stopColor="#65a30d" stopOpacity="0.03" /></linearGradient>
-          </defs>
-          {[20, 40, 60, 80, 100, 120, 140].map((y) => <line key={y} x1="0" x2="500" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" />)}
-          <polygon fill="url(#trendUtilArea)" points={`${utilized} 500,150 0,150`} />
-          <polyline fill="none" points={utilized} stroke="#65a30d" strokeWidth="2.2" />
-          <polyline fill="none" points={available} stroke="#29b6f6" strokeDasharray="4 4" strokeWidth="2" />
-          <line x1="0" x2="500" y1="30" y2="30" stroke="#94a3b8" strokeDasharray="6 5" strokeWidth="1.4" />
-          {parseChartPoints(utilized).map(([x, y]) => <circle cx={x} cy={y} fill="#061521" key={`${x}-${y}`} r="2.4" stroke="#05ff5e" strokeWidth="1.5" />)}
-          {parseChartPoints(available).map(([x, y]) => <circle cx={x} cy={y} fill="#061521" key={`a-${x}-${y}`} r="2" stroke="#29b6f6" strokeWidth="1.4" />)}
-          {peakPoints.map(([x, y]) => <circle cx={x} cy={y} fill="#a855f7" key={`p-${x}`} r="3.4" />)}
-          {["May 12", "May 13", "May 14", "May 15", "May 16", "May 17", "May 18"].map((label, index) => <text fill="#94a3b8" fontSize="10" key={label} textAnchor={index === 0 ? "start" : index === 6 ? "end" : "middle"} x={index * (500 / 6)} y="162">{label}</text>)}
-        </svg>
-        <div className="flex h-[164px] flex-col justify-between text-[8px] font-semibold"><span className="text-slate-300">3,250 kVA</span><span className="text-[#65a30d]">2,438 kVA</span><span className="text-[#29b6f6]">812 kVA</span></div>
+        {data.trend.length ? (
+          <svg className="h-[164px] w-full" viewBox="0 0 500 165" preserveAspectRatio="none" aria-hidden="true">
+            <defs>
+              <linearGradient id="trendUtilArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#65a30d" stopOpacity="0.4" /><stop offset="100%" stopColor="#65a30d" stopOpacity="0.03" /></linearGradient>
+            </defs>
+            {[20, 40, 60, 80, 100, 120, 140].map((y) => <line key={y} x1="0" x2="500" y1={y} y2={y} stroke="rgba(148,163,184,0.14)" />)}
+            <polygon fill="url(#trendUtilArea)" points={`${chart.used} 500,150 0,150`} />
+            <polyline fill="none" points={chart.used} stroke="#65a30d" strokeWidth="2.2" />
+            <polyline fill="none" points={chart.available} stroke="#29b6f6" strokeDasharray="4 4" strokeWidth="2" />
+            <line x1="0" x2="500" y1={chart.connectedY} y2={chart.connectedY} stroke="#94a3b8" strokeDasharray="6 5" strokeWidth="1.4" />
+            {chart.usedPoints.map(({ x, y }) => <circle cx={x} cy={y} fill="#061521" key={`${x}-${y}`} r="2.4" stroke="#05ff5e" strokeWidth="1.5" />)}
+            {parseChartPoints(chart.available).map(([x, y]) => <circle cx={x} cy={y} fill="#061521" key={`a-${x}-${y}`} r="2" stroke="#29b6f6" strokeWidth="1.4" />)}
+            {peakPoints.filter(Boolean).map((point) => <circle cx={point!.x} cy={point!.y} fill="#a855f7" key={`p-${point!.x}`} r="3.4" />)}
+            {trendAxisLabels(data.trend).map(({ label, x }, index) => <text fill="#94a3b8" fontSize="10" key={`${label}-${index}`} textAnchor={index === 0 ? "start" : index === trendAxisLabels(data.trend).length - 1 ? "end" : "middle"} x={x} y="162">{label}</text>)}
+          </svg>
+        ) : <TrendNoData message={data.message} />}
+        <div className="flex h-[164px] flex-col justify-between text-[8px] font-semibold"><span className="text-slate-300">{data.trend.at(-1)?.connected.toLocaleString(undefined, { maximumFractionDigits: 0 }) ?? "No Data"} kVA</span><span className="text-[#65a30d]">{data.trend.at(-1)?.used.toLocaleString(undefined, { maximumFractionDigits: 0 }) ?? "No Data"} kVA</span><span className="text-[#29b6f6]">{data.trend.at(-1)?.available.toLocaleString(undefined, { maximumFractionDigits: 0 }) ?? "No Data"} kVA</span></div>
       </div>
       <div className="mt-2 h-6 rounded border border-cyan-300/10 bg-[#061421] px-2 py-0.5">
-        <svg className="h-full w-full" viewBox="0 0 500 26" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" points="0,14 45,12 90,15 135,10 180,13 225,11 270,14 315,10 360,12 405,9 450,13 500,11" stroke="#94a3b8" strokeWidth="1.2" /><rect fill="none" height="20" stroke="#94a3b8" width="496" x="2" y="3" /></svg>
+        <svg className="h-full w-full" viewBox="0 0 500 26" preserveAspectRatio="none" aria-hidden="true"><polyline fill="none" points={trendMiniPoints(data.trend)} stroke="#94a3b8" strokeWidth="1.2" /><rect fill="none" height="20" stroke="#94a3b8" width="496" x="2" y="3" /></svg>
       </div>
-      <div className="mt-1 flex justify-around text-[7px] text-slate-400"><span>Utilization %</span><span>Average: 72%</span><span>Max: 83%</span><span>Min: 61%</span></div>
+      <div className="mt-1 flex justify-around text-[7px] text-slate-400"><span>Utilization %</span><span>{data.summaryRows[0]?.label}: {data.summaryRows[0]?.value}</span><span>Max: {data.summaryRows[1]?.value}</span><span>Min: {data.summaryRows[2]?.value}</span></div>
     </div>
   );
 }
 
-function TrendUtilizationSummary() {
-  const rows = [["Average Utilization", "72%"], ["Maximum Utilization", "83%  May 15, 2:00 PM"], ["Minimum Utilization", "61%  May 13, 5:00 AM"], ["Time Over 80%", "14.8%  25.0 hrs"], ["Time Over 90%", "2.1%  3.5 hrs"], ["Time Under 60%", "0%  0 hrs"], ["Data Points", "1,008"], ["Granularity", "15 Minutes"]];
+function TrendUtilizationSummary({ data }: { data: CapacityUtilizationTrendData }) {
+  const rows = data.summaryRows;
   return (
     <div className="space-y-0.5 text-[7.5px] leading-none">
-      {rows.map(([label, value]) => (
+      {rows.map(({ label, value }) => (
         <div className="flex justify-between border-b border-white/5 pb-[3px]" key={label}>
           <span className="text-slate-400">{label}</span>
           <span className="font-semibold text-slate-100">{value}</span>
@@ -946,36 +951,36 @@ function TrendUtilizationSummary() {
   );
 }
 
-function TrendDistribution() {
-  const rows = [["0% - 60%", "12.1% (122)", "#65a30d"], ["60% - 80%", "62.3% (628)", "#147dff"], ["80% - 90%", "20.5% (206)", "#f59e0b"], ["90% - 100%", "5.1% (52)", "#ef4444"]] as const;
-  const gradient = rows.map(([, , color], index) => `${color} ${index * 25}% ${(index + 1) * 25}%`).join(", ");
+function TrendDistribution({ data }: { data: CapacityUtilizationTrendData }) {
+  const rows = data.distribution;
+  const gradient = rows.length ? rows.map(({ color }, index) => `${color} ${index * 25}% ${(index + 1) * 25}%`).join(", ") : "#64748b 0% 100%";
   return (
     <div className="grid h-full grid-cols-[70px_1fr] items-start gap-2 overflow-hidden pt-0.5 text-[6.5px]">
       <div className="relative size-[66px] rounded-full p-[13px]" style={{ background: `conic-gradient(${gradient})` }}>
-        <div className="grid h-full w-full place-items-center rounded-full bg-[#061521] text-center"><div><div className="text-[12px] leading-none text-white">1,008</div><div className="text-[5.5px] leading-none text-slate-400">Data Points</div></div></div>
+        <div className="grid h-full w-full place-items-center rounded-full bg-[#061521] text-center"><div><div className="text-[12px] leading-none text-white">{trendDataPoints(data)}</div><div className="text-[5.5px] leading-none text-slate-400">Data Points</div></div></div>
       </div>
       <div className="space-y-1 pt-1">
-        {rows.map(([label, value, color]) => <div className="grid grid-cols-[58px_1fr] gap-1" key={label}><span className="whitespace-nowrap"><i className="mr-1 inline-block size-1.5 rounded-full" style={{ backgroundColor: color }} />{label}</span><span className="whitespace-nowrap text-right text-slate-300">{value}</span></div>)}
+        {rows.length ? rows.map(({ color, label, value }) => <div className="grid grid-cols-[58px_1fr] gap-1" key={label}><span className="whitespace-nowrap"><i className="mr-1 inline-block size-1.5 rounded-full" style={{ backgroundColor: color }} />{label}</span><span className="whitespace-nowrap text-right text-slate-300">{value}</span></div>) : <TrendNoData message="No utilization distribution was found in tracking." />}
       </div>
       <div className="col-span-2 text-[#147dff]">View Distribution Analysis {"->"}</div>
     </div>
   );
 }
 
-function TrendDailyTable() {
-  const rows = [["May 18, 2025", "74%", "82%", "64%", "2.7 hrs", "2,660", "1,980", "#65a30d"], ["May 17, 2025", "71%", "79%", "62%", "2.5 hrs", "2,580", "1,950", "#65a30d"], ["May 16, 2025", "70%", "81%", "61%", "2.9 hrs", "2,620", "1,920", "#65a30d"], ["May 15, 2025", "76%", "83%", "65%", "3.8 hrs", "2,712", "2,010", "#65a30d"], ["May 14, 2025", "72%", "80%", "63%", "2.6 hrs", "2,590", "1,970", "#65a30d"], ["May 13, 2025", "68%", "75%", "60%", "1.9 hrs", "2,430", "1,880", "#65a30d"], ["May 12, 2025", "70%", "78%", "61%", "2.4 hrs", "2,520", "1,910", "#65a30d"]];
+function TrendDailyTable({ data }: { data: CapacityUtilizationTrendData }) {
+  const rows = data.dailyRows;
   return (
     <div className="text-[7.5px] leading-none">
       <div className="grid grid-cols-[0.92fr_0.42fr_0.42fr_0.52fr_0.52fr_0.48fr_0.48fr_0.6fr] gap-1.5 border-b border-white/8 pb-1 text-slate-500"><span>Date</span><span>Avg (%)</span><span>Peak (%)</span><span>Off-Peak</span><span>Time &gt; 80%</span><span>Max kVA</span><span>Min kVA</span><span>Trend</span></div>
-      <div className="space-y-0.5 py-1">{rows.map(([date, avg, peak, off, time, max, min, color]) => <div className="grid grid-cols-[0.92fr_0.42fr_0.42fr_0.52fr_0.52fr_0.48fr_0.48fr_0.6fr] gap-1.5 border-b border-white/5 pb-1 text-slate-300" key={date}><span>{date}</span><span>{avg}</span><span>{peak}</span><span>{off}</span><span>{time}</span><span>{max}</span><span>{min}</span><AssetMiniSpark color={color} /></div>)}</div>
+      <div className="space-y-0.5 py-1">{rows.length ? rows.map(({ averageUtilization, color, date, maxKva, minKva, offPeakUtilization, peakUtilization, timeOver80 }) => <div className="grid grid-cols-[0.92fr_0.42fr_0.42fr_0.52fr_0.52fr_0.48fr_0.48fr_0.6fr] gap-1.5 border-b border-white/5 pb-1 text-slate-300" key={date}><span>{date}</span><span>{averageUtilization}</span><span>{peakUtilization}</span><span>{offPeakUtilization}</span><span>{timeOver80}</span><span>{maxKva}</span><span>{minKva}</span><AssetMiniSpark color={color} /></div>) : <div className="py-14 text-center text-slate-400">{data.message || "No daily utilization rows were found in tracking."}</div>}</div>
       <div className="mt-1 text-[#147dff]">View Full Daily Report {"->"}</div>
     </div>
   );
 }
 
-function TrendHeatmap() {
-  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const hours = ["12 AM", "4 AM", "8 AM", "12 PM", "4 PM", "8 PM"];
+function TrendHeatmap({ data }: { data: CapacityUtilizationTrendData }) {
+  const days = data.heatmapDays;
+  const hours = data.heatmapHours;
   return (
     <div className="text-[8px]">
       <div className="ml-8 grid grid-cols-6 text-center text-[7px] text-slate-400">{hours.map((hour) => <span key={hour}>{hour}</span>)}</div>
@@ -985,8 +990,9 @@ function TrendHeatmap() {
           {Array.from({ length: 42 }).map((_, index) => {
             const col = index % 6;
             const row = Math.floor(index / 6);
-            const color = col >= 2 && col <= 4 && row < 5 ? "#ef4444" : col >= 1 && col <= 4 ? "#f59e0b" : "#65a30d";
-            return <span className="h-[19px] rounded-sm border border-white/10" key={index} style={{ backgroundColor: color, opacity: 0.45 + ((index + row) % 4) * 0.12 }} />;
+            const value = data.heatmap.find((cell) => cell.column === col && cell.row === row)?.value;
+            const color = trendHeatColor(value);
+            return <span className="h-[19px] rounded-sm border border-white/10" key={index} style={{ backgroundColor: color, opacity: value === undefined ? 0.18 : 0.45 + Math.min(0.45, value / 180) }} />;
           })}
         </div>
       </div>
@@ -997,43 +1003,107 @@ function TrendHeatmap() {
   );
 }
 
-function TrendPeakEvents() {
-  const rows = [["1", "May 15, 2:00 PM", "83%", "2,712", "18 min"], ["2", "May 16, 1:45 PM", "82%", "2,670", "22 min"], ["3", "May 17, 1:30 PM", "82%", "2,665", "15 min"], ["4", "May 14, 12:45 PM", "81%", "2,635", "19 min"], ["5", "May 18, 1:15 PM", "82%", "2,660", "16 min"]];
+function TrendPeakEvents({ data }: { data: CapacityUtilizationTrendData }) {
+  const rows = data.peakEvents;
   return (
     <div className="text-[8px] leading-none">
       <div className="grid grid-cols-[0.35fr_1fr_0.45fr_0.45fr_0.45fr] gap-1 border-b border-white/8 pb-1.5 text-slate-500"><span>Rank</span><span>Date / Time</span><span>Utilization</span><span>kVA</span><span>Duration</span></div>
-      <div className="space-y-1.5 py-1.5">{rows.map(([rank, date, util, kva, duration]) => <div className="grid grid-cols-[0.35fr_1fr_0.45fr_0.45fr_0.45fr] gap-1 border-b border-white/5 pb-1 text-slate-300" key={rank}><span>{rank}</span><span className="truncate">{date}</span><span>{util}</span><span>{kva}</span><span>{duration}</span></div>)}</div>
+      <div className="space-y-1.5 py-1.5">{rows.length ? rows.map(({ duration, kva, rank, timestamp, utilization }) => <div className="grid grid-cols-[0.35fr_1fr_0.45fr_0.45fr_0.45fr] gap-1 border-b border-white/5 pb-1 text-slate-300" key={rank}><span>{rank}</span><span className="truncate">{timestamp}</span><span>{utilization}</span><span>{kva}</span><span>{duration}</span></div>) : <div className="py-12 text-center text-slate-400">{data.message || "No peak utilization events were found in tracking."}</div>}</div>
       <div className="text-[#147dff]">View All Peak Events {"->"}</div>
     </div>
   );
 }
 
-function TrendBenchmark() {
-  const rows = [["Your Site", "72%", "#65a30d"], ["Similar Sites Average", "68%", "#147dff"], ["Industry Average", "65%", "#147dff"], ["Best in Class", "58%", "#147dff"]] as const;
+function TrendBenchmark({ data }: { data: CapacityUtilizationTrendData }) {
+  const rows = data.benchmarks;
   return (
     <div className="space-y-2 text-[8px]">
-      {rows.map(([label, value, color]) => <div className="grid grid-cols-[112px_1fr_34px] items-center gap-2" key={label}><span className="truncate text-slate-300">{label}</span><span className="h-2.5 rounded bg-slate-800"><span className="block h-full rounded" style={{ width: value, backgroundColor: color }} /></span><span className="text-right text-slate-400">{value}</span></div>)}
+      {rows.map(({ color, label, value }) => <div className="grid grid-cols-[112px_1fr_34px] items-center gap-2" key={label}><span className="truncate text-slate-300">{label}</span><span className="h-2.5 rounded bg-slate-800"><span className="block h-full rounded" style={{ width: value === "No Data" ? "0%" : value, backgroundColor: color }} /></span><span className="text-right text-slate-400">{value}</span></div>)}
       <div className="pt-1 text-[#147dff]">View Benchmark Report {"->"}</div>
     </div>
   );
 }
 
-function TrendForecast() {
+function TrendForecast({ data }: { data: CapacityUtilizationTrendData }) {
   return (
     <div className="grid h-full grid-cols-[96px_1fr] gap-3 text-[8px]">
-      <div><div className="text-[32px] leading-none text-[#05ff5e]">73%</div><div className="text-slate-400">Projected utilization</div><div className="mt-2 font-semibold text-[#65a30d]">+2% vs Last 7 Days</div><div className="mt-2 text-[#147dff]">View Forecast Details {"->"}</div></div>
-      <LineChart compact legend={["Projected"]} maxLabel="100%" points={["0,54 70,52 140,51 210,49 280,50 350,52 420,51"]} />
+      <div><div className="text-[32px] leading-none text-[#05ff5e]">{data.forecast.projectedUtilization}</div><div className="text-slate-400">Projected utilization</div><div className="mt-2 font-semibold text-[#65a30d]">{data.forecast.deltaLabel}</div><div className="mt-2 text-[#147dff]">View Forecast Details {"->"}</div></div>
+      <LineChart compact legend={["Projected"]} maxLabel="100%" points={[trendForecastPoints(data.forecast.points)]} />
     </div>
   );
 }
 
-function TrendRecommendations() {
+function TrendRecommendations({ data }: { data: CapacityUtilizationTrendData }) {
   return (
     <div className="space-y-2 text-[8px] text-slate-300">
-      {["Utilization is within optimal range.", "Consider load shifting during peak afternoon hours.", "Maintain current ECBS optimization strategies.", "No immediate capacity risk identified."].map((item) => <div className="flex items-start gap-2" key={item}><i className="mt-0.5 size-2 shrink-0 rounded-full bg-[#05ff5e]" /> <span className="leading-tight">{item}</span></div>)}
+      {data.recommendations.map((item) => <div className="flex items-start gap-2" key={item}><i className="mt-0.5 size-2 shrink-0 rounded-full bg-[#05ff5e]" /> <span className="leading-tight">{item}</span></div>)}
       <div className="pt-1 text-[#147dff]">View All Recommendations {"->"}</div>
     </div>
   );
+}
+
+function trendChartPoints(rows: CapacityUtilizationTrendData["trend"]) {
+  const maxKva = Math.max(...rows.flatMap((row) => [row.connected, row.used, row.available]), 1);
+  const maxIndex = Math.max(rows.length - 1, 1);
+  const toPoint = (value: number, index: number) => {
+    const x = index * (500 / maxIndex);
+    const y = 150 - Math.max(0, Math.min(maxKva, value)) / maxKva * 126;
+    return { x: Number(x.toFixed(1)), y: Number(y.toFixed(1)) };
+  };
+  const usedPoints = rows.map((row, index) => ({ ...toPoint(row.used, index), source: row }));
+  const availablePoints = rows.map((row, index) => toPoint(row.available, index));
+  const connectedY = Number((150 - rows[0]?.connected / maxKva * 126 || 30).toFixed(1));
+
+  return {
+    available: availablePoints.map(({ x, y }) => `${x},${y}`).join(" "),
+    connectedY,
+    used: usedPoints.map(({ x, y }) => `${x},${y}`).join(" "),
+    usedPoints,
+  };
+}
+
+function trendAxisLabels(rows: CapacityUtilizationTrendData["trend"]) {
+  if (!rows.length) return [];
+  const labels = rows.filter((_, index) => index === 0 || index === rows.length - 1 || index % Math.max(1, Math.floor(rows.length / 6)) === 0);
+  const maxIndex = Math.max(rows.length - 1, 1);
+  return labels.map((row) => ({ label: row.label, x: rows.indexOf(row) * (500 / maxIndex) }));
+}
+
+function trendMiniPoints(rows: CapacityUtilizationTrendData["trend"]) {
+  if (!rows.length) return "";
+  const maxIndex = Math.max(rows.length - 1, 1);
+  return rows.map((row, index) => {
+    const x = index * (500 / maxIndex);
+    const y = 22 - Math.max(0, Math.min(100, row.utilizationPct)) / 100 * 18;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+}
+
+function trendForecastPoints(rows: CapacityUtilizationTrendData["forecast"]["points"]) {
+  if (!rows.length) return "0,20 420,20";
+  const maxIndex = Math.max(rows.length - 1, 1);
+  return rows.map((row, index) => {
+    const x = index * (420 / maxIndex);
+    const y = 58 - Math.max(0, Math.min(100, row.score)) / 100 * 52;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+}
+
+function trendHeatColor(value: number | undefined) {
+  if (value === undefined) return "#64748b";
+  if (value >= 90) return "#ef4444";
+  if (value >= 80) return "#f59e0b";
+  if (value >= 60) return "#147dff";
+  return "#65a30d";
+}
+
+function trendDataPoints(data: CapacityUtilizationTrendData) {
+  const row = data.summaryRows.find((item) => item.label === "Data Points");
+  return row?.value ?? "No Data";
+}
+
+function TrendNoData({ message }: { message?: string }) {
+  return <div className="grid h-full place-items-center px-4 text-center text-[9px] leading-snug text-slate-400">{message || "No Data"}</div>;
 }
 
 function AssetDetailTree() {

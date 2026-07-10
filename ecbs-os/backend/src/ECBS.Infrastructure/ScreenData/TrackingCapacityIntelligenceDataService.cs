@@ -231,6 +231,87 @@ public sealed class TrackingCapacityIntelligenceDataService(
         }
     }
 
+    public async Task<CapacityUtilizationTrendData> GetOchsnerUtilizationTrendAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(GetTrackingConnectionString());
+            await connection.OpenAsync(cancellationToken);
+
+            var capacity = await ReadLatestCapacityAsync(connection, cancellationToken);
+            if (capacity is null)
+            {
+                return EmptyUtilizationTrend("No Capacity Intelligence rollup was found for Ochsner project 13.");
+            }
+
+            var meters = await ReadMetersAsync(connection, cancellationToken);
+            var mainMeter = meters.FirstOrDefault(meter => meter.IsMain) ?? meters.FirstOrDefault();
+            var telemetry = mainMeter is null
+                ? Array.Empty<CapacityMinuteTrendRow>()
+                : await ReadUtilizationTelemetryAsync(connection, mainMeter.Id, cancellationToken);
+            var samples = BuildUtilizationSamples(telemetry, capacity);
+            if (samples.Count == 0)
+            {
+                return EmptyUtilizationTrend("No recent main-meter telemetry was found for Capacity Utilization Trend.");
+            }
+
+            var avgUtilization = samples.Average(row => row.UtilizationPct);
+            var maxSample = samples.OrderByDescending(row => row.UtilizationPct).First();
+            var minSample = samples.OrderBy(row => row.UtilizationPct).First();
+            var over80 = samples.Count(row => row.UtilizationPct > 80);
+            var over90 = samples.Count(row => row.UtilizationPct > 90);
+            var under60 = samples.Count(row => row.UtilizationPct < 60);
+            var intervalHours = EstimateIntervalHours(samples);
+            var latest = samples.OrderBy(row => row.Timestamp).Last();
+
+            return new CapacityUtilizationTrendData(
+                Benchmarks:
+                [
+                    new("#65a30d", "Your Site", $"{FormatNumber(avgUtilization, 0)}%"),
+                    new("#64748b", "Similar Sites Average", "No Data"),
+                    new("#64748b", "Industry Average", "No Data"),
+                    new("#64748b", "Best in Class", "No Data"),
+                ],
+                DailyRows: BuildTrendDailyRows(samples),
+                Distribution: BuildTrendDistribution(samples),
+                Forecast: BuildTrendForecast(samples),
+                Heatmap: BuildTrendHeatmap(samples),
+                HeatmapDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+                HeatmapHours: ["12 AM", "4 AM", "8 AM", "12 PM", "4 PM", "8 PM"],
+                Kpis:
+                [
+                    new("#147dff", "Nameplate capacity", "C", "Total Connected Capacity", $"{FormatNumber(capacity.InstalledCapacity, 0)} kVA"),
+                    new("#05ff5e", $"{FormatNumber(latest.UtilizationPct, 0)}% of connected", "U", "Total Utilized Capacity", $"{FormatNumber(latest.UsedKva, 0)} kVA"),
+                    new("#147dff", "Available after ECBS recovery", "A", "Total Available Capacity", $"{FormatNumber(latest.AvailableKva, 0)} kVA"),
+                    new("#05ff5e", maxSample.Timestamp.HasValue ? FormatTimestamp(maxSample.Timestamp.Value) : "No Data", "P", "Peak Utilization", $"{FormatNumber(maxSample.UtilizationPct, 0)}%"),
+                    new("#05ff5e", "Recent main-meter telemetry", "G", "Average Utilization", $"{FormatNumber(avgUtilization, 0)}%"),
+                    new("#f59e0b", $"{FormatNumber(over80 * intervalHours, 1)} hrs", "T", "Time Over 80%", $"{FormatNumber(samples.Count > 0 ? over80 / (double)samples.Count * 100 : 0, 1)}%"),
+                ],
+                Message: "",
+                PeakEvents: BuildTrendPeakEvents(samples),
+                Recommendations: BuildTrendRecommendations(avgUtilization, maxSample.UtilizationPct, over80, samples.Count),
+                State: "data",
+                SummaryRows:
+                [
+                    new("Average Utilization", $"{FormatNumber(avgUtilization, 0)}%"),
+                    new("Maximum Utilization", $"{FormatNumber(maxSample.UtilizationPct, 0)}%  {(maxSample.Timestamp.HasValue ? FormatTimestamp(maxSample.Timestamp.Value) : "No Data")}"),
+                    new("Minimum Utilization", $"{FormatNumber(minSample.UtilizationPct, 0)}%  {(minSample.Timestamp.HasValue ? FormatTimestamp(minSample.Timestamp.Value) : "No Data")}"),
+                    new("Time Over 80%", $"{FormatNumber(samples.Count > 0 ? over80 / (double)samples.Count * 100 : 0, 1)}%  {FormatNumber(over80 * intervalHours, 1)} hrs"),
+                    new("Time Over 90%", $"{FormatNumber(samples.Count > 0 ? over90 / (double)samples.Count * 100 : 0, 1)}%  {FormatNumber(over90 * intervalHours, 1)} hrs"),
+                    new("Time Under 60%", $"{FormatNumber(samples.Count > 0 ? under60 / (double)samples.Count * 100 : 0, 1)}%  {FormatNumber(under60 * intervalHours, 1)} hrs"),
+                    new("Data Points", FormatNumber(samples.Count, 0)),
+                    new("Granularity", $"{FormatNumber(intervalHours * 60, 0)} Minutes"),
+                ],
+                Trend: BuildUtilizationTrendPoints(samples, capacity.InstalledCapacity),
+                UpdatedAt: latest.Timestamp.HasValue ? FormatTimestamp(latest.Timestamp.Value) : FormatTimestamp(capacity.BucketTs ?? DateTimeOffset.UtcNow));
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Failed to load Ochsner Capacity Utilization Trend data from tracking.");
+            return EmptyUtilizationTrend("Tracking DB data is unavailable for Capacity Utilization Trend.");
+        }
+    }
+
     private string GetTrackingConnectionString()
     {
         var configured = configuration.GetConnectionString("TrackingMySql");
@@ -404,6 +485,35 @@ public sealed class TrackingCapacityIntelligenceDataService(
               AND recordedAt IS NOT NULL
             ORDER BY recordedAt DESC
             LIMIT 180
+            """;
+        command.Parameters.AddWithValue("@meterId", meterId);
+
+        var rows = new List<CapacityMinuteTrendRow>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            rows.Add(new CapacityMinuteTrendRow(
+                BucketTs: ReadUnixMilliseconds(reader, "bucket_ts"),
+                TotalKva: ReadDouble(reader, "totalKva")));
+        }
+
+        return rows;
+    }
+
+    private static async Task<IReadOnlyList<CapacityMinuteTrendRow>> ReadUtilizationTelemetryAsync(
+        MySqlConnection connection,
+        int meterId,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT recordedAt AS bucket_ts, totalKva
+            FROM meterdata
+            WHERE meter = @meterId
+              AND recordedAt IS NOT NULL
+              AND totalKva IS NOT NULL
+            ORDER BY recordedAt DESC
+            LIMIT 1008
             """;
         command.Parameters.AddWithValue("@meterId", meterId);
 
@@ -784,6 +894,244 @@ public sealed class TrackingCapacityIntelligenceDataService(
         return score > 0 ? "#ef4444" : "#64748b";
     }
 
+    private static IReadOnlyList<CapacityUtilizationSample> BuildUtilizationSamples(
+        IReadOnlyList<CapacityMinuteTrendRow> telemetry,
+        CapacitySummary capacity)
+    {
+        if (telemetry.Count == 0)
+        {
+            if (capacity.BucketTs is null || capacity.InstalledCapacity <= 0)
+            {
+                return Array.Empty<CapacityUtilizationSample>();
+            }
+
+            return
+            [
+                new(
+                    AvailableKva: Math.Max(0, capacity.InstalledCapacity - capacity.UsedCapacity) + capacity.RecoverableCapacity,
+                    ConnectedKva: capacity.InstalledCapacity,
+                    Timestamp: capacity.BucketTs,
+                    UsedKva: capacity.UsedCapacity,
+                    UtilizationPct: ClampScore(capacity.UtilizationPct)),
+            ];
+        }
+
+        return telemetry
+            .Where(row => row.TotalKva > 0 && row.BucketTs is not null && capacity.InstalledCapacity > 0)
+            .OrderBy(row => row.BucketTs)
+            .Select(row =>
+            {
+                var used = row.TotalKva;
+                return new CapacityUtilizationSample(
+                    AvailableKva: Math.Max(0, capacity.InstalledCapacity - used) + capacity.RecoverableCapacity,
+                    ConnectedKva: capacity.InstalledCapacity,
+                    Timestamp: row.BucketTs,
+                    UsedKva: used,
+                    UtilizationPct: ClampScore(used / capacity.InstalledCapacity * 100));
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<CapacityUtilizationTrendPoint> BuildUtilizationTrendPoints(
+        IReadOnlyList<CapacityUtilizationSample> samples,
+        double connected)
+    {
+        return ThinSamples(samples, 28).Select(row => new CapacityUtilizationTrendPoint(
+            Available: row.AvailableKva,
+            Connected: connected,
+            Label: row.Timestamp.HasValue ? FormatShortDate(row.Timestamp.Value) : "",
+            UtilizationPct: row.UtilizationPct,
+            Used: row.UsedKva)).ToList();
+    }
+
+    private static IReadOnlyList<CapacityTrendDailyRow> BuildTrendDailyRows(IReadOnlyList<CapacityUtilizationSample> samples)
+    {
+        return samples
+            .Where(row => row.Timestamp is not null)
+            .GroupBy(row => LocalDate(row.Timestamp!.Value).Date)
+            .OrderByDescending(group => group.Key)
+            .Take(7)
+            .Select(group =>
+            {
+                var values = group.ToList();
+                var avg = values.Average(row => row.UtilizationPct);
+                var peak = values.Max(row => row.UtilizationPct);
+                var offPeak = values
+                    .Where(row => IsOffPeak(row.Timestamp!.Value))
+                    .Select(row => row.UtilizationPct)
+                    .DefaultIfEmpty(values.Min(row => row.UtilizationPct))
+                    .Average();
+                var over80Hours = values.Count(row => row.UtilizationPct > 80) * EstimateIntervalHours(values);
+                return new CapacityTrendDailyRow(
+                    AverageUtilization: $"{FormatNumber(avg, 0)}%",
+                    Color: HealthColor((int)Math.Round(100 - Math.Max(0, peak - 80))),
+                    Date: group.Key.ToString("MMM d, yyyy"),
+                    MaxKva: FormatNumber(values.Max(row => row.UsedKva), 0),
+                    MinKva: FormatNumber(values.Min(row => row.UsedKva), 0),
+                    OffPeakUtilization: $"{FormatNumber(offPeak, 0)}%",
+                    PeakUtilization: $"{FormatNumber(peak, 0)}%",
+                    TimeOver80: $"{FormatNumber(over80Hours, 1)} hrs");
+            })
+            .ToList();
+    }
+
+    private static IReadOnlyList<CapacityRecoveryDonutRow> BuildTrendDistribution(IReadOnlyList<CapacityUtilizationSample> samples)
+    {
+        if (samples.Count == 0)
+        {
+            return Array.Empty<CapacityRecoveryDonutRow>();
+        }
+
+        var buckets = new[]
+        {
+            new { Label = "0% - 60%", Color = "#65a30d", Count = samples.Count(row => row.UtilizationPct < 60) },
+            new { Label = "60% - 80%", Color = "#147dff", Count = samples.Count(row => row.UtilizationPct >= 60 && row.UtilizationPct < 80) },
+            new { Label = "80% - 90%", Color = "#f59e0b", Count = samples.Count(row => row.UtilizationPct >= 80 && row.UtilizationPct < 90) },
+            new { Label = "90% - 100%", Color = "#ef4444", Count = samples.Count(row => row.UtilizationPct >= 90) },
+        };
+
+        return buckets.Select(bucket => new CapacityRecoveryDonutRow(
+            bucket.Color,
+            bucket.Label,
+            $"{FormatNumber(bucket.Count / (double)samples.Count * 100, 1)}% ({bucket.Count})")).ToList();
+    }
+
+    private static IReadOnlyList<CapacityTrendHeatmapCell> BuildTrendHeatmap(IReadOnlyList<CapacityUtilizationSample> samples)
+    {
+        return samples
+            .Where(row => row.Timestamp is not null)
+            .GroupBy(row =>
+            {
+                var local = LocalDate(row.Timestamp!.Value);
+                return new { Row = DayRow(local.DayOfWeek), Column = Math.Min(5, local.Hour / 4) };
+            })
+            .Select(group => new CapacityTrendHeatmapCell(group.Key.Column, group.Key.Row, group.Average(row => row.UtilizationPct)))
+            .Where(cell => cell.Row >= 0)
+            .ToList();
+    }
+
+    private static IReadOnlyList<CapacityTrendPeakEvent> BuildTrendPeakEvents(IReadOnlyList<CapacityUtilizationSample> samples)
+    {
+        return samples
+            .Where(row => row.Timestamp is not null)
+            .OrderByDescending(row => row.UtilizationPct)
+            .Take(5)
+            .Select((row, index) => new CapacityTrendPeakEvent(
+                Duration: "No Data",
+                Kva: FormatNumber(row.UsedKva, 0),
+                Rank: (index + 1).ToString(),
+                Timestamp: FormatTimestamp(row.Timestamp!.Value),
+                Utilization: $"{FormatNumber(row.UtilizationPct, 0)}%"))
+            .ToList();
+    }
+
+    private static CapacityTrendForecast BuildTrendForecast(IReadOnlyList<CapacityUtilizationSample> samples)
+    {
+        var ordered = samples.OrderBy(row => row.Timestamp).ToList();
+        var latestAverage = ordered.TakeLast(Math.Min(96, ordered.Count)).Select(row => row.UtilizationPct).DefaultIfEmpty(0).Average();
+        var priorAverage = ordered.Take(Math.Max(0, ordered.Count - Math.Min(96, ordered.Count))).Select(row => row.UtilizationPct).DefaultIfEmpty(latestAverage).Average();
+        var delta = latestAverage - priorAverage;
+        var projected = ClampScore(latestAverage + delta);
+        var points =
+            Enumerable.Range(0, 7)
+                .Select(index => new CapacityHealthTrendPoint($"P{index + 1}", (int)Math.Round(ClampScore(projected + (index - 3) * 0.4))))
+                .ToList();
+
+        return new CapacityTrendForecast(
+            DeltaLabel: delta >= 0 ? $"+{FormatNumber(delta, 1)}% vs recent baseline" : $"{FormatNumber(delta, 1)}% vs recent baseline",
+            ProjectedUtilization: $"{FormatNumber(projected, 0)}%",
+            Points: points);
+    }
+
+    private static IReadOnlyList<string> BuildTrendRecommendations(double averageUtilization, double peakUtilization, int over80Count, int totalCount)
+    {
+        var recommendations = new List<string>();
+        if (peakUtilization > 90)
+        {
+            recommendations.Add("Peak utilization exceeded 90%; review peak-period load scheduling.");
+        }
+        else if (peakUtilization > 80)
+        {
+            recommendations.Add("Peak utilization exceeded 80%; monitor afternoon demand windows.");
+        }
+        else
+        {
+            recommendations.Add("Utilization is within the calculated operating range from tracking.");
+        }
+
+        if (totalCount > 0 && over80Count / (double)totalCount > 0.2)
+        {
+            recommendations.Add("Time over 80% is elevated; evaluate load shifting opportunities.");
+        }
+
+        if (averageUtilization < 60)
+        {
+            recommendations.Add("Average utilization is below 60%; review unused capacity assumptions.");
+        }
+
+        recommendations.Add("Benchmark comparisons are No Data because tracking does not provide peer benchmark sources.");
+        return recommendations.Take(4).ToList();
+    }
+
+    private static double EstimateIntervalHours(IReadOnlyList<CapacityUtilizationSample> samples)
+    {
+        var timestamps = samples
+            .Select(row => row.Timestamp)
+            .Where(timestamp => timestamp is not null)
+            .Select(timestamp => timestamp!.Value)
+            .OrderBy(timestamp => timestamp)
+            .ToList();
+        if (timestamps.Count < 2)
+        {
+            return 0.25;
+        }
+
+        var gaps = timestamps.Zip(timestamps.Skip(1), (left, right) => Math.Abs((right - left).TotalHours))
+            .Where(hours => hours > 0)
+            .OrderBy(hours => hours)
+            .ToList();
+        return gaps.Count == 0 ? 0.25 : Math.Min(1, Math.Max(1.0 / 60, gaps[gaps.Count / 2]));
+    }
+
+    private static IReadOnlyList<CapacityUtilizationSample> ThinSamples(IReadOnlyList<CapacityUtilizationSample> samples, int maxCount)
+    {
+        if (samples.Count <= maxCount)
+        {
+            return samples;
+        }
+
+        var step = (double)(samples.Count - 1) / (maxCount - 1);
+        return Enumerable.Range(0, maxCount)
+            .Select(index => samples[(int)Math.Round(index * step)])
+            .ToList();
+    }
+
+    private static DateTime LocalDate(DateTimeOffset timestamp)
+    {
+        return TimeZoneInfo.ConvertTime(timestamp, CentralTimeZone()).DateTime;
+    }
+
+    private static bool IsOffPeak(DateTimeOffset timestamp)
+    {
+        var hour = LocalDate(timestamp).Hour;
+        return hour < 7 || hour >= 20;
+    }
+
+    private static int DayRow(DayOfWeek day)
+    {
+        return day switch
+        {
+            DayOfWeek.Monday => 0,
+            DayOfWeek.Tuesday => 1,
+            DayOfWeek.Wednesday => 2,
+            DayOfWeek.Thursday => 3,
+            DayOfWeek.Friday => 4,
+            DayOfWeek.Saturday => 5,
+            DayOfWeek.Sunday => 6,
+            _ => -1,
+        };
+    }
+
     private static IReadOnlyList<CapacityRecoveryTrendPoint> BuildRecoveryTrend(IReadOnlyList<CapacitySummary> trendRows)
     {
         return trendRows.Reverse().Select(row => new CapacityRecoveryTrendPoint(
@@ -1014,6 +1362,53 @@ public sealed class TrackingCapacityIntelligenceDataService(
             UpdatedAt: "No Data");
     }
 
+    private static CapacityUtilizationTrendData EmptyUtilizationTrend(string message)
+    {
+        return new CapacityUtilizationTrendData(
+            Benchmarks:
+            [
+                new("#64748b", "Your Site", "No Data"),
+                new("#64748b", "Similar Sites Average", "No Data"),
+                new("#64748b", "Industry Average", "No Data"),
+                new("#64748b", "Best in Class", "No Data"),
+            ],
+            DailyRows: Array.Empty<CapacityTrendDailyRow>(),
+            Distribution: Array.Empty<CapacityRecoveryDonutRow>(),
+            Forecast: new("No Data", "No Data", Array.Empty<CapacityHealthTrendPoint>()),
+            Heatmap: Array.Empty<CapacityTrendHeatmapCell>(),
+            HeatmapDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+            HeatmapHours: ["12 AM", "4 AM", "8 AM", "12 PM", "4 PM", "8 PM"],
+            Kpis:
+            [
+                new("#64748b", "No Data", "C", "Total Connected Capacity", "No Data"),
+                new("#64748b", "No Data", "U", "Total Utilized Capacity", "No Data"),
+                new("#64748b", "No Data", "A", "Total Available Capacity", "No Data"),
+                new("#64748b", "No Data", "P", "Peak Utilization", "No Data"),
+                new("#64748b", "No Data", "G", "Average Utilization", "No Data"),
+                new("#64748b", "No Data", "T", "Time Over 80%", "No Data"),
+            ],
+            Message: message,
+            PeakEvents: Array.Empty<CapacityTrendPeakEvent>(),
+            Recommendations:
+            [
+                message,
+            ],
+            State: "empty",
+            SummaryRows:
+            [
+                new("Average Utilization", "No Data"),
+                new("Maximum Utilization", "No Data"),
+                new("Minimum Utilization", "No Data"),
+                new("Time Over 80%", "No Data"),
+                new("Time Over 90%", "No Data"),
+                new("Time Under 60%", "No Data"),
+                new("Data Points", "No Data"),
+                new("Granularity", "No Data"),
+            ],
+            Trend: Array.Empty<CapacityUtilizationTrendPoint>(),
+            UpdatedAt: "No Data");
+    }
+
     private static int ScoreLoadBalance(double utilization)
     {
         return utilization <= 0 ? 0 : (int)Math.Round(ClampScore(100 - Math.Abs(utilization - 70)));
@@ -1198,4 +1593,11 @@ public sealed class TrackingCapacityIntelligenceDataService(
     private sealed record CapacitySavings(double AnnualSavings, double Co2ReductionTons);
 
     private sealed record CapacityAssetHealth(string AssetType, string Name, double RecoveredKva, int Score, double UtilizationPct);
+
+    private sealed record CapacityUtilizationSample(
+        double AvailableKva,
+        double ConnectedKva,
+        DateTimeOffset? Timestamp,
+        double UsedKva,
+        double UtilizationPct);
 }

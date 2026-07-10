@@ -3,6 +3,7 @@ import "server-only";
 import type { AlarmDetailData } from "@/lib/alarmDetailData";
 import type { CapacityHealthDiagnosticsData } from "@/lib/capacityHealthDiagnosticsData";
 import type { CapacityRecoveryBreakdownData } from "@/lib/capacityRecoveryBreakdownData";
+import type { CapacityUtilizationTrendData } from "@/lib/capacityUtilizationTrendData";
 import type { ConfigureAlertRuleData } from "@/lib/configureAlertRuleData";
 import type { SetNotificationsData } from "@/lib/setNotificationsData";
 import type { AlertsEventsData, CapacityIntelligenceData } from "@/lib/trackingDashboardData";
@@ -54,6 +55,22 @@ export async function getCapacityHealthDiagnosticsDataFromApi(): Promise<Capacit
     return (await response.json()) as CapacityHealthDiagnosticsData;
   } catch {
     return noCapacityHealthDiagnosticsData("No applicable Capacity Health Diagnostics data was found because ECBS.Api is not reachable.");
+  }
+}
+
+export async function getCapacityUtilizationTrendDataFromApi(): Promise<CapacityUtilizationTrendData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/capacity-intelligence/utilization-trend`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noCapacityUtilizationTrendData(`No applicable Capacity Utilization Trend data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as CapacityUtilizationTrendData;
+  } catch {
+    return noCapacityUtilizationTrendData("No applicable Capacity Utilization Trend data was found because ECBS.Api is not reachable.");
   }
 }
 
@@ -237,6 +254,47 @@ function noCapacityHealthDiagnosticsData(message: string): CapacityHealthDiagnos
       { label: "Power Factor Score", value: "No Data" },
       { label: "Harmonic Score", value: "No Data" },
       { label: "Updated", value: "No Data" },
+    ],
+    trend: [],
+    updatedAt: "No Data",
+  };
+}
+
+function noCapacityUtilizationTrendData(message: string): CapacityUtilizationTrendData {
+  return {
+    benchmarks: [
+      { color: "#64748b", label: "Your Site", value: "No Data" },
+      { color: "#64748b", label: "Similar Sites Average", value: "No Data" },
+      { color: "#64748b", label: "Industry Average", value: "No Data" },
+      { color: "#64748b", label: "Best in Class", value: "No Data" },
+    ],
+    dailyRows: [],
+    distribution: [],
+    forecast: { deltaLabel: "No Data", points: [], projectedUtilization: "No Data" },
+    heatmap: [],
+    heatmapDays: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+    heatmapHours: ["12 AM", "4 AM", "8 AM", "12 PM", "4 PM", "8 PM"],
+    kpis: [
+      { color: "#64748b", detail: "No Data", icon: "C", label: "Total Connected Capacity", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "U", label: "Total Utilized Capacity", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "A", label: "Total Available Capacity", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "P", label: "Peak Utilization", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "G", label: "Average Utilization", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "T", label: "Time Over 80%", value: "No Data" },
+    ],
+    message,
+    peakEvents: [],
+    recommendations: [message],
+    state: "empty",
+    summaryRows: [
+      { label: "Average Utilization", value: "No Data" },
+      { label: "Maximum Utilization", value: "No Data" },
+      { label: "Minimum Utilization", value: "No Data" },
+      { label: "Time Over 80%", value: "No Data" },
+      { label: "Time Over 90%", value: "No Data" },
+      { label: "Time Under 60%", value: "No Data" },
+      { label: "Data Points", value: "No Data" },
+      { label: "Granularity", value: "No Data" },
     ],
     trend: [],
     updatedAt: "No Data",

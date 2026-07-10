@@ -98,3 +98,40 @@ public sealed record CapacityHealthDiagnosticCard(
 public sealed record CapacityHealthIssueRow(string Asset, string Impact, string Issue, string Recommendation, string Severity);
 
 public sealed record CapacityHealthTrendPoint(string Label, int Score);
+
+public sealed record CapacityUtilizationTrendData(
+    IReadOnlyList<CapacityTrendBenchmarkRow> Benchmarks,
+    IReadOnlyList<CapacityTrendDailyRow> DailyRows,
+    IReadOnlyList<CapacityRecoveryDonutRow> Distribution,
+    CapacityTrendForecast Forecast,
+    IReadOnlyList<CapacityTrendHeatmapCell> Heatmap,
+    IReadOnlyList<string> HeatmapDays,
+    IReadOnlyList<string> HeatmapHours,
+    IReadOnlyList<CapacityKpi> Kpis,
+    string Message,
+    IReadOnlyList<CapacityTrendPeakEvent> PeakEvents,
+    IReadOnlyList<string> Recommendations,
+    string State,
+    IReadOnlyList<CapacityRecoverySummaryRow> SummaryRows,
+    IReadOnlyList<CapacityUtilizationTrendPoint> Trend,
+    string UpdatedAt);
+
+public sealed record CapacityTrendBenchmarkRow(string Color, string Label, string Value);
+
+public sealed record CapacityTrendDailyRow(
+    string AverageUtilization,
+    string Color,
+    string Date,
+    string MaxKva,
+    string MinKva,
+    string OffPeakUtilization,
+    string PeakUtilization,
+    string TimeOver80);
+
+public sealed record CapacityTrendForecast(string DeltaLabel, string ProjectedUtilization, IReadOnlyList<CapacityHealthTrendPoint> Points);
+
+public sealed record CapacityTrendHeatmapCell(int Column, int Row, double Value);
+
+public sealed record CapacityTrendPeakEvent(string Duration, string Kva, string Rank, string Timestamp, string Utilization);
+
+public sealed record CapacityUtilizationTrendPoint(double Available, double Connected, string Label, double UtilizationPct, double Used);
