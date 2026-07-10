@@ -78,3 +78,33 @@ public sealed record AlarmDetailTriggerCondition(
     string Parameter,
     string Status,
     string Threshold);
+
+public sealed record SetNotificationsData(
+    IReadOnlyList<SetNotificationsChannel> Channels,
+    IReadOnlyList<AlarmDetailKeyValue> EscalationRows,
+    string Message,
+    IReadOnlyList<SetNotificationsPreviewItem> PreviewItems,
+    IReadOnlyList<SetNotificationsRecipient> Recipients,
+    string RuleName,
+    IReadOnlyList<AlarmDetailKeyValue> RuleSummary,
+    string State);
+
+public sealed record SetNotificationsChannel(
+    string Color,
+    bool Enabled,
+    string Icon,
+    string Text,
+    string Title);
+
+public sealed record SetNotificationsPreviewItem(string Color, string Icon, string Text);
+
+public sealed record SetNotificationsRecipient(
+    IReadOnlyList<string> ChannelIcons,
+    string Email,
+    string Escalation,
+    string Initials,
+    string Name,
+    string Schedule,
+    IReadOnlyList<string> SeverityColors,
+    string Status,
+    string Type);

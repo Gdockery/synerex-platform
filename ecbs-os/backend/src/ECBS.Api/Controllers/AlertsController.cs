@@ -22,4 +22,12 @@ public sealed class AlertsController(IAlarmEventsDataService alarmEventsDataServ
 
         return Ok(data);
     }
+
+    [HttpGet("set-notifications")]
+    public async Task<ActionResult<SetNotificationsData>> GetSetNotifications(CancellationToken cancellationToken)
+    {
+        var data = await alarmEventsDataService.GetOchsnerSetNotificationsAsync(cancellationToken);
+
+        return Ok(data);
+    }
 }

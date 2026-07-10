@@ -143,6 +143,54 @@ public sealed class TrackingAlarmEventsDataService(
         }
     }
 
+    public async Task<SetNotificationsData> GetOchsnerSetNotificationsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(GetTrackingConnectionString());
+            await connection.OpenAsync(cancellationToken);
+
+            var rule = await ReadLatestNotificationRuleAsync(connection, cancellationToken);
+            if (rule is null)
+            {
+                return NoSetNotificationsData("No applicable alert rule notification settings were found in tracking for Ochsner project 13.");
+            }
+
+            var recipients = await ReadNotificationRecipientsAsync(connection, ParseUserIds(rule.NotifyUserIds), rule, cancellationToken);
+            var channels = BuildNotificationChannels(rule);
+
+            return new SetNotificationsData(
+                Channels: channels,
+                EscalationRows:
+                [
+                    new("Escalation Delay", "No Data"),
+                    new("Escalate To", "No Data"),
+                    new("Repeat Every", "No Data"),
+                    new("Max Escalations", "No Data"),
+                    new("Auto Resolve When Condition Clears", "No Data"),
+                ],
+                Message: "",
+                PreviewItems: BuildNotificationPreview(channels),
+                Recipients: recipients,
+                RuleName: rule.Name ?? "No Data",
+                RuleSummary:
+                [
+                    new("Category", rule.Category ?? "No Data"),
+                    new("Parameter", rule.MetricKey ?? "No Data"),
+                    new("Condition", rule.Condition ?? "No Data"),
+                    new("Threshold", rule.Threshold.HasValue ? $"{rule.Threshold.Value:0.##} {rule.Unit}".Trim() : "No Data"),
+                    new("For How Long", "No Data"),
+                    new("Severity", $"● {NormalizeSeverity(rule.Severity)}"),
+                ],
+                State: "data");
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Failed to load Ochsner Set Notifications data from tracking.");
+            return NoSetNotificationsData("Tracking notification settings could not be loaded for Ochsner project 13.");
+        }
+    }
+
     private static async Task<AlarmDetailSource?> ReadLatestAlarmDetailAsync(
         MySqlConnection connection,
         CancellationToken cancellationToken)
@@ -209,6 +257,190 @@ public sealed class TrackingAlarmEventsDataService(
             TriggeredAt: ReadUnixMilliseconds(reader, "triggered_at"),
             Unit: ReadString(reader, "unit"),
             UpdatedAt: ReadUnixMilliseconds(reader, "updatedAt"));
+    }
+
+    private static async Task<SetNotificationsRule?> ReadLatestNotificationRuleAsync(
+        MySqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT id, name, category, metric_key, `condition`, threshold, unit, severity, notify_email, notify_sms, notify_push, notify_user_ids, is_active
+            FROM alert_rules
+            WHERE project_id = 13
+              AND COALESCE(is_deleted, 0) = 0
+            ORDER BY COALESCE(updatedAt, createdAt, 0) DESC
+            LIMIT 1
+            """;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new SetNotificationsRule(
+            Category: ReadString(reader, "category"),
+            Condition: ReadString(reader, "condition"),
+            Id: ReadInt(reader, "id"),
+            IsActive: ReadBool(reader, "is_active"),
+            MetricKey: ReadString(reader, "metric_key"),
+            Name: ReadString(reader, "name"),
+            NotifyEmail: ReadBool(reader, "notify_email"),
+            NotifyPush: ReadBool(reader, "notify_push"),
+            NotifySms: ReadBool(reader, "notify_sms"),
+            NotifyUserIds: ReadString(reader, "notify_user_ids"),
+            Severity: ReadString(reader, "severity"),
+            Threshold: ReadNullableDouble(reader, "threshold"),
+            Unit: ReadString(reader, "unit"));
+    }
+
+    private static async Task<IReadOnlyList<SetNotificationsRecipient>> ReadNotificationRecipientsAsync(
+        MySqlConnection connection,
+        IReadOnlyList<int> userIds,
+        SetNotificationsRule rule,
+        CancellationToken cancellationToken)
+    {
+        if (userIds.Count == 0)
+        {
+            return Array.Empty<SetNotificationsRecipient>();
+        }
+
+        await using var command = connection.CreateCommand();
+        var parameterNames = userIds.Select((_, index) => $"@id{index}").ToList();
+        command.CommandText = $"""
+            SELECT id, firstName, lastName, email, phone
+            FROM user
+            WHERE COALESCE(isDeleted, 0) = 0
+              AND id IN ({string.Join(", ", parameterNames)})
+            ORDER BY firstName, lastName, email
+            """;
+
+        for (var index = 0; index < userIds.Count; index += 1)
+        {
+            command.Parameters.AddWithValue(parameterNames[index], userIds[index]);
+        }
+
+        var recipients = new List<SetNotificationsRecipient>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var firstName = ReadString(reader, "firstName") ?? "";
+            var lastName = ReadString(reader, "lastName") ?? "";
+            var email = ReadString(reader, "email") ?? "No Data";
+            var name = string.Join(" ", new[] { firstName, lastName }.Where(part => !string.IsNullOrWhiteSpace(part)));
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                name = email;
+            }
+
+            recipients.Add(new SetNotificationsRecipient(
+                ChannelIcons: ChannelIcons(rule),
+                Email: email,
+                Escalation: "No Data",
+                Initials: Initials(name),
+                Name: name,
+                Schedule: "No Data",
+                SeverityColors: [SeverityColor(rule.Severity ?? "")],
+                Status: rule.IsActive ? "Enabled" : "Disabled",
+                Type: "User"));
+        }
+
+        return recipients;
+    }
+
+    private static SetNotificationsData NoSetNotificationsData(string message)
+    {
+        return new SetNotificationsData(
+            Channels: BuildNotificationChannels(null),
+            EscalationRows:
+            [
+                new("Escalation Delay", "No Data"),
+                new("Escalate To", "No Data"),
+                new("Repeat Every", "No Data"),
+                new("Max Escalations", "No Data"),
+                new("Auto Resolve When Condition Clears", "No Data"),
+            ],
+            Message: message,
+            PreviewItems:
+            [
+                new("#f59e0b", "ⓘ", message),
+            ],
+            Recipients: Array.Empty<SetNotificationsRecipient>(),
+            RuleName: "No Data",
+            RuleSummary:
+            [
+                new("Category", "No Data"),
+                new("Parameter", "No Data"),
+                new("Condition", "No Data"),
+                new("Threshold", "No Data"),
+                new("For How Long", "No Data"),
+                new("Severity", "● No Data"),
+            ],
+            State: "no-data");
+    }
+
+    private static IReadOnlyList<SetNotificationsChannel> BuildNotificationChannels(SetNotificationsRule? rule)
+    {
+        return
+        [
+            new("#147dff", rule?.NotifyEmail == true, "✉", "Send email notifications", "Email"),
+            new("#05ff5e", rule?.NotifySms == true, "💬", "Send text messages", "SMS Text"),
+            new("#a855f7", rule?.NotifyPush == true, "🔔", "In-app and mobile push alerts", "Push Notification"),
+            new("#f97316", false, "☎", "Automated voice call", "Voice Call"),
+            new("#06b6d4", false, "🔗", "Send to external endpoint", "Webhook"),
+        ];
+    }
+
+    private static IReadOnlyList<SetNotificationsPreviewItem> BuildNotificationPreview(IReadOnlyList<SetNotificationsChannel> channels)
+    {
+        var enabled = channels.Where(channel => channel.Enabled).ToList();
+        if (enabled.Count == 0)
+        {
+            return
+            [
+                new("#f59e0b", "ⓘ", "No enabled notification channels were found for this alert rule."),
+            ];
+        }
+
+        return enabled
+            .Select(channel => new SetNotificationsPreviewItem(channel.Color, channel.Icon, $"{channel.Title} notification sent when the alert is triggered"))
+            .ToList();
+    }
+
+    private static IReadOnlyList<int> ParseUserIds(string? raw)
+    {
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return Array.Empty<int>();
+        }
+
+        return System.Text.RegularExpressions.Regex.Matches(raw, @"\d+")
+            .Select(match => int.TryParse(match.Value, out var id) ? id : 0)
+            .Where(id => id > 0)
+            .Distinct()
+            .ToList();
+    }
+
+    private static IReadOnlyList<string> ChannelIcons(SetNotificationsRule rule)
+    {
+        var icons = new List<string>();
+        if (rule.NotifyEmail)
+        {
+            icons.Add("✉");
+        }
+
+        if (rule.NotifySms)
+        {
+            icons.Add("💬");
+        }
+
+        if (rule.NotifyPush)
+        {
+            icons.Add("🔔");
+        }
+
+        return icons;
     }
 
     private static async Task<AlarmDetailSiteContext> ReadSiteContextAsync(
@@ -782,6 +1014,12 @@ public sealed class TrackingAlarmEventsDataService(
         return reader.IsDBNull(ordinal) ? null : Convert.ToInt32(reader.GetValue(ordinal), System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    private static bool ReadBool(MySqlDataReader reader, string column)
+    {
+        var ordinal = reader.GetOrdinal(column);
+        return !reader.IsDBNull(ordinal) && Convert.ToInt32(reader.GetValue(ordinal), System.Globalization.CultureInfo.InvariantCulture) == 1;
+    }
+
     private static double ReadDouble(MySqlDataReader reader, string column)
     {
         var ordinal = reader.GetOrdinal(column);
@@ -852,6 +1090,12 @@ public sealed class TrackingAlarmEventsDataService(
         };
     }
 
+    private static string Initials(string value)
+    {
+        var parts = value.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return string.Concat(parts.Take(2).Select(part => char.ToUpperInvariant(part[0])));
+    }
+
     private sealed record AlarmDetailSiteContext(string Name, string Detail);
 
     private sealed record AlarmDetailTelemetry(
@@ -884,4 +1128,19 @@ public sealed class TrackingAlarmEventsDataService(
         DateTimeOffset? TriggeredAt,
         string? Unit,
         DateTimeOffset? UpdatedAt);
+
+    private sealed record SetNotificationsRule(
+        string? Category,
+        string? Condition,
+        int Id,
+        bool IsActive,
+        string? MetricKey,
+        string? Name,
+        bool NotifyEmail,
+        bool NotifyPush,
+        bool NotifySms,
+        string? NotifyUserIds,
+        string? Severity,
+        double? Threshold,
+        string? Unit);
 }

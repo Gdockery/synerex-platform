@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { AlarmDetailData } from "@/lib/alarmDetailData";
+import type { SetNotificationsData } from "@/lib/setNotificationsData";
 
 const enterpriseNav = [
   { href: "/enterprise/dashboard", label: "Enterprise Dashboard", section: "Home" },
@@ -202,12 +203,12 @@ export function ConfigureAlertRuleScreen() {
   );
 }
 
-export function SetNotificationsScreen() {
+export function SetNotificationsScreen({ data }: { data: SetNotificationsData }) {
   return (
     <AlarmEventsWideShell>
       <section className="grid h-[104px] grid-cols-[1fr_600px] items-start gap-4 pt-4">
         <div>
-          <div className="text-[10px] text-slate-300">Alarms & Events &nbsp; <span className="text-slate-600">›</span> &nbsp; Alert Rules &nbsp; <span className="text-slate-600">›</span> &nbsp; Peak kW Demand Alert &nbsp; <span className="text-slate-600">›</span> &nbsp; <span className="text-[#05ff5e]">Set Notifications</span></div>
+          <div className="text-[10px] text-slate-300">Alarms & Events &nbsp; <span className="text-slate-600">›</span> &nbsp; Alert Rules &nbsp; <span className="text-slate-600">›</span> &nbsp; {data.ruleName} &nbsp; <span className="text-slate-600">›</span> &nbsp; <span className="text-[#05ff5e]">Set Notifications</span></div>
           <h1 className="mt-4 text-[24px] font-semibold leading-none">Set Notifications</h1>
           <p className="mt-2 text-[10px] text-slate-300">Define how and when notifications are sent for this alert rule.</p>
         </div>
@@ -219,18 +220,18 @@ export function SetNotificationsScreen() {
       <section className="grid h-[710px] grid-cols-[1fr_300px] gap-3">
         <div className="grid min-h-0 grid-rows-[190px_292px_206px] gap-3">
           <SetNotifyPanel title="1. Notification Channels" subtitle="Select one or more channels to send notifications.">
-            <SetNotifyChannels />
+            <SetNotifyChannels data={data} />
           </SetNotifyPanel>
           <SetNotifyPanel title="2. Recipients" action="+ Add Recipient" subtitle="Who should receive these notifications?">
-            <SetNotifyRecipients />
+            <SetNotifyRecipients data={data} />
           </SetNotifyPanel>
           <SetNotifyPanel title="3. Escalation Settings" subtitle="Define escalation behavior if the alert is not acknowledged.">
-            <SetNotifyEscalation />
+            <SetNotifyEscalation data={data} />
           </SetNotifyPanel>
         </div>
         <div className="grid min-h-0 grid-rows-[205px_289px_192px] gap-3">
-          <SetNotifyPanel title="Alert Rule Summary"><SetNotifyRuleSummary /></SetNotifyPanel>
-          <SetNotifyPanel title="Notification Preview" subtitle="When this alert is triggered:"><SetNotifyPreview /></SetNotifyPanel>
+          <SetNotifyPanel title="Alert Rule Summary"><SetNotifyRuleSummary data={data} /></SetNotifyPanel>
+          <SetNotifyPanel title="Notification Preview" subtitle="When this alert is triggered:"><SetNotifyPreview data={data} /></SetNotifyPanel>
           <SetNotifyPanel title="About Notifications">
             <p className="text-[10px] leading-relaxed text-slate-400">Notifications are sent based on the alert condition and recipient preferences.</p>
             <a className="mt-5 block text-[10px] text-[#05ff5e]" href="/enterprise/alarms-events/alarms-and-events-set-notifications-screen">Learn more about notifications →</a>
@@ -676,25 +677,17 @@ function SetNotifyPanel({ action, children, subtitle, title }: { action?: string
   );
 }
 
-function SetNotifyChannels() {
-  const channels = [
-    ["Email", "Send email notifications", "#147dff", "✉", true],
-    ["SMS Text", "Send text messages", "#05ff5e", "💬", true],
-    ["Push Notification", "In-app and mobile push alerts", "#a855f7", "🔔", true],
-    ["Voice Call", "Automated voice call", "#f97316", "☎", false],
-    ["Webhook", "Send to external endpoint", "#06b6d4", "🔗", false],
-  ] as const;
-
+function SetNotifyChannels({ data }: { data: SetNotificationsData }) {
   return (
     <div className="grid grid-cols-5 gap-3">
-      {channels.map(([title, text, color, icon, enabled]) => (
-        <div className="flex h-[128px] flex-col rounded-md border border-cyan-300/12 bg-[#07131f] p-4" key={title}>
+      {data.channels.map((channel) => (
+        <div className="flex h-[128px] flex-col rounded-md border border-cyan-300/12 bg-[#07131f] p-4" key={channel.title}>
           <div className="flex items-start gap-4">
-            <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 bg-[#061421] text-[20px]" style={{ borderColor: color, color }}>{icon}</span>
-            <div><div className="text-[12px] font-semibold">{title}</div><p className="mt-1 text-[9px] leading-snug text-slate-400">{text}</p></div>
+            <span className="grid size-11 shrink-0 place-items-center rounded-full border-2 bg-[#061421] text-[20px]" style={{ borderColor: channel.color, color: channel.color }}>{channel.icon}</span>
+            <div><div className="text-[12px] font-semibold">{channel.title}</div><p className="mt-1 text-[9px] leading-snug text-slate-400">{channel.text}</p></div>
           </div>
-          <span className={enabled ? "mt-auto inline-flex h-5 w-9 items-center rounded-full bg-[#1f7aff] p-0.5 shadow-[0_0_12px_rgba(31,122,255,.45)]" : "mt-auto inline-flex h-5 w-9 items-center rounded-full bg-slate-600/70 p-0.5"}>
-            <span className={enabled ? "ml-auto block size-4 rounded-full bg-white" : "block size-4 rounded-full bg-white"} />
+          <span className={channel.enabled ? "mt-auto inline-flex h-5 w-9 items-center rounded-full bg-[#1f7aff] p-0.5 shadow-[0_0_12px_rgba(31,122,255,.45)]" : "mt-auto inline-flex h-5 w-9 items-center rounded-full bg-slate-600/70 p-0.5"}>
+            <span className={channel.enabled ? "ml-auto block size-4 rounded-full bg-white" : "block size-4 rounded-full bg-white"} />
           </span>
         </div>
       ))}
@@ -702,47 +695,46 @@ function SetNotifyChannels() {
   );
 }
 
-function SetNotifyRecipients() {
-  const recipients = [
-    ["JD", "John Martinez", "john.martinez@flex.com", "User", ["✉", "💬", "🔔"], "24x7", ["#ff3131", "#ff8a00", "#147dff"], "Enabled"],
-    ["AM", "Amanda Lee", "amanda.lee@flex.com", "User", ["✉", "💬", "🔔"], "7 AM - 7 PM", ["#ff3131", "#ff8a00"], "Enabled"],
-    ["OE", "Operations Team", "operations@flex.com", "Group", ["✉", "🔔"], "24x7", ["#ff3131", "#ff8a00", "#147dff"], "Enabled"],
-    ["OC", "On-Call Engineer", "oncall@flex.com", "User", ["✉", "💬", "🔔", "☎"], "7 PM - 7 AM", ["#ff3131"], "Enabled"],
-  ] as const;
+function SetNotifyRecipients({ data }: { data: SetNotificationsData }) {
+  if (!data.recipients.length) {
+    return <AlarmNoData message={data.message || "No notification recipients were found in tracking for this alert rule."} />;
+  }
 
   return (
     <div className="text-[9px]">
       <table className="w-full text-left">
         <thead className="text-slate-500"><tr>{["Recipient", "Type", "Channels", "Schedule", "Severity Filter", "Escalation", "Status", "Actions"].map((header) => <th className="pb-1.5 font-medium" key={header}>{header}</th>)}</tr></thead>
         <tbody>
-          {recipients.map(([initials, name, email, type, channels, schedule, severities, escalation]) => (
-            <tr className="border-t border-white/5" key={name}>
-              <td className="py-2 text-slate-200"><div className="flex items-center gap-3"><span className="grid size-7 place-items-center rounded-full border border-cyan-300/20 text-[8px] text-[#147dff]">{initials}</span><span><b>{name}</b><br /><span className="text-[7.5px] text-slate-500">{email}</span></span></div></td>
-              <td className="py-2"><span className="rounded border border-cyan-300/12 bg-[#061421] px-2 py-0.5 text-slate-300">{type}</span></td>
-              <td className="py-2"><div className="flex items-center gap-2">{channels.map((icon) => <span className="text-[13px] leading-none text-[#147dff]" key={icon}>{icon}</span>)}</div></td>
-              <td className="py-2 text-slate-300">{schedule}</td>
-              <td className="py-2"><div className="flex items-center gap-2">{severities.map((color) => <span className="block size-2 rounded-full" key={color} style={{ background: color }} />)}</div></td>
-              <td className="py-2 text-[#05ff5e]">{escalation}</td>
-              <td className="py-2"><SetNotifyToggle enabled /></td>
+          {data.recipients.map((recipient) => (
+            <tr className="border-t border-white/5" key={`${recipient.name}-${recipient.email}`}>
+              <td className="py-2 text-slate-200"><div className="flex items-center gap-3"><span className="grid size-7 place-items-center rounded-full border border-cyan-300/20 text-[8px] text-[#147dff]">{recipient.initials}</span><span><b>{recipient.name}</b><br /><span className="text-[7.5px] text-slate-500">{recipient.email}</span></span></div></td>
+              <td className="py-2"><span className="rounded border border-cyan-300/12 bg-[#061421] px-2 py-0.5 text-slate-300">{recipient.type}</span></td>
+              <td className="py-2"><div className="flex items-center gap-2">{recipient.channelIcons.map((icon) => <span className="text-[13px] leading-none text-[#147dff]" key={icon}>{icon}</span>)}</div></td>
+              <td className="py-2 text-slate-300">{recipient.schedule}</td>
+              <td className="py-2"><div className="flex items-center gap-2">{recipient.severityColors.map((color) => <span className="block size-2 rounded-full" key={color} style={{ background: color }} />)}</div></td>
+              <td className="py-2 text-[#05ff5e]">{recipient.escalation}</td>
+              <td className="py-2"><SetNotifyToggle enabled={recipient.status === "Enabled"} /></td>
               <td className="py-2"><div className="flex gap-2"><button className="grid size-6 place-items-center rounded border border-cyan-300/12 bg-[#061421]" type="button">✎</button><button className="grid size-6 place-items-center rounded border border-cyan-300/12 bg-[#061421]" type="button">🗑</button></div></td>
             </tr>
           ))}
         </tbody>
       </table>
-      <div className="mt-2 text-[9px] text-slate-400">Showing 1 to 4 of 4 recipients</div>
+      <div className="mt-2 text-[9px] text-slate-400">Showing 1 to {data.recipients.length} of {data.recipients.length} recipients</div>
     </div>
   );
 }
 
-function SetNotifyEscalation() {
+function SetNotifyEscalation({ data }: { data: SetNotificationsData }) {
+  const byLabel = new Map(data.escalationRows.map((row) => [row.label, row.value]));
+
   return (
     <div className="grid grid-cols-[1fr_1.45fr_1fr_1fr_1.25fr] gap-4 text-[10px]">
-      <SetNotifyField label="Escalation Delay" value="15 Minutes ⌄" />
-      <SetNotifyField label="Escalate To" value="On-Call Engineer (oncall@flex.com) ⌄" />
-      <SetNotifyField label="Repeat Every" value="30 Minutes ⌄" />
-      <SetNotifyField label="Max Escalations" value="3 Times ⌄" />
+      <SetNotifyField label="Escalation Delay" value={byLabel.get("Escalation Delay") ?? "No Data"} />
+      <SetNotifyField label="Escalate To" value={byLabel.get("Escalate To") ?? "No Data"} />
+      <SetNotifyField label="Repeat Every" value={byLabel.get("Repeat Every") ?? "No Data"} />
+      <SetNotifyField label="Max Escalations" value={byLabel.get("Max Escalations") ?? "No Data"} />
       <div>
-        <div className="flex items-start justify-between gap-3 text-slate-400"><span>Auto Resolve When Condition Clears</span><SetNotifyToggle enabled /></div>
+        <div className="flex items-start justify-between gap-3 text-slate-400"><span>Auto Resolve When Condition Clears</span><SetNotifyToggle enabled={byLabel.get("Auto Resolve When Condition Clears") === "Enabled"} /></div>
         <p className="mt-3 text-[9px] leading-snug text-slate-400">Automatically notify when condition returns to normal.</p>
       </div>
     </div>
@@ -753,20 +745,12 @@ function SetNotifyField({ label, value }: { label: string; value: string }) {
   return <label className="block text-slate-400">{label}<div className="mt-2 rounded border border-slate-700 bg-[#07131f] px-3 py-2.5 text-slate-200">{value}</div></label>;
 }
 
-function SetNotifyRuleSummary() {
-  return <div className="text-[9px]"><div className="mb-3 flex items-center gap-3"><span className="text-[22px] text-yellow-500">⌘</span><span className="text-[12px] font-semibold">Peak kW Demand Alert</span></div>{[["Category", "Utility"], ["Parameter", "Peak kW Demand (15 Min)"], ["Condition", "Greater Than"], ["Threshold", "2,500 kW"], ["For How Long", "15 Minutes"], ["Severity", "● Warning"]].map(([label, value]) => <div className="mb-1.5 flex justify-between" key={label}><span className="text-slate-400">{label}</span><span>{value}</span></div>)}</div>;
+function SetNotifyRuleSummary({ data }: { data: SetNotificationsData }) {
+  return <div className="text-[9px]"><div className="mb-3 flex items-center gap-3"><span className="text-[22px] text-yellow-500">⌘</span><span className="text-[12px] font-semibold">{data.ruleName}</span></div>{data.ruleSummary.map((row) => <div className="mb-1.5 flex justify-between" key={row.label}><span className="text-slate-400">{row.label}</span><span>{row.value}</span></div>)}</div>;
 }
 
-function SetNotifyPreview() {
-  const items = [
-    ["✉", "#147dff", "Email notification sent immediately"],
-    ["💬", "#05ff5e", "SMS text message sent immediately"],
-    ["🔔", "#a855f7", "Push notification sent immediately"],
-    ["☎", "#f97316", "Escalate to On-Call Engineer after 15 minutes if unacknowledged"],
-    ["↻", "#06b6d4", "Auto notification when condition clears"],
-  ] as const;
-
-  return <div className="space-y-2 text-[9px]">{items.map(([icon, color, item], index) => <div key={item}><div className="grid grid-cols-[30px_1fr] items-center gap-3"><span className="grid size-7 place-items-center rounded-full border text-[13px]" style={{ borderColor: color, color }}>{icon}</span><span>{item}</span></div>{index < items.length - 1 ? <div className="ml-3.5 mt-0.5 text-slate-500">↓</div> : null}</div>)}</div>;
+function SetNotifyPreview({ data }: { data: SetNotificationsData }) {
+  return <div className="space-y-2 text-[9px]">{data.previewItems.map((item, index) => <div key={item.text}><div className="grid grid-cols-[30px_1fr] items-center gap-3"><span className="grid size-7 place-items-center rounded-full border text-[13px]" style={{ borderColor: item.color, color: item.color }}>{item.icon}</span><span>{item.text}</span></div>{index < data.previewItems.length - 1 ? <div className="ml-3.5 mt-0.5 text-slate-500">↓</div> : null}</div>)}</div>;
 }
 
 function SetNotifyToggle({ enabled }: { enabled: boolean }) {

@@ -5,4 +5,6 @@ public interface IAlarmEventsDataService
     Task<AlarmDetailData> GetOchsnerAlarmDetailAsync(CancellationToken cancellationToken = default);
 
     Task<AlarmEventsData> GetOchsnerAlarmEventsAsync(CancellationToken cancellationToken = default);
+
+    Task<SetNotificationsData> GetOchsnerSetNotificationsAsync(CancellationToken cancellationToken = default);
 }

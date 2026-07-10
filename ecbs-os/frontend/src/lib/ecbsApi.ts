@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { AlarmDetailData } from "@/lib/alarmDetailData";
+import type { SetNotificationsData } from "@/lib/setNotificationsData";
 import type { AlertsEventsData } from "@/lib/trackingDashboardData";
 
 const apiBaseUrl = process.env.ECBS_API_BASE_URL ?? "http://localhost:5090";
@@ -34,6 +35,22 @@ export async function getAlarmEventsDataFromApi(): Promise<AlertsEventsData> {
     return (await response.json()) as AlertsEventsData;
   } catch {
     return noAlarmEventsData("No applicable Alarm Events data was found because ECBS.Api is not reachable.");
+  }
+}
+
+export async function getSetNotificationsDataFromApi(): Promise<SetNotificationsData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/alerts/set-notifications`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noSetNotificationsData(`No applicable Set Notifications data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as SetNotificationsData;
+  } catch {
+    return noSetNotificationsData("No applicable Set Notifications data was found because ECBS.Api is not reachable.");
   }
 }
 
@@ -97,5 +114,37 @@ function noAlarmEventsData(message: string): AlertsEventsData {
     totalAlerts: 0,
     trend: [],
     updatedAt: "No Data",
+  };
+}
+
+function noSetNotificationsData(message: string): SetNotificationsData {
+  return {
+    channels: [
+      { color: "#147dff", enabled: false, icon: "✉", text: "Send email notifications", title: "Email" },
+      { color: "#05ff5e", enabled: false, icon: "💬", text: "Send text messages", title: "SMS Text" },
+      { color: "#a855f7", enabled: false, icon: "🔔", text: "In-app and mobile push alerts", title: "Push Notification" },
+      { color: "#f97316", enabled: false, icon: "☎", text: "Automated voice call", title: "Voice Call" },
+      { color: "#06b6d4", enabled: false, icon: "🔗", text: "Send to external endpoint", title: "Webhook" },
+    ],
+    escalationRows: [
+      { label: "Escalation Delay", value: "No Data" },
+      { label: "Escalate To", value: "No Data" },
+      { label: "Repeat Every", value: "No Data" },
+      { label: "Max Escalations", value: "No Data" },
+      { label: "Auto Resolve When Condition Clears", value: "No Data" },
+    ],
+    message,
+    previewItems: [{ color: "#f59e0b", icon: "ⓘ", text: message }],
+    recipients: [],
+    ruleName: "No Data",
+    ruleSummary: [
+      { label: "Category", value: "No Data" },
+      { label: "Parameter", value: "No Data" },
+      { label: "Condition", value: "No Data" },
+      { label: "Threshold", value: "No Data" },
+      { label: "For How Long", value: "No Data" },
+      { label: "Severity", value: "● No Data" },
+    ],
+    state: "no-data",
   };
 }
