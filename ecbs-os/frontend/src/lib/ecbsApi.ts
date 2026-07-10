@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { AlarmDetailData } from "@/lib/alarmDetailData";
+import type { CapacityRecoveryBreakdownData } from "@/lib/capacityRecoveryBreakdownData";
 import type { ConfigureAlertRuleData } from "@/lib/configureAlertRuleData";
 import type { SetNotificationsData } from "@/lib/setNotificationsData";
 import type { AlertsEventsData, CapacityIntelligenceData } from "@/lib/trackingDashboardData";
@@ -20,6 +21,22 @@ export async function getCapacityIntelligenceDataFromApi(): Promise<CapacityInte
     return (await response.json()) as CapacityIntelligenceData;
   } catch {
     return noCapacityIntelligenceData("No applicable Capacity Intelligence data was found because ECBS.Api is not reachable.");
+  }
+}
+
+export async function getCapacityRecoveryBreakdownDataFromApi(): Promise<CapacityRecoveryBreakdownData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/capacity-intelligence/recovery-breakdown`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noCapacityRecoveryBreakdownData(`No applicable Capacity Recovery Breakdown data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as CapacityRecoveryBreakdownData;
+  } catch {
+    return noCapacityRecoveryBreakdownData("No applicable Capacity Recovery Breakdown data was found because ECBS.Api is not reachable.");
   }
 }
 
@@ -170,6 +187,40 @@ function noConfigureAlertRuleData(message: string): ConfigureAlertRuleData {
       { label: "Duration", value: "No Data" },
       { label: "Logical Operator", value: "No Data" },
     ],
+  };
+}
+
+function noCapacityRecoveryBreakdownData(message: string): CapacityRecoveryBreakdownData {
+  return {
+    afterOverCapacity: "No Data",
+    afterPeak: "No Data",
+    beforeOverCapacity: "No Data",
+    beforePeak: "No Data",
+    contributionRows: [],
+    eventRows: [],
+    kpis: [
+      { color: "#64748b", detail: "No Data", icon: "R", label: "Total Capacity Recovered", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "!", label: "Before ECBS (Peak)", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "✓", label: "After ECBS (Peak)", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "%", label: "Recovery Percentage", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "O", label: "Over-Capacity Eliminated", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "S", label: "Sustained Recovery", value: "No Data" },
+    ],
+    message,
+    recoveryByAssetType: [],
+    recoveryPercent: "No Data",
+    state: "empty",
+    summaryRows: [
+      { label: "Maximum Capacity Recovered", value: "No Data" },
+      { label: "Average Daily Recovery", value: "No Data" },
+      { label: "Recovery Consistency", value: "No Data" },
+      { label: "Peak Demand Reduction", value: "No Data" },
+      { label: "Overload Conditions Removed", value: "No Data" },
+      { label: "System Efficiency Improvement", value: "No Data" },
+    ],
+    timePeriodRows: [{ avgKva: "No Data", consistency: "No Data", maxKva: "No Data", timePeriod: "No Data" }],
+    trend: [],
+    updatedAt: "No Data",
   };
 }
 

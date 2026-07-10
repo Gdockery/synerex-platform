@@ -94,13 +94,88 @@ public sealed class TrackingCapacityIntelligenceDataService(
                     new("Thermal Headroom", ScoreThermalHeadroom(utilization)),
                 ],
                 Trend: trend,
-            UpdatedAt: FormatTimestamp(capacity.BucketTs ?? DateTimeOffset.UtcNow),
+                UpdatedAt: FormatTimestamp(capacity.BucketTs ?? DateTimeOffset.UtcNow),
                 UtilizationPct: utilization);
         }
         catch (Exception exception)
         {
             logger.LogWarning(exception, "Failed to load Ochsner Capacity Intelligence data from tracking.");
             return EmptyCapacityIntelligence("Tracking DB data is unavailable for Capacity Intelligence.");
+        }
+    }
+
+    public async Task<CapacityRecoveryBreakdownData> GetOchsnerRecoveryBreakdownAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(GetTrackingConnectionString());
+            await connection.OpenAsync(cancellationToken);
+
+            var capacity = await ReadLatestCapacityAsync(connection, cancellationToken);
+            if (capacity is null)
+            {
+                return EmptyRecoveryBreakdown("No Capacity Intelligence rollup was found for Ochsner project 13.");
+            }
+
+            var trendRows = await ReadCapacityTrendAsync(connection, cancellationToken);
+            var assets = await ReadAssetsAsync(connection, cancellationToken);
+            var used = capacity.UsedCapacity;
+            var hidden = capacity.HiddenCapacity;
+            var installed = capacity.InstalledCapacity;
+            var recovered = capacity.RecoverableCapacity;
+            var beforePeak = used + hidden;
+            var afterPeak = used;
+            var recoveryPct = installed > 0 ? recovered / installed * 100 : capacity.RecoverablePct;
+            var beforeOver = Math.Max(0, beforePeak - installed);
+            var afterOver = Math.Max(0, afterPeak - installed);
+            var overEliminated = Math.Max(0, beforeOver - afterOver);
+            var eliminatedPct = beforeOver > 0 ? overEliminated / beforeOver * 100 : recovered > 0 ? 100 : 0;
+            var consistency = RecoveryConsistency(trendRows);
+            var maxRecovered = trendRows.Count > 0 ? trendRows.Max(row => row.RecoverableCapacity) : recovered;
+            var avgRecovered = trendRows.Count > 0 ? trendRows.Average(row => row.RecoverableCapacity) : recovered;
+            var efficiency = beforePeak > 0 ? recovered / beforePeak * 100 : 0;
+            var contributionRows = BuildRecoveryContributionRows(assets, installed, recovered);
+            var trend = BuildRecoveryTrend(trendRows);
+
+            return new CapacityRecoveryBreakdownData(
+                AfterOverCapacity: $"{FormatNumber(afterOver, 0)} kVA",
+                AfterPeak: $"{FormatNumber(afterPeak, 0)} kVA",
+                BeforeOverCapacity: $"{FormatNumber(beforeOver, 0)} kVA",
+                BeforePeak: $"{FormatNumber(beforePeak, 0)} kVA",
+                ContributionRows: contributionRows,
+                EventRows: Array.Empty<CapacityRecoveryEventRow>(),
+                Kpis:
+                [
+                    new("#05ff5e", $"{FormatNumber(recoveryPct, 0)}% of connected capacity", "R", "Total Capacity Recovered", $"{FormatNumber(recovered, 0)} kVA"),
+                    new("#ef4444", $"{FormatNumber(installed > 0 ? beforePeak / installed * 100 : 0, 0)}% utilized", "!", "Before ECBS (Peak)", $"{FormatNumber(beforePeak, 0)} kVA"),
+                    new("#84cc16", $"{FormatNumber(installed > 0 ? afterPeak / installed * 100 : 0, 0)}% utilized", "✓", "After ECBS (Peak)", $"{FormatNumber(afterPeak, 0)} kVA"),
+                    new("#147dff", "Capacity recovered", "%", "Recovery Percentage", $"{FormatNumber(recoveryPct, 1)}%"),
+                    new("#06b6d4", "Overload removed", "O", "Over-Capacity Eliminated", $"{FormatNumber(overEliminated, 0)} kVA"),
+                    new("#05ff5e", "Consistency from recent rollups", "S", "Sustained Recovery", $"{FormatNumber(consistency, 1)}%"),
+                ],
+                Message: "",
+                RecoveryByAssetType: contributionRows
+                    .Select(row => new CapacityRecoveryDonutRow(row.Color, row.Label, $"{row.Value} kVA ({row.Percent})"))
+                    .ToList(),
+                RecoveryPercent: $"{FormatNumber(eliminatedPct, 0)}%",
+                SummaryRows:
+                [
+                    new("Maximum Capacity Recovered", $"{FormatNumber(maxRecovered, 0)} kVA"),
+                    new("Average Daily Recovery", $"{FormatNumber(avgRecovered, 0)} kVA"),
+                    new("Recovery Consistency", $"{FormatNumber(consistency, 1)}%"),
+                    new("Peak Demand Reduction", $"{FormatNumber(recovered, 0)} kVA"),
+                    new("Overload Conditions Removed", $"{FormatNumber(eliminatedPct, 0)}%"),
+                    new("System Efficiency Improvement", $"{FormatNumber(efficiency, 1)}%"),
+                ],
+                State: "data",
+                TimePeriodRows: BuildRecoveryTimeRows(trendRows),
+                Trend: trend,
+                UpdatedAt: FormatTimestamp(capacity.BucketTs ?? DateTimeOffset.UtcNow));
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Failed to load Ochsner Capacity Recovery Breakdown data from tracking.");
+            return EmptyRecoveryBreakdown("Tracking DB data is unavailable for Capacity Recovery Breakdown.");
         }
     }
 
@@ -384,6 +459,85 @@ public sealed class TrackingCapacityIntelligenceDataService(
         }).ToList();
     }
 
+    private static IReadOnlyList<CapacityRecoveryTrendPoint> BuildRecoveryTrend(IReadOnlyList<CapacitySummary> trendRows)
+    {
+        return trendRows.Reverse().Select(row => new CapacityRecoveryTrendPoint(
+            BaselineUsed: row.UsedCapacity + row.HiddenCapacity,
+            Label: row.BucketTs.HasValue ? FormatShortTime(row.BucketTs.Value) : "",
+            Recovered: row.RecoverableCapacity,
+            Used: row.UsedCapacity)).ToList();
+    }
+
+    private static IReadOnlyList<CapacityRecoveryBarRow> BuildRecoveryContributionRows(
+        IReadOnlyList<CapacityAssetSource> assets,
+        double installed,
+        double recovered)
+    {
+        var colors = new[] { "#65a30d", "#84cc16", "#147dff", "#a855f7", "#22c55e", "#22d3ee" };
+        var grouped = assets
+            .Select(asset => new { Type = TitleCase(asset.AssetType), Connected = AssetConnectedKva(asset) })
+            .Where(entry => entry.Connected > 0)
+            .GroupBy(entry => entry.Type)
+            .Select(group => new { Label = group.Key, Connected = group.Sum(entry => entry.Connected) })
+            .OrderByDescending(entry => entry.Connected)
+            .ToList();
+        var totalConnected = grouped.Sum(entry => entry.Connected);
+        if (totalConnected <= 0)
+        {
+            totalConnected = installed > 0 ? installed : 1;
+        }
+
+        return grouped.Select((entry, index) =>
+        {
+            var value = recovered * entry.Connected / totalConnected;
+            var percent = recovered > 0 ? value / recovered * 100 : 0;
+            return new CapacityRecoveryBarRow(
+                Color: colors[Math.Min(index, colors.Length - 1)],
+                Label: entry.Label,
+                Percent: $"{FormatNumber(percent, 1)}%",
+                Value: FormatNumber(value, 0));
+        }).ToList();
+    }
+
+    private static IReadOnlyList<CapacityRecoveryTableRow> BuildRecoveryTimeRows(IReadOnlyList<CapacitySummary> trendRows)
+    {
+        if (trendRows.Count == 0)
+        {
+            return
+            [
+                new("No Data", "No Data", "No Data", "No Data"),
+            ];
+        }
+
+        return trendRows
+            .OrderBy(row => row.BucketTs)
+            .TakeLast(6)
+            .Select(row => new CapacityRecoveryTableRow(
+                AvgKva: FormatNumber(row.RecoverableCapacity, 0),
+                Consistency: $"{FormatNumber(RecoveryConsistency(new[] { row }), 1)}%",
+                MaxKva: FormatNumber(row.RecoverableCapacity, 0),
+                TimePeriod: row.BucketTs.HasValue ? FormatShortTime(row.BucketTs.Value) : "No Data"))
+            .ToList();
+    }
+
+    private static double RecoveryConsistency(IReadOnlyList<CapacitySummary> trendRows)
+    {
+        var values = trendRows.Select(row => row.RecoverableCapacity).Where(value => value > 0).ToList();
+        if (values.Count == 0)
+        {
+            return 0;
+        }
+
+        var average = values.Average();
+        if (average <= 0)
+        {
+            return 0;
+        }
+
+        var averageDeviation = values.Average(value => Math.Abs(value - average));
+        return ClampScore(100 - averageDeviation / average * 100);
+    }
+
     private static double AssetConnectedKva(CapacityAssetSource asset)
     {
         if (asset.KvaRating > 0)
@@ -452,6 +606,45 @@ public sealed class TrackingCapacityIntelligenceDataService(
             Trend: Array.Empty<CapacityTrendPoint>(),
             UpdatedAt: "No Data",
             UtilizationPct: 0);
+    }
+
+    private static CapacityRecoveryBreakdownData EmptyRecoveryBreakdown(string message)
+    {
+        return new CapacityRecoveryBreakdownData(
+            AfterOverCapacity: "No Data",
+            AfterPeak: "No Data",
+            BeforeOverCapacity: "No Data",
+            BeforePeak: "No Data",
+            ContributionRows: Array.Empty<CapacityRecoveryBarRow>(),
+            EventRows: Array.Empty<CapacityRecoveryEventRow>(),
+            Kpis:
+            [
+                new("#64748b", "No Data", "R", "Total Capacity Recovered", "No Data"),
+                new("#64748b", "No Data", "!", "Before ECBS (Peak)", "No Data"),
+                new("#64748b", "No Data", "✓", "After ECBS (Peak)", "No Data"),
+                new("#64748b", "No Data", "%", "Recovery Percentage", "No Data"),
+                new("#64748b", "No Data", "O", "Over-Capacity Eliminated", "No Data"),
+                new("#64748b", "No Data", "S", "Sustained Recovery", "No Data"),
+            ],
+            Message: message,
+            RecoveryByAssetType: Array.Empty<CapacityRecoveryDonutRow>(),
+            RecoveryPercent: "No Data",
+            SummaryRows:
+            [
+                new("Maximum Capacity Recovered", "No Data"),
+                new("Average Daily Recovery", "No Data"),
+                new("Recovery Consistency", "No Data"),
+                new("Peak Demand Reduction", "No Data"),
+                new("Overload Conditions Removed", "No Data"),
+                new("System Efficiency Improvement", "No Data"),
+            ],
+            State: "empty",
+            TimePeriodRows:
+            [
+                new("No Data", "No Data", "No Data", "No Data"),
+            ],
+            Trend: Array.Empty<CapacityRecoveryTrendPoint>(),
+            UpdatedAt: "No Data");
     }
 
     private static int ScoreLoadBalance(double utilization)

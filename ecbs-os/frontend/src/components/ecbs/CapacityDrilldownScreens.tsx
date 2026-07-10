@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { CapacityRecoveryBreakdownData } from "@/lib/capacityRecoveryBreakdownData";
 import { DashboardFooter, DashboardHeader, DashboardKpiCard, DashboardPanel, type DashboardKpi } from "./DashboardCards";
 import { EcbsAppShell } from "./EcbsAppShell";
 
@@ -180,8 +181,9 @@ const configs: Record<CapacityDrilldownVariant, CapacityScreenConfig> = {
   },
 };
 
-export function CapacityDrilldownScreen({ variant }: { variant: CapacityDrilldownVariant }) {
+export function CapacityDrilldownScreen({ recoveryData, variant }: { recoveryData?: CapacityRecoveryBreakdownData; variant: CapacityDrilldownVariant }) {
   const config = configs[variant];
+  const kpis = variant === "recovery" && recoveryData ? recoveryData.kpis : config.kpis;
 
   if (variant === "simulate") return <SimulateCapacityExpansionShell />;
   if (variant === "opportunities") return <OptimizationOpportunitiesShell />;
@@ -198,7 +200,7 @@ export function CapacityDrilldownScreen({ variant }: { variant: CapacityDrilldow
   return (
     <EcbsAppShell activeHref="/enterprise/capacity-intelligence">
       <div className={isWideDrilldown ? "flex h-screen min-h-0 flex-col overflow-hidden px-4 py-3" : "flex h-full min-h-[682px] flex-col overflow-hidden px-3 py-2"}>
-        <DashboardHeader dateRange="May 12 - May 18, 2025" subtitle={config.subtitle} title={config.title} variant="enterprise" />
+        <DashboardHeader dateRange={isRecovery && recoveryData ? `Tracking DB • ${recoveryData.updatedAt}` : "May 12 - May 18, 2025"} subtitle={config.subtitle} title={config.title} variant="enterprise" />
         <div className={isWideDrilldown ? "mt-2 flex h-[32px] shrink-0 items-center justify-between text-[10px]" : "mt-1 flex items-center justify-between text-[9px]"}>
           <Breadcrumb items={config.breadcrumb} />
           <div className="flex gap-2">
@@ -209,12 +211,12 @@ export function CapacityDrilldownScreen({ variant }: { variant: CapacityDrilldow
         </div>
 
         <section className={variant === "recovery" ? "mt-2 grid h-[96px] shrink-0 grid-cols-6 gap-3" : variant === "health" ? "mt-2 grid h-[120px] shrink-0 grid-cols-[1.45fr_repeat(5,1fr)] gap-3" : variant === "trend" || variant === "asset" || variant === "capex" ? "mt-2 grid h-[86px] shrink-0 grid-cols-6 gap-3" : variant === "carbon" ? "mt-2 grid h-[70px] grid-cols-5 gap-2" : "mt-2 grid h-[70px] grid-cols-6 gap-2"}>
-          {config.kpis.map((kpi, index) => (
+          {kpis.map((kpi, index) => (
             variant === "recovery" ? <RecoveryKpiCard key={kpi.label} kpi={kpi} /> : variant === "capex" ? <CapexKpiCard key={kpi.label} kpi={kpi} /> : variant === "asset" ? <AssetKpiCard key={kpi.label} kpi={kpi} /> : variant === "equivalent" ? <EquivalentKpiCard key={kpi.label} kpi={kpi} /> : variant === "insight" ? <InsightKpiCard key={kpi.label} kpi={kpi} /> : variant === "carbon" ? <CarbonKpiCard key={kpi.label} kpi={kpi} /> : variant === "health" ? <HealthKpiCard index={index} key={kpi.label} kpi={kpi} /> : variant === "trend" ? <TrendKpiCard key={kpi.label} kpi={kpi} /> : <DashboardKpiCard key={kpi.label} kpi={kpi} variant="enterprise" />
           ))}
         </section>
 
-        {variant === "recovery" ? <RecoveryBreakdown /> : null}
+        {variant === "recovery" && recoveryData ? <RecoveryBreakdown data={recoveryData} /> : null}
         {variant === "health" ? <HealthDiagnostics /> : null}
         {variant === "trend" ? <TrendDetail /> : null}
         {variant === "asset" ? <AssetDetailTree /> : null}
@@ -223,7 +225,7 @@ export function CapacityDrilldownScreen({ variant }: { variant: CapacityDrilldow
         {variant === "insight" ? <IntelligenceSummary /> : null}
         {variant === "carbon" ? <CarbonImpact /> : null}
 
-        {isRecovery ? <RecoveryFooter /> : isHealth ? <HealthFooter /> : isCapex ? <CapexFooter /> : isTrend || isAsset ? <TrendFooter /> : <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />}
+        {isRecovery ? <RecoveryFooter data={recoveryData} /> : isHealth ? <HealthFooter /> : isCapex ? <CapexFooter /> : isTrend || isAsset ? <TrendFooter /> : <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />}
       </div>
     </EcbsAppShell>
   );
@@ -319,60 +321,71 @@ function parseFinancialPoints(points: string) {
   return points.split(" ").map((point) => point.split(",").map(Number) as [number, number]);
 }
 
-function RecoveryBreakdown() {
+function RecoveryBreakdown({ data }: { data: CapacityRecoveryBreakdownData }) {
+  const chartMax = Math.max(
+    ...data.trend.flatMap((point) => [point.baselineUsed, point.used, point.recovered]),
+    1,
+  );
+  const contributionRows = data.contributionRows.map((row) => [row.label, row.value, row.percent, row.color] as [string, string, string, string]);
+  const assetTypeRows = data.recoveryByAssetType.map((row) => [row.label, row.value, row.color] as [string, string, string]);
+  const timeRows = data.timePeriodRows.map((row) => [row.timePeriod, row.avgKva, row.maxKva, row.consistency]);
+  const summaryRows = data.summaryRows.map((row) => [row.label, row.value] as [string, string]);
+
   return (
     <>
       <section className="mt-3 grid h-[250px] shrink-0 grid-cols-[1.65fr_0.82fr_1.05fr] gap-3">
         <DashboardPanel title="Capacity Recovery Over Time (Last 7 Days)" variant="enterprise">
-          <LineChart
-            legend={["Recovered Capacity (kVA)", "Utilized Capacity After Recovery", "Baseline Utilized Capacity"]}
-            maxLabel="3,250 kVA"
-            points={[
-              "0,120 40,108 80,96 120,116 160,92 200,108 240,82 280,102 320,88 360,110 400,94 440,106 480,98",
-              "0,64 40,58 80,43 120,70 160,52 200,61 240,46 280,62 320,50 360,61 400,48 440,56 480,54",
-              "0,34 40,34 80,34 120,34 160,34 200,34 240,34 280,34 320,34 360,34 400,34 440,34 480,34",
-            ]}
-            showDots
-            wide
-          />
+          {data.trend.length ? (
+            <LineChart
+              legend={["Recovered Capacity (kVA)", "Utilized Capacity After Recovery", "Baseline Utilized Capacity"]}
+              maxLabel={`${formatRecoveryNumber(chartMax)} kVA`}
+              points={[
+                recoveryPoints(data.trend.map((point) => point.recovered), chartMax),
+                recoveryPoints(data.trend.map((point) => point.used), chartMax),
+                recoveryPoints(data.trend.map((point) => point.baselineUsed), chartMax),
+              ]}
+              showDots
+              wide
+            />
+          ) : <RecoveryNoData message={data.message} />}
         </DashboardPanel>
         <DashboardPanel title="Before vs After ECBS" variant="enterprise">
-          <BeforeAfterBars />
+          <BeforeAfterBars data={data} />
         </DashboardPanel>
         <DashboardPanel title="Recovery Contribution By System" variant="enterprise">
-          <BarRows rows={[["HVAC Systems", "150", "35.3%", "#65a30d"], ["Motors", "120", "28.2%", "#84cc16"], ["Production Lines", "100", "23.5%", "#65a30d"], ["Server / IT Loads", "35", "8.2%", "#84cc16"], ["Other Loads", "20", "4.7%", "#22c55e"]]} />
+          {contributionRows.length ? <BarRows rows={contributionRows} /> : <RecoveryNoData message="No asset-type recovery contribution source was found in tracking." />}
         </DashboardPanel>
       </section>
       <section className="mt-3 grid h-[205px] shrink-0 grid-cols-[1fr_0.95fr_1.2fr] gap-3">
         <DashboardPanel title="Recovery By Asset Type" variant="enterprise">
-          <DonutWithLegend value="425" subtitle="kVA Recovered" rows={[["Transformers", "145 kVA (34.1%)", "#147dff"], ["Switchgear", "115 kVA (27.1%)", "#65a30d"], ["Feeders", "85 kVA (20.0%)", "#f59e0b"], ["Panels", "60 kVA (14.1%)", "#a855f7"], ["Other", "20 kVA (4.7%)", "#22d3ee"]]} />
+          {assetTypeRows.length ? <DonutWithLegend value={data.kpis[0]?.value.replace(" kVA", "") ?? "No Data"} subtitle="kVA Recovered" rows={assetTypeRows} /> : <RecoveryNoData message="No asset-type recovery rows were found in tracking." />}
         </DashboardPanel>
         <DashboardPanel title="Over-Capacity Elimination" variant="enterprise">
           <div className="grid h-full grid-rows-[78px_1fr] gap-3">
             <div className="grid grid-cols-[1fr_26px_1fr] items-center gap-2">
-            <StatusTile label="Over-capacity before ECBS" value="225 kVA" tone="red" />
+            <StatusTile label="Over-capacity before ECBS" value={data.beforeOverCapacity} tone="red" />
               <div className="text-center text-[18px] text-slate-300">→</div>
-            <StatusTile label="Over-capacity after ECBS" value="0 kVA" tone="green" />
+            <StatusTile label="Over-capacity after ECBS" value={data.afterOverCapacity} tone="green" />
             </div>
             <div className="grid grid-cols-[38px_1fr] items-center gap-3 rounded border border-[#05ff5e]/20 bg-[#05ff5e]/5 p-3 text-[11px] leading-tight text-slate-300">
               <span className="grid size-8 place-items-center rounded-full border border-[#84cc16] text-[#84cc16]"><RecoveryIcon kind="check" /></span>
-              <span><b className="text-[16px] text-[#84cc16]">100%</b> of over-capacity eliminated<br />ECBS optimizations have fully eliminated over-capacity conditions across all assets.</span>
+              <span><b className="text-[16px] text-[#84cc16]">{data.recoveryPercent}</b> of over-capacity eliminated<br />Calculated from tracking capacity rollups for Ochsner project 13.</span>
             </div>
           </div>
         </DashboardPanel>
         <DashboardPanel title="Recovery By Time Period" variant="enterprise">
           <div className="h-full overflow-y-auto pr-1">
-            <SimpleTable headers={["Time Period", "Avg kVA", "Max kVA", "Consistency"]} rows={[["12 AM - 4 AM", "405", "455", "97.8%"], ["4 AM - 8 AM", "410", "460", "98.1%"], ["8 AM - 12 PM", "430", "480", "98.5%"], ["12 PM - 4 PM", "445", "495", "98.2%"], ["4 PM - 8 PM", "435", "485", "98.0%"], ["Daily Avg", "425", "475", "97.9%"]]} />
+            <SimpleTable headers={["Time Period", "Avg kVA", "Max kVA", "Consistency"]} rows={timeRows} />
           </div>
         </DashboardPanel>
       </section>
       <section className="mt-3 grid h-[170px] shrink-0 grid-cols-[1.2fr_1fr] gap-3">
         <DashboardPanel title="Recovery Events Log (Last 7 Days)" variant="enterprise">
-          <RecoveryEventsLog />
+          <RecoveryEventsLog data={data} />
         </DashboardPanel>
         <DashboardPanel title="Recovery Impact Summary" variant="enterprise">
           <div className="h-full overflow-y-auto pr-1">
-            <MetricGrid rows={[["Maximum Capacity Recovered", "475 kVA"], ["Average Daily Recovery", "425 kVA"], ["Recovery Consistency", "97.9%"], ["Peak Demand Reduction", "425 kVA"], ["Overload Conditions Removed", "100%"], ["System Efficiency Improvement", "11.3%"]]} />
+            <MetricGrid rows={summaryRows} />
           </div>
         </DashboardPanel>
       </section>
@@ -380,7 +393,7 @@ function RecoveryBreakdown() {
   );
 }
 
-function RecoveryFooter() {
+function RecoveryFooter({ data }: { data?: CapacityRecoveryBreakdownData }) {
   return (
     <footer className="mt-auto flex h-[31px] shrink-0 items-center justify-between rounded border border-cyan-300/10 bg-[#061421]/80 px-3 text-[9px] text-slate-400">
       <span className="flex items-center gap-2">
@@ -389,7 +402,7 @@ function RecoveryFooter() {
       </span>
       <span className="flex items-center gap-2 text-slate-300">
         <span className="size-2 rounded-full bg-[#05ff5e]" />
-        All Systems Operational
+        {data?.state === "data" ? "Recovery Data Loaded" : "No Applicable Recovery Data"}
       </span>
     </footer>
   );
@@ -2605,44 +2618,69 @@ function densifyChartPoints(points: string, factor: number) {
   return dense;
 }
 
-function BeforeAfterBars() {
+function BeforeAfterBars({ data }: { data: CapacityRecoveryBreakdownData }) {
+  const before = parseRecoveryValue(data.beforePeak);
+  const after = parseRecoveryValue(data.afterPeak);
+  const recovered = Math.max(0, before - after);
+  const max = Math.max(before, after, 1);
+  const beforeHeight = Math.max(12, before / max * 148);
+  const afterHeight = Math.max(12, after / max * 148);
+
   return (
     <div className="grid h-full grid-cols-[1fr_82px_1fr] items-end text-center text-[10px]">
-      <div><div className="mx-auto h-[148px] w-[74px] bg-gradient-to-t from-slate-700 0 62%, #ef4444 62% 100%" /><div className="mt-2">Before ECBS</div><b>2,863 kVA</b></div>
-      <div className="pb-[92px] text-[10px] text-[#05ff5e]">425 kVA<br />Recovered →</div>
-      <div><div className="mx-auto h-[124px] w-[74px] bg-gradient-to-t from-slate-700 0 75%, #05ff5e 75% 100%" /><div className="mt-2">After ECBS</div><b>2,438 kVA</b></div>
+      <div><div className="mx-auto w-[74px] bg-gradient-to-t from-slate-700 0 62%, #ef4444 62% 100%" style={{ height: beforeHeight }} /><div className="mt-2">Before ECBS</div><b>{data.beforePeak}</b></div>
+      <div className="pb-[92px] text-[10px] text-[#05ff5e]">{formatRecoveryNumber(recovered)} kVA<br />Recovered →</div>
+      <div><div className="mx-auto w-[74px] bg-gradient-to-t from-slate-700 0 75%, #05ff5e 75% 100%" style={{ height: afterHeight }} /><div className="mt-2">After ECBS</div><b>{data.afterPeak}</b></div>
     </div>
   );
 }
 
-function RecoveryEventsLog() {
-  const rows = [
-    ["May 18, 9:45 AM", "Load Optimization", "HVAC Systems", "42", "Reduced simultaneous load", "#05ff5e", "↔"],
-    ["May 17, 3:20 PM", "Power Factor Correction", "Main Switchgear", "38", "Improved PF", "#84cc16", "%"],
-    ["May 16, 11:05 AM", "Load Shedding (Auto)", "Production Line 2", "55", "Shifted non-critical load", "#147dff", "↓"],
-    ["May 15, 4:35 PM", "ECBS Optimization", "Motors", "67", "Motor sequencing optimized", "#a855f7", "⚙"],
-  ] as const;
-
+function RecoveryEventsLog({ data }: { data: CapacityRecoveryBreakdownData }) {
   return (
     <div className="h-full overflow-y-auto pr-1 text-[9px]">
       <div className="grid grid-cols-[112px_160px_112px_72px_1fr] pb-1.5 text-slate-500">
         {["Date / Time", "Event Type", "System", "Recovered", "Impact"].map((header) => <span key={header}>{header}</span>)}
       </div>
-      {rows.map(([date, event, system, recovered, impact, color, icon]) => (
-        <div className="grid grid-cols-[112px_160px_112px_72px_1fr] items-center border-t border-white/5 py-1.5" key={`${date}-${event}`}>
-          <span className="text-slate-300">{date}</span>
+      {!data.eventRows.length ? (
+        <div className="mt-3 rounded border border-amber-400/25 bg-amber-500/8 p-3 text-center text-amber-200">No recovery event log source was found in tracking.</div>
+      ) : null}
+      {data.eventRows.map((row) => (
+        <div className="grid grid-cols-[112px_160px_112px_72px_1fr] items-center border-t border-white/5 py-1.5" key={`${row.date}-${row.event}`}>
+          <span className="text-slate-300">{row.date}</span>
           <span className="flex items-center gap-1.5 text-slate-300">
-            <i className="grid size-5 shrink-0 place-items-center rounded-full border bg-[#061421] text-[10px] not-italic" style={{ borderColor: color, color }}>{icon}</i>
-            {event}
+            <i className="grid size-5 shrink-0 place-items-center rounded-full border bg-[#061421] text-[10px] not-italic" style={{ borderColor: row.color, color: row.color }}>{row.icon}</i>
+            {row.event}
           </span>
-          <span className="text-slate-300">{system}</span>
-          <span className="font-semibold text-[#05ff5e]">{recovered}</span>
-          <span className="text-slate-400">{impact}</span>
+          <span className="text-slate-300">{row.system}</span>
+          <span className="font-semibold text-[#05ff5e]">{row.recovered}</span>
+          <span className="text-slate-400">{row.impact}</span>
         </div>
       ))}
       <a className="mt-1.5 block text-[9px] text-[#05ff5e]" href="/enterprise/capacity-intelligence/capacity-inteligence-capacity-recovery-impact-recovery-breakdown-screen">View Full Recovery Events →</a>
     </div>
   );
+}
+
+function RecoveryNoData({ message }: { message: string }) {
+  return <div className="grid h-full place-items-center rounded border border-amber-400/25 bg-amber-500/8 p-3 text-center text-[9px] leading-relaxed text-amber-200">{message || "No Data"}</div>;
+}
+
+function recoveryPoints(values: number[], max: number) {
+  const lastIndex = Math.max(values.length - 1, 1);
+  return values.map((value, index) => {
+    const x = index / lastIndex * 480;
+    const y = 132 - value / max * 108;
+    return `${x.toFixed(1)},${Math.max(24, Math.min(132, y)).toFixed(1)}`;
+  }).join(" ");
+}
+
+function parseRecoveryValue(value: string) {
+  const parsed = Number(value.replace(/[^0-9.-]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatRecoveryNumber(value: number) {
+  return value.toLocaleString("en-US", { maximumFractionDigits: value >= 100 ? 0 : 1 });
 }
 
 function DonutWithLegend({ rows, subtitle, value }: { rows: [string, string, string][]; subtitle: string; value: string }) {
@@ -2665,7 +2703,7 @@ function DonutWithLegend({ rows, subtitle, value }: { rows: [string, string, str
 function BarRows({ rows }: { rows: [string, string, string, string][] }) {
   return (
     <div className="space-y-3 text-[10px]">
-      {rows.map(([label, value, suffix, color]) => <div className="grid grid-cols-[118px_1fr_64px] items-center gap-3" key={label}><span className="truncate text-slate-300">{label}</span><span className="h-2.5 rounded bg-slate-800"><span className="block h-full rounded" style={{ width: `${Math.min(100, Number.parseFloat(value) || 70)}%`, backgroundColor: color }} /></span><span className="text-right text-slate-400">{value}{suffix ? ` ${suffix}` : ""}</span></div>)}
+      {rows.map(([label, value, suffix, color]) => <div className="grid grid-cols-[118px_1fr_64px] items-center gap-3" key={label}><span className="truncate text-slate-300">{label}</span><span className="h-2.5 rounded bg-slate-800"><span className="block h-full rounded" style={{ width: `${Math.min(100, parseRecoveryValue(value) || 70)}%`, backgroundColor: color }} /></span><span className="text-right text-slate-400">{value}{suffix ? ` ${suffix}` : ""}</span></div>)}
     </div>
   );
 }

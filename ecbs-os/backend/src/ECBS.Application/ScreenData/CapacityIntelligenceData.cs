@@ -43,3 +43,32 @@ public sealed record CapacityKpi(string Color, string Detail, string Icon, strin
 public sealed record CapacitySubScore(string Label, int Value);
 
 public sealed record CapacityTrendPoint(double Available, double Installed, string Label, double Used);
+
+public sealed record CapacityRecoveryBreakdownData(
+    string AfterOverCapacity,
+    string AfterPeak,
+    string BeforeOverCapacity,
+    string BeforePeak,
+    IReadOnlyList<CapacityRecoveryBarRow> ContributionRows,
+    IReadOnlyList<CapacityRecoveryEventRow> EventRows,
+    IReadOnlyList<CapacityKpi> Kpis,
+    string Message,
+    IReadOnlyList<CapacityRecoveryDonutRow> RecoveryByAssetType,
+    string RecoveryPercent,
+    IReadOnlyList<CapacityRecoverySummaryRow> SummaryRows,
+    string State,
+    IReadOnlyList<CapacityRecoveryTableRow> TimePeriodRows,
+    IReadOnlyList<CapacityRecoveryTrendPoint> Trend,
+    string UpdatedAt);
+
+public sealed record CapacityRecoveryBarRow(string Color, string Label, string Percent, string Value);
+
+public sealed record CapacityRecoveryDonutRow(string Color, string Label, string Value);
+
+public sealed record CapacityRecoveryEventRow(string Color, string Date, string Event, string Icon, string Impact, string Recovered, string System);
+
+public sealed record CapacityRecoverySummaryRow(string Label, string Value);
+
+public sealed record CapacityRecoveryTableRow(string AvgKva, string Consistency, string MaxKva, string TimePeriod);
+
+public sealed record CapacityRecoveryTrendPoint(double BaselineUsed, string Label, double Recovered, double Used);

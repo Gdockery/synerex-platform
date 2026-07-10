@@ -14,4 +14,12 @@ public sealed class CapacityIntelligenceController(ICapacityIntelligenceDataServ
 
         return Ok(data);
     }
+
+    [HttpGet("recovery-breakdown")]
+    public async Task<ActionResult<CapacityRecoveryBreakdownData>> GetRecoveryBreakdown(CancellationToken cancellationToken)
+    {
+        var data = await capacityIntelligenceDataService.GetOchsnerRecoveryBreakdownAsync(cancellationToken);
+
+        return Ok(data);
+    }
 }
