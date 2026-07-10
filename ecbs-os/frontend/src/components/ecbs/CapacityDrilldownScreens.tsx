@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import type { CapacityHealthDiagnosticsData } from "@/lib/capacityHealthDiagnosticsData";
 import type { CapacityRecoveryBreakdownData } from "@/lib/capacityRecoveryBreakdownData";
 import type { CapacityUtilizationTrendData } from "@/lib/capacityUtilizationTrendData";
+import type { CapacityIntelligenceData } from "@/lib/trackingDashboardData";
 import { DashboardFooter, DashboardHeader, DashboardKpiCard, DashboardPanel, type DashboardKpi } from "./DashboardCards";
 import { EcbsAppShell } from "./EcbsAppShell";
 
@@ -183,9 +184,108 @@ const configs: Record<CapacityDrilldownVariant, CapacityScreenConfig> = {
   },
 };
 
-export function CapacityDrilldownScreen({ healthData, recoveryData, trendData, variant }: { healthData?: CapacityHealthDiagnosticsData; recoveryData?: CapacityRecoveryBreakdownData; trendData?: CapacityUtilizationTrendData; variant: CapacityDrilldownVariant }) {
+function isCapacitySharedVariant(variant: CapacityDrilldownVariant) {
+  return variant === "asset" || variant === "equivalent" || variant === "capex" || variant === "insight" || variant === "carbon";
+}
+
+function sharedCapacityKpis(variant: CapacityDrilldownVariant, data: CapacityIntelligenceData): DashboardKpi[] {
+  const installed = formatKva(data.installedKva);
+  const used = formatKva(data.loadKva);
+  const available = formatKva(data.availableKva + data.recoveredKva);
+  const recovered = formatKva(data.recoveredKva);
+  const recoveredPct = formatPct(data.recoveredPct);
+  const health = `${Math.round(data.capacityHealthScore)}/100`;
+  const deferral = formatCurrencyValue(data.deferredCapitalValue);
+  const assets = data.assets.length;
+  const warningAssets = data.assets.filter((asset) => asset.health !== "Healthy").length;
+  const co2 = data.co2Tons || "No Data";
+
+  if (variant === "asset") {
+    return [
+      { icon: "C", label: "Total Connected Capacity", value: installed, detail: "Connected capacity", tone: "blue" },
+      { icon: "U", label: "Total Utilized Capacity", value: used, detail: `${formatPct(data.utilizationPct)} of connected`, tone: "green" },
+      { icon: "A", label: "Total Available Capacity", value: available, detail: "Available after ECBS recovery", tone: "blue" },
+      { icon: "R", label: "Total Recovered Capacity", value: recovered, detail: `${recoveredPct} recovered by ECBS`, tone: "green" },
+      { icon: "M", label: "Assets Monitored", value: String(assets), detail: assets ? "From tracking asset records" : "No Data", tone: "green" },
+      { icon: "W", label: "Assets Warning", value: String(warningAssets), detail: warningAssets ? "Requires attention" : "No calculated warnings", tone: warningAssets ? "yellow" : "green" },
+    ];
+  }
+
+  if (variant === "equivalent") {
+    return [
+      { icon: "E", label: "Total Equivalent Capacity Gain", value: recovered, detail: "Tracking recovered capacity", tone: "blue" },
+      { icon: "M", label: "Motor Systems", value: "No Data", detail: "No category source in tracking", tone: "green" },
+      { icon: "H", label: "HVAC Systems", value: "No Data", detail: "No category source in tracking", tone: "cyan" },
+      { icon: "P", label: "Production Lines", value: "No Data", detail: "No category source in tracking", tone: "green" },
+      { icon: "S", label: "Server / IT Loads", value: "No Data", detail: "No category source in tracking", tone: "yellow" },
+      { icon: "O", label: "Other Loads", value: "No Data", detail: "No category source in tracking", tone: "yellow" },
+    ];
+  }
+
+  if (variant === "capex") {
+    return [
+      { icon: "$", label: "Total Upgrade Deferral Value", value: deferral, detail: "Tracking deferred capital value", tone: "green" },
+      { icon: "I", label: "Immediate Deferral", value: "No Data", detail: "No timing source in tracking", tone: "blue" },
+      { icon: "S", label: "Short Term Deferral", value: "No Data", detail: "No timing source in tracking", tone: "cyan" },
+      { icon: "L", label: "Long Term Deferral", value: "No Data", detail: "No timing source in tracking", tone: "yellow" },
+      { icon: "R", label: "Average ROI On Deferral", value: "No Data", detail: "No ROI source in tracking", tone: "green" },
+      { icon: "P", label: "Payback Period Avoided", value: "No Data", detail: "No payback source in tracking", tone: "cyan" },
+    ];
+  }
+
+  if (variant === "insight") {
+    return [
+      { icon: "A", label: "Available Capacity", value: available, detail: "Available after ECBS recovery", tone: "green" },
+      { icon: "R", label: "Recovered Capacity", value: recovered, detail: `${recoveredPct} recovered by ECBS`, tone: "blue" },
+      { icon: "$", label: "Upgrade Deferral Value", value: deferral, detail: "Tracking deferred capital value", tone: "cyan" },
+      { icon: "H", label: "Capacity Health Score", value: health, detail: healthStatus(Math.round(data.capacityHealthScore)), tone: "yellow" },
+      { icon: "CO", label: "Carbon Impact", value: co2, detail: "CO2e avoided annually", tone: "cyan" },
+      { icon: "B", label: "Annual Benefit", value: data.annualBenefit || "No Data", detail: "Tracking annual savings", tone: "blue" },
+    ];
+  }
+
+  return [
+    { icon: "C", label: "CO2e Avoided (Annual)", value: co2, detail: "Tracking savings intelligence", tone: "green" },
+    { icon: "T", label: "Equivalent Trees Planted", value: carbonTrees(co2), detail: "Calculated from CO2e", tone: "blue" },
+    { icon: "P", label: "Passenger Cars Off The Road", value: carbonCars(co2), detail: "Calculated from CO2e", tone: "cyan" },
+    { icon: "E", label: "Clean Energy Generated", value: "No Data", detail: "No clean-energy source in tracking", tone: "yellow" },
+    { icon: "R", label: "Emission Reduction", value: "No Data", detail: "No baseline emissions source in tracking", tone: "cyan" },
+  ];
+}
+
+function formatKva(value: number) {
+  return Number.isFinite(value) && value > 0 ? `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} kVA` : "No Data";
+}
+
+function formatPct(value: number) {
+  return Number.isFinite(value) && value > 0 ? `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })}%` : "No Data";
+}
+
+function formatCurrencyValue(value: number) {
+  if (!Number.isFinite(value) || value <= 0) return "No Data";
+  if (value >= 1_000_000) return `$${(value / 1_000_000).toLocaleString(undefined, { maximumFractionDigits: 2 })}M`;
+  if (value >= 1_000) return `$${(value / 1_000).toLocaleString(undefined, { maximumFractionDigits: 1 })}K`;
+  return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
+
+function parseNumber(value: string) {
+  const parsed = Number(value.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function carbonTrees(co2Tons: string) {
+  const tons = parseNumber(co2Tons);
+  return tons > 0 ? Math.round(tons * 51.9).toLocaleString() : "No Data";
+}
+
+function carbonCars(co2Tons: string) {
+  const tons = parseNumber(co2Tons);
+  return tons > 0 ? (tons / 4.2).toLocaleString(undefined, { maximumFractionDigits: 1 }) : "No Data";
+}
+
+export function CapacityDrilldownScreen({ capacityData, healthData, recoveryData, trendData, variant }: { capacityData?: CapacityIntelligenceData; healthData?: CapacityHealthDiagnosticsData; recoveryData?: CapacityRecoveryBreakdownData; trendData?: CapacityUtilizationTrendData; variant: CapacityDrilldownVariant }) {
   const config = configs[variant];
-  const kpis = variant === "recovery" && recoveryData ? recoveryData.kpis : variant === "health" && healthData ? healthData.kpis : variant === "trend" && trendData ? trendData.kpis : config.kpis;
+  const kpis = variant === "recovery" && recoveryData ? recoveryData.kpis : variant === "health" && healthData ? healthData.kpis : variant === "trend" && trendData ? trendData.kpis : capacityData && isCapacitySharedVariant(variant) ? sharedCapacityKpis(variant, capacityData) : config.kpis;
 
   if (variant === "simulate") return <SimulateCapacityExpansionShell />;
   if (variant === "opportunities") return <OptimizationOpportunitiesShell />;
@@ -202,7 +302,7 @@ export function CapacityDrilldownScreen({ healthData, recoveryData, trendData, v
   return (
     <EcbsAppShell activeHref="/enterprise/capacity-intelligence">
       <div className={isWideDrilldown ? "flex h-screen min-h-0 flex-col overflow-hidden px-4 py-3" : "flex h-full min-h-[682px] flex-col overflow-hidden px-3 py-2"}>
-        <DashboardHeader dateRange={isRecovery && recoveryData ? `Tracking DB • ${recoveryData.updatedAt}` : isHealth && healthData ? `Tracking DB • ${healthData.updatedAt}` : isTrend && trendData ? `Tracking DB • ${trendData.updatedAt}` : "May 12 - May 18, 2025"} subtitle={config.subtitle} title={config.title} variant="enterprise" />
+        <DashboardHeader dateRange={isRecovery && recoveryData ? `Tracking DB • ${recoveryData.updatedAt}` : isHealth && healthData ? `Tracking DB • ${healthData.updatedAt}` : isTrend && trendData ? `Tracking DB • ${trendData.updatedAt}` : capacityData && isCapacitySharedVariant(variant) ? `Tracking DB • ${capacityData.updatedAt}` : "May 12 - May 18, 2025"} subtitle={config.subtitle} title={config.title} variant="enterprise" />
         <div className={isWideDrilldown ? "mt-2 flex h-[32px] shrink-0 items-center justify-between text-[10px]" : "mt-1 flex items-center justify-between text-[9px]"}>
           <Breadcrumb items={config.breadcrumb} />
           <div className="flex gap-2">
@@ -221,11 +321,11 @@ export function CapacityDrilldownScreen({ healthData, recoveryData, trendData, v
         {variant === "recovery" && recoveryData ? <RecoveryBreakdown data={recoveryData} /> : null}
         {variant === "health" && healthData ? <HealthDiagnostics data={healthData} /> : null}
         {variant === "trend" && trendData ? <TrendDetail data={trendData} /> : null}
-        {variant === "asset" ? <AssetDetailTree /> : null}
-        {variant === "equivalent" ? <EquivalentAttribution /> : null}
-        {variant === "capex" ? <CapexDeferral /> : null}
-        {variant === "insight" ? <IntelligenceSummary /> : null}
-        {variant === "carbon" ? <CarbonImpact /> : null}
+        {variant === "asset" ? <AssetDetailTree data={capacityData} /> : null}
+        {variant === "equivalent" ? <EquivalentAttribution data={capacityData} /> : null}
+        {variant === "capex" ? <CapexDeferral data={capacityData} /> : null}
+        {variant === "insight" ? <IntelligenceSummary data={capacityData} /> : null}
+        {variant === "carbon" ? <CarbonImpact data={capacityData} /> : null}
 
         {isRecovery ? <RecoveryFooter data={recoveryData} /> : isHealth ? <HealthFooter data={healthData} /> : isTrend ? <TrendFooter data={trendData} /> : isCapex ? <CapexFooter /> : isAsset ? <TrendFooter /> : <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />}
       </div>
@@ -1106,7 +1206,8 @@ function TrendNoData({ message }: { message?: string }) {
   return <div className="grid h-full place-items-center px-4 text-center text-[9px] leading-snug text-slate-400">{message || "No Data"}</div>;
 }
 
-function AssetDetailTree() {
+function AssetDetailTree({ data: _data }: { data?: CapacityIntelligenceData }) {
+  void _data;
   return (
     <section className="mt-3 grid h-[620px] shrink-0 grid-cols-[0.86fr_1.95fr_1.25fr] gap-3">
       <DashboardPanel title="Asset Hierarchy" variant="enterprise">
@@ -1324,7 +1425,8 @@ function AssetRecentEvents() {
   );
 }
 
-function EquivalentAttribution() {
+function EquivalentAttribution({ data: _data }: { data?: CapacityIntelligenceData }) {
+  void _data;
   return (
     <>
       <section className="mt-2 grid h-[300px] grid-cols-[1fr_1.45fr_1fr] gap-2">
@@ -1489,7 +1591,8 @@ function EquivalentComparison() {
   );
 }
 
-function CapexDeferral() {
+function CapexDeferral({ data: _data }: { data?: CapacityIntelligenceData }) {
+  void _data;
   return (
     <>
       <section className="mt-3 grid h-[255px] shrink-0 grid-cols-[1.65fr_0.9fr] gap-3">
@@ -1757,7 +1860,8 @@ function CapexUpgradeWindows() {
   );
 }
 
-function IntelligenceSummary() {
+function IntelligenceSummary({ data: _data }: { data?: CapacityIntelligenceData }) {
+  void _data;
   return (
     <>
       <section className="mt-2 grid h-[220px] grid-cols-[1.35fr_1fr] gap-2">
@@ -1950,7 +2054,8 @@ function InsightMetricRows({ compact = false, link, rows }: { compact?: boolean;
   );
 }
 
-function CarbonImpact() {
+function CarbonImpact({ data: _data }: { data?: CapacityIntelligenceData }) {
+  void _data;
   return (
     <>
       <section className="mt-2 grid h-[230px] grid-cols-[1.55fr_1fr] gap-2">
