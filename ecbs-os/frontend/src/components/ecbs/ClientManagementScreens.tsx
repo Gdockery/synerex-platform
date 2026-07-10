@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import Link from "next/link";
 import type { ClientManagementClientRow, ClientManagementData, ClientManagementKpi, ClientManagementProjectRow } from "@/lib/clientManagementData";
 import { EcbsAppShell } from "./EcbsAppShell";
 
@@ -47,9 +48,9 @@ function ClientTopbar({ data, variant }: { data: ClientManagementData; variant: 
           <h1 className="mt-2 text-[21px] font-semibold leading-none text-slate-100">{title}</h1>
           <p className="mt-2 text-[10px] text-slate-300">{subtitle}</p>
         </div>
-        {variant === "new" ? <div className="flex gap-2"><ToolbarButton>Cancel</ToolbarButton><ToolbarButton primary>+ Save Client</ToolbarButton></div> : null}
-        {variant === "newProjectScanning" ? <div className="flex gap-2"><ToolbarButton>Cancel</ToolbarButton><ToolbarButton primary><span className="inline-flex items-center gap-2"><SaveIcon />Save Draft</span></ToolbarButton></div> : null}
-        {variant === "list" ? <ToolbarButton primary>+ Add New Client</ToolbarButton> : null}
+        {variant === "new" ? <div className="flex gap-2"><ToolbarButton href="/client-management/clients">Cancel</ToolbarButton><ToolbarButton primary>+ Save Client</ToolbarButton></div> : null}
+        {variant === "newProjectScanning" ? <div className="flex gap-2"><ToolbarButton href="/client-management/clients/1/projects">Cancel</ToolbarButton><ToolbarButton primary><span className="inline-flex items-center gap-2"><SaveIcon />Save Draft</span></ToolbarButton></div> : null}
+        {variant === "list" ? <ToolbarButton href="/client-management/clients/new" primary>+ Add New Client</ToolbarButton> : null}
         {variant === "details" ? <ToolbarButton primary><span className="inline-flex items-center gap-1.5"><PencilIcon />Edit Client</span></ToolbarButton> : null}
         {variant === "projects" ? <ClientProjectsIdentityCard data={data} /> : null}
       </div>
@@ -141,7 +142,7 @@ function NewProjectReports({ data }: { data: ClientManagementData }) {
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between">
-            <ToolbarButton>← Back</ToolbarButton>
+            <ToolbarButton href="/client-management/clients?workflow=new-project-scanning">← Back</ToolbarButton>
             <div className="flex items-center gap-3"><ToolbarButton><span className="inline-flex items-center gap-2"><SaveIcon />Save Draft</span></ToolbarButton><ToolbarButton primary>Generate Reports →</ToolbarButton></div>
           </div>
           <div className="mt-2 text-right text-[10px] text-slate-500">Reports will be available in the Documents tab once generated.</div>
@@ -258,7 +259,7 @@ function DocumentUploadsPanel() {
         <ScanUploadCard button="Scan 1-Line Drawing" icon="drawing" title="1-Line Drawings" tone="purple" />
       </div>
       <div className="mt-3 rounded border border-blue-500/20 bg-blue-500/8 px-3 py-2 text-[10px] text-slate-300"><span className="mr-2 inline-grid size-4 place-items-center rounded-full bg-blue-500 text-[9px] text-white">i</span>Tip: Use the scan buttons above to capture documents directly from your scanner or mobile device.</div>
-      <div className="mt-2 flex justify-end"><ToolbarButton primary>Save & Continue →</ToolbarButton></div>
+      <div className="mt-2 flex justify-end"><ToolbarButton href="/client-management/clients?workflow=new-project-generate-reports" primary>Save & Continue →</ToolbarButton></div>
     </FormPanel>
   );
 }
@@ -313,7 +314,7 @@ function ClientDetails({ data }: { data: ClientManagementData }) {
           <div className="grid grid-cols-4 gap-3 text-center"><LightMetric icon="sites" label="Sites" value={client.totalSites} /><LightMetric icon="folder" label="Active Projects" value={client.activeProjects} /><LightMetric icon="gauge" label="Total Capacity" value={client.totalCapacity} /><LightMetric icon="money" label="Annual Savings" value={client.annualSavings} /></div>
         </div>
       </section>
-      <Tabs items={["Overview", `Sites (${client.totalSites})`, `Projects (${client.activeProjects})`, "Contacts (No Data)", "Documents", "Alerts (No Data)", "Analytics", "Settings"]} />
+      <Tabs items={["Overview", `Sites (${client.totalSites})`, { href: "/client-management/clients/1/projects", label: `Projects (${client.activeProjects})` }, "Contacts (No Data)", "Documents", "Alerts (No Data)", "Analytics", "Settings"]} />
       <section className="mt-2 grid h-[260px] grid-cols-[1.35fr_0.6fr_0.82fr] gap-2">
         <LightPanel title="Client Information">
           <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-[10px]"><Info label="Legal Entity Name" value={client.legalName} /><Info label="Phone" value={client.phone} /><Info label="Industry" value={client.industry} /><Info label="Email" value={client.email} link /><Info label="Website" value={client.website} link /><Info label="Address" value={client.address} /><Info label="Tax ID / EIN" value={client.taxId} /><Info label="Time Zone" value={client.timeZone} /><Info label="Currency" value={client.currency} /><Info label="Status" value={client.status} /></div>
@@ -327,7 +328,7 @@ function ClientDetails({ data }: { data: ClientManagementData }) {
         </LightPanel>
       </section>
       <section className="mt-2 grid h-[225px] grid-cols-[1.15fr_1fr] gap-2">
-        <LightPanel action={<button className="text-[10px] font-semibold text-blue-600">View All Projects <span className="ml-1">→</span></button>} title="Recent Projects">
+        <LightPanel action={<Link className="text-[10px] font-semibold text-blue-600" href="/client-management/clients/1/projects">View All Projects <span className="ml-1">→</span></Link>} title="Recent Projects">
           <ClientProjectsTable projects={data.projects.slice(0, 4)} />
         </LightPanel>
         <LightPanel action={<button className="text-[10px] font-semibold text-blue-600">View All Documents <span className="ml-1">→</span></button>} title="Documents">
@@ -347,7 +348,7 @@ function ClientProjects({ data }: { data: ClientManagementData }) {
       <Tabs items={["Projects / Facilities", "Sites", "Analytics", "Documents", "Alerts"]} />
       <div className="flex h-[38px] items-center justify-between">
         <div className="flex gap-2"><SearchBox placeholder="Search projects by name, site, or location..." withIcon /><ToolbarButton><span className="inline-flex items-center gap-2"><FilterIcon />Filters <ChevronDownIcon /></span></ToolbarButton></div>
-        <ToolbarButton primary><span className="inline-flex items-center gap-2">+ New Project</span></ToolbarButton>
+        <ToolbarButton href="/client-management/clients?workflow=new-project-scanning" primary><span className="inline-flex items-center gap-2">+ New Project</span></ToolbarButton>
       </div>
       <ClientProjectsFacilitiesTable projects={data.projects} />
     </div>
@@ -368,16 +369,26 @@ function Breadcrumb({ items }: { items: string[] }) {
   return <div className="text-[9px] text-slate-400">{items.map((item, index) => <span key={item}>{index ? <span className="mx-2">›</span> : null}<span className={index === items.length - 1 ? "text-slate-100" : ""}>{item}</span></span>)}</div>;
 }
 
-function ToolbarButton({ children, primary = false }: { children: ReactNode; primary?: boolean }) {
-  return <button className={primary ? "rounded border border-[#05ff5e]/40 bg-[#0a7a35] px-4 py-2 text-[10px] font-semibold text-white" : "rounded border border-slate-700 bg-[#061421] px-3 py-2 text-[10px] text-slate-300"}>{children}</button>;
+function ToolbarButton({ children, href, primary = false }: { children: ReactNode; href?: string; primary?: boolean }) {
+  const className = primary ? "rounded border border-[#05ff5e]/40 bg-[#0a7a35] px-4 py-2 text-[10px] font-semibold text-white" : "rounded border border-slate-700 bg-[#061421] px-3 py-2 text-[10px] text-slate-300";
+
+  return href ? <Link className={className} href={href}>{children}</Link> : <button className={className}>{children}</button>;
 }
 
 function SearchBox({ placeholder, withIcon = false }: { placeholder: string; withIcon?: boolean }) {
   return <div className="flex h-[38px] w-[374px] items-center gap-2 rounded border border-cyan-300/12 bg-[#061421] px-3 text-[10px] text-slate-500">{withIcon ? <SearchIcon /> : null}<span>{placeholder}</span></div>;
 }
 
-function Tabs({ items }: { items: string[] }) {
-  return <div className="mt-3 flex h-[32px] items-end gap-8 border-b border-cyan-300/10 text-[10px] text-slate-300">{items.map((item, index) => <span className={index === 0 ? "border-b-2 border-[#05ff5e] pb-2 text-[#05ff5e]" : "pb-2"} key={item}>{item}</span>)}</div>;
+function Tabs({ items }: { items: Array<string | { href: string; label: string }> }) {
+  return (
+    <div className="mt-3 flex h-[32px] items-end gap-8 border-b border-cyan-300/10 text-[10px] text-slate-300">
+      {items.map((item, index) => {
+        const label = typeof item === "string" ? item : item.label;
+        const className = index === 0 ? "border-b-2 border-[#05ff5e] pb-2 text-[#05ff5e]" : "pb-2";
+        return typeof item === "string" ? <span className={className} key={label}>{label}</span> : <Link className={className} href={item.href} key={label}>{label}</Link>;
+      })}
+    </div>
+  );
 }
 
 function FormPanel({ children, title }: { children: ReactNode; title: string }) {
@@ -447,14 +458,14 @@ function ClientListTable({ clients, message }: { clients: ClientManagementClient
         <tbody>
           {rows.map((client) => (
             <tr className="h-[46px] border-t border-white/5" key={`${client.name}-${client.contractNumber}`}>
-              <td className="px-4 text-slate-100"><ClientBrandCell client={client} /></td>
+              <td className="px-4 text-slate-100"><Link href="/client-management/clients/1"><ClientBrandCell client={client} /></Link></td>
               <td className="px-4 text-slate-200">{client.contractNumber}</td>
               <td className="px-4 text-center text-slate-200">{client.sites}</td>
               <td className="px-4 text-center text-slate-200">{client.activeProjects}</td>
               <td className="px-4 text-center text-slate-200">{client.totalCapacity}</td>
               <td className="px-4 text-slate-100"><span className={client.status === "Active" ? "text-[#05ff5e]" : "text-slate-400"}>●</span> {client.status}</td>
               <td className="px-4 text-slate-200">{client.joinedDate}</td>
-              <td className="px-4 text-right text-slate-200">•••</td>
+              <td className="px-4 text-right text-slate-200"><Link href="/client-management/clients/1">•••</Link></td>
             </tr>
           ))}
         </tbody>
@@ -507,7 +518,7 @@ function ClientProjectsIdentityCard({ data }: { data: ClientManagementData }) {
       <div className="ml-auto grid grid-cols-[90px_116px_106px] items-center gap-4 text-[9px] text-slate-300">
         <div><span className="block text-slate-500">Client Since</span><b className="font-semibold text-slate-100">{client.clientSince}</b></div>
         <div><span className="block text-slate-500">Contract Number</span><b className="font-semibold text-slate-100">{client.contractNumber}</b></div>
-        <ToolbarButton><span className="inline-flex items-center gap-2"><InfoIcon />Client Details</span></ToolbarButton>
+        <ToolbarButton href="/client-management/clients/1"><span className="inline-flex items-center gap-2"><InfoIcon />Client Details</span></ToolbarButton>
       </div>
     </article>
   );
