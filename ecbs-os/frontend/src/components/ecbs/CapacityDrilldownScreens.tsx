@@ -257,6 +257,10 @@ function formatKva(value: number) {
   return Number.isFinite(value) && value > 0 ? `${value.toLocaleString(undefined, { maximumFractionDigits: 0 })} kVA` : "No Data";
 }
 
+function formatMwFromKva(value: number) {
+  return Number.isFinite(value) && value > 0 ? `${(value / 1000).toLocaleString(undefined, { maximumFractionDigits: 2 })} MW` : "No Data";
+}
+
 function formatPct(value: number) {
   return Number.isFinite(value) && value > 0 ? `${value.toLocaleString(undefined, { maximumFractionDigits: 1 })}%` : "No Data";
 }
@@ -283,13 +287,82 @@ function carbonCars(co2Tons: string) {
   return tons > 0 ? (tons / 4.2).toLocaleString(undefined, { maximumFractionDigits: 1 }) : "No Data";
 }
 
+function networkCapacityKpis(data?: CapacityIntelligenceData) {
+  if (!data || data.state !== "data") {
+    return [
+      ["Total Capacity Available", "No Data", "No tracking rollup", "#147dff", "gauge"],
+      ["Total Connected Load", "No Data", "No tracking rollup", "#05ff5e", "trend"],
+      ["Total Apparent Power", "No Data", "No source", "#a855f7", "gauge"],
+      ["Capacity Utilization", "No Data", "No tracking rollup", "#f97316", "grid"],
+      ["Reserve Capacity", "No Data", "No tracking rollup", "#14b8a6", "site"],
+      ["Projected Peak Utilization", "No Data", "No forecast source", "#eab308", "bolt"],
+    ] as const;
+  }
+
+  const effectiveAvailable = data.availableKva + data.recoveredKva;
+  const peakUtilization = Math.max(data.utilizationPct, ...data.trend.map((point) => point.installed > 0 ? point.used / point.installed * 100 : 0));
+
+  return [
+    ["Total Capacity Available", formatMwFromKva(effectiveAvailable), `${formatPct(effectiveAvailable / Math.max(data.installedKva, 1) * 100)} of system`, "#147dff", "gauge"],
+    ["Total Connected Load", formatMwFromKva(data.loadKva), "Tracking used capacity", "#05ff5e", "trend"],
+    ["Total Apparent Power", "No Data", "No apparent-power source", "#a855f7", "gauge"],
+    ["Capacity Utilization", formatPct(data.utilizationPct), healthStatus(Math.round(100 - Math.max(0, data.utilizationPct - 80))), "#f97316", "grid"],
+    ["Reserve Capacity", formatMwFromKva(effectiveAvailable), "Available after ECBS recovery", "#14b8a6", "site"],
+    ["Projected Peak Utilization", formatPct(peakUtilization), "Recent capacity rollups", "#eab308", "bolt"],
+  ] as const;
+}
+
+function simulateCapacityKpis(data?: CapacityIntelligenceData) {
+  if (!data || data.state !== "data") {
+    return [
+      ["Current Effective Capacity", "No Data", "No tracking rollup", "#147dff", "gauge"],
+      ["Additional Capacity Simulated", "No Data", "No scenario source", "#147dff", "bolt"],
+      ["New Effective Capacity", "No Data", "No scenario source", "#a855f7", "trend"],
+      ["Deferred CAPEX", "No Data", "No tracking rollup", "#f97316", "site"],
+      ["Annual Value Created", "No Data", "No savings source", "#05ff5e", "leaf"],
+      ["CO2 Reduction", "No Data", "No CO2 source", "#14b8a6", "leaf"],
+    ] as const;
+  }
+
+  return [
+    ["Current Effective Capacity", formatMwFromKva(data.installedKva), "Installed capacity", "#147dff", "gauge"],
+    ["Additional Capacity Simulated", formatKva(data.recoveredKva), "Tracking recoverable capacity", "#147dff", "bolt"],
+    ["New Effective Capacity", formatMwFromKva(data.installedKva + data.recoveredKva), `${formatPct(data.recoveredPct)} increase`, "#a855f7", "trend"],
+    ["Deferred CAPEX", formatCurrencyValue(data.deferredCapitalValue), "Tracking deferred value", "#f97316", "site"],
+    ["Annual Value Created", data.annualBenefit || "No Data", "Tracking annual savings", "#05ff5e", "leaf"],
+    ["CO2 Reduction", data.co2Tons || "No Data", "tons / year", "#14b8a6", "leaf"],
+  ] as const;
+}
+
+function optimizationCapacityKpis(data?: CapacityIntelligenceData) {
+  if (!data || data.state !== "data") {
+    return [
+      ["Total Optimization Potential", "No Data", "No tracking rollup", "#05ff5e", "gauge"],
+      ["Immediate Usable Capacity", "No Data", "No tracking rollup", "#147dff", "bolt"],
+      ["Effective Capacity Gain", "No Data", "No tracking rollup", "#a855f7", "trend"],
+      ["Deferred CAPEX Avoidance", "No Data", "No tracking rollup", "#f97316", "site"],
+      ["Efficiency Gain Potential", "No Data", "No source", "#14b8a6", "arrows"],
+      ["CO2 Reduction Potential", "No Data", "No CO2 source", "#65a30d", "leaf"],
+    ] as const;
+  }
+
+  return [
+    ["Total Optimization Potential", formatKva(data.recoveredKva), "Recoverable capacity", "#05ff5e", "gauge"],
+    ["Immediate Usable Capacity", formatKva(data.availableKva + data.recoveredKva), "Available now", "#147dff", "bolt"],
+    ["Effective Capacity Gain", formatPct(data.recoveredPct), "After optimization", "#a855f7", "trend"],
+    ["Deferred CAPEX Avoidance", formatCurrencyValue(data.deferredCapitalValue), "Projected value", "#f97316", "site"],
+    ["Efficiency Gain Potential", "No Data", "No efficiency-gain source", "#14b8a6", "arrows"],
+    ["CO2 Reduction Potential", data.co2Tons || "No Data", "tons / year", "#65a30d", "leaf"],
+  ] as const;
+}
+
 export function CapacityDrilldownScreen({ capacityData, healthData, recoveryData, trendData, variant }: { capacityData?: CapacityIntelligenceData; healthData?: CapacityHealthDiagnosticsData; recoveryData?: CapacityRecoveryBreakdownData; trendData?: CapacityUtilizationTrendData; variant: CapacityDrilldownVariant }) {
   const config = configs[variant];
   const kpis = variant === "recovery" && recoveryData ? recoveryData.kpis : variant === "health" && healthData ? healthData.kpis : variant === "trend" && trendData ? trendData.kpis : capacityData && isCapacitySharedVariant(variant) ? sharedCapacityKpis(variant, capacityData) : config.kpis;
 
-  if (variant === "simulate") return <SimulateCapacityExpansionShell />;
-  if (variant === "opportunities") return <OptimizationOpportunitiesShell />;
-  if (variant === "networkDetail") return <ElectricalCapacityDetailShell />;
+  if (variant === "simulate") return <SimulateCapacityExpansionShell data={capacityData} />;
+  if (variant === "opportunities") return <OptimizationOpportunitiesShell data={capacityData} />;
+  if (variant === "networkDetail") return <ElectricalCapacityDetailShell data={capacityData} />;
   if (variant === "financialImpact") return <AnnualBenefitFinancialImpactReferenceScreen />;
 
   const isRecovery = variant === "recovery";
@@ -2232,15 +2305,8 @@ function CarbonImpactSummary() {
   );
 }
 
-function SimulateCapacityExpansionShell() {
-  const kpis = [
-    ["Current Effective Capacity", "2.60 MW", "After Optimization", "#147dff", "gauge"],
-    ["Additional Capacity Simulated", "650 kVA", "Scenario Result", "#147dff", "bolt"],
-    ["New Effective Capacity", "3.25 MW", "+25.0% Increase", "#a855f7", "trend"],
-    ["Deferred CAPEX", "$1,780,000", "Avoided Investment", "#f97316", "site"],
-    ["Annual Value Created", "$214,800", "Savings + Efficiency", "#05ff5e", "leaf"],
-    ["CO2 Reduction", "52.6", "tons / year", "#14b8a6", "leaf"],
-  ] as const;
+function SimulateCapacityExpansionShell({ data }: { data?: CapacityIntelligenceData }) {
+  const kpis = simulateCapacityKpis(data);
 
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
@@ -2293,7 +2359,7 @@ function SimulateCapacityExpansionShell() {
         <section className="mt-2 grid h-[40px] grid-cols-[1fr_1fr_1fr_1fr] gap-3">
           {["Apply Scenario to Network", "Generate Implementation Plan", "Export Engineering Report", "Push to Deployment Module"].map((label, index) => <button className={`rounded border px-3 text-[11px] ${index === 0 ? "border-[#05ff5e]/30 bg-[#05ff5e]/70 text-[#04111c]" : "border-cyan-300/12 bg-[#061421] text-slate-300"}`} key={label}>{label}</button>)}
         </section>
-        <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />
+        <DashboardFooter updatedAt={data?.updatedAt ?? "No Data"} variant="enterprise" />
       </div>
     </EcbsAppShell>
   );
@@ -2390,15 +2456,8 @@ function SimulateMetricRows({ rows }: { rows: readonly (readonly [string, string
   return <div className="space-y-2 text-[9px]">{rows.map(([label, value, color]) => <div className="flex items-center justify-between border-b border-white/5 pb-1" key={label}><span className="text-slate-400">{label}</span><span className="font-semibold" style={{ color }}>{value}</span></div>)}</div>;
 }
 
-function OptimizationOpportunitiesShell() {
-  const kpis = [
-    ["Total Optimization Potential", "420 kVA", "Recoverable Capacity", "#05ff5e", "gauge"],
-    ["Immediate Usable Capacity", "812 kVA", "Available Now", "#147dff", "bolt"],
-    ["Effective Capacity Gain", "+18%", "After Optimization", "#a855f7", "trend"],
-    ["Deferred CAPEX Avoidance", "$1.24M", "Projected Value", "#f97316", "site"],
-    ["Efficiency Gain Potential", "+6.2%", "Improvement", "#14b8a6", "arrows"],
-    ["CO2 Reduction Potential", "41.2", "tons / year", "#65a30d", "leaf"],
-  ] as const;
+function OptimizationOpportunitiesShell({ data }: { data?: CapacityIntelligenceData }) {
+  const kpis = optimizationCapacityKpis(data);
 
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
@@ -2442,7 +2501,7 @@ function OptimizationOpportunitiesShell() {
         <section className="mt-2 grid h-[40px] grid-cols-[1fr_1fr_1fr_1fr] gap-3">
           {["Generate Implementation Plan", "Simulate Capacity Expansion", "Export Engineering Report", "Push to Deployment Module"].map((label, index) => <button className={`rounded border px-3 text-[11px] ${index === 0 ? "border-[#05ff5e]/30 bg-[#05ff5e]/70 text-[#04111c]" : "border-cyan-300/12 bg-[#061421] text-slate-300"}`} key={label}>{label}</button>)}
         </section>
-        <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />
+        <DashboardFooter updatedAt={data?.updatedAt ?? "No Data"} variant="enterprise" />
       </div>
     </EcbsAppShell>
   );
@@ -2515,15 +2574,8 @@ function OptimizationRoadmap() {
   return <div className="grid h-full grid-cols-3 gap-2 text-center text-[8px]">{phases.map(([title, days, value, color]) => <div className="rounded border p-2" style={{ borderColor: `${color}66`, color }} key={title}><div className="text-[12px] font-semibold uppercase">{title}</div><div>{days}</div><div className="my-2 space-y-0.5 text-left text-slate-300"><div>• Load Rebalancing</div><div>• Phase Balancing</div><div>• System Tuning</div></div><div className="text-[13px] font-semibold">{value}</div></div>)}</div>;
 }
 
-function ElectricalCapacityDetailShell() {
-  const kpis = [
-    ["Total Capacity Available", "2.18 MW", "27% of System", "#147dff", "gauge"],
-    ["Total Connected Load", "5.82 MW", "+4.3% vs Last 7 Days", "#05ff5e", "trend"],
-    ["Total Apparent Power", "6.41 MVA", "Power Factor 0.91", "#a855f7", "gauge"],
-    ["Capacity Utilization", "73%", "Good", "#f97316", "grid"],
-    ["Reserve Capacity", "2.18 MW", "Enough", "#14b8a6", "site"],
-    ["Projected Peak Utilization", "81%", "May 22, 2:00 PM", "#eab308", "bolt"],
-  ] as const;
+function ElectricalCapacityDetailShell({ data }: { data?: CapacityIntelligenceData }) {
+  const kpis = networkCapacityKpis(data);
 
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
@@ -2567,7 +2619,7 @@ function ElectricalCapacityDetailShell() {
             </div>
           </div>
         </section>
-        <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />
+        <DashboardFooter updatedAt={data?.updatedAt ?? "No Data"} variant="enterprise" />
       </div>
     </EcbsAppShell>
   );

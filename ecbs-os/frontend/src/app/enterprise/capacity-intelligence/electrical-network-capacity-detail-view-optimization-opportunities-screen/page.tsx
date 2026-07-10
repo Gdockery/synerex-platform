@@ -1,5 +1,10 @@
 import { CapacityDrilldownScreen } from "@/components/ecbs/CapacityDrilldownScreens";
+import { getCapacityIntelligenceDataFromApi } from "@/lib/ecbsApi";
 
-export default function ViewOptimizationOpportunitiesPage() {
-  return <CapacityDrilldownScreen variant="opportunities" />;
+export const dynamic = "force-dynamic";
+
+export default async function ViewOptimizationOpportunitiesPage() {
+  const data = await getCapacityIntelligenceDataFromApi();
+
+  return <CapacityDrilldownScreen capacityData={data} variant="opportunities" />;
 }
