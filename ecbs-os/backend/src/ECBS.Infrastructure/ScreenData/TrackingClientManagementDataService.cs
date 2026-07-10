@@ -39,7 +39,7 @@ public sealed class TrackingClientManagementDataService(
 
                     return new ClientManagementClientRow(
                         ActiveProjects: summary?.ProjectCount.ToString() ?? "0",
-                        ContractNumber: !string.IsNullOrWhiteSpace(client.Xuid) ? client.Xuid : "No Data",
+                        ContractNumber: "No Data",
                         Industry: client.MarketSegment ?? "No Data",
                         JoinedDate: FormatTimestamp(client.CreatedAt),
                         Name: client.Name ?? "No Data",
@@ -83,7 +83,7 @@ public sealed class TrackingClientManagementDataService(
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT id, xuid, name, legalName, address, city, state, zip, country,
+            SELECT id, name, legalName, address, city, state, zip, country,
                    contactName, contactTitle, contactPhone, marketSegment, taxId,
                    managerName, managerPhone, managerEmail, createdAt
             FROM client
@@ -115,7 +115,6 @@ public sealed class TrackingClientManagementDataService(
                 Name: ReadString(reader, "name"),
                 State: ReadString(reader, "state"),
                 TaxId: ReadString(reader, "taxId"),
-                Xuid: ReadString(reader, "xuid"),
                 Zip: ReadString(reader, "zip")));
         }
 
@@ -303,7 +302,7 @@ public sealed class TrackingClientManagementDataService(
             AnnualSavings: summary is not null && summary.HasSavings ? FormatCurrency(summary.AnnualSavings) : "No Data",
             ClientSince: FormatTimestamp(client.CreatedAt),
             CompletedProjects: "No Data",
-            ContractNumber: client.Xuid ?? "No Data",
+            ContractNumber: "No Data",
             Currency: "No Data",
             Email: client.ManagerEmail ?? "No Data",
             Industry: client.MarketSegment ?? "No Data",
@@ -509,7 +508,6 @@ public sealed class TrackingClientManagementDataService(
         string? Name,
         string? State,
         string? TaxId,
-        string? Xuid,
         string? Zip);
 
     private sealed record ClientProjectSummary(
