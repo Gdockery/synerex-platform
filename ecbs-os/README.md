@@ -54,6 +54,14 @@ Run mutating write checks only when it is acceptable to create verifier records:
 python3 scripts/ecbs_batch_verify.py verification/client-management-write-flow.json --include-mutating
 ```
 
+Use the ECBS analysis workflow assets before and after the verifier:
+
+- `docs/workflows/screen-batch-checklist-template.md` for the per-batch implementation checklist.
+- `docs/workflows/subagent-audit-runbook.md` for read-only route, field, and placeholder audits.
+- `docs/workflows/browser-click-check-workflow.md` for deployed click-through checks.
+
+Browser click checks are required for batches with interactive route navigation, forms, save actions, or generate/configure actions.
+
 ## Dev Deploy
 
 Set the required environment variables from `verification/dev-deploy.env.example`, then deploy and verify a batch:
