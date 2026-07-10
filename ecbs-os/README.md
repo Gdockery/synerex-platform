@@ -33,3 +33,33 @@ cd frontend
 npm run lint
 npm run build
 ```
+
+## Batch Verification
+
+Use the reusable verifier after each 5-8 screen batch:
+
+```bash
+python3 scripts/ecbs_batch_verify.py verification/client-management-write-flow.json
+```
+
+Run local build checks through the same config:
+
+```bash
+python3 scripts/ecbs_batch_verify.py verification/client-management-write-flow.json --include-commands
+```
+
+Run mutating write checks only when it is acceptable to create verifier records:
+
+```bash
+python3 scripts/ecbs_batch_verify.py verification/client-management-write-flow.json --include-mutating
+```
+
+## Dev Deploy
+
+Set the required environment variables from `verification/dev-deploy.env.example`, then deploy and verify a batch:
+
+```bash
+python3 scripts/ecbs_dev_deploy.py --verification-config verification/client-management-write-flow.json
+```
+
+This wraps the repeatable dev steps: remote pull, backend build, EF migration update, frontend Docker rebuild/restart, API restart, and optional verifier execution.
