@@ -32,10 +32,6 @@ public sealed class TrackingCapacityIntelligenceDataService(
             var trendRows = await ReadCapacityTrendAsync(connection, cancellationToken);
             var assets = await ReadAssetsAsync(connection, cancellationToken);
             var meters = await ReadMetersAsync(connection, cancellationToken);
-            var mainMeter = meters.FirstOrDefault(meter => meter.IsMain) ?? meters.FirstOrDefault();
-            var minuteRows = mainMeter is null
-                ? Array.Empty<CapacityMinuteTrendRow>()
-                : await ReadMinuteTrendAsync(connection, mainMeter.Id, cancellationToken);
             var savings = await ReadSavingsAsync(connection, cancellationToken);
 
             var installed = capacity.InstalledCapacity;
@@ -51,7 +47,7 @@ public sealed class TrackingCapacityIntelligenceDataService(
             var co2 = savings?.Co2ReductionTons ?? 0;
             var nowAvailable = available + recovered;
             var nextUpgradeKva = Math.Ceiling(Math.Max(installed, 1) / 500) * 500;
-            var trend = BuildTrend(minuteRows, trendRows, installed, recovered);
+            var trend = BuildTrend(Array.Empty<CapacityMinuteTrendRow>(), trendRows, installed, recovered);
 
             return new CapacityIntelligenceData(
                 AnnualBenefit: FormatCurrency(annualBenefit),
