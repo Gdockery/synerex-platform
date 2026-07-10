@@ -1,5 +1,8 @@
 import { ClientManagementScreen } from "@/components/ecbs/ClientManagementScreens";
+import { getClientManagementDataFromApi } from "@/lib/ecbsApi";
 
-export default function AddNewClientPage() {
-  return <ClientManagementScreen variant="new" />;
+export default async function AddNewClientPage() {
+  const data = await getClientManagementDataFromApi();
+
+  return <ClientManagementScreen data={data} variant="new" />;
 }

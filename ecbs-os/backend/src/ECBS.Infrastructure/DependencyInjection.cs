@@ -27,6 +27,7 @@ public static class DependencyInjection
 
         services.AddScoped<IAlarmEventsDataService, TrackingAlarmEventsDataService>();
         services.AddScoped<ICapacityIntelligenceDataService, TrackingCapacityIntelligenceDataService>();
+        services.AddScoped<IClientManagementDataService, TrackingClientManagementDataService>();
 
         return services;
     }

@@ -4,11 +4,28 @@ import type { AlarmDetailData } from "@/lib/alarmDetailData";
 import type { CapacityHealthDiagnosticsData } from "@/lib/capacityHealthDiagnosticsData";
 import type { CapacityRecoveryBreakdownData } from "@/lib/capacityRecoveryBreakdownData";
 import type { CapacityUtilizationTrendData } from "@/lib/capacityUtilizationTrendData";
+import type { ClientManagementData } from "@/lib/clientManagementData";
 import type { ConfigureAlertRuleData } from "@/lib/configureAlertRuleData";
 import type { SetNotificationsData } from "@/lib/setNotificationsData";
 import type { AlertsEventsData, CapacityIntelligenceData } from "@/lib/trackingDashboardData";
 
 const apiBaseUrl = process.env.ECBS_API_BASE_URL ?? "http://localhost:5090";
+
+export async function getClientManagementDataFromApi(): Promise<ClientManagementData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/client-management`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noClientManagementData(`No applicable Client Management data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as ClientManagementData;
+  } catch {
+    return noClientManagementData("No applicable Client Management data was found because ECBS.Api is not reachable.");
+  }
+}
 
 export async function getCapacityIntelligenceDataFromApi(): Promise<CapacityIntelligenceData> {
   try {
@@ -174,6 +191,54 @@ function noAlarmDetailData(message: string): AlarmDetailData {
       { actualValue: "No Data", condition: "No Data", duration: "No Data", parameter: "Alarm Rule", status: "No Data", threshold: "No Data" },
     ],
     triggeredAt: "No Data",
+    updatedAt: "No Data",
+  };
+}
+
+function noClientManagementData(message: string): ClientManagementData {
+  return {
+    clients: [],
+    clientKpis: [
+      { detail: "No Data", icon: "C", label: "Total Clients", tone: "blue", value: "No Data" },
+      { detail: "No Data", icon: "S", label: "Total Sites", tone: "green", value: "No Data" },
+      { detail: "No Data", icon: "P", label: "Active Projects", tone: "cyan", value: "No Data" },
+      { detail: "No Data", icon: "M", label: "Total Capacity", tone: "blue", value: "No Data" },
+      { detail: "No Data", icon: "$", label: "Annual Savings", tone: "yellow", value: "No Data" },
+    ],
+    message,
+    projects: [],
+    projectKpis: [
+      { detail: "No Data", icon: "P", label: "Total Projects", tone: "blue", value: "No Data" },
+      { detail: "No Data", icon: "C", label: "Total Capacity", tone: "green", value: "No Data" },
+      { detail: "No Data", icon: "A", label: "Active Projects", tone: "cyan", value: "No Data" },
+      { detail: "No Data", icon: "D", label: "Completed Projects", tone: "yellow", value: "No Data" },
+      { detail: "No Data", icon: "$", label: "Projected Savings (Annual)", tone: "blue", value: "No Data" },
+    ],
+    selectedClient: {
+      accountManager: "No Data",
+      activeProjects: "No Data",
+      address: "No Data",
+      annualSavings: "No Data",
+      clientSince: "No Data",
+      completedProjects: "No Data",
+      contractNumber: "No Data",
+      currency: "No Data",
+      email: "No Data",
+      industry: "No Data",
+      legalName: "No Data",
+      mobile: "No Data",
+      name: "No Data",
+      phone: "No Data",
+      primaryContactName: "No Data",
+      primaryContactTitle: "No Data",
+      status: "No Data",
+      taxId: "No Data",
+      timeZone: "No Data",
+      totalCapacity: "No Data",
+      totalSites: "No Data",
+      website: "No Data",
+    },
+    state: "no-data",
     updatedAt: "No Data",
   };
 }

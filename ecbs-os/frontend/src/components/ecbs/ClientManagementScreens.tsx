@@ -1,71 +1,32 @@
 import type { ReactNode } from "react";
-import { DashboardKpiCard, type DashboardKpi } from "./DashboardCards";
+import type { ClientManagementClientRow, ClientManagementData, ClientManagementKpi, ClientManagementProjectRow } from "@/lib/clientManagementData";
 import { EcbsAppShell } from "./EcbsAppShell";
 
 export type ClientManagementVariant = "details" | "list" | "new" | "newProjectReports" | "newProjectScanning" | "projects";
 
-const clientKpis: DashboardKpi[] = [
-  { icon: "C", label: "Total Clients", value: "14", detail: "Active clients", tone: "blue" },
-  { icon: "S", label: "Total Sites", value: "48", detail: "Across all clients", tone: "green" },
-  { icon: "P", label: "Active Projects", value: "67", detail: "In progress", tone: "cyan" },
-  { icon: "M", label: "Total Capacity", value: "86.4 MW", detail: "Monitored capacity", tone: "blue" },
-  { icon: "$", label: "Annual Savings", value: "$4.62M", detail: "Projected savings", tone: "yellow" },
-];
-
-const projectKpis: DashboardKpi[] = [
-  { icon: "P", label: "Total Projects", value: "18", detail: "Across 12 sites", tone: "blue" },
-  { icon: "C", label: "Total Capacity", value: "24.8 MW", detail: "Installed capacity", tone: "green" },
-  { icon: "A", label: "Active Projects", value: "14", detail: "In progress", tone: "cyan" },
-  { icon: "D", label: "Completed Projects", value: "3", detail: "This year", tone: "yellow" },
-  { icon: "$", label: "Projected Savings (Annual)", value: "$1.42M", detail: "Across all projects", tone: "blue" },
-];
-
-const clients = [
-  ["Flex Ltd.", "Global Manufacturing", "XC-OEM-2024-001", "12", "18", "24.8 MW", "Active", "Jan 15, 2024"],
-  ["ABC Manufacturing Corp.", "Manufacturing", "XC-OEM-2024-002", "8", "11", "15.2 MW", "Active", "Feb 28, 2024"],
-  ["Global Logistics Group", "Logistics & Distribution", "XC-OEM-2024-003", "6", "9", "12.6 MW", "Active", "Mar 10, 2024"],
-  ["DataCenter One", "Data Centers", "XC-OEM-2024-004", "4", "7", "18.7 MW", "Active", "Apr 05, 2024"],
-  ["Metro Health Systems", "Healthcare", "XC-OEM-2024-005", "5", "6", "8.1 MW", "Active", "Apr 22, 2024"],
-  ["Greenfield University", "Education", "XC-OEM-2024-006", "3", "4", "5.3 MW", "Active", "May 02, 2024"],
-  ["RetailMart Group", "Retail", "XC-OEM-2024-007", "2", "3", "3.4 MW", "Active", "May 18, 2024"],
-  ["Pacific Industrial Co.", "Industrial", "XC-OEM-2024-008", "4", "5", "6.2 MW", "Active", "Jun 01, 2024"],
-  ["PowerGrid Solutions", "Utilities", "XC-OEM-2024-009", "2", "1", "2.1 MW", "Active", "Jun 15, 2024"],
-  ["CloudTech Services", "Technology", "XC-OEM-2024-010", "2", "3", "4.0 MW", "Active", "Jul 01, 2024"],
-];
-
-const projects = [
-  ["Flex Tijuana Manufacturing", "Tijuana, Mexico", "Manufacturing", "3.2 MW", "In Progress", "75%", "Feb 01, 2025", "Jun 30, 2025"],
-  ["Flex Juarez Plant", "Juarez, Mexico", "Manufacturing", "2.8 MW", "In Progress", "60%", "Mar 15, 2025", "Jul 15, 2025"],
-  ["Flex DFW Campus", "Dallas, TX, USA", "Manufacturing", "4.6 MW", "In Progress", "40%", "Apr 01, 2025", "Aug 31, 2025"],
-  ["Flex Austin HQ", "Austin, TX, USA", "Corporate", "1.5 MW", "Planning", "10%", "May 10, 2025", "Sep 30, 2025"],
-  ["Flex San Luis Potosi", "San Luis Potosi, Mexico", "Manufacturing", "3.7 MW", "Not Started", "0%", "Jun 01, 2025", "Nov 30, 2025"],
-  ["Flex Monterrey Facility", "Monterrey, Mexico", "Manufacturing", "2.1 MW", "In Progress", "20%", "Apr 20, 2025", "Aug 20, 2025"],
-  ["Flex Phoenix DC", "Phoenix, AZ, USA", "Data Center", "2.9 MW", "In Progress", "55%", "Mar 05, 2025", "Jul 31, 2025"],
-  ["Flex Guadalajara Plant", "Guadalajara, Mexico", "Manufacturing", "1.8 MW", "Planning", "5%", "Jun 15, 2025", "Dec 15, 2025"],
-];
-
-export function ClientManagementScreen({ variant }: { variant: ClientManagementVariant }) {
+export function ClientManagementScreen({ data, variant }: { data: ClientManagementData; variant: ClientManagementVariant }) {
   return (
     <EcbsAppShell activeHref="/client-management/clients">
       <div className="flex h-full min-h-[682px] flex-col overflow-hidden px-3 py-2">
-        <ClientTopbar variant={variant} />
-        {variant === "list" ? <ClientList /> : null}
+        <ClientTopbar data={data} variant={variant} />
+        {variant === "list" ? <ClientList data={data} /> : null}
         {variant === "new" ? <AddNewClient /> : null}
-        {variant === "details" ? <ClientDetails /> : null}
-        {variant === "newProjectReports" ? <NewProjectReports /> : null}
-        {variant === "newProjectScanning" ? <NewProjectScanning /> : null}
-        {variant === "projects" ? <ClientProjects /> : null}
+        {variant === "details" ? <ClientDetails data={data} /> : null}
+        {variant === "newProjectReports" ? <NewProjectReports data={data} /> : null}
+        {variant === "newProjectScanning" ? <NewProjectScanning data={data} /> : null}
+        {variant === "projects" ? <ClientProjects data={data} /> : null}
         <footer className="mt-auto flex h-[28px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500">
           <div>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</div>
-          <div>Data updated: May 18, 2025 10:15 AM <span className="ml-4 text-[#05ff5e]">Live</span></div>
+          <div>Data updated: {data.updatedAt} <span className={data.state === "data" ? "ml-4 text-[#05ff5e]" : "ml-4 text-slate-400"}>{data.state === "data" ? "Live" : "No Data"}</span></div>
         </footer>
       </div>
     </EcbsAppShell>
   );
 }
 
-function ClientTopbar({ variant }: { variant: ClientManagementVariant }) {
-  const title = variant === "new" ? "Add New Client" : variant === "newProjectReports" ? "Generate Proposal & Site Assessment Reports" : variant === "newProjectScanning" ? "Create New Project" : variant === "projects" ? "Flex Ltd. - Projects / Facilities" : variant === "details" ? "Flex Ltd." : "Clients";
+function ClientTopbar({ data, variant }: { data: ClientManagementData; variant: ClientManagementVariant }) {
+  const clientName = data.selectedClient.name;
+  const title = variant === "new" ? "Add New Client" : variant === "newProjectReports" ? "Generate Proposal & Site Assessment Reports" : variant === "newProjectScanning" ? "Create New Project" : variant === "projects" ? `${clientName} - Projects / Facilities` : variant === "details" ? clientName : "Clients";
   const subtitle = variant === "new" ? "Enter the client information below to create a new client in the system." : variant === "newProjectReports" ? "Review project data and generate proposal and site assessment reports." : variant === "newProjectScanning" ? "Enter project details, upload utility documents, and 1-line drawings to set up a new project." : variant === "projects" ? "View and manage all projects and facilities for this client." : variant === "details" ? "View and manage client information, contacts, settings, and activity." : "View and manage all clients associated with your organization.";
 
   return (
@@ -73,16 +34,16 @@ function ClientTopbar({ variant }: { variant: ClientManagementVariant }) {
       <div className="flex h-[34px] items-center justify-between">
         <div className="text-[12px] font-semibold uppercase tracking-wide text-slate-100">XECO Energy Intelligence Portal</div>
         <div className="flex items-center gap-3 text-[9px] text-slate-300">
-          <ToolbarButton>{variant === "details" || variant === "projects" ? "Client Flex Ltd." : "OEM Solutions Inc."}</ToolbarButton>
-          <ToolbarButton>May 12 - May 18, 2025</ToolbarButton>
-          <span className="text-[#05ff5e]">Online</span>
+          <ToolbarButton>{variant === "details" || variant === "projects" ? `Client ${clientName}` : "Client Management"}</ToolbarButton>
+          <ToolbarButton>{data.updatedAt}</ToolbarButton>
+          <span className={data.state === "data" ? "text-[#05ff5e]" : "text-slate-400"}>{data.state === "data" ? "Online" : "No Data"}</span>
           <span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span>
           <span>John Smith<br /><span className="text-slate-500">OEM User</span></span>
         </div>
       </div>
       <div className="mt-2 flex items-start justify-between">
         <div>
-          <Breadcrumb items={variant === "new" ? ["Clients", "Add New Client"] : variant === "newProjectReports" ? ["Clients", "Flex Ltd.", "Projects / Facilities", "Create New Project", "Generate Proposal & Site Assessment Reports"] : variant === "newProjectScanning" ? ["Clients", "Flex Ltd.", "Projects / Facilities", "Create New Project"] : variant === "projects" ? ["Clients", "Flex Ltd."] : variant === "details" ? ["Clients", "Flex Ltd.", "Client Details"] : ["Clients"]} />
+          <Breadcrumb items={variant === "new" ? ["Clients", "Add New Client"] : variant === "newProjectReports" ? ["Clients", clientName, "Projects / Facilities", "Create New Project", "Generate Proposal & Site Assessment Reports"] : variant === "newProjectScanning" ? ["Clients", clientName, "Projects / Facilities", "Create New Project"] : variant === "projects" ? ["Clients", clientName] : variant === "details" ? ["Clients", clientName, "Client Details"] : ["Clients"]} />
           <h1 className="mt-2 text-[21px] font-semibold leading-none text-slate-100">{title}</h1>
           <p className="mt-2 text-[10px] text-slate-300">{subtitle}</p>
         </div>
@@ -90,23 +51,23 @@ function ClientTopbar({ variant }: { variant: ClientManagementVariant }) {
         {variant === "newProjectScanning" ? <div className="flex gap-2"><ToolbarButton>Cancel</ToolbarButton><ToolbarButton primary><span className="inline-flex items-center gap-2"><SaveIcon />Save Draft</span></ToolbarButton></div> : null}
         {variant === "list" ? <ToolbarButton primary>+ Add New Client</ToolbarButton> : null}
         {variant === "details" ? <ToolbarButton primary><span className="inline-flex items-center gap-1.5"><PencilIcon />Edit Client</span></ToolbarButton> : null}
-        {variant === "projects" ? <ClientProjectsIdentityCard /> : null}
+        {variant === "projects" ? <ClientProjectsIdentityCard data={data} /> : null}
       </div>
     </header>
   );
 }
 
-function ClientList() {
+function ClientList({ data }: { data: ClientManagementData }) {
   return (
     <div className="mt-3 flex min-h-0 flex-1 flex-col gap-3">
       <section className="grid h-[98px] grid-cols-5 gap-3">
-        {clientKpis.map((kpi) => <ClientListKpiCard key={kpi.label} kpi={kpi} />)}
+        {data.clientKpis.map((kpi) => <ClientListKpiCard key={kpi.label} kpi={kpi} />)}
       </section>
       <div className="flex h-[38px] items-center justify-between">
         <div className="flex gap-2"><SearchBox placeholder="Search clients by name, contract #, or location..." withIcon /><ToolbarButton><span className="inline-flex items-center gap-2"><FilterIcon />Filters <ChevronDownIcon /></span></ToolbarButton></div>
         <ToolbarButton><span className="inline-flex items-center gap-2"><DownloadIcon />Export <ChevronDownIcon /></span></ToolbarButton>
       </div>
-      <ClientListTable />
+      <ClientListTable clients={data.clients} message={data.message} />
     </div>
   );
 }
@@ -133,7 +94,7 @@ function AddNewClient() {
   );
 }
 
-function NewProjectScanning() {
+function NewProjectScanning({ data }: { data: ClientManagementData }) {
   return (
     <div className="mt-3 grid min-h-0 flex-1 grid-cols-[1fr_340px] gap-3">
       <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
@@ -142,7 +103,7 @@ function NewProjectScanning() {
         <DocumentUploadsPanel />
       </div>
       <aside className="flex min-h-0 flex-col gap-3">
-        <ProjectSummaryCard />
+        <ProjectSummaryCard data={data} />
         <DarkSidePanel title="Required for Next Step">
           <ChecklistDark items={["Project Information", "Utility Bill", "1-Line Drawings"]} />
         </DarkSidePanel>
@@ -155,13 +116,15 @@ function NewProjectScanning() {
   );
 }
 
-function NewProjectReports() {
+function NewProjectReports({ data }: { data: ClientManagementData }) {
+  const selectedProject = data.projects[0];
+
   return (
     <div className="mt-3 grid min-h-0 flex-1 grid-cols-[1fr_326px] gap-3">
       <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
         <WorkflowSteps active={5} steps={["Project Information", "Site & Electrical Info", "Documents & Uploads", "Review & Confirm", "Generate Reports"]} />
         <section className="grid h-[250px] grid-cols-[1fr_0.72fr] gap-3">
-          <DarkSidePanel title="1. Project Overview"><ProjectOverviewGrid /></DarkSidePanel>
+          <DarkSidePanel title="1. Project Overview"><ProjectOverviewGrid data={data} project={selectedProject} /></DarkSidePanel>
           <DarkSidePanel title={<span className="flex items-center justify-between gap-3">2. Uploaded Documents <button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-1.5 text-[10px] font-normal text-slate-300">Manage Files</button></span>}><UploadedDocuments /></DarkSidePanel>
         </section>
         <DarkSidePanel title="3. Generate Reports">
@@ -185,7 +148,7 @@ function NewProjectReports() {
         </DarkSidePanel>
       </div>
       <aside className="flex min-h-0 flex-col gap-3">
-        <ProjectReportSummaryCard />
+        <ProjectReportSummaryCard data={data} project={selectedProject} />
         <DarkSidePanel title="Reports to be Generated">
           <ChecklistDark items={["Proposal Report", "Site Assessment Report"]} />
           <p className="mt-4 text-[10px] leading-relaxed text-slate-400">Comprehensive analysis based on uploaded utility bill and 1-line drawings.</p>
@@ -199,16 +162,16 @@ function NewProjectReports() {
   );
 }
 
-function ProjectOverviewGrid() {
+function ProjectOverviewGrid({ data, project }: { data: ClientManagementData; project?: ClientManagementProjectRow }) {
   const rows = [
-    ["Project / Facility Name", "Flex Tijuana Manufacturing"],
-    ["Client", "Flex Ltd."],
-    ["Site", "Tijuana, Mexico"],
-    ["Location", "Tijuana, Baja California, Mexico"],
-    ["Project Type", "Manufacturing"],
-    ["Status", "Planning"],
-    ["Start Date", "Feb 01, 2025"],
-    ["Target Completion", "Jun 30, 2025"],
+    ["Project / Facility Name", project?.name ?? "No Data"],
+    ["Client", data.selectedClient.name],
+    ["Site", "No Data"],
+    ["Location", project?.location ?? "No Data"],
+    ["Project Type", project?.siteType ?? "No Data"],
+    ["Status", project?.status ?? "No Data"],
+    ["Start Date", project?.startDate ?? "No Data"],
+    ["Target Completion", project?.targetCompletion ?? "No Data"],
   ];
   return <div className="mt-4 grid grid-cols-2 gap-x-24 gap-y-4 text-[10px]">{rows.map(([label, value]) => <div key={label}><div className="text-[9px] text-slate-400">{label}</div><div className={label === "Status" ? "mt-1 text-blue-400" : "mt-1 text-slate-100"}>{label === "Status" ? "● " : null}{value}</div></div>)}</div>;
 }
@@ -216,8 +179,8 @@ function ProjectOverviewGrid() {
 function UploadedDocuments() {
   return (
     <div className="mt-4 space-y-5">
-      <UploadedDoc label="Utility Bill" name="Tijuana_Utility_Bill_May2025.pdf" tone="red" meta="Uploaded: May 18, 2025  •  1.2 MB" />
-      <UploadedDoc label="1-Line Drawings" name="Flex_Tijuana_1-Line_v1.dwg" tone="blue" meta="Uploaded: May 18, 2025  •  3.7 MB" />
+      <UploadedDoc label="Utility Bill" name="No Data" tone="red" meta="No approved uploaded document source was found." />
+      <UploadedDoc label="1-Line Drawings" name="No Data" tone="blue" meta="No approved uploaded document source was found." />
     </div>
   );
 }
@@ -245,11 +208,11 @@ function ReportChoiceCard({ type }: { type: "assessment" | "proposal" }) {
   );
 }
 
-function ProjectReportSummaryCard() {
+function ProjectReportSummaryCard({ data, project }: { data: ClientManagementData; project?: ClientManagementProjectRow }) {
   return (
     <DarkSidePanel title="Project Summary">
-      <div className="mt-3 flex items-center gap-4"><span className="grid size-11 place-items-center rounded-full bg-violet-700 text-white"><DetailIcon kind="folder" /></span><div><div className="font-semibold text-slate-100">Flex Tijuana Manufacturing</div><div className="text-[10px] text-blue-400">● Planning</div></div></div>
-      <MetricListDark rows={[["Client", "Flex Ltd."], ["Site", "Tijuana, Mexico"], ["Project Type", "Manufacturing"], ["Start Date", "Feb 01, 2025"], ["Target Completion", "Jun 30, 2025"], ["Documents Uploaded", "2 of 2 ✓"], ["Reports", "Not Generated"]]} />
+      <div className="mt-3 flex items-center gap-4"><span className="grid size-11 place-items-center rounded-full bg-violet-700 text-white"><DetailIcon kind="folder" /></span><div><div className="font-semibold text-slate-100">{project?.name ?? "No Data"}</div><div className="text-[10px] text-blue-400">● {project?.status ?? "No Data"}</div></div></div>
+      <MetricListDark rows={[["Client", data.selectedClient.name], ["Site", "No Data"], ["Project Type", project?.siteType ?? "No Data"], ["Start Date", project?.startDate ?? "No Data"], ["Target Completion", project?.targetCompletion ?? "No Data"], ["Documents Uploaded", "No Data"], ["Reports", "Not Generated"]]} />
     </DarkSidePanel>
   );
 }
@@ -321,11 +284,11 @@ function ScanUploadCard({ button, icon, title, tone }: { button: string; icon: "
   );
 }
 
-function ProjectSummaryCard() {
+function ProjectSummaryCard({ data }: { data: ClientManagementData }) {
   return (
     <DarkSidePanel title="Project Summary">
       <div className="mt-3 flex items-center gap-4"><span className="grid size-11 place-items-center rounded-full bg-violet-700 text-white"><DetailIcon kind="folder" /></span><div><div className="font-semibold text-slate-100">New Project</div><div className="text-[10px] text-slate-400">Not Saved</div></div></div>
-      <div className="mt-5 flex items-center gap-3 border-t border-white/5 pt-4"><span className="grid size-9 place-items-center rounded-full bg-white text-[12px] font-bold text-[#00a9ff]">flex</span><div><div className="text-[11px] font-semibold text-slate-100">Flex Ltd.</div><div className="text-[9px] text-slate-400">Global Manufacturing</div></div></div>
+      <div className="mt-5 flex items-center gap-3 border-t border-white/5 pt-4"><span className="grid size-9 place-items-center rounded-full bg-white text-[12px] font-bold text-[#00a9ff]">{clientInitials(data.selectedClient.name)}</span><div><div className="text-[11px] font-semibold text-slate-100">{data.selectedClient.name}</div><div className="text-[9px] text-slate-400">{data.selectedClient.industry}</div></div></div>
       <MetricListDark rows={[["Site", "-"], ["Project Type", "-"], ["Status", "Planning"], ["Start Date", "-"], ["Target Completion", "-"]]} />
     </DarkSidePanel>
   );
@@ -339,31 +302,33 @@ function ChecklistDark({ items }: { items: string[] }) {
   return <div className="mt-4 space-y-3 text-[10px] text-slate-300">{items.map((item) => <div className="flex items-center gap-2" key={item}><span className="grid size-4 place-items-center rounded-full border border-[#05ff5e] text-[9px] text-[#05ff5e]">✓</span>{item}</div>)}</div>;
 }
 
-function ClientDetails() {
+function ClientDetails({ data }: { data: ClientManagementData }) {
+  const client = data.selectedClient;
+
   return (
     <>
       <section className="mt-3 rounded-lg bg-white p-4 text-slate-900">
         <div className="grid grid-cols-[1.2fr_1.4fr] items-center gap-5">
-          <div className="flex items-center gap-4"><div className="text-3xl font-bold text-[#00a9ff]">flex</div><div><div className="text-xl font-semibold">Flex Ltd. <span className="ml-2 rounded-full bg-green-100 px-3 py-1 text-xs text-green-700">Active</span></div><div className="mt-1 text-xs text-slate-600">Global Manufacturing</div><div className="mt-2 text-[10px] text-slate-500">Client Since: Jan 15, 2024 &nbsp; | &nbsp; Contract Number: XC-OEM-2024-001 &nbsp; | &nbsp; Account Manager: Sarah Johnson</div></div></div>
-          <div className="grid grid-cols-4 gap-3 text-center"><LightMetric icon="sites" label="Sites" value="12" /><LightMetric icon="folder" label="Active Projects" value="18" /><LightMetric icon="gauge" label="Total Capacity" value="24.8 MW" /><LightMetric icon="money" label="Annual Savings" value="$1.42M" /></div>
+          <div className="flex items-center gap-4"><div className="text-3xl font-bold text-[#00a9ff]">{clientInitials(client.name)}</div><div><div className="text-xl font-semibold">{client.name} <span className="ml-2 rounded-full bg-green-100 px-3 py-1 text-xs text-green-700">{client.status}</span></div><div className="mt-1 text-xs text-slate-600">{client.industry}</div><div className="mt-2 text-[10px] text-slate-500">Client Since: {client.clientSince} &nbsp; | &nbsp; Contract Number: {client.contractNumber} &nbsp; | &nbsp; Account Manager: {client.accountManager}</div></div></div>
+          <div className="grid grid-cols-4 gap-3 text-center"><LightMetric icon="sites" label="Sites" value={client.totalSites} /><LightMetric icon="folder" label="Active Projects" value={client.activeProjects} /><LightMetric icon="gauge" label="Total Capacity" value={client.totalCapacity} /><LightMetric icon="money" label="Annual Savings" value={client.annualSavings} /></div>
         </div>
       </section>
-      <Tabs items={["Overview", "Sites (12)", "Projects (18)", "Contacts (8)", "Documents", "Alerts (6)", "Analytics", "Settings"]} />
+      <Tabs items={["Overview", `Sites (${client.totalSites})`, `Projects (${client.activeProjects})`, "Contacts (No Data)", "Documents", "Alerts (No Data)", "Analytics", "Settings"]} />
       <section className="mt-2 grid h-[260px] grid-cols-[1.35fr_0.6fr_0.82fr] gap-2">
         <LightPanel title="Client Information">
-          <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-[10px]"><Info label="Legal Entity Name" value="Flex Manufacturing Corporation" /><Info label="Phone" value="(512) 555-0187" /><Info label="Industry" value="Manufacturing" /><Info label="Email" value="admin@flex.com" link /><Info label="Website" value="www.flex.com" link /><Info label="Address" value="2500 Industrial Way, Austin, TX 78741" /><Info label="Tax ID / EIN" value="74-1234567" /><Info label="Time Zone" value="(GMT-06:00) Central Time" /><Info label="Currency" value="USD - US Dollar" /><Info label="Status" value="Active" /></div>
+          <div className="grid grid-cols-2 gap-x-8 gap-y-3 text-[10px]"><Info label="Legal Entity Name" value={client.legalName} /><Info label="Phone" value={client.phone} /><Info label="Industry" value={client.industry} /><Info label="Email" value={client.email} link /><Info label="Website" value={client.website} link /><Info label="Address" value={client.address} /><Info label="Tax ID / EIN" value={client.taxId} /><Info label="Time Zone" value={client.timeZone} /><Info label="Currency" value={client.currency} /><Info label="Status" value={client.status} /></div>
         </LightPanel>
         <LightPanel footerAction={<button className="inline-flex h-8 items-center justify-center gap-2 rounded border border-blue-500/45 px-4 text-[10px] font-semibold text-blue-600">View All Contacts <ArrowRightIcon /></button>} title="Primary Contact">
-          <div className="flex items-center gap-3"><div className="grid size-11 place-items-center rounded-full bg-blue-600 text-white">MJ</div><div><div className="font-semibold">Michael Johnson</div><div className="text-[10px]">Director of Facilities</div></div></div>
-          <div className="mt-4 space-y-2 text-[10px]"><Info label="Phone" value="(512) 555-0187" /><Info label="Email" value="mjohnson@flex.com" link /><Info label="Mobile" value="(512) 555-0199" /></div>
+          <div className="flex items-center gap-3"><div className="grid size-11 place-items-center rounded-full bg-blue-600 text-white">{clientInitials(client.primaryContactName)}</div><div><div className="font-semibold">{client.primaryContactName}</div><div className="text-[10px]">{client.primaryContactTitle}</div></div></div>
+          <div className="mt-4 space-y-2 text-[10px]"><Info label="Phone" value={client.phone} /><Info label="Email" value={client.email} link /><Info label="Mobile" value={client.mobile} /></div>
         </LightPanel>
         <LightPanel footerAction={<button className="inline-flex h-8 items-center justify-center gap-2 rounded border border-blue-500/35 px-4 text-[10px] font-semibold text-blue-600">View Activity Log <ArrowRightIcon /></button>} title="Account Summary">
-          <AccountSummaryRows />
+          <AccountSummaryRows data={data} />
         </LightPanel>
       </section>
       <section className="mt-2 grid h-[225px] grid-cols-[1.15fr_1fr] gap-2">
         <LightPanel action={<button className="text-[10px] font-semibold text-blue-600">View All Projects <span className="ml-1">→</span></button>} title="Recent Projects">
-          <ClientProjectsTable />
+          <ClientProjectsTable projects={data.projects.slice(0, 4)} />
         </LightPanel>
         <LightPanel action={<button className="text-[10px] font-semibold text-blue-600">View All Documents <span className="ml-1">→</span></button>} title="Documents">
           <DocumentsTable />
@@ -373,18 +338,18 @@ function ClientDetails() {
   );
 }
 
-function ClientProjects() {
+function ClientProjects({ data }: { data: ClientManagementData }) {
   return (
     <div className="mt-3 flex min-h-0 flex-1 flex-col gap-3">
       <section className="grid h-[98px] grid-cols-5 gap-3">
-        {projectKpis.map((kpi) => <ClientProjectsKpiCard key={kpi.label} kpi={kpi} />)}
+        {data.projectKpis.map((kpi) => <ClientProjectsKpiCard key={kpi.label} kpi={kpi} />)}
       </section>
       <Tabs items={["Projects / Facilities", "Sites", "Analytics", "Documents", "Alerts"]} />
       <div className="flex h-[38px] items-center justify-between">
         <div className="flex gap-2"><SearchBox placeholder="Search projects by name, site, or location..." withIcon /><ToolbarButton><span className="inline-flex items-center gap-2"><FilterIcon />Filters <ChevronDownIcon /></span></ToolbarButton></div>
         <ToolbarButton primary><span className="inline-flex items-center gap-2">+ New Project</span></ToolbarButton>
       </div>
-      <ClientProjectsFacilitiesTable />
+      <ClientProjectsFacilitiesTable projects={data.projects} />
     </div>
   );
 }
@@ -427,7 +392,7 @@ function UploadBox() {
   return <div><div className="mb-1 text-[9px] text-slate-300">Client Logo</div><div className="grid h-[72px] place-items-center rounded border border-dashed border-cyan-300/25 bg-[#061421] text-center text-[10px] text-slate-400">Upload client logo<br />PNG, JPG up to 2MB</div></div>;
 }
 
-function ClientListKpiCard({ kpi }: { kpi: DashboardKpi }) {
+function ClientListKpiCard({ kpi }: { kpi: ClientManagementKpi }) {
   const config = clientListKpiConfig[kpi.label] ?? clientListKpiConfig["Total Clients"];
 
   return (
@@ -452,7 +417,18 @@ const clientListKpiConfig: Record<string, { bg: string; icon: "building" | "fold
   "Annual Savings": { bg: "bg-amber-600", icon: "money", text: "text-white" },
 };
 
-function ClientListTable() {
+function ClientListTable({ clients, message }: { clients: ClientManagementClientRow[]; message: string }) {
+  const rows = clients.length > 0 ? clients : [{
+    activeProjects: "No Data",
+    contractNumber: "No Data",
+    industry: message || "No applicable Client Management data was found.",
+    joinedDate: "No Data",
+    name: "No Data",
+    sites: "No Data",
+    status: "No Data",
+    totalCapacity: "No Data",
+  }];
+
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061521]/92">
       <table className="w-full table-fixed text-left text-[10px]">
@@ -469,22 +445,22 @@ function ClientListTable() {
           </tr>
         </thead>
         <tbody>
-          {clients.map((client) => (
-            <tr className="h-[46px] border-t border-white/5" key={client[0]}>
+          {rows.map((client) => (
+            <tr className="h-[46px] border-t border-white/5" key={`${client.name}-${client.contractNumber}`}>
               <td className="px-4 text-slate-100"><ClientBrandCell client={client} /></td>
-              <td className="px-4 text-slate-200">{client[2]}</td>
-              <td className="px-4 text-center text-slate-200">{client[3]}</td>
-              <td className="px-4 text-center text-slate-200">{client[4]}</td>
-              <td className="px-4 text-center text-slate-200">{client[5]}</td>
-              <td className="px-4 text-slate-100"><span className="text-[#05ff5e]">●</span> Active</td>
-              <td className="px-4 text-slate-200">{client[7]}</td>
+              <td className="px-4 text-slate-200">{client.contractNumber}</td>
+              <td className="px-4 text-center text-slate-200">{client.sites}</td>
+              <td className="px-4 text-center text-slate-200">{client.activeProjects}</td>
+              <td className="px-4 text-center text-slate-200">{client.totalCapacity}</td>
+              <td className="px-4 text-slate-100"><span className={client.status === "Active" ? "text-[#05ff5e]" : "text-slate-400"}>●</span> {client.status}</td>
+              <td className="px-4 text-slate-200">{client.joinedDate}</td>
               <td className="px-4 text-right text-slate-200">•••</td>
             </tr>
           ))}
         </tbody>
       </table>
       <div className="mt-auto flex h-[54px] items-center justify-between border-t border-white/5 px-4 text-[11px] text-slate-300">
-        <span>Showing 1 to 10 of 14 clients</span>
+        <span>Showing 1 to {rows.length} of {clients.length || "No Data"} clients</span>
         <div className="flex items-center gap-3">
           <button className="grid size-8 place-items-center rounded border border-cyan-300/12 text-slate-400"><ChevronLeftIcon /></button>
           <button className="grid size-8 place-items-center rounded border border-[#05ff5e]/55 text-[#05ff5e]">1</button>
@@ -496,8 +472,8 @@ function ClientListTable() {
   );
 }
 
-function ClientBrandCell({ client }: { client: string[] }) {
-  return <div className="flex items-center gap-3"><ClientLogoIcon name={client[0]} /><span className="min-w-0"><b className="block truncate text-[11px] leading-tight">{client[0]}</b><span className="block truncate text-[9px] text-slate-400">{client[1]}</span></span></div>;
+function ClientBrandCell({ client }: { client: ClientManagementClientRow }) {
+  return <div className="flex items-center gap-3"><ClientLogoIcon name={client.name} /><span className="min-w-0"><b className="block truncate text-[11px] leading-tight">{client.name}</b><span className="block truncate text-[9px] text-slate-400">{client.industry}</span></span></div>;
 }
 
 function ClientLogoIcon({ name }: { name: string }) {
@@ -518,24 +494,26 @@ function ClientLogoIcon({ name }: { name: string }) {
   return <span className={`grid size-8 shrink-0 place-items-center rounded-full ${config.bg} text-white ring-1 ring-white/20`}>{config.content}</span>;
 }
 
-function ClientProjectsIdentityCard() {
+function ClientProjectsIdentityCard({ data }: { data: ClientManagementData }) {
+  const client = data.selectedClient;
+
   return (
     <article className="flex items-center gap-3 rounded-lg border border-cyan-300/12 bg-[#061521]/92 px-4 py-3">
-      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-blue-600 text-[13px] font-bold text-white">flex</span>
+      <span className="grid size-11 shrink-0 place-items-center rounded-full bg-blue-600 text-[13px] font-bold text-white">{clientInitials(client.name)}</span>
       <div className="min-w-0">
-        <div className="text-[15px] font-semibold leading-tight text-slate-100">Flex Ltd.</div>
-        <div className="text-[9px] text-slate-400">Global Manufacturing</div>
+        <div className="text-[15px] font-semibold leading-tight text-slate-100">{client.name}</div>
+        <div className="text-[9px] text-slate-400">{client.industry}</div>
       </div>
       <div className="ml-auto grid grid-cols-[90px_116px_106px] items-center gap-4 text-[9px] text-slate-300">
-        <div><span className="block text-slate-500">Client Since</span><b className="font-semibold text-slate-100">Jan 15, 2024</b></div>
-        <div><span className="block text-slate-500">Contract Number</span><b className="font-semibold text-slate-100">XC-OEM-2024-001</b></div>
+        <div><span className="block text-slate-500">Client Since</span><b className="font-semibold text-slate-100">{client.clientSince}</b></div>
+        <div><span className="block text-slate-500">Contract Number</span><b className="font-semibold text-slate-100">{client.contractNumber}</b></div>
         <ToolbarButton><span className="inline-flex items-center gap-2"><InfoIcon />Client Details</span></ToolbarButton>
       </div>
     </article>
   );
 }
 
-function ClientProjectsKpiCard({ kpi }: { kpi: DashboardKpi }) {
+function ClientProjectsKpiCard({ kpi }: { kpi: ClientManagementKpi }) {
   const config = clientProjectsKpiConfig[kpi.label] ?? clientProjectsKpiConfig["Total Projects"];
 
   return (
@@ -560,7 +538,18 @@ const clientProjectsKpiConfig: Record<string, { bg: string; icon: "check" | "fol
   "Projected Savings (Annual)": { bg: "bg-blue-700", icon: "money" },
 };
 
-function ClientProjectsFacilitiesTable() {
+function ClientProjectsFacilitiesTable({ projects }: { projects: ClientManagementProjectRow[] }) {
+  const rows = projects.length > 0 ? projects : [{
+    capacity: "No Data",
+    location: "No Data",
+    name: "No Data",
+    progress: "No Data",
+    siteType: "No Data",
+    startDate: "No Data",
+    status: "No Data",
+    targetCompletion: "No Data",
+  }];
+
   return (
     <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061521]/92">
       <table className="w-full table-fixed text-left text-[10px]">
@@ -578,23 +567,23 @@ function ClientProjectsFacilitiesTable() {
           </tr>
         </thead>
         <tbody>
-          {projects.map((project) => (
-            <tr className="h-[52px] border-t border-white/5" key={project[0]}>
+          {rows.map((project) => (
+            <tr className="h-[52px] border-t border-white/5" key={`${project.name}-${project.location}`}>
               <td className="px-4 text-slate-100"><ProjectFacilityCell project={project} /></td>
-              <td className="px-4 text-slate-200"><LocationCell location={project[1]} /></td>
-              <td className="px-4 text-slate-200">{project[2]}</td>
-              <td className="px-4 text-slate-200">{project[3]}</td>
-              <td className="px-4"><StatusText status={project[4]} /></td>
-              <td className="px-4"><ProgressBar status={project[4]} value={project[5]} /></td>
-              <td className="px-4 text-slate-200">{project[6]}</td>
-              <td className="px-4 text-slate-200">{project[7]}</td>
+              <td className="px-4 text-slate-200"><LocationCell location={project.location} /></td>
+              <td className="px-4 text-slate-200">{project.siteType}</td>
+              <td className="px-4 text-slate-200">{project.capacity}</td>
+              <td className="px-4"><StatusText status={project.status} /></td>
+              <td className="px-4"><ProgressBar status={project.status} value={project.progress} /></td>
+              <td className="px-4 text-slate-200">{project.startDate}</td>
+              <td className="px-4 text-slate-200">{project.targetCompletion}</td>
               <td className="px-2 text-right"><span className="inline-flex items-center gap-3"><ChartActionIcon /><span className="text-slate-200">•••</span></span></td>
             </tr>
           ))}
         </tbody>
       </table>
       <div className="mt-auto flex h-[54px] items-center justify-between border-t border-white/5 px-4 text-[11px] text-slate-300">
-        <span>Showing 1 to 8 of 18 projects</span>
+        <span>Showing 1 to {rows.length} of {projects.length || "No Data"} projects</span>
         <div className="flex items-center gap-3">
           <button className="grid size-8 place-items-center rounded border border-cyan-300/12 text-slate-400"><ChevronLeftIcon /></button>
           <button className="grid size-8 place-items-center rounded border border-[#05ff5e]/55 text-[#05ff5e]">1</button>
@@ -607,13 +596,12 @@ function ClientProjectsFacilitiesTable() {
   );
 }
 
-function ProjectFacilityCell({ project }: { project: string[] }) {
-  return <div className="flex items-center gap-3"><span className="grid size-8 shrink-0 place-items-center rounded-full bg-sky-600 text-white"><BuildingIconSmall /></span><span className="min-w-0"><b className="block truncate text-[11px] leading-tight">{project[0]}</b><span className="block truncate text-[9px] text-slate-400">{project[1]}</span></span></div>;
+function ProjectFacilityCell({ project }: { project: ClientManagementProjectRow }) {
+  return <div className="flex items-center gap-3"><span className="grid size-8 shrink-0 place-items-center rounded-full bg-sky-600 text-white"><BuildingIconSmall /></span><span className="min-w-0"><b className="block truncate text-[11px] leading-tight">{project.name}</b><span className="block truncate text-[9px] text-slate-400">{project.location}</span></span></div>;
 }
 
 function LocationCell({ location }: { location: string }) {
-  const flag = location.includes("Mexico") ? "🇲🇽" : "🇺🇸";
-  return <span className="inline-flex items-center gap-2 whitespace-nowrap"><span className="text-[14px] leading-none">{flag}</span>{location}</span>;
+  return <span className="inline-flex items-center gap-2 whitespace-nowrap">{location}</span>;
 }
 
 function StatusText({ status }: { status: string }) {
@@ -624,23 +612,7 @@ function StatusText({ status }: { status: string }) {
 function ProgressBar({ status, value }: { status: string; value: string }) {
   const numeric = Number(value.replace("%", ""));
   const color = status === "Planning" ? "bg-sky-500" : status === "Not Started" ? "bg-slate-500" : "bg-[#05c760]";
-  return <div className="flex items-center gap-3"><span className="h-2 w-[88px] rounded-full bg-slate-700/65"><span className={`block h-2 rounded-full ${color}`} style={{ width: `${numeric}%` }} /></span><span className="w-8 text-slate-200">{value}</span></div>;
-}
-
-function DarkTable({ className = "", headers, rows }: { className?: string; headers: string[]; rows: string[][] }) {
-  return (
-    <section className={`overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061521]/92 ${className}`}>
-      <table className="w-full text-left text-[10px]">
-        <thead className="bg-[#092130] text-slate-400"><tr>{headers.map((header) => <th className="px-3 py-3 font-medium" key={header}>{header}</th>)}</tr></thead>
-        <tbody>{rows.map((row, index) => <tr className="border-t border-white/5" key={index}>{row.map((cell, cellIndex) => <td className="px-3 py-2.5 text-slate-200" key={`${index}-${cellIndex}`}>{cell.includes("|") ? <ClientCell value={cell} /> : cell === "Active" || cell === "In Progress" ? <span className="text-[#05ff5e]">● {cell}</span> : cell === "Planning" ? <span className="text-blue-400">● {cell}</span> : cell}</td>)}</tr>)}</tbody>
-      </table>
-    </section>
-  );
-}
-
-function ClientCell({ value }: { value: string }) {
-  const [title, subtitle] = value.split("|");
-  return <div className="flex items-center gap-2"><span className="grid size-6 place-items-center rounded-full bg-white text-[9px] font-bold text-blue-600">{title.slice(0, 2)}</span><span><b className="block">{title}</b><span className="text-[9px] text-slate-400">{subtitle}</span></span></div>;
+  return <div className="flex items-center gap-3"><span className="h-2 w-[88px] rounded-full bg-slate-700/65"><span className={`block h-2 rounded-full ${color}`} style={{ width: `${Number.isFinite(numeric) ? numeric : 0}%` }} /></span><span className="w-12 text-slate-200">{value}</span></div>;
 }
 
 function LightPanel({ action, children, footerAction, title }: { action?: ReactNode; children: ReactNode; footerAction?: ReactNode; title: string }) {
@@ -655,10 +627,6 @@ function Info({ label, link = false, value }: { label: string; link?: boolean; v
   return <div><div className="text-[9px] text-slate-500">{label}</div><div className={link ? "text-[10px] text-blue-600" : "text-[10px] text-slate-900"}>{value}</div></div>;
 }
 
-function MetricListLight({ rows }: { rows: [string, string][] }) {
-  return <div className="space-y-2 text-[10px]">{rows.map(([label, value]) => <div className="flex justify-between border-b border-slate-200 pb-2" key={label}><span className="text-slate-600">{label}</span><b>{value}</b></div>)}</div>;
-}
-
 function MetricListDark({ rows }: { rows: [string, string][] }) {
   return <div className="mt-7 space-y-4 text-[10px]">{rows.map(([label, value]) => <div className="flex justify-between border-b border-white/5 pb-2" key={label}><span className="text-slate-400">{label}</span><span className={value === "Active" ? "text-[#05ff5e]" : "text-slate-200"}>{value}</span></div>)}</div>;
 }
@@ -671,29 +639,38 @@ function BuildingIcon() {
   );
 }
 
-function AccountSummaryRows() {
+function AccountSummaryRows({ data }: { data: ClientManagementData }) {
+  const client = data.selectedClient;
   const rows: [string, string, "capacity" | "clock" | "folder" | "money" | "sites" | "check"][] = [
-    ["Total Sites", "12", "sites"],
-    ["Active Projects", "18", "folder"],
-    ["Completed Projects", "5", "check"],
-    ["Total Capacity", "24.8 MW", "capacity"],
-    ["Annual Savings (Projected)", "$1.42M", "money"],
-    ["Last Activity", "May 18, 2025 9:15 AM", "clock"],
+    ["Total Sites", client.totalSites, "sites"],
+    ["Active Projects", client.activeProjects, "folder"],
+    ["Completed Projects", client.completedProjects, "check"],
+    ["Total Capacity", client.totalCapacity, "capacity"],
+    ["Annual Savings", client.annualSavings, "money"],
+    ["Last Activity", data.updatedAt, "clock"],
   ];
 
   return <div className="space-y-0 text-[10px]">{rows.map(([label, value, icon]) => <div className="flex items-center justify-between border-b border-slate-200 py-1.5" key={label}><span className="flex items-center gap-2 text-slate-600"><SummaryIcon kind={icon} />{label}</span><b className="whitespace-nowrap">{value}</b></div>)}</div>;
 }
 
-function ClientProjectsTable() {
-  return <table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["Project / Facility Name", "Site Location", "Status", "Capacity", "Start Date", "Target Completion"].map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}<th /></tr></thead><tbody>{projects.slice(0, 4).map((project) => <tr className="border-t border-slate-200" key={project[0]}><td className="py-2 text-slate-800"><span className="flex items-center gap-2"><span className="grid size-5 place-items-center rounded-full bg-blue-600 text-white"><BuildingIconSmall /></span>{project[0]}</span></td><td className="py-2 text-slate-800">{project[1]}</td><td className={project[4] === "Planning" ? "py-2 text-blue-600" : "py-2 text-[#05aa55]"}><span className="mr-1">●</span>{project[4]}</td><td className="py-2 text-slate-800">{project[3]}</td><td className="py-2 text-slate-800">{project[6]}</td><td className="py-2 text-slate-800">{project[7]}</td><td className="py-2 text-right text-slate-400">⋮</td></tr>)}</tbody></table>;
+function ClientProjectsTable({ projects }: { projects: ClientManagementProjectRow[] }) {
+  const rows = projects.length > 0 ? projects : [{
+    capacity: "No Data",
+    location: "No Data",
+    name: "No Data",
+    progress: "No Data",
+    siteType: "No Data",
+    startDate: "No Data",
+    status: "No Data",
+    targetCompletion: "No Data",
+  }];
+
+  return <table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["Project / Facility Name", "Site Location", "Status", "Capacity", "Start Date", "Target Completion"].map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}<th /></tr></thead><tbody>{rows.map((project) => <tr className="border-t border-slate-200" key={`${project.name}-${project.location}`}><td className="py-2 text-slate-800"><span className="flex items-center gap-2"><span className="grid size-5 place-items-center rounded-full bg-blue-600 text-white"><BuildingIconSmall /></span>{project.name}</span></td><td className="py-2 text-slate-800">{project.location}</td><td className={project.status === "Planning" ? "py-2 text-blue-600" : "py-2 text-[#05aa55]"}><span className="mr-1">●</span>{project.status}</td><td className="py-2 text-slate-800">{project.capacity}</td><td className="py-2 text-slate-800">{project.startDate}</td><td className="py-2 text-slate-800">{project.targetCompletion}</td><td className="py-2 text-right text-slate-400">⋮</td></tr>)}</tbody></table>;
 }
 
 function DocumentsTable() {
   const rows: [string, string, string, string, "blue" | "green" | "red"][] = [
-    ["Master Service Agreement", "Contract", "Jan 15, 2024", "Sarah Johnson", "red"],
-    ["Insurance Certificate", "Insurance", "Jan 20, 2024", "Sarah Johnson", "red"],
-    ["Site Access Agreement", "Agreement", "Feb 10, 2024", "Michael Johnson", "blue"],
-    ["Rate Schedule - 2025", "Utility Rate", "Mar 05, 2024", "Michael Johnson", "green"],
+    ["No Data", "No Data", "No Data", "No Data", "red"],
   ];
 
   return <table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["Document Name", "Type", "Date Uploaded", "Uploaded By"].map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}<th /></tr></thead><tbody>{rows.map(([documentName, type, date, uploadedBy, tone]) => <tr className="border-t border-slate-200" key={documentName}><td className="py-2 text-slate-800"><span className="flex items-center gap-2"><DocIcon tone={tone} />{documentName}</span></td><td className="py-2 text-slate-800">{type}</td><td className="py-2 text-[#05aa55]">{date}</td><td className="py-2 text-slate-800">{uploadedBy}</td><td className="py-2 text-right text-blue-600"><DownloadIcon /></td></tr>)}</tbody></table>;
@@ -819,6 +796,15 @@ function CheckIcon() {
   return <svg className="size-3.5" viewBox="0 0 20 20" aria-hidden="true"><path d="M4 10.5 8.2 15 16 5" fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.8" /></svg>;
 }
 
-function LightTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
-  return <table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{headers.map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row, index) => <tr className="border-t border-slate-200" key={index}>{row.map((cell, cellIndex) => <td className={cellIndex === 2 ? "py-2 text-[#05aa55]" : "py-2 text-slate-800"} key={`${index}-${cellIndex}`}>{cell}</td>)}</tr>)}</tbody></table>;
+function clientInitials(name: string) {
+  if (!name || name === "No Data") {
+    return "ND";
+  }
+
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part[0]?.toUpperCase())
+    .join("") || "CL";
 }
