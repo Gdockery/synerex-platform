@@ -7,6 +7,14 @@ namespace ECBS.Api.Controllers;
 [Route("api/v1/alerts")]
 public sealed class AlertsController(IAlarmEventsDataService alarmEventsDataService) : ControllerBase
 {
+    [HttpGet("alarm-detail")]
+    public async Task<ActionResult<AlarmDetailData>> GetAlarmDetail(CancellationToken cancellationToken)
+    {
+        var data = await alarmEventsDataService.GetOchsnerAlarmDetailAsync(cancellationToken);
+
+        return Ok(data);
+    }
+
     [HttpGet("alarm-events")]
     public async Task<ActionResult<AlarmEventsData>> GetAlarmEvents(CancellationToken cancellationToken)
     {

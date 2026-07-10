@@ -10,6 +10,95 @@ public sealed class TrackingAlarmEventsDataService(
     ILogger<TrackingAlarmEventsDataService> logger)
     : IAlarmEventsDataService
 {
+    public async Task<AlarmDetailData> GetOchsnerAlarmDetailAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(GetTrackingConnectionString());
+            await connection.OpenAsync(cancellationToken);
+
+            var site = await ReadSiteContextAsync(connection, cancellationToken);
+            var telemetry = await ReadLatestAlarmTelemetryAsync(connection, cancellationToken);
+            var alarm = await ReadLatestAlarmDetailAsync(connection, cancellationToken);
+
+            if (alarm is null)
+            {
+                return NoAlarmDetailData(
+                    "No applicable alarm detail record was found in tracking for Ochsner project 13.",
+                    site,
+                    telemetry);
+            }
+
+            var triggered = alarm.TriggeredAt ?? alarm.CreatedAt;
+            var threshold = alarm.RuleThreshold ?? alarm.ThresholdValue;
+            var metricValue = alarm.MetricValue;
+            var unit = alarm.Unit ?? alarm.RuleUnit ?? "";
+            var duration = triggered.HasValue ? FormatDuration(triggered.Value, DateTimeOffset.UtcNow) : "No Data";
+            var thresholdText = threshold.HasValue ? $"{threshold.Value:0.##} {unit}".Trim() : "No Data";
+            var metricText = metricValue.HasValue ? $"{metricValue.Value:0.##} {unit}".Trim() : FormatNullable(telemetry.AvgKw, "kW");
+            var exceededBy = threshold.HasValue && metricValue.HasValue
+                ? $"{metricValue.Value - threshold.Value:0.##} {unit}".Trim()
+                : "No Data";
+            var severity = NormalizeSeverity(alarm.Severity);
+            var status = alarm.Status ?? "No Data";
+
+            return new AlarmDetailData(
+                AlarmId: $"ALM-{alarm.Id:000000}",
+                DemandStats:
+                [
+                    new("Current Demand", metricText),
+                    new("Threshold", thresholdText),
+                    new("Exceeded By", exceededBy),
+                    new("Duration", duration),
+                ],
+                ImpactRows:
+                [
+                    new("Estimated Extra Cost (Today)", "No Data"),
+                    new("Potential Monthly Impact", "No Data"),
+                    new("Power Factor (Avg)", FormatNullable(telemetry.AvgPf, "")),
+                    new("Capacity Utilization", FormatNullable(telemetry.CapacityUtilizationPct, "%")),
+                    new("Demand Charge Exposure", "No Data"),
+                ],
+                Message: "",
+                PriorityLabel: $"{severity} Priority",
+                RecommendedActions:
+                [
+                    new("No applicable recommendation source was found in tracking for this alarm."),
+                ],
+                RelatedAlarms: await ReadRelatedAlarmsAsync(connection, alarm, cancellationToken),
+                State: "data",
+                Status: status,
+                SummaryTiles:
+                [
+                    new(SeverityColor(severity), alarm.Description ?? "No alarm description was found in tracking.", "⚠", "Alarm Summary", alarm.Title ?? alarm.AlarmType ?? "No Data"),
+                    new("#05ff5e", alarm.AssetId.HasValue ? $"Asset ID: {alarm.AssetId.Value}" : "No additional affected asset was found.", "▣", "Affected Assets (1)", alarm.AssetName ?? "No Data"),
+                    new("#cbd5e1", site.Detail, "", "Location", site.Name),
+                    new("#05ff5e", $"Duration: {duration}|Since: {(triggered.HasValue ? FormatTime(triggered.Value) : "No Data")}", "", "Alarm Status", status),
+                    new("#f97316", "Escalation countdown is not represented in tracking.", "↑", "Priority", severity),
+                    new(alarm.AcknowledgedAt.HasValue ? "#05ff5e" : "#ef4444", "Acknowledged by: No Data", "", "Ack Status", alarm.AcknowledgedAt.HasValue ? "Acknowledged" : "Not Acknowledged"),
+                ],
+                Timeline: BuildTimeline(alarm),
+                Title: alarm.Title ?? alarm.AlarmType ?? "No Data",
+                TriggerConditions:
+                [
+                    new(metricText, alarm.RuleCondition ?? alarm.Condition ?? "No Data", thresholdText, alarm.RuleMetricKey ?? alarm.AlarmType ?? "No Data", threshold.HasValue && metricValue.HasValue && metricValue.Value > threshold.Value ? "Triggered" : "No Data", threshold.HasValue ? duration : "No Data"),
+                    new(FormatNullable(telemetry.AvgPf, ""), "Telemetry Context", "No Data", "Power Factor (PF)", "No Data", "No Data"),
+                    new(FormatNullable(telemetry.AvgCurrent, "A"), "Telemetry Context", "No Data", "Current (Avg)", "No Data", "No Data"),
+                    new(FormatNullable(telemetry.AvgThd, "%"), "Telemetry Context", "No Data", "THD", "No Data", "No Data"),
+                ],
+                TriggeredAt: triggered.HasValue ? FormatTimestamp(triggered.Value) : "No Data",
+                UpdatedAt: alarm.UpdatedAt.HasValue ? FormatTimestamp(alarm.UpdatedAt.Value) : "No Data");
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Failed to load Ochsner Alarm Detail data from tracking.");
+            return NoAlarmDetailData(
+                "Tracking alarm detail data could not be loaded for Ochsner project 13.",
+                new AlarmDetailSiteContext("No Data", "No Data"),
+                new AlarmDetailTelemetry(null, null, null, null, null));
+        }
+    }
+
     public async Task<AlarmEventsData> GetOchsnerAlarmEventsAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -52,6 +141,251 @@ public sealed class TrackingAlarmEventsDataService(
             logger.LogWarning(exception, "Failed to load Ochsner Alarm Events data from tracking.");
             return NoData("Tracking alarm/event data could not be loaded for Ochsner project 13.");
         }
+    }
+
+    private static async Task<AlarmDetailSource?> ReadLatestAlarmDetailAsync(
+        MySqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+              a.id,
+              a.alarm_type,
+              a.severity,
+              a.status,
+              a.title,
+              a.description,
+              a.asset_id,
+              a.asset_name,
+              a.metric_value,
+              a.threshold_value,
+              a.unit,
+              a.triggered_at,
+              a.acknowledged_at,
+              a.resolved_at,
+              a.closed_at,
+              a.createdAt,
+              a.updatedAt,
+              r.name AS rule_name,
+              r.metric_key AS rule_metric_key,
+              r.condition AS rule_condition,
+              r.threshold AS rule_threshold,
+              r.unit AS rule_unit
+            FROM alarms a
+            LEFT JOIN alert_rules r ON r.id = a.alert_rule_id AND COALESCE(r.is_deleted, 0) = 0
+            WHERE a.project_id = 13
+              AND COALESCE(a.isDeleted, 0) = 0
+            ORDER BY COALESCE(a.triggered_at, a.createdAt, 0) DESC
+            LIMIT 1
+            """;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new AlarmDetailSource(
+            AcknowledgedAt: ReadUnixMilliseconds(reader, "acknowledged_at"),
+            AlarmType: ReadString(reader, "alarm_type"),
+            AssetId: ReadNullableInt(reader, "asset_id"),
+            AssetName: ReadString(reader, "asset_name"),
+            ClosedAt: ReadUnixMilliseconds(reader, "closed_at"),
+            CreatedAt: ReadUnixMilliseconds(reader, "createdAt"),
+            Description: ReadString(reader, "description"),
+            Id: ReadInt(reader, "id"),
+            MetricValue: ReadNullableDouble(reader, "metric_value"),
+            ResolvedAt: ReadUnixMilliseconds(reader, "resolved_at"),
+            RuleCondition: ReadString(reader, "rule_condition"),
+            RuleMetricKey: ReadString(reader, "rule_metric_key"),
+            RuleName: ReadString(reader, "rule_name"),
+            RuleThreshold: ReadNullableDouble(reader, "rule_threshold"),
+            RuleUnit: ReadString(reader, "rule_unit"),
+            Severity: ReadString(reader, "severity"),
+            Status: ReadString(reader, "status"),
+            ThresholdValue: ReadNullableDouble(reader, "threshold_value"),
+            Title: ReadString(reader, "title"),
+            TriggeredAt: ReadUnixMilliseconds(reader, "triggered_at"),
+            Unit: ReadString(reader, "unit"),
+            UpdatedAt: ReadUnixMilliseconds(reader, "updatedAt"));
+    }
+
+    private static async Task<AlarmDetailSiteContext> ReadSiteContextAsync(
+        MySqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT
+              COALESCE(s.name, p.name, 'No Data') AS site_name,
+              COALESCE(CONCAT_WS(', ', NULLIF(s.address, ''), NULLIF(s.city, ''), NULLIF(s.state, '')), p.location, 'No Data') AS site_detail
+            FROM project p
+            LEFT JOIN site s ON s.project_id = p.id AND COALESCE(s.is_deleted, 0) = 0
+            WHERE p.id = 13
+            ORDER BY s.id
+            LIMIT 1
+            """;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new AlarmDetailSiteContext("No Data", "No Data");
+        }
+
+        return new AlarmDetailSiteContext(
+            ReadString(reader, "site_name") ?? "No Data",
+            ReadString(reader, "site_detail") ?? "No Data");
+    }
+
+    private static async Task<AlarmDetailTelemetry> ReadLatestAlarmTelemetryAsync(
+        MySqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT avg_kw, avg_pf, avg_thd, avg_l1_amp, avg_l2_amp, avg_l3_amp, capacity_utilization_pct
+            FROM current_balance_metrics
+            WHERE project_id = 13
+            ORDER BY bucket_ts DESC
+            LIMIT 1
+            """;
+
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return new AlarmDetailTelemetry(null, null, null, null, null);
+        }
+
+        var currents = new[]
+        {
+            ReadNullableDouble(reader, "avg_l1_amp"),
+            ReadNullableDouble(reader, "avg_l2_amp"),
+            ReadNullableDouble(reader, "avg_l3_amp"),
+        }.Where(value => value.HasValue).Select(value => value!.Value).ToList();
+
+        return new AlarmDetailTelemetry(
+            AvgCurrent: currents.Count > 0 ? currents.Average() : null,
+            AvgKw: ReadNullableDouble(reader, "avg_kw"),
+            AvgPf: ReadNullableDouble(reader, "avg_pf"),
+            AvgThd: ReadNullableDouble(reader, "avg_thd"),
+            CapacityUtilizationPct: ReadNullableDouble(reader, "capacity_utilization_pct"));
+    }
+
+    private static async Task<IReadOnlyList<AlarmDetailRelatedAlarm>> ReadRelatedAlarmsAsync(
+        MySqlConnection connection,
+        AlarmDetailSource alarm,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT title, severity, triggered_at, createdAt, resolved_at, closed_at
+            FROM alarms
+            WHERE project_id = 13
+              AND COALESCE(isDeleted, 0) = 0
+              AND id <> @id
+              AND (asset_id = @asset_id OR alarm_type = @alarm_type)
+            ORDER BY COALESCE(triggered_at, createdAt, 0) DESC
+            LIMIT 3
+            """;
+        command.Parameters.AddWithValue("@id", alarm.Id);
+        command.Parameters.AddWithValue("@asset_id", alarm.AssetId.HasValue ? alarm.AssetId.Value : DBNull.Value);
+        command.Parameters.AddWithValue("@alarm_type", alarm.AlarmType ?? "");
+
+        var rows = new List<AlarmDetailRelatedAlarm>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var triggered = ReadUnixMilliseconds(reader, "triggered_at") ?? ReadUnixMilliseconds(reader, "createdAt");
+            var ended = ReadUnixMilliseconds(reader, "resolved_at") ?? ReadUnixMilliseconds(reader, "closed_at") ?? DateTimeOffset.UtcNow;
+            rows.Add(new AlarmDetailRelatedAlarm(
+                Date: triggered.HasValue ? FormatTimestamp(triggered.Value) : "No Data",
+                Duration: triggered.HasValue ? FormatDuration(triggered.Value, ended) : "No Data",
+                Icon: SeverityIcon(ReadString(reader, "severity")),
+                Label: ReadString(reader, "title") ?? "No Data"));
+        }
+
+        return rows;
+    }
+
+    private static AlarmDetailData NoAlarmDetailData(
+        string message,
+        AlarmDetailSiteContext site,
+        AlarmDetailTelemetry telemetry)
+    {
+        return new AlarmDetailData(
+            AlarmId: "No Data",
+            DemandStats:
+            [
+                new("Current Demand", FormatNullable(telemetry.AvgKw, "kW")),
+                new("Threshold", "No Data"),
+                new("Exceeded By", "No Data"),
+                new("Duration", "No Data"),
+            ],
+            ImpactRows:
+            [
+                new("Estimated Extra Cost (Today)", "No Data"),
+                new("Potential Monthly Impact", "No Data"),
+                new("Power Factor (Avg)", FormatNullable(telemetry.AvgPf, "")),
+                new("Capacity Utilization", FormatNullable(telemetry.CapacityUtilizationPct, "%")),
+                new("Demand Charge Exposure", "No Data"),
+            ],
+            Message: message,
+            PriorityLabel: "No Data",
+            RecommendedActions:
+            [
+                new("No applicable recommendation source was found in tracking for this alarm detail."),
+            ],
+            RelatedAlarms: Array.Empty<AlarmDetailRelatedAlarm>(),
+            State: "no-data",
+            Status: "No Data",
+            SummaryTiles:
+            [
+                new("#ef4444", message, "⚠", "Alarm Summary", "No Data"),
+                new("#05ff5e", "No affected asset record was found.", "▣", "Affected Assets (0)", "No Data"),
+                new("#cbd5e1", site.Detail, "", "Location", site.Name),
+                new("#cbd5e1", "Duration: No Data|Since: No Data", "", "Alarm Status", "No Data"),
+                new("#cbd5e1", "Escalation countdown is not represented in tracking.", "↑", "Priority", "No Data"),
+                new("#cbd5e1", "Acknowledged by: No Data", "", "Ack Status", "No Data"),
+            ],
+            Timeline: Array.Empty<AlarmDetailTimelineItem>(),
+            Title: "No Data",
+            TriggerConditions:
+            [
+                new("No Data", "No Data", "No Data", "Alarm Rule", "No Data", "No Data"),
+                new(FormatNullable(telemetry.AvgPf, ""), "Telemetry Context", "No Data", "Power Factor (PF)", "No Data", "No Data"),
+                new(FormatNullable(telemetry.AvgCurrent, "A"), "Telemetry Context", "No Data", "Current (Avg)", "No Data", "No Data"),
+                new(FormatNullable(telemetry.AvgThd, "%"), "Telemetry Context", "No Data", "THD", "No Data", "No Data"),
+            ],
+            TriggeredAt: "No Data",
+            UpdatedAt: "No Data");
+    }
+
+    private static IReadOnlyList<AlarmDetailTimelineItem> BuildTimeline(AlarmDetailSource alarm)
+    {
+        var events = new List<AlarmDetailTimelineItem>();
+        var triggered = alarm.TriggeredAt ?? alarm.CreatedAt;
+        if (triggered.HasValue)
+        {
+            events.Add(new AlarmDetailTimelineItem(SeverityColor(alarm.Severity ?? ""), alarm.Description ?? "Alarm record found in tracking.", FormatTime(triggered.Value), "Alarm Triggered"));
+        }
+
+        if (alarm.AcknowledgedAt.HasValue)
+        {
+            events.Add(new AlarmDetailTimelineItem("#147dff", "Acknowledgement timestamp found in tracking. Acknowledging user is not represented.", FormatTime(alarm.AcknowledgedAt.Value), "Alarm Acknowledged"));
+        }
+
+        if (alarm.ResolvedAt.HasValue)
+        {
+            events.Add(new AlarmDetailTimelineItem("#05ff5e", "Resolved timestamp found in tracking.", FormatTime(alarm.ResolvedAt.Value), "Alarm Resolved"));
+        }
+
+        if (alarm.ClosedAt.HasValue)
+        {
+            events.Add(new AlarmDetailTimelineItem("#64748b", "Closed timestamp found in tracking.", FormatTime(alarm.ClosedAt.Value), "Alarm Closed"));
+        }
+
+        return events;
     }
 
     private string GetTrackingConnectionString()
@@ -442,10 +776,22 @@ public sealed class TrackingAlarmEventsDataService(
         return reader.IsDBNull(ordinal) ? 0 : Convert.ToInt32(reader.GetValue(ordinal), System.Globalization.CultureInfo.InvariantCulture);
     }
 
+    private static int? ReadNullableInt(MySqlDataReader reader, string column)
+    {
+        var ordinal = reader.GetOrdinal(column);
+        return reader.IsDBNull(ordinal) ? null : Convert.ToInt32(reader.GetValue(ordinal), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
     private static double ReadDouble(MySqlDataReader reader, string column)
     {
         var ordinal = reader.GetOrdinal(column);
         return reader.IsDBNull(ordinal) ? 0 : Convert.ToDouble(reader.GetValue(ordinal), System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static double? ReadNullableDouble(MySqlDataReader reader, string column)
+    {
+        var ordinal = reader.GetOrdinal(column);
+        return reader.IsDBNull(ordinal) ? null : Convert.ToDouble(reader.GetValue(ordinal), System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static DateTimeOffset? ReadUnixMilliseconds(MySqlDataReader reader, string column)
@@ -477,4 +823,65 @@ public sealed class TrackingAlarmEventsDataService(
         var chicagoTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(timestamp, "America/Chicago");
         return chicagoTime.ToString("MMM d, yyyy, h:mm tt", System.Globalization.CultureInfo.GetCultureInfo("en-US"));
     }
+
+    private static string FormatTime(DateTimeOffset timestamp)
+    {
+        var chicagoTime = TimeZoneInfo.ConvertTimeBySystemTimeZoneId(timestamp, "America/Chicago");
+        return chicagoTime.ToString("h:mm tt", System.Globalization.CultureInfo.GetCultureInfo("en-US"));
+    }
+
+    private static string FormatNullable(double? value, string unit)
+    {
+        if (!value.HasValue)
+        {
+            return "No Data";
+        }
+
+        return string.IsNullOrWhiteSpace(unit)
+            ? $"{value.Value:0.##}"
+            : $"{value.Value:0.##} {unit}";
+    }
+
+    private static string SeverityIcon(string? severity)
+    {
+        return NormalizeSeverity(severity) switch
+        {
+            "Critical" => "↑",
+            "Warning" => "⚠",
+            _ => "ⓘ",
+        };
+    }
+
+    private sealed record AlarmDetailSiteContext(string Detail, string Name);
+
+    private sealed record AlarmDetailTelemetry(
+        double? AvgCurrent,
+        double? AvgKw,
+        double? AvgPf,
+        double? AvgThd,
+        double? CapacityUtilizationPct);
+
+    private sealed record AlarmDetailSource(
+        DateTimeOffset? AcknowledgedAt,
+        string? AlarmType,
+        int? AssetId,
+        string? AssetName,
+        DateTimeOffset? ClosedAt,
+        DateTimeOffset? CreatedAt,
+        string? Description,
+        int Id,
+        double? MetricValue,
+        DateTimeOffset? ResolvedAt,
+        string? RuleCondition,
+        string? RuleMetricKey,
+        string? RuleName,
+        double? RuleThreshold,
+        string? RuleUnit,
+        string? Severity,
+        string? Status,
+        double? ThresholdValue,
+        string? Title,
+        DateTimeOffset? TriggeredAt,
+        string? Unit,
+        DateTimeOffset? UpdatedAt);
 }

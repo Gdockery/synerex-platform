@@ -1,8 +1,25 @@
 import "server-only";
 
+import type { AlarmDetailData } from "@/lib/alarmDetailData";
 import type { AlertsEventsData } from "@/lib/trackingDashboardData";
 
 const apiBaseUrl = process.env.ECBS_API_BASE_URL ?? "http://localhost:5090";
+
+export async function getAlarmDetailDataFromApi(): Promise<AlarmDetailData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/alerts/alarm-detail`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noAlarmDetailData(`No applicable Alarm Detail data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as AlarmDetailData;
+  } catch {
+    return noAlarmDetailData("No applicable Alarm Detail data was found because ECBS.Api is not reachable.");
+  }
+}
 
 export async function getAlarmEventsDataFromApi(): Promise<AlertsEventsData> {
   try {
@@ -18,6 +35,46 @@ export async function getAlarmEventsDataFromApi(): Promise<AlertsEventsData> {
   } catch {
     return noAlarmEventsData("No applicable Alarm Events data was found because ECBS.Api is not reachable.");
   }
+}
+
+function noAlarmDetailData(message: string): AlarmDetailData {
+  return {
+    alarmId: "No Data",
+    demandStats: [
+      { label: "Current Demand", value: "No Data" },
+      { label: "Threshold", value: "No Data" },
+      { label: "Exceeded By", value: "No Data" },
+      { label: "Duration", value: "No Data" },
+    ],
+    impactRows: [
+      { label: "Estimated Extra Cost (Today)", value: "No Data" },
+      { label: "Potential Monthly Impact", value: "No Data" },
+      { label: "Power Factor (Avg)", value: "No Data" },
+      { label: "Capacity Utilization", value: "No Data" },
+      { label: "Demand Charge Exposure", value: "No Data" },
+    ],
+    message,
+    priorityLabel: "No Data",
+    recommendedActions: [{ text: "No applicable recommendation source was found." }],
+    relatedAlarms: [],
+    state: "no-data",
+    status: "No Data",
+    summaryTiles: [
+      { color: "#ef4444", detail: message, icon: "⚠", title: "Alarm Summary", value: "No Data" },
+      { color: "#05ff5e", detail: "No affected asset record was found.", icon: "▣", title: "Affected Assets (0)", value: "No Data" },
+      { color: "#cbd5e1", detail: "No Data", icon: "", title: "Location", value: "No Data" },
+      { color: "#cbd5e1", detail: "Duration: No Data|Since: No Data", icon: "", title: "Alarm Status", value: "No Data" },
+      { color: "#cbd5e1", detail: "Escalation countdown is not represented in tracking.", icon: "↑", title: "Priority", value: "No Data" },
+      { color: "#cbd5e1", detail: "Acknowledged by: No Data", icon: "", title: "Ack Status", value: "No Data" },
+    ],
+    timeline: [],
+    title: "No Data",
+    triggerConditions: [
+      { actualValue: "No Data", condition: "No Data", duration: "No Data", parameter: "Alarm Rule", status: "No Data", threshold: "No Data" },
+    ],
+    triggeredAt: "No Data",
+    updatedAt: "No Data",
+  };
 }
 
 function noAlarmEventsData(message: string): AlertsEventsData {

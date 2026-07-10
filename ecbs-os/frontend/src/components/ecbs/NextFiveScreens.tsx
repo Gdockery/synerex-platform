@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { AlarmDetailData } from "@/lib/alarmDetailData";
 
 const enterpriseNav = [
   { href: "/enterprise/dashboard", label: "Enterprise Dashboard", section: "Home" },
@@ -79,17 +80,19 @@ export function SettingsSubpagesScreen() {
   );
 }
 
-export function AlarmDetailScreen() {
+export function AlarmDetailScreen({ data }: { data: AlarmDetailData }) {
+  const statusColor = data.state === "no-data" ? "text-slate-300" : data.status.toLowerCase() === "active" ? "text-[#05ff5e]" : "text-slate-300";
+
   return (
     <AlarmDetailWideShell>
       <section className="flex h-[86px] items-start justify-between pt-4">
         <div>
           <div className="text-[10px] text-slate-300">Home &nbsp; <span className="text-slate-600">›</span> &nbsp; Alarms & Events &nbsp; <span className="text-slate-600">›</span> &nbsp; <span className="text-white">Alarm Details</span></div>
           <div className="mt-4 flex items-center gap-3">
-            <h1 className="text-[24px] font-semibold leading-none">High Demand Alert</h1>
-            <span className="rounded bg-red-600 px-2.5 py-1 text-[9px] font-semibold text-white">High Priority</span>
+            <h1 className="text-[24px] font-semibold leading-none">{data.title}</h1>
+            <span className="rounded bg-red-600 px-2.5 py-1 text-[9px] font-semibold text-white">{data.priorityLabel}</span>
           </div>
-          <p className="mt-2 text-[10px] text-slate-300">Alarm ID: ALM-20250518-10212 &nbsp; | &nbsp; Triggered: May 18, 2025 10:12 AM CDT &nbsp; | &nbsp; <span className="text-[#05ff5e]">● Active</span></p>
+          <p className="mt-2 text-[10px] text-slate-300">Alarm ID: {data.alarmId} &nbsp; | &nbsp; Triggered: {data.triggeredAt} &nbsp; | &nbsp; <span className={statusColor}>● {data.status}</span></p>
         </div>
         <div className="mt-5 flex gap-3 text-[10px]">
           <AlarmButton>← Back to Alarms</AlarmButton>
@@ -99,24 +102,19 @@ export function AlarmDetailScreen() {
         </div>
       </section>
       <section className="grid h-[106px] grid-cols-[1.1fr_1.15fr_0.95fr_0.95fr_0.85fr_1fr] gap-0 rounded-md border border-cyan-300/12 bg-[#061521]/92">
-        <AlarmSummaryTile icon="⚠" title="Alarm Summary" value="High Demand Alert" detail="Demand exceeded threshold of 1,200 kW for more than 15 minutes." color="#ef4444" />
-        <AlarmSummaryTile icon="▣" title="Affected Assets (2)" value="Main Transformer (TXFR-01)" detail="Transformer T-2 (TXFR-02)" color="#05ff5e" />
-        <AlarmSummaryTile title="Location" value="Flex Tijuana Manufacturing" detail="Main Electrical Room" />
-        <AlarmSummaryTile title="Alarm Status" value="Active" detail="Duration: 18 min 32 sec|Since: 10:12 AM CDT" color="#05ff5e" />
-        <AlarmSummaryTile icon="↑" title="Priority" value="High" detail="Escalation in: 11 min 28 sec" color="#f97316" />
-        <AlarmSummaryTile title="Ack Status" value="Not Acknowledged" detail="Acknowledged by: —" color="#ef4444" />
+        {data.summaryTiles.map((tile) => <AlarmSummaryTile color={tile.color} detail={tile.detail} icon={tile.icon} key={tile.title} title={tile.title} value={tile.value} />)}
       </section>
       <AlarmTabs />
       <section className="grid h-[384px] grid-cols-[330px_1fr_330px] gap-3 pt-3">
-        <AlarmPanel title="Alarm Timeline"><AlarmTimelineWide /></AlarmPanel>
-        <AlarmPanel title="Demand (kW)" action="Last 1 Hour ⌄  ⛶"><DemandChartWide /></AlarmPanel>
+        <AlarmPanel title="Alarm Timeline"><AlarmTimelineWide data={data} /></AlarmPanel>
+        <AlarmPanel title="Demand (kW)" action="Last 1 Hour ⌄  ⛶"><DemandChartWide data={data} /></AlarmPanel>
         <div className="grid min-h-0 grid-rows-[130px_112px_118px] gap-3">
-          <AlarmPanel compact title="Alarm Impact"><AlarmImpactWide /></AlarmPanel>
-          <AlarmPanel compact title="Recommended Actions"><RecommendedActionsWide /></AlarmPanel>
-          <AlarmPanel compact title="Related Alarms (Last 7 Days)"><RelatedAlarmsWide /></AlarmPanel>
+          <AlarmPanel compact title="Alarm Impact"><AlarmImpactWide data={data} /></AlarmPanel>
+          <AlarmPanel compact title="Recommended Actions"><RecommendedActionsWide data={data} /></AlarmPanel>
+          <AlarmPanel compact title="Related Alarms (Last 7 Days)"><RelatedAlarmsWide data={data} /></AlarmPanel>
         </div>
       </section>
-      <AlarmPanel className="mt-3 h-[164px] p-3" title="Trigger Conditions"><TriggerConditionsWide /></AlarmPanel>
+      <AlarmPanel className="mt-3 h-[164px] p-3" title="Trigger Conditions"><TriggerConditionsWide data={data} /></AlarmPanel>
     </AlarmDetailWideShell>
   );
 }
@@ -858,40 +856,38 @@ function AlarmPanel({ action, children, className = "", compact = false, title }
   return <section className={`overflow-hidden rounded-md border border-cyan-300/12 bg-[#061521]/92 ${compact ? "p-3" : "p-4"} ${className}`}><div className={`${compact ? "mb-2" : "mb-3"} flex items-center justify-between`}><h2 className={compact ? "text-[10px] font-semibold" : "text-[12px] font-semibold"}>{title}</h2>{action ? <span className="rounded border border-cyan-300/12 bg-[#061421] px-2 py-1 text-[9px] text-slate-300">{action}</span> : null}</div>{children}</section>;
 }
 
-function AlarmTimelineWide() {
-  const events = [
-    ["10:12:05 AM", "Alarm Triggered", "Demand reached 1,236 kW (threshold: 1,200 kW)", "#ef4444"],
-    ["10:12:05 AM", "Notification Sent", "In-Portal, Email, Push", "#147dff"],
-    ["10:15:00 AM", "Threshold Exceeded (Confirmed)", "Demand still above threshold for 3 minutes", "#ef4444"],
-    ["10:20:00 AM", "Notification Sent", "Email reminder sent", "#147dff"],
-    ["10:25:00 AM", "Escalation Level 1", "Will escalate to operations.manager@flex.com", "#64748b"],
-    ["10:35:00 AM", "Escalation Level 2", "Will escalate to maintenance@flex.com", "#64748b"],
-  ];
+function AlarmTimelineWide({ data }: { data: AlarmDetailData }) {
+  if (!data.timeline.length) {
+    return <AlarmNoData message={data.message || "No alarm timeline records were found in tracking."} />;
+  }
 
-  return <div className="relative space-y-4 pl-3 text-[9px] before:absolute before:left-[8px] before:top-2 before:h-[246px] before:w-px before:bg-slate-600/70">{events.map(([time, title, detail, color]) => <div className="grid grid-cols-[64px_1fr] gap-3" key={`${time}-${title}`}><span className="text-slate-400">{time}</span><div className="relative pl-4"><span className="absolute left-[-12px] top-0 grid size-3 place-items-center rounded-full" style={{ background: color }} /><div className="font-semibold" style={{ color }}>{title}</div><div className="mt-1 text-[8px] text-slate-400">{detail}</div></div></div>)}<a className="block pt-1 text-[9px] text-[#05ff5e]" href="/enterprise/alerts-events/alarm-detail-page">View Full History →</a></div>;
+  return <div className="relative space-y-4 pl-3 text-[9px] before:absolute before:left-[8px] before:top-2 before:h-[246px] before:w-px before:bg-slate-600/70">{data.timeline.map((event) => <div className="grid grid-cols-[64px_1fr] gap-3" key={`${event.time}-${event.title}`}><span className="text-slate-400">{event.time}</span><div className="relative pl-4"><span className="absolute left-[-12px] top-0 grid size-3 place-items-center rounded-full" style={{ background: event.color }} /><div className="font-semibold" style={{ color: event.color }}>{event.title}</div><div className="mt-1 text-[8px] text-slate-400">{event.detail}</div></div></div>)}<a className="block pt-1 text-[9px] text-[#05ff5e]" href="/enterprise/alerts-events/alarm-detail-page">View Full History →</a></div>;
 }
 
-function DemandChartWide() {
+function DemandChartWide({ data }: { data: AlarmDetailData }) {
+  const hasAlarm = data.state === "data";
+
   return (
     <div>
       <div className="grid grid-cols-4 gap-2 text-[10px]">
-        <AlarmStat label="Current Demand" value="1,236 kW" red />
-        <AlarmStat label="Threshold" value="1,200 kW" />
-        <AlarmStat label="Exceeded By" value="36 kW (3.0%)" />
-        <AlarmStat label="Duration" value="18 min 32 sec" />
+        {data.demandStats.map((stat, index) => <AlarmStat key={stat.label} label={stat.label} red={index === 0 && hasAlarm} value={stat.value} />)}
       </div>
-      <svg className="mt-4 h-[222px] w-full" viewBox="0 0 680 230" preserveAspectRatio="none">
-        <defs><linearGradient id="alarmArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#ef4444" stopOpacity=".26" /><stop offset="100%" stopColor="#ef4444" stopOpacity=".03" /></linearGradient></defs>
-        {Array.from({ length: 7 }).map((_, index) => <line key={`h-${index}`} x1="0" x2="680" y1={28 + index * 30} y2={28 + index * 30} stroke="#123044" strokeWidth="1" />)}
-        {Array.from({ length: 7 }).map((_, index) => <line key={`v-${index}`} x1={40 + index * 95} x2={40 + index * 95} y1="10" y2="210" stroke="#123044" strokeWidth="1" />)}
-        <line x1="0" x2="680" y1="82" y2="82" stroke="#ef4444" strokeDasharray="5 5" />
-        <line x1="410" x2="410" y1="45" y2="210" stroke="#ef4444" strokeWidth="2" />
-        <polygon fill="url(#alarmArea)" points="0,172 35,168 70,174 105,164 140,170 175,154 210,160 245,138 280,126 315,100 350,92 385,82 420,88 455,78 490,91 525,80 560,91 595,74 630,92 680,84 680,230 0,230" />
-        <polyline fill="none" points="0,172 35,168 70,174 105,164 140,170 175,154 210,160 245,138 280,126 315,100 350,92 385,82 420,88 455,78 490,91 525,80 560,91 595,74 630,92 680,84" stroke="#ef4444" strokeWidth="2.3" />
-        <rect x="414" y="42" width="122" height="20" rx="3" fill="#ef4444" /><text x="424" y="56" fill="white" fontSize="10">10:12 AM Alarm Triggered</text>
-      </svg>
-      <div className="mt-1 flex justify-between text-[9px] text-slate-500"><span>09:42</span><span>09:52</span><span>10:02</span><span>10:12</span><span>10:22</span><span>10:32</span></div>
-      <div className="mt-2 flex justify-center gap-8 text-[9px] text-slate-300"><span className="text-red-400">━ Demand (kW)</span><span className="text-red-400">--- Threshold (1,200 kW)</span></div>
+      {hasAlarm ? (
+        <>
+          <svg className="mt-4 h-[222px] w-full" viewBox="0 0 680 230" preserveAspectRatio="none">
+            <defs><linearGradient id="alarmArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#ef4444" stopOpacity=".26" /><stop offset="100%" stopColor="#ef4444" stopOpacity=".03" /></linearGradient></defs>
+            {Array.from({ length: 7 }).map((_, index) => <line key={`h-${index}`} x1="0" x2="680" y1={28 + index * 30} y2={28 + index * 30} stroke="#123044" strokeWidth="1" />)}
+            {Array.from({ length: 7 }).map((_, index) => <line key={`v-${index}`} x1={40 + index * 95} x2={40 + index * 95} y1="10" y2="210" stroke="#123044" strokeWidth="1" />)}
+            <line x1="0" x2="680" y1="82" y2="82" stroke="#ef4444" strokeDasharray="5 5" />
+            <line x1="410" x2="410" y1="45" y2="210" stroke="#ef4444" strokeWidth="2" />
+            <polygon fill="url(#alarmArea)" points="0,172 35,168 70,174 105,164 140,170 175,154 210,160 245,138 280,126 315,100 350,92 385,82 420,88 455,78 490,91 525,80 560,91 595,74 630,92 680,84 680,230 0,230" />
+            <polyline fill="none" points="0,172 35,168 70,174 105,164 140,170 175,154 210,160 245,138 280,126 315,100 350,92 385,82 420,88 455,78 490,91 525,80 560,91 595,74 630,92 680,84" stroke="#ef4444" strokeWidth="2.3" />
+            <rect x="414" y="42" width="122" height="20" rx="3" fill="#ef4444" /><text x="424" y="56" fill="white" fontSize="10">Alarm Triggered</text>
+          </svg>
+          <div className="mt-1 flex justify-between text-[9px] text-slate-500"><span>-30m</span><span>-20m</span><span>-10m</span><span>Alarm</span><span>+10m</span><span>+20m</span></div>
+          <div className="mt-2 flex justify-center gap-8 text-[9px] text-slate-300"><span className="text-red-400">━ Demand (kW)</span><span className="text-red-400">--- Threshold</span></div>
+        </>
+      ) : <div className="mt-4 h-[252px]"><AlarmNoData message="No alarm-specific demand trend was found in tracking." /></div>}
     </div>
   );
 }
@@ -900,37 +896,39 @@ function AlarmStat({ label, red = false, value }: { label: string; red?: boolean
   return <div className="rounded border border-cyan-300/12 bg-[#07131f] p-3"><div className="text-slate-400">{label}</div><div className={red ? "mt-2 text-[14px] font-semibold text-red-400" : "mt-2 text-[14px] font-semibold text-white"}>{value}</div></div>;
 }
 
-function AlarmImpactWide() {
-  const rows = [["Estimated Extra Cost (Today)", "$412.35"], ["Potential Monthly Impact", "$12,370"], ["Power Factor (Avg)", "0.89"], ["Capacity Utilization", "92%"], ["Demand Charge Exposure", "High"]];
-  return <div className="space-y-1.5 text-[8.5px]">{rows.map(([label, value], index) => <div className="flex justify-between" key={label}><span className="text-slate-400">{label}</span><span className={index === 4 ? "text-red-400" : "text-white"}>{value}</span></div>)}<div className="mt-1.5 h-1 rounded bg-slate-700"><div className="h-1 w-[92%] rounded bg-red-500" /></div></div>;
+function AlarmImpactWide({ data }: { data: AlarmDetailData }) {
+  return <div className="space-y-1.5 text-[8.5px]">{data.impactRows.map((row, index) => <div className="flex justify-between" key={row.label}><span className="text-slate-400">{row.label}</span><span className={index === 4 && row.value !== "No Data" ? "text-red-400" : "text-white"}>{row.value}</span></div>)}<div className="mt-1.5 h-1 rounded bg-slate-700"><div className={data.state === "data" ? "h-1 w-[92%] rounded bg-red-500" : "h-1 w-0 rounded bg-red-500"} /></div></div>;
 }
 
-function RecommendedActionsWide() {
-  return <div className="space-y-1.5 text-[8.5px] text-slate-300">{["Investigate high load equipment", "Check large motor and HVAC systems", "Verify production schedule", "Consider load shedding if necessary"].map((item) => <div className="flex gap-2" key={item}><span className="text-[#05ff5e]">●</span><span>{item}</span></div>)}<a className="block pt-0.5 text-[#05ff5e]" href="/enterprise/alerts-events/alarm-detail-page">View Optimization Recommendations →</a></div>;
+function RecommendedActionsWide({ data }: { data: AlarmDetailData }) {
+  return <div className="space-y-1.5 text-[8.5px] text-slate-300">{data.recommendedActions.map((item) => <div className="flex gap-2" key={item.text}><span className="text-[#05ff5e]">●</span><span>{item.text}</span></div>)}<a className="block pt-0.5 text-[#05ff5e]" href="/enterprise/alerts-events/alarm-detail-page">View Optimization Recommendations →</a></div>;
 }
 
-function RelatedAlarmsWide() {
-  const rows = [["↑", "High Demand Alert", "May 17, 2025", "22 min"], ["⚠", "Low Power Factor Alert", "May 16, 2025", "15 min"], ["ⓘ", "Transformer Temp Alert", "May 15, 2025", "8 min"]];
-  return <div className="space-y-1 text-[8px] text-slate-300">{rows.map(([icon, label, date, duration]) => <div className="grid grid-cols-[14px_1fr_auto] gap-1.5" key={label}><span className={icon === "↑" ? "text-red-400" : icon === "⚠" ? "text-yellow-400" : "text-blue-400"}>{icon}</span><span>{label}<br /><span className="text-[7px] text-slate-500">{date}</span></span><span className="text-slate-500">Duration: {duration}</span></div>)}<a className="block text-[#05ff5e]" href="/enterprise/alarms-events/alarm-events">View All Alarms →</a></div>;
+function RelatedAlarmsWide({ data }: { data: AlarmDetailData }) {
+  if (!data.relatedAlarms.length) {
+    return <AlarmNoData message="No related alarm records were found in tracking." />;
+  }
+
+  return <div className="space-y-1 text-[8px] text-slate-300">{data.relatedAlarms.map((alarm) => <div className="grid grid-cols-[14px_1fr_auto] gap-1.5" key={`${alarm.label}-${alarm.date}`}><span className={alarm.icon === "↑" ? "text-red-400" : alarm.icon === "⚠" ? "text-yellow-400" : "text-blue-400"}>{alarm.icon}</span><span>{alarm.label}<br /><span className="text-[7px] text-slate-500">{alarm.date}</span></span><span className="text-slate-500">Duration: {alarm.duration}</span></div>)}<a className="block text-[#05ff5e]" href="/enterprise/alarms-events/alarm-events">View All Alarms →</a></div>;
 }
 
-function TriggerConditionsWide() {
-  const rows = [
-    ["Demand (kW)", "Greater Than (>)", "1,200 kW for 15 min", "1,236 kW", "18 min 32 sec", "● Triggered"],
-    ["Power Factor (PF)", "Less Than (<)", "0.90 for 10 min", "0.89", "18 min 32 sec", "● Triggered"],
-    ["Current (Primary)", "Greater Than (>)", "1,400 A for 5 min", "1,512 A", "12 min 45 sec", "● Normal"],
-    ["THD (Voltage)", "Greater Than (>)", "5.0% for 10 min", "4.1%", "18 min 32 sec", "● Normal"],
-  ];
-
+function TriggerConditionsWide({ data }: { data: AlarmDetailData }) {
   return (
     <div className="text-[8px]">
       <table className="w-full text-left">
         <thead className="text-slate-500"><tr>{["Parameter", "Condition", "Threshold", "Actual Value", "Duration", "Status"].map((h) => <th className="pb-1.5 font-medium" key={h}>{h}</th>)}</tr></thead>
-        <tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}>{row.map((cell, index) => <td className={`py-1 ${/Triggered/.test(cell) ? "text-red-400" : /Normal/.test(cell) ? "text-[#05ff5e]" : index === 0 ? "text-slate-200" : "text-slate-300"}`} key={cell}>{cell}</td>)}</tr>)}</tbody>
+        <tbody>{data.triggerConditions.map((row) => {
+          const cells = [row.parameter, row.condition, row.threshold, row.actualValue, row.duration, `● ${row.status}`];
+          return <tr className="border-t border-white/5" key={row.parameter}>{cells.map((cell, index) => <td className={`py-1 ${/Triggered/.test(cell) ? "text-red-400" : /Normal/.test(cell) ? "text-[#05ff5e]" : index === 0 ? "text-slate-200" : "text-slate-300"}`} key={`${row.parameter}-${index}`}>{cell}</td>)}</tr>;
+        })}</tbody>
       </table>
       <a className="mt-1 block text-[#05ff5e]" href="/enterprise/alerts-events/alarm-detail-page">View All Conditions →</a>
     </div>
   );
+}
+
+function AlarmNoData({ message }: { message: string }) {
+  return <div className="grid h-full place-items-center rounded border border-amber-400/25 bg-amber-500/8 p-3 text-center text-[9px] leading-relaxed text-amber-200">{message}</div>;
 }
 
 function SubpagePanel({ children, number, title }: { children: ReactNode; number: string; title: string }) {
