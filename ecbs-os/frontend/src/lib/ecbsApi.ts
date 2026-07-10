@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { AlarmDetailData } from "@/lib/alarmDetailData";
+import type { CapacityHealthDiagnosticsData } from "@/lib/capacityHealthDiagnosticsData";
 import type { CapacityRecoveryBreakdownData } from "@/lib/capacityRecoveryBreakdownData";
 import type { ConfigureAlertRuleData } from "@/lib/configureAlertRuleData";
 import type { SetNotificationsData } from "@/lib/setNotificationsData";
@@ -37,6 +38,22 @@ export async function getCapacityRecoveryBreakdownDataFromApi(): Promise<Capacit
     return (await response.json()) as CapacityRecoveryBreakdownData;
   } catch {
     return noCapacityRecoveryBreakdownData("No applicable Capacity Recovery Breakdown data was found because ECBS.Api is not reachable.");
+  }
+}
+
+export async function getCapacityHealthDiagnosticsDataFromApi(): Promise<CapacityHealthDiagnosticsData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/capacity-intelligence/health-diagnostics`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noCapacityHealthDiagnosticsData(`No applicable Capacity Health Diagnostics data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as CapacityHealthDiagnosticsData;
+  } catch {
+    return noCapacityHealthDiagnosticsData("No applicable Capacity Health Diagnostics data was found because ECBS.Api is not reachable.");
   }
 }
 
@@ -187,6 +204,42 @@ function noConfigureAlertRuleData(message: string): ConfigureAlertRuleData {
       { label: "Duration", value: "No Data" },
       { label: "Logical Operator", value: "No Data" },
     ],
+  };
+}
+
+function noCapacityHealthDiagnosticsData(message: string): CapacityHealthDiagnosticsData {
+  return {
+    assetBars: [],
+    diagnostics: [
+      { factors: [{ label: "Source", value: "No Data" }], score: 0, status: "No Data", title: "Load Balance", tone: "#64748b" },
+      { factors: [{ label: "Source", value: "No Data" }], score: 0, status: "No Data", title: "Utilization Efficiency", tone: "#64748b" },
+      { factors: [{ label: "Source", value: "No Data" }], score: 0, status: "No Data", title: "Voltage Stability", tone: "#64748b" },
+      { factors: [{ label: "Source", value: "No Data" }], score: 0, status: "No Data", title: "Harmonic Impact", tone: "#64748b" },
+      { factors: [{ label: "Source", value: "No Data" }], score: 0, status: "No Data", title: "Thermal Headroom", tone: "#64748b" },
+    ],
+    distribution: [],
+    issues: [],
+    kpis: [
+      { color: "#64748b", detail: "No Data", icon: "H", label: "Overall Health Score", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "B", label: "Load Balance", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "U", label: "Utilization Efficiency", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "V", label: "Voltage Stability", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "W", label: "Harmonic Impact", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "T", label: "Thermal Headroom", value: "No Data" },
+    ],
+    message,
+    recommendations: [message],
+    state: "empty",
+    summaryRows: [
+      { label: "Overall Health Score", value: "No Data" },
+      { label: "Assets Evaluated", value: "No Data" },
+      { label: "Average Utilization", value: "No Data" },
+      { label: "Power Factor Score", value: "No Data" },
+      { label: "Harmonic Score", value: "No Data" },
+      { label: "Updated", value: "No Data" },
+    ],
+    trend: [],
+    updatedAt: "No Data",
   };
 }
 

@@ -22,4 +22,12 @@ public sealed class CapacityIntelligenceController(ICapacityIntelligenceDataServ
 
         return Ok(data);
     }
+
+    [HttpGet("health-diagnostics")]
+    public async Task<ActionResult<CapacityHealthDiagnosticsData>> GetHealthDiagnostics(CancellationToken cancellationToken)
+    {
+        var data = await capacityIntelligenceDataService.GetOchsnerHealthDiagnosticsAsync(cancellationToken);
+
+        return Ok(data);
+    }
 }

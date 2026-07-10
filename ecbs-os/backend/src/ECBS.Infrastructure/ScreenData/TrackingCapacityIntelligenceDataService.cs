@@ -179,6 +179,58 @@ public sealed class TrackingCapacityIntelligenceDataService(
         }
     }
 
+    public async Task<CapacityHealthDiagnosticsData> GetOchsnerHealthDiagnosticsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(GetTrackingConnectionString());
+            await connection.OpenAsync(cancellationToken);
+
+            var capacity = await ReadLatestCapacityAsync(connection, cancellationToken);
+            if (capacity is null)
+            {
+                return EmptyHealthDiagnostics("No Capacity Intelligence rollup was found for Ochsner project 13.");
+            }
+
+            var trendRows = await ReadCapacityTrendAsync(connection, cancellationToken);
+            var assets = await ReadAssetsAsync(connection, cancellationToken);
+            var meters = await ReadMetersAsync(connection, cancellationToken);
+            var utilization = ClampScore(capacity.UtilizationPct);
+            var health = (int)Math.Round(ClampScore(capacity.CapacityHealthScore));
+            var diagnostics = BuildHealthDiagnostics(utilization, meters);
+            var assetHealthRows = BuildAssetHealthRows(assets, meters, capacity.InstalledCapacity, capacity.UsedCapacity, capacity.RecoverableCapacity);
+            var issues = BuildHealthIssues(assetHealthRows, meters);
+
+            return new CapacityHealthDiagnosticsData(
+                AssetBars: BuildHealthAssetBars(assetHealthRows),
+                Diagnostics: diagnostics,
+                Distribution: BuildHealthDistribution(assetHealthRows),
+                Kpis: BuildHealthKpis(health, diagnostics, trendRows),
+                Message: "",
+                Issues: issues,
+                Recommendations: BuildHealthRecommendations(issues),
+                State: "data",
+                SummaryRows:
+                [
+                    new("Overall Health Score", $"{health}/100"),
+                    new("Assets Evaluated", assetHealthRows.Count.ToString()),
+                    new("Average Utilization", $"{FormatNumber(utilization, 0)}%"),
+                    new("Power Factor Score", $"{ScoreVoltage(meters)}/100"),
+                    new("Harmonic Score", $"{ScoreHarmonics(meters)}/100"),
+                    new("Updated", FormatTimestamp(capacity.BucketTs ?? DateTimeOffset.UtcNow)),
+                ],
+                Trend: trendRows.Reverse().Select(row => new CapacityHealthTrendPoint(
+                    row.BucketTs.HasValue ? FormatShortDate(row.BucketTs.Value) : "",
+                    (int)Math.Round(ClampScore(row.CapacityHealthScore)))).ToList(),
+                UpdatedAt: FormatTimestamp(capacity.BucketTs ?? DateTimeOffset.UtcNow));
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Failed to load Ochsner Capacity Health Diagnostics data from tracking.");
+            return EmptyHealthDiagnostics("Tracking DB data is unavailable for Capacity Health Diagnostics.");
+        }
+    }
+
     private string GetTrackingConnectionString()
     {
         var configured = configuration.GetConnectionString("TrackingMySql");
@@ -459,6 +511,279 @@ public sealed class TrackingCapacityIntelligenceDataService(
         }).ToList();
     }
 
+    private static IReadOnlyList<CapacityKpi> BuildHealthKpis(
+        int health,
+        IReadOnlyList<CapacityHealthDiagnosticCard> diagnostics,
+        IReadOnlyList<CapacitySummary> trendRows)
+    {
+        var rows = new List<CapacityKpi>
+        {
+            new("#65a30d", HealthRating(health), "H", "Overall Health Score", $"{health}"),
+        };
+
+        rows.AddRange(diagnostics.Select(card => new CapacityKpi(
+            card.Tone,
+            $"{DeltaVsAverage(card.Score, trendRows)} vs recent average",
+            card.Title[..1],
+            card.Title,
+            $"{card.Score}/100")));
+
+        return rows;
+    }
+
+    private static IReadOnlyList<CapacityHealthDiagnosticCard> BuildHealthDiagnostics(
+        double utilization,
+        IReadOnlyList<CapacityMeter> meters)
+    {
+        var loadBalance = ScoreLoadBalance(utilization);
+        var utilizationScore = ScoreUtilization(utilization);
+        var voltage = ScoreVoltage(meters);
+        var harmonics = ScoreHarmonics(meters);
+        var thermal = ScoreThermalHeadroom(utilization);
+
+        return
+        [
+            new(
+                Factors:
+                [
+                    new("Utilization Balance", $"{loadBalance}/100"),
+                    new("Peak Load Spread", $"{ScoreUtilization(utilization)}/100"),
+                    new("Load Symmetry", $"{Math.Max(0, loadBalance - 2)}/100"),
+                ],
+                Score: loadBalance,
+                Status: HealthRating(loadBalance),
+                Title: "Load Balance",
+                Tone: HealthColor(loadBalance)),
+            new(
+                Factors:
+                [
+                    new("Utilization Level", $"{utilizationScore}/100"),
+                    new("Peak Management", $"{Math.Max(0, utilizationScore - 2)}/100"),
+                    new("Headroom Availability", $"{thermal}/100"),
+                ],
+                Score: utilizationScore,
+                Status: HealthRating(utilizationScore),
+                Title: "Utilization Efficiency",
+                Tone: HealthColor(utilizationScore)),
+            new(
+                Factors:
+                [
+                    new("Power Factor", $"{voltage}/100"),
+                    new("Voltage Proxy", $"{voltage}/100"),
+                    new("Stability", $"{Math.Max(0, voltage - 1)}/100"),
+                ],
+                Score: voltage,
+                Status: HealthRating(voltage),
+                Title: "Voltage Stability",
+                Tone: HealthColor(voltage)),
+            new(
+                Factors:
+                [
+                    new("THD Level", $"{harmonics}/100"),
+                    new("Power Quality", $"{Math.Max(0, harmonics - 1)}/100"),
+                    new("Harmonic Headroom", $"{Math.Max(0, harmonics - 3)}/100"),
+                ],
+                Score: harmonics,
+                Status: HealthRating(harmonics),
+                Title: "Harmonic Impact",
+                Tone: HealthColor(harmonics)),
+            new(
+                Factors:
+                [
+                    new("Asset Loading", $"{thermal}/100"),
+                    new("Thermal Headroom", $"{thermal}/100"),
+                    new("Capacity Margin", $"{Math.Max(0, thermal - 2)}/100"),
+                ],
+                Score: thermal,
+                Status: HealthRating(thermal),
+                Title: "Thermal Headroom",
+                Tone: HealthColor(thermal)),
+        ];
+    }
+
+    private static IReadOnlyList<CapacityAssetHealth> BuildAssetHealthRows(
+        IReadOnlyList<CapacityAssetSource> assets,
+        IReadOnlyList<CapacityMeter> meters,
+        double installed,
+        double used,
+        double recovered)
+    {
+        var ratedAssets = assets
+            .Select(asset => new { Asset = asset, Connected = AssetConnectedKva(asset) })
+            .Where(entry => entry.Connected > 0)
+            .ToList();
+        var totalConnected = ratedAssets.Sum(entry => entry.Connected);
+        if (totalConnected <= 0)
+        {
+            totalConnected = installed > 0 ? installed : 1;
+        }
+
+        return ratedAssets.Select(entry =>
+        {
+            var meter = meters.FirstOrDefault(row => row.Id == entry.Asset.MeterId);
+            var share = entry.Connected / totalConnected;
+            var utilized = meter is not null && meter.LastTotalKva > 0 ? meter.LastTotalKva : used * share;
+            var utilization = entry.Connected > 0 ? ClampScore(utilized / entry.Connected * 100) : 0;
+            var recoveredShare = recovered * share;
+            var score = (int)Math.Round(ClampScore(100 - Math.Max(0, utilization - 70)));
+            return new CapacityAssetHealth(
+                AssetType: TitleCase(entry.Asset.AssetType),
+                Name: entry.Asset.Name,
+                RecoveredKva: recoveredShare,
+                Score: score,
+                UtilizationPct: utilization);
+        }).ToList();
+    }
+
+    private static IReadOnlyList<CapacityRecoveryDonutRow> BuildHealthDistribution(IReadOnlyList<CapacityAssetHealth> rows)
+    {
+        if (rows.Count == 0)
+        {
+            return Array.Empty<CapacityRecoveryDonutRow>();
+        }
+
+        var buckets = new[]
+        {
+            new { Label = "Excellent (90-100)", Color = "#65a30d", Count = rows.Count(row => row.Score >= 90) },
+            new { Label = "Good (70-89)", Color = "#147dff", Count = rows.Count(row => row.Score >= 70 && row.Score < 90) },
+            new { Label = "Fair (50-69)", Color = "#f59e0b", Count = rows.Count(row => row.Score >= 50 && row.Score < 70) },
+            new { Label = "Poor (<50)", Color = "#ef4444", Count = rows.Count(row => row.Score < 50) },
+        };
+
+        return buckets.Select(bucket => new CapacityRecoveryDonutRow(
+            bucket.Color,
+            bucket.Label,
+            $"{bucket.Count} ({FormatNumber(bucket.Count / (double)rows.Count * 100, 1)}%)")).ToList();
+    }
+
+    private static IReadOnlyList<CapacityHealthAssetBar> BuildHealthAssetBars(IReadOnlyList<CapacityAssetHealth> rows)
+    {
+        if (rows.Count == 0)
+        {
+            return Array.Empty<CapacityHealthAssetBar>();
+        }
+
+        return rows
+            .GroupBy(row => row.AssetType)
+            .Select(group =>
+            {
+                var score = (int)Math.Round(group.Average(row => row.Score));
+                return new CapacityHealthAssetBar(HealthColor(score), group.Key, score);
+            })
+            .OrderByDescending(row => row.Value)
+            .Take(6)
+            .ToList();
+    }
+
+    private static IReadOnlyList<CapacityHealthIssueRow> BuildHealthIssues(
+        IReadOnlyList<CapacityAssetHealth> assetRows,
+        IReadOnlyList<CapacityMeter> meters)
+    {
+        var issues = new List<CapacityHealthIssueRow>();
+        issues.AddRange(assetRows
+            .Where(row => row.UtilizationPct >= 85)
+            .OrderByDescending(row => row.UtilizationPct)
+            .Take(4)
+            .Select(row => new CapacityHealthIssueRow(
+                row.Name,
+                row.UtilizationPct >= 95 ? "High" : "Medium",
+                "Asset utilization is elevated",
+                "Review load schedule and capacity headroom",
+                row.UtilizationPct >= 95 ? "High" : "Medium")));
+
+        var main = meters.FirstOrDefault(meter => meter.IsMain) ?? meters.FirstOrDefault();
+        if (main is not null && main.LastTotalThd > 5)
+        {
+            issues.Add(new CapacityHealthIssueRow(
+                main.Name,
+                "Medium",
+                "THD is above preferred operating threshold",
+                "Review harmonic mitigation options",
+                "Medium"));
+        }
+
+        if (main is not null)
+        {
+            var pf = main.LastTotalPf > 1 ? main.LastTotalPf / 100 : main.LastTotalPf;
+            if (pf > 0 && pf < 0.9)
+            {
+                issues.Add(new CapacityHealthIssueRow(
+                    main.Name,
+                    "Medium",
+                    "Power factor is below preferred operating threshold",
+                    "Review power factor correction settings",
+                    "Medium"));
+            }
+        }
+
+        return issues.Take(4).ToList();
+    }
+
+    private static IReadOnlyList<string> BuildHealthRecommendations(IReadOnlyList<CapacityHealthIssueRow> issues)
+    {
+        if (issues.Count == 0)
+        {
+            return
+            [
+                "No calculated capacity health issues were found in tracking.",
+            ];
+        }
+
+        return issues.Select(issue => issue.Recommendation).Distinct().Take(4).ToList();
+    }
+
+    private static string DeltaVsAverage(int score, IReadOnlyList<CapacitySummary> trendRows)
+    {
+        var values = trendRows.Select(row => row.CapacityHealthScore).Where(value => value > 0).ToList();
+        if (values.Count == 0)
+        {
+            return "No Data";
+        }
+
+        var delta = score - values.Average();
+        return delta >= 0 ? $"+{FormatNumber(delta, 0)}" : FormatNumber(delta, 0);
+    }
+
+    private static string HealthRating(int score)
+    {
+        if (score >= 90)
+        {
+            return "Excellent";
+        }
+
+        if (score >= 70)
+        {
+            return "Good";
+        }
+
+        if (score >= 50)
+        {
+            return "Fair";
+        }
+
+        return score > 0 ? "Poor" : "No Data";
+    }
+
+    private static string HealthColor(int score)
+    {
+        if (score >= 90)
+        {
+            return "#65a30d";
+        }
+
+        if (score >= 70)
+        {
+            return "#147dff";
+        }
+
+        if (score >= 50)
+        {
+            return "#f59e0b";
+        }
+
+        return score > 0 ? "#ef4444" : "#64748b";
+    }
+
     private static IReadOnlyList<CapacityRecoveryTrendPoint> BuildRecoveryTrend(IReadOnlyList<CapacitySummary> trendRows)
     {
         return trendRows.Reverse().Select(row => new CapacityRecoveryTrendPoint(
@@ -647,6 +972,48 @@ public sealed class TrackingCapacityIntelligenceDataService(
             UpdatedAt: "No Data");
     }
 
+    private static CapacityHealthDiagnosticsData EmptyHealthDiagnostics(string message)
+    {
+        return new CapacityHealthDiagnosticsData(
+            AssetBars: Array.Empty<CapacityHealthAssetBar>(),
+            Diagnostics:
+            [
+                new([new("Source", "No Data")], 0, "No Data", "Load Balance", "#64748b"),
+                new([new("Source", "No Data")], 0, "No Data", "Utilization Efficiency", "#64748b"),
+                new([new("Source", "No Data")], 0, "No Data", "Voltage Stability", "#64748b"),
+                new([new("Source", "No Data")], 0, "No Data", "Harmonic Impact", "#64748b"),
+                new([new("Source", "No Data")], 0, "No Data", "Thermal Headroom", "#64748b"),
+            ],
+            Distribution: Array.Empty<CapacityRecoveryDonutRow>(),
+            Kpis:
+            [
+                new("#64748b", "No Data", "H", "Overall Health Score", "No Data"),
+                new("#64748b", "No Data", "B", "Load Balance", "No Data"),
+                new("#64748b", "No Data", "U", "Utilization Efficiency", "No Data"),
+                new("#64748b", "No Data", "V", "Voltage Stability", "No Data"),
+                new("#64748b", "No Data", "W", "Harmonic Impact", "No Data"),
+                new("#64748b", "No Data", "T", "Thermal Headroom", "No Data"),
+            ],
+            Message: message,
+            Issues: Array.Empty<CapacityHealthIssueRow>(),
+            Recommendations:
+            [
+                message,
+            ],
+            State: "empty",
+            SummaryRows:
+            [
+                new("Overall Health Score", "No Data"),
+                new("Assets Evaluated", "No Data"),
+                new("Average Utilization", "No Data"),
+                new("Power Factor Score", "No Data"),
+                new("Harmonic Score", "No Data"),
+                new("Updated", "No Data"),
+            ],
+            Trend: Array.Empty<CapacityHealthTrendPoint>(),
+            UpdatedAt: "No Data");
+    }
+
     private static int ScoreLoadBalance(double utilization)
     {
         return utilization <= 0 ? 0 : (int)Math.Round(ClampScore(100 - Math.Abs(utilization - 70)));
@@ -720,6 +1087,12 @@ public sealed class TrackingCapacityIntelligenceDataService(
     {
         var central = TimeZoneInfo.ConvertTime(timestamp, CentralTimeZone());
         return central.ToString("h:mm tt");
+    }
+
+    private static string FormatShortDate(DateTimeOffset timestamp)
+    {
+        var central = TimeZoneInfo.ConvertTime(timestamp, CentralTimeZone());
+        return central.ToString("MMM d");
     }
 
     private static TimeZoneInfo CentralTimeZone()
@@ -823,4 +1196,6 @@ public sealed class TrackingCapacityIntelligenceDataService(
     private sealed record CapacityMinuteTrendRow(DateTimeOffset? BucketTs, double TotalKva);
 
     private sealed record CapacitySavings(double AnnualSavings, double Co2ReductionTons);
+
+    private sealed record CapacityAssetHealth(string AssetType, string Name, double RecoveredKva, int Score, double UtilizationPct);
 }

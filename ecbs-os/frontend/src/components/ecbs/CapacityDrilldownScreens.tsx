@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { CapacityHealthDiagnosticsData } from "@/lib/capacityHealthDiagnosticsData";
 import type { CapacityRecoveryBreakdownData } from "@/lib/capacityRecoveryBreakdownData";
 import { DashboardFooter, DashboardHeader, DashboardKpiCard, DashboardPanel, type DashboardKpi } from "./DashboardCards";
 import { EcbsAppShell } from "./EcbsAppShell";
@@ -181,9 +182,9 @@ const configs: Record<CapacityDrilldownVariant, CapacityScreenConfig> = {
   },
 };
 
-export function CapacityDrilldownScreen({ recoveryData, variant }: { recoveryData?: CapacityRecoveryBreakdownData; variant: CapacityDrilldownVariant }) {
+export function CapacityDrilldownScreen({ healthData, recoveryData, variant }: { healthData?: CapacityHealthDiagnosticsData; recoveryData?: CapacityRecoveryBreakdownData; variant: CapacityDrilldownVariant }) {
   const config = configs[variant];
-  const kpis = variant === "recovery" && recoveryData ? recoveryData.kpis : config.kpis;
+  const kpis = variant === "recovery" && recoveryData ? recoveryData.kpis : variant === "health" && healthData ? healthData.kpis : config.kpis;
 
   if (variant === "simulate") return <SimulateCapacityExpansionShell />;
   if (variant === "opportunities") return <OptimizationOpportunitiesShell />;
@@ -200,7 +201,7 @@ export function CapacityDrilldownScreen({ recoveryData, variant }: { recoveryDat
   return (
     <EcbsAppShell activeHref="/enterprise/capacity-intelligence">
       <div className={isWideDrilldown ? "flex h-screen min-h-0 flex-col overflow-hidden px-4 py-3" : "flex h-full min-h-[682px] flex-col overflow-hidden px-3 py-2"}>
-        <DashboardHeader dateRange={isRecovery && recoveryData ? `Tracking DB • ${recoveryData.updatedAt}` : "May 12 - May 18, 2025"} subtitle={config.subtitle} title={config.title} variant="enterprise" />
+        <DashboardHeader dateRange={isRecovery && recoveryData ? `Tracking DB • ${recoveryData.updatedAt}` : isHealth && healthData ? `Tracking DB • ${healthData.updatedAt}` : "May 12 - May 18, 2025"} subtitle={config.subtitle} title={config.title} variant="enterprise" />
         <div className={isWideDrilldown ? "mt-2 flex h-[32px] shrink-0 items-center justify-between text-[10px]" : "mt-1 flex items-center justify-between text-[9px]"}>
           <Breadcrumb items={config.breadcrumb} />
           <div className="flex gap-2">
@@ -212,12 +213,12 @@ export function CapacityDrilldownScreen({ recoveryData, variant }: { recoveryDat
 
         <section className={variant === "recovery" ? "mt-2 grid h-[96px] shrink-0 grid-cols-6 gap-3" : variant === "health" ? "mt-2 grid h-[120px] shrink-0 grid-cols-[1.45fr_repeat(5,1fr)] gap-3" : variant === "trend" || variant === "asset" || variant === "capex" ? "mt-2 grid h-[86px] shrink-0 grid-cols-6 gap-3" : variant === "carbon" ? "mt-2 grid h-[70px] grid-cols-5 gap-2" : "mt-2 grid h-[70px] grid-cols-6 gap-2"}>
           {kpis.map((kpi, index) => (
-            variant === "recovery" ? <RecoveryKpiCard key={kpi.label} kpi={kpi} /> : variant === "capex" ? <CapexKpiCard key={kpi.label} kpi={kpi} /> : variant === "asset" ? <AssetKpiCard key={kpi.label} kpi={kpi} /> : variant === "equivalent" ? <EquivalentKpiCard key={kpi.label} kpi={kpi} /> : variant === "insight" ? <InsightKpiCard key={kpi.label} kpi={kpi} /> : variant === "carbon" ? <CarbonKpiCard key={kpi.label} kpi={kpi} /> : variant === "health" ? <HealthKpiCard index={index} key={kpi.label} kpi={kpi} /> : variant === "trend" ? <TrendKpiCard key={kpi.label} kpi={kpi} /> : <DashboardKpiCard key={kpi.label} kpi={kpi} variant="enterprise" />
+            variant === "recovery" ? <RecoveryKpiCard key={kpi.label} kpi={kpi} /> : variant === "capex" ? <CapexKpiCard key={kpi.label} kpi={kpi} /> : variant === "asset" ? <AssetKpiCard key={kpi.label} kpi={kpi} /> : variant === "equivalent" ? <EquivalentKpiCard key={kpi.label} kpi={kpi} /> : variant === "insight" ? <InsightKpiCard key={kpi.label} kpi={kpi} /> : variant === "carbon" ? <CarbonKpiCard key={kpi.label} kpi={kpi} /> : variant === "health" ? <HealthKpiCard healthData={healthData} index={index} key={kpi.label} kpi={kpi} /> : variant === "trend" ? <TrendKpiCard key={kpi.label} kpi={kpi} /> : <DashboardKpiCard key={kpi.label} kpi={kpi} variant="enterprise" />
           ))}
         </section>
 
         {variant === "recovery" && recoveryData ? <RecoveryBreakdown data={recoveryData} /> : null}
-        {variant === "health" ? <HealthDiagnostics /> : null}
+        {variant === "health" && healthData ? <HealthDiagnostics data={healthData} /> : null}
         {variant === "trend" ? <TrendDetail /> : null}
         {variant === "asset" ? <AssetDetailTree /> : null}
         {variant === "equivalent" ? <EquivalentAttribution /> : null}
@@ -225,7 +226,7 @@ export function CapacityDrilldownScreen({ recoveryData, variant }: { recoveryDat
         {variant === "insight" ? <IntelligenceSummary /> : null}
         {variant === "carbon" ? <CarbonImpact /> : null}
 
-        {isRecovery ? <RecoveryFooter data={recoveryData} /> : isHealth ? <HealthFooter /> : isCapex ? <CapexFooter /> : isTrend || isAsset ? <TrendFooter /> : <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />}
+        {isRecovery ? <RecoveryFooter data={recoveryData} /> : isHealth ? <HealthFooter data={healthData} /> : isCapex ? <CapexFooter /> : isTrend || isAsset ? <TrendFooter /> : <DashboardFooter updatedAt="May 18, 2025 10:15 AM" variant="enterprise" />}
       </div>
     </EcbsAppShell>
   );
@@ -586,43 +587,43 @@ function CapexIcon({ kind }: { kind: CapexIconKind }) {
   return <RecoveryIcon kind="check" />;
 }
 
-function HealthDiagnostics() {
+function HealthDiagnostics({ data }: { data: CapacityHealthDiagnosticsData }) {
   return (
     <>
       <section className="mt-3 grid h-[210px] shrink-0 grid-cols-[1.48fr_0.9fr_1.35fr] gap-3">
         <DashboardPanel title={<span className="flex items-center justify-between"><span>Health Score Over Time</span><span className="text-[8px] normal-case text-slate-400">Last 7 Days v</span></span>} variant="enterprise">
-          <HealthScoreTrend />
+          <HealthScoreTrend data={data} />
         </DashboardPanel>
         <DashboardPanel title="Health Score Distribution" variant="enterprise">
-          <HealthDistribution />
+          <HealthDistribution data={data} />
         </DashboardPanel>
         <DashboardPanel title="Health Score By Asset Type" variant="enterprise">
-          <HealthAssetBars />
+          <HealthAssetBars data={data} />
         </DashboardPanel>
       </section>
       <section className="mt-3 grid h-[215px] shrink-0 grid-cols-5 gap-3">
-        {healthDiagnosticRows.map((item) => (
+        {data.diagnostics.map((item) => (
           <DashboardPanel key={item.title} title={item.title} variant="enterprise">
-            <HealthDiagnosticCard {...item} />
+            <HealthDiagnosticCard item={item} />
           </DashboardPanel>
         ))}
       </section>
       <section className="mt-3 grid h-[172px] shrink-0 grid-cols-[1.35fr_1.05fr_0.9fr] gap-3">
         <DashboardPanel title="Top Issues & Risks" variant="enterprise">
-          <HealthIssuesTable />
+          <HealthIssuesTable data={data} />
         </DashboardPanel>
         <DashboardPanel title="Recommendations" variant="enterprise">
-          <HealthRecommendations />
+          <HealthRecommendations data={data} />
         </DashboardPanel>
         <DashboardPanel title="System Summary" variant="enterprise">
-          <HealthSystemSummary />
+          <HealthSystemSummary data={data} />
         </DashboardPanel>
       </section>
     </>
   );
 }
 
-function HealthFooter() {
+function HealthFooter({ data }: { data?: CapacityHealthDiagnosticsData }) {
   return (
     <footer className="mt-auto flex h-[31px] shrink-0 items-center justify-between rounded border border-cyan-300/10 bg-[#061421]/80 px-3 text-[9px] text-slate-400">
       <span className="flex items-center gap-2">
@@ -631,35 +632,28 @@ function HealthFooter() {
       </span>
       <span className="flex items-center gap-2 text-slate-300">
         <span className="size-2 rounded-full bg-[#05ff5e]" />
-        All Systems Operational
+        {data?.state === "data" ? "Health Data Loaded" : "No Applicable Health Data"}
       </span>
     </footer>
   );
 }
 
-const healthDiagnosticRows = [
-  { title: "Load Balance", score: "96", status: "Excellent", tone: "#65a30d", factors: [["Phase Balance", "98/100"], ["Asset Balance", "95/100"], ["Load Symmetry", "96/100"]] },
-  { title: "Utilization Efficiency", score: "90", status: "Excellent", tone: "#65a30d", factors: [["Utilization Level", "88/100"], ["Peak Management", "90/100"], ["Headroom Availability", "92/100"]] },
-  { title: "Voltage Stability", score: "94", status: "Excellent", tone: "#65a30d", factors: [["Voltage Deviation", "95/100"], ["Voltage Unbalance", "92/100"], ["Flicker / Variations", "94/100"]] },
-  { title: "Harmonic Impact", score: "88", status: "Good", tone: "#f59e0b", factors: [["THD Level", "86/100"], ["Individual Harmonics", "88/100"], ["Power Quality", "89/100"]] },
-  { title: "Thermal Headroom", score: "92", status: "Excellent", tone: "#65a30d", factors: [["Asset Loading", "93/100"], ["Hotspot Temperature", "91/100"], ["Cooling Effectiveness", "92/100"]] },
-] as const;
-
-function HealthKpiCard({ index, kpi }: { index: number; kpi: DashboardKpi }) {
-  const row = healthDiagnosticRows[index - 1];
+function HealthKpiCard({ healthData, index, kpi }: { healthData?: CapacityHealthDiagnosticsData; index: number; kpi: DashboardKpi }) {
+  const row = healthData?.diagnostics[index - 1];
   if (index === 0) {
+    const score = parseHealthScore(kpi.value);
     return (
       <article className="grid h-[120px] grid-cols-[88px_1fr] gap-4 overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061825]/90 p-3 shadow-[0_0_20px_rgba(0,220,255,0.05)]">
-        <HealthRing score="92" size={78} />
+        <HealthRing score={score} size={78} status={kpi.detail} />
         <div className="min-w-0 text-[9px]">
           <div className="text-[8px] font-semibold uppercase text-slate-300">Overall Capacity Health Score</div>
-          <p className="mt-2 leading-tight text-slate-300">Your system is operating with excellent capacity health and optimal efficiency.</p>
+          <p className="mt-2 leading-tight text-slate-300">Overall capacity health is calculated from tracking capacity rollups and latest meter telemetry.</p>
           <div className="mt-2 text-[8px] text-[#65a30d]">How Score Is Calculated {"->"}</div>
         </div>
       </article>
     );
   }
-  const color = row?.tone ?? "#65a30d";
+  const color = row?.tone ?? kpi.color ?? "#65a30d";
   const score = kpi.value.split("/")[0];
   return (
     <article className="h-[120px] overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061825]/90 p-3 shadow-[0_0_20px_rgba(0,220,255,0.05)]">
@@ -674,7 +668,7 @@ function HealthKpiCard({ index, kpi }: { index: number; kpi: DashboardKpi }) {
         </div>
       </div>
       <div className="mt-4 flex items-center gap-1 text-[8px] font-semibold" style={{ color }}>
-        <CapexIcon kind="trend" /> +{index + 1} vs Last 7 Days
+        <CapexIcon kind="trend" /> {kpi.detail}
       </div>
     </article>
   );
@@ -685,66 +679,102 @@ function HealthMiniIcon({ index }: { index: number }) {
   return <AssetIcon kind={icons[index] ?? "check"} />;
 }
 
-function HealthRing({ score, size = 58 }: { score: string; size?: number }) {
+function parseHealthScore(value: string) {
+  const parsed = Number(value.replace(/[^0-9.]/g, ""));
+  return Number.isFinite(parsed) ? Math.max(0, Math.min(100, Math.round(parsed))) : 0;
+}
+
+function healthStatus(score: number) {
+  if (score >= 90) return "Excellent";
+  if (score >= 70) return "Good";
+  if (score >= 50) return "Fair";
+  return score > 0 ? "Poor" : "No Data";
+}
+
+function healthTrendPoints(rows: CapacityHealthDiagnosticsData["trend"]) {
+  if (!rows.length) return "";
+  const maxIndex = Math.max(rows.length - 1, 1);
+  return rows.map((row, index) => {
+    const x = index * (500 / maxIndex);
+    const y = 118 - Math.max(0, Math.min(100, row.score)) * 0.94;
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+}
+
+function parseHealthCount(value: string) {
+  const parsed = Number.parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function HealthNoData({ message }: { message?: string }) {
+  return <div className="grid h-full place-items-center px-4 text-center text-[9px] leading-snug text-slate-400">{message || "No Data"}</div>;
+}
+
+function HealthRing({ score, size = 58, status = healthStatus(score) }: { score: number; size?: number; status?: string }) {
   return (
     <div className="grid place-items-center rounded-full p-[7px]" style={{ width: size, height: size, background: `conic-gradient(#65a30d 0 ${score}%, #243447 ${score}% 100%)` }}>
       <div className="grid h-full w-full place-items-center rounded-full bg-[#061521] text-center">
-        <div><div className="text-[18px] leading-none text-white">{score}</div><div className="text-[7px] text-slate-300">Excellent</div></div>
+        <div><div className="text-[18px] leading-none text-white">{score || "No Data"}</div><div className="text-[7px] text-slate-300">{status}</div></div>
       </div>
     </div>
   );
 }
 
-function HealthScoreTrend() {
-  const points = "0,38 45,36 90,35 135,37 180,39 225,36 270,37 315,40 360,42 405,39 450,41 500,38";
+function HealthScoreTrend({ data }: { data: CapacityHealthDiagnosticsData }) {
+  const points = healthTrendPoints(data.trend);
   return (
     <div className="h-full overflow-hidden text-[9px]">
       <div className="mb-2 text-slate-400"><i className="mr-1 inline-block h-0.5 w-3 bg-[#05ff5e] align-middle" />Overall Health Score</div>
       <div className="grid grid-cols-[34px_1fr] gap-2">
         <div className="flex h-[158px] flex-col justify-between text-right text-[8px] text-slate-500"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
-        <svg className="h-[158px] w-full" viewBox="0 0 500 132" preserveAspectRatio="none" aria-hidden="true">
-          <defs><linearGradient id="healthTrendArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#65a30d" stopOpacity="0.35" /><stop offset="100%" stopColor="#65a30d" stopOpacity="0.03" /></linearGradient></defs>
-          {[24, 50, 76, 102].map((y) => <line key={y} x1="0" x2="500" y1={y} y2={y} stroke="rgba(148,163,184,0.16)" />)}
-          <polygon fill="url(#healthTrendArea)" points={`${points} 500,118 0,118`} />
-          <polyline fill="none" points={points} stroke="#65a30d" strokeWidth="2" />
-          {parseChartPoints(points).map(([x, y]) => <circle cx={x} cy={y} fill="#061521" key={`${x}-${y}`} r="2.4" stroke="#65a30d" strokeWidth="1.6" />)}
-          {["May 12", "May 13", "May 14", "May 15", "May 16", "May 17", "May 18"].map((label, index) => <text fill="#94a3b8" fontSize="10" key={label} textAnchor={index === 0 ? "start" : index === 6 ? "end" : "middle"} x={index * (500 / 6)} y="128">{label}</text>)}
-        </svg>
+        {data.trend.length ? (
+          <svg className="h-[158px] w-full" viewBox="0 0 500 132" preserveAspectRatio="none" aria-hidden="true">
+            <defs><linearGradient id="healthTrendArea" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#65a30d" stopOpacity="0.35" /><stop offset="100%" stopColor="#65a30d" stopOpacity="0.03" /></linearGradient></defs>
+            {[24, 50, 76, 102].map((y) => <line key={y} x1="0" x2="500" y1={y} y2={y} stroke="rgba(148,163,184,0.16)" />)}
+            <polygon fill="url(#healthTrendArea)" points={`${points} 500,118 0,118`} />
+            <polyline fill="none" points={points} stroke="#65a30d" strokeWidth="2" />
+            {parseChartPoints(points).map(([x, y]) => <circle cx={x} cy={y} fill="#061521" key={`${x}-${y}`} r="2.4" stroke="#65a30d" strokeWidth="1.6" />)}
+            {data.trend.map((point, index) => <text fill="#94a3b8" fontSize="10" key={`${point.label}-${index}`} textAnchor={index === 0 ? "start" : index === data.trend.length - 1 ? "end" : "middle"} x={index * (500 / Math.max(data.trend.length - 1, 1))} y="128">{point.label}</text>)}
+          </svg>
+        ) : <HealthNoData message={data.message} />}
       </div>
     </div>
   );
 }
 
-function HealthDistribution() {
-  return <DonutWithLegend value="23" subtitle="Assets" rows={[["Excellent (90-100)", "13 (56.5%)", "#65a30d"], ["Good (70-89)", "7 (30.4%)", "#147dff"], ["Fair (50-69)", "2 (8.7%)", "#f59e0b"], ["Poor (<50)", "1 (4.3%)", "#ef4444"]]} />;
+function HealthDistribution({ data }: { data: CapacityHealthDiagnosticsData }) {
+  if (!data.distribution.length) {
+    return <HealthNoData message="No asset health distribution source was found in tracking." />;
+  }
+
+  return <DonutWithLegend value={String(data.distribution.reduce((total, row) => total + parseHealthCount(row.value), 0))} subtitle="Assets" rows={data.distribution.map((row) => [row.label, row.value, row.color])} />;
 }
 
-function HealthAssetBars() {
-  const rows = [["Main Transformer", 95, "#65a30d"], ["Main Switchgear", 91, "#65a30d"], ["Feeders", 89, "#65a30d"], ["Panels", 87, "#f59e0b"], ["Other Loads", 90, "#65a30d"]] as const;
+function HealthAssetBars({ data }: { data: CapacityHealthDiagnosticsData }) {
   return (
     <div className="h-full text-[9px]">
       <div className="grid h-[156px] grid-cols-[30px_1fr] gap-2">
         <div className="flex flex-col justify-between text-right text-slate-500"><span>100</span><span>75</span><span>50</span><span>25</span><span>0</span></div>
         <div className="flex items-end justify-between gap-3 border-l border-b border-slate-700/60 px-3">
-          {rows.map(([label, value, color]) => <div className="flex flex-1 flex-col items-center" key={label}><span className="mb-1 text-slate-300">{value}</span><span className="w-full rounded-t" style={{ height: `${value * 1.08}px`, backgroundColor: color }} /><span className="mt-1 text-center text-[7px] leading-none text-slate-500">{label}</span></div>)}
+          {data.assetBars.length ? data.assetBars.map(({ color, label, value }) => <div className="flex flex-1 flex-col items-center" key={label}><span className="mb-1 text-slate-300">{value}</span><span className="w-full rounded-t" style={{ height: `${value * 1.08}px`, backgroundColor: color }} /><span className="mt-1 text-center text-[7px] leading-none text-slate-500">{label}</span></div>) : <HealthNoData message="No asset-type health rows were found in tracking." />}
         </div>
       </div>
-      <div className="mt-2 text-[9px] text-[#65a30d]">Average Score: 90</div>
+      <div className="mt-2 text-[9px] text-[#65a30d]">Average Score: {data.assetBars.length ? Math.round(data.assetBars.reduce((sum, row) => sum + row.value, 0) / data.assetBars.length) : "No Data"}</div>
     </div>
   );
 }
 
-function HealthDiagnosticCard({ factors, score, status, tone }: (typeof healthDiagnosticRows)[number]) {
+function HealthDiagnosticCard({ item }: { item: CapacityHealthDiagnosticsData["diagnostics"][number] }) {
   return (
     <div className="grid h-full grid-cols-[80px_1fr] gap-3 overflow-hidden text-[9px]">
-      <div className="pt-3"><HealthRing score={score} size={72} /></div>
+      <div className="pt-3"><HealthRing score={item.score} size={72} status={item.status} /></div>
       <div className="min-w-0">
-        <div className="text-[16px] leading-none" style={{ color: tone }}>{score}</div>
-        <div className="text-[8px] text-slate-400">{status}</div>
-        <p className="mt-2 h-11 overflow-hidden leading-tight text-slate-300">{status === "Good" ? "Harmonic distortion is within limits but can be improved." : "System conditions are within acceptable limits."}</p>
+        <div className="text-[16px] leading-none" style={{ color: item.tone }}>{item.score}</div>
+        <div className="text-[8px] text-slate-400">{item.status}</div>
+        <p className="mt-2 h-11 overflow-hidden leading-tight text-slate-300">{item.status === "No Data" ? "No applicable diagnostic source was found." : "Calculated from tracking capacity and latest meter telemetry."}</p>
         <div className="mt-2 text-[8px] font-semibold text-slate-300">Key Factors</div>
         <div className="mt-1 space-y-0.5">
-          {factors.map(([label, value]) => <div className="flex justify-between border-b border-white/5 pb-0.5" key={label}><span className="truncate text-slate-400"><i className="mr-1 inline-block size-1.5 rounded-full bg-[#65a30d]" />{label}</span><span className="whitespace-nowrap text-slate-300">{value}</span></div>)}
+          {item.factors.map(({ label, value }) => <div className="flex justify-between border-b border-white/5 pb-0.5" key={label}><span className="truncate text-slate-400"><i className="mr-1 inline-block size-1.5 rounded-full bg-[#65a30d]" />{label}</span><span className="whitespace-nowrap text-slate-300">{value}</span></div>)}
         </div>
         <div className="mt-2 text-[8px] text-[#147dff]">View Details {"->"}</div>
       </div>
@@ -752,32 +782,32 @@ function HealthDiagnosticCard({ factors, score, status, tone }: (typeof healthDi
   );
 }
 
-function HealthIssuesTable() {
-  const rows = [["Medium", "Harmonics approaching limit", "Distribution Panel DP-3", "Medium", "Tune harmonic filters"], ["Medium", "Feeder C loading high at peak", "Feeder C", "Medium", "Optimize load schedule"], ["Low", "Voltage unbalance detected", "Main Switchgear", "Low", "Balance phase loading"], ["Low", "Transformer hot-spot rising", "Main Transformer", "Low", "Monitor temperature"]];
+function HealthIssuesTable({ data }: { data: CapacityHealthDiagnosticsData }) {
+  const rows = data.issues;
   return (
     <div className="text-[8px] leading-none">
       <div className="grid grid-cols-[0.6fr_1.45fr_1fr_0.55fr_0.9fr] gap-2 border-b border-white/8 pb-1.5 text-slate-500"><span>Severity</span><span>Issue</span><span>Affected Asset</span><span>Impact</span><span>Recommendation</span></div>
-      <div className="space-y-1 py-1.5">{rows.map(([severity, issue, asset, impact, rec]) => <div className="grid grid-cols-[0.6fr_1.45fr_1fr_0.55fr_0.9fr] gap-2 border-b border-white/5 pb-1.5 text-slate-300" key={issue}><span className={severity === "Medium" ? "rounded bg-[#f59e0b]/30 px-1 py-0.5 text-[#f59e0b]" : "rounded bg-[#147dff]/25 px-1 py-0.5 text-[#29b6f6]"}>{severity}</span><span className="truncate">{issue}</span><span className="truncate">{asset}</span><span>{impact}</span><span className="truncate">{rec}</span></div>)}</div>
+      <div className="space-y-1 py-1.5">{rows.length ? rows.map(({ asset, impact, issue, recommendation, severity }) => <div className="grid grid-cols-[0.6fr_1.45fr_1fr_0.55fr_0.9fr] gap-2 border-b border-white/5 pb-1.5 text-slate-300" key={`${issue}-${asset}`}><span className={severity === "High" ? "rounded bg-[#ef4444]/25 px-1 py-0.5 text-[#ef4444]" : severity === "Medium" ? "rounded bg-[#f59e0b]/30 px-1 py-0.5 text-[#f59e0b]" : "rounded bg-[#147dff]/25 px-1 py-0.5 text-[#29b6f6]"}>{severity}</span><span className="truncate">{issue}</span><span className="truncate">{asset}</span><span>{impact}</span><span className="truncate">{recommendation}</span></div>) : <div className="py-7 text-center text-slate-400">{data.message || "No calculated health issues were found in tracking."}</div>}</div>
       <div className="mt-1 text-[#147dff]">View All Issues {"->"}</div>
     </div>
   );
 }
 
-function HealthRecommendations() {
-  const rows = [["Optimize load distribution during peak hours", "High Impact", "Low Effort"], ["Improve harmonic filtering on DP-3", "Medium Impact", "Medium Effort"], ["Rebalance feeder C loads", "Medium Impact", "Low Effort"], ["Continue monitoring transformer temperatures", "Low Impact", "Low Effort"]];
+function HealthRecommendations({ data }: { data: CapacityHealthDiagnosticsData }) {
+  const rows = data.recommendations;
   return (
     <div className="space-y-2 text-[8px]">
-      {rows.map(([label, impact, effort], index) => <div className="grid grid-cols-[22px_1fr_68px_62px] items-center gap-2 border-b border-white/5 pb-1.5 text-slate-300" key={label}><i className="grid size-5 place-items-center rounded-full border border-[#65a30d] text-[#65a30d] [&>svg]:size-3"><HealthMiniIcon index={index + 1} /></i><span className="truncate">{label}</span><span className={impact.startsWith("High") ? "rounded bg-[#65a30d]/20 px-1 py-0.5 text-[#65a30d]" : "rounded bg-[#f59e0b]/20 px-1 py-0.5 text-[#f59e0b]"}>{impact}</span><span className="rounded bg-slate-700/30 px-1 py-0.5 text-slate-300">{effort}</span></div>)}
+      {rows.map((label, index) => <div className="grid grid-cols-[22px_1fr_68px_62px] items-center gap-2 border-b border-white/5 pb-1.5 text-slate-300" key={label}><i className="grid size-5 place-items-center rounded-full border border-[#65a30d] text-[#65a30d] [&>svg]:size-3"><HealthMiniIcon index={index + 1} /></i><span className="truncate">{label}</span><span className={data.issues[index]?.impact === "High" ? "rounded bg-[#65a30d]/20 px-1 py-0.5 text-[#65a30d]" : "rounded bg-[#f59e0b]/20 px-1 py-0.5 text-[#f59e0b]"}>{data.issues[index]?.impact ?? "No Data"}</span><span className="rounded bg-slate-700/30 px-1 py-0.5 text-slate-300">Calculated</span></div>)}
       <div className="text-[#147dff]">View All Recommendations {"->"}</div>
     </div>
   );
 }
 
-function HealthSystemSummary() {
-  const rows = [["Assets Monitored", "23"], ["Total Connected Capacity", "3,250 kVA"], ["Total Utilized Capacity", "2,438 kVA"], ["Available Capacity", "812 kVA"], ["Total Recovered Capacity", "425 kVA"], ["Overall Health Status", "Excellent"]];
+function HealthSystemSummary({ data }: { data: CapacityHealthDiagnosticsData }) {
+  const rows = data.summaryRows;
   return (
     <div className="space-y-0.5 text-[7px] leading-none">
-      {rows.map(([label, value], index) => <div className="flex items-center justify-between border-b border-white/5 pb-[2px]" key={label}><span className="flex items-center gap-1 text-slate-400"><i className="grid size-3 place-items-center rounded-full border border-slate-600 text-slate-400 [&>svg]:size-2"><HealthMiniIcon index={index + 1} /></i>{label}</span><span className={value === "Excellent" ? "font-semibold text-[#65a30d]" : "font-semibold text-slate-100"}>{value}</span></div>)}
+      {rows.map(({ label, value }, index) => <div className="flex items-center justify-between border-b border-white/5 pb-[2px]" key={label}><span className="flex items-center gap-1 text-slate-400"><i className="grid size-3 place-items-center rounded-full border border-slate-600 text-slate-400 [&>svg]:size-2"><HealthMiniIcon index={index + 1} /></i>{label}</span><span className={value === "Excellent" ? "font-semibold text-[#65a30d]" : "font-semibold text-slate-100"}>{value}</span></div>)}
       <div className="pt-0.5 text-[#147dff]">View System Summary {"->"}</div>
     </div>
   );

@@ -72,3 +72,29 @@ public sealed record CapacityRecoverySummaryRow(string Label, string Value);
 public sealed record CapacityRecoveryTableRow(string AvgKva, string Consistency, string MaxKva, string TimePeriod);
 
 public sealed record CapacityRecoveryTrendPoint(double BaselineUsed, string Label, double Recovered, double Used);
+
+public sealed record CapacityHealthDiagnosticsData(
+    IReadOnlyList<CapacityHealthAssetBar> AssetBars,
+    IReadOnlyList<CapacityHealthDiagnosticCard> Diagnostics,
+    IReadOnlyList<CapacityRecoveryDonutRow> Distribution,
+    IReadOnlyList<CapacityKpi> Kpis,
+    string Message,
+    IReadOnlyList<CapacityHealthIssueRow> Issues,
+    IReadOnlyList<string> Recommendations,
+    string State,
+    IReadOnlyList<CapacityRecoverySummaryRow> SummaryRows,
+    IReadOnlyList<CapacityHealthTrendPoint> Trend,
+    string UpdatedAt);
+
+public sealed record CapacityHealthAssetBar(string Color, string Label, int Value);
+
+public sealed record CapacityHealthDiagnosticCard(
+    IReadOnlyList<CapacityRecoverySummaryRow> Factors,
+    int Score,
+    string Status,
+    string Title,
+    string Tone);
+
+public sealed record CapacityHealthIssueRow(string Asset, string Impact, string Issue, string Recommendation, string Severity);
+
+public sealed record CapacityHealthTrendPoint(string Label, int Score);
