@@ -35,7 +35,7 @@ public sealed class TrackingClientManagementDataService(
                 Clients: clients.Select(client =>
                 {
                     projectSummaries.TryGetValue(client.Id, out var summary);
-                    siteCounts.TryGetValue(client.Id, out var siteCount);
+                    var hasSiteCount = siteCounts.TryGetValue(client.Id, out var siteCount);
 
                     return new ClientManagementClientRow(
                         ActiveProjects: summary?.ProjectCount.ToString() ?? "0",
@@ -43,7 +43,7 @@ public sealed class TrackingClientManagementDataService(
                         Industry: client.MarketSegment ?? "No Data",
                         JoinedDate: FormatTimestamp(client.CreatedAt),
                         Name: client.Name ?? "No Data",
-                        Sites: siteCount.HasValue ? siteCount.Value.ToString() : "No Data",
+                        Sites: hasSiteCount ? siteCount.ToString() : "No Data",
                         Status: "Active",
                         TotalCapacity: summary is not null && summary.HasCapacity ? FormatMw(summary.TotalCapacityKva) : "No Data");
                 }).ToList(),
