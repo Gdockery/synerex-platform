@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
+import { createClientAction, createReportRequestAction, saveProjectDraftAction } from "@/app/client-management/clients/actions";
 import type { ClientManagementClientRow, ClientManagementData, ClientManagementKpi, ClientManagementProjectRow } from "@/lib/clientManagementData";
 import { EcbsAppShell } from "./EcbsAppShell";
 
@@ -48,8 +49,8 @@ function ClientTopbar({ data, variant }: { data: ClientManagementData; variant: 
           <h1 className="mt-2 text-[21px] font-semibold leading-none text-slate-100">{title}</h1>
           <p className="mt-2 text-[10px] text-slate-300">{subtitle}</p>
         </div>
-        {variant === "new" ? <div className="flex gap-2"><ToolbarButton href="/client-management/clients">Cancel</ToolbarButton><ToolbarButton primary>+ Save Client</ToolbarButton></div> : null}
-        {variant === "newProjectScanning" ? <div className="flex gap-2"><ToolbarButton href="/client-management/clients/1/projects">Cancel</ToolbarButton><ToolbarButton primary><span className="inline-flex items-center gap-2"><SaveIcon />Save Draft</span></ToolbarButton></div> : null}
+        {variant === "new" ? <div className="flex gap-2"><ToolbarButton href="/client-management/clients">Cancel</ToolbarButton><ToolbarButton form="client-create-form" primary type="submit">+ Save Client</ToolbarButton></div> : null}
+        {variant === "newProjectScanning" ? <div className="flex gap-2"><ToolbarButton href="/client-management/clients/1/projects">Cancel</ToolbarButton><ToolbarButton form="project-draft-form" primary type="submit"><span className="inline-flex items-center gap-2"><SaveIcon />Save Draft</span></ToolbarButton></div> : null}
         {variant === "list" ? <ToolbarButton href="/client-management/clients/new" primary>+ Add New Client</ToolbarButton> : null}
         {variant === "details" ? <ToolbarButton primary><span className="inline-flex items-center gap-1.5"><PencilIcon />Edit Client</span></ToolbarButton> : null}
         {variant === "projects" ? <ClientProjectsIdentityCard data={data} /> : null}
@@ -75,34 +76,34 @@ function ClientList({ data }: { data: ClientManagementData }) {
 
 function AddNewClient() {
   return (
-    <div className="mt-3 grid min-h-0 flex-1 grid-cols-[1fr_238px] gap-2">
+    <form action={createClientAction} className="mt-3 grid min-h-0 flex-1 grid-cols-[1fr_238px] gap-2" id="client-create-form">
       <div className="space-y-2.5 overflow-hidden">
         <FormPanel title="1. Client Information">
-          <div className="grid grid-cols-3 gap-3"><Field required label="Client Name" value="Enter client name" /><Field label="Legal Entity Name" value="Enter legal entity name" /><Field required label="Contract Number" value="Enter contract number" /><Field label="Industry" value="Select industry" /><Field label="Client Type" value="Select client type" /><Field label="Status" value="Active" /><Field className="col-span-2" label="Website" value="https://www.example.com" /><Field label="Tax ID / VAT Number" value="Enter tax ID or VAT number" /></div>
+          <div className="grid grid-cols-3 gap-3"><Field name="clientName" required label="Client Name" value="Enter client name" /><Field name="legalName" label="Legal Entity Name" value="Enter legal entity name" /><Field name="contractNumber" required label="Contract Number" value="Enter contract number" /><Field name="industry" label="Industry" value="Select industry" /><Field name="clientType" label="Client Type" value="Select client type" /><Field name="status" label="Status" value="Active" /><Field className="col-span-2" name="website" label="Website" value="https://www.example.com" /><Field name="taxId" label="Tax ID / VAT Number" value="Enter tax ID or VAT number" /></div>
         </FormPanel>
         <FormPanel title="2. Primary Contact">
-          <div className="grid grid-cols-3 gap-3"><Field required label="Contact Name" value="Enter contact name" /><Field label="Title / Position" value="Enter title or position" /><Field required label="Email Address" value="Enter email address" /><Field required label="Phone Number" value="(555) 123-4567" /><Field label="Mobile Number" value="(555) 987-6543" /></div>
+          <div className="grid grid-cols-3 gap-3"><Field name="contactName" required label="Contact Name" value="Enter contact name" /><Field name="contactTitle" label="Title / Position" value="Enter title or position" /><Field name="contactEmail" required label="Email Address" value="Enter email address" /><Field name="contactPhone" required label="Phone Number" value="(555) 123-4567" /><Field name="contactMobile" label="Mobile Number" value="(555) 987-6543" /></div>
         </FormPanel>
         <FormPanel title="3. Address">
-          <div className="grid grid-cols-6 gap-3"><Field className="col-span-3" required label="Address Line 1" value="Enter address line 1" /><Field className="col-span-3" label="Address Line 2" value="Enter address line 2" /><Field className="col-span-2" required label="City" value="Enter city" /><Field className="col-span-1" required label="State / Province" value="Select state / province" /><Field className="col-span-2" required label="ZIP / Postal Code" value="Enter ZIP / postal code" /><Field required label="Country" value="United States" /></div>
+          <div className="grid grid-cols-6 gap-3"><Field className="col-span-3" name="addressLine1" required label="Address Line 1" value="Enter address line 1" /><Field className="col-span-3" name="addressLine2" label="Address Line 2" value="Enter address line 2" /><Field className="col-span-2" name="city" required label="City" value="Enter city" /><Field className="col-span-1" name="state" required label="State / Province" value="Select state / province" /><Field className="col-span-2" name="postalCode" required label="ZIP / Postal Code" value="Enter ZIP / postal code" /><Field name="country" required label="Country" value="United States" /></div>
         </FormPanel>
         <FormPanel title="4. Additional Information (Optional)">
-          <div className="grid grid-cols-2 gap-4"><Field multiline label="Notes" value="Enter notes about this client..." /><UploadBox /></div>
+          <div className="grid grid-cols-2 gap-4"><Field multiline name="notes" label="Notes" value="Enter notes about this client..." /><UploadBox /></div>
         </FormPanel>
       </div>
       <SummaryCard />
-    </div>
+    </form>
   );
 }
 
 function NewProjectScanning({ data }: { data: ClientManagementData }) {
   return (
     <div className="mt-3 grid min-h-0 flex-1 grid-cols-[1fr_340px] gap-3">
-      <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
+      <form action={saveProjectDraftAction} className="flex min-h-0 flex-col gap-3 overflow-hidden" id="project-draft-form">
         <WorkflowSteps active={1} steps={["Project Information", "Site & Electrical Info", "Documents & Uploads", "Review & Confirm"]} />
         <ProjectInfoPanel />
         <DocumentUploadsPanel />
-      </div>
+      </form>
       <aside className="flex min-h-0 flex-col gap-3">
         <ProjectSummaryCard data={data} />
         <DarkSidePanel title="Required for Next Step">
@@ -128,6 +129,7 @@ function NewProjectReports({ data }: { data: ClientManagementData }) {
           <DarkSidePanel title="1. Project Overview"><ProjectOverviewGrid data={data} project={selectedProject} /></DarkSidePanel>
           <DarkSidePanel title={<span className="flex items-center justify-between gap-3">2. Uploaded Documents <button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-1.5 text-[10px] font-normal text-slate-300">Manage Files</button></span>}><UploadedDocuments /></DarkSidePanel>
         </section>
+        <form action={createReportRequestAction}>
         <DarkSidePanel title="3. Generate Reports">
           <p className="mt-2 text-[10px] text-slate-300">Select the reports you want to generate for this project.</p>
           <div className="mt-4 grid h-[190px] grid-cols-2 gap-3">
@@ -137,16 +139,17 @@ function NewProjectReports({ data }: { data: ClientManagementData }) {
           <div className="mt-3 rounded border border-cyan-300/12 bg-[#061421] px-3 py-3">
             <div className="text-[10px] text-slate-300">Report Options</div>
             <div className="mt-3 flex gap-12 text-[10px] text-slate-400">
-              <span><span className="mr-2 inline-block size-4 align-middle rounded border border-slate-600" />Include detailed calculations</span>
-              <span><span className="mr-2 inline-block size-4 align-middle rounded border border-slate-600" />Include equipment recommendations <span className="ml-1 text-slate-500">ⓘ</span></span>
+              <label><input className="sr-only" name="includeDetailedCalculations" type="checkbox" /><span className="mr-2 inline-block size-4 align-middle rounded border border-slate-600" />Include detailed calculations</label>
+              <label><input className="sr-only" name="includeEquipmentRecommendations" type="checkbox" /><span className="mr-2 inline-block size-4 align-middle rounded border border-slate-600" />Include equipment recommendations <span className="ml-1 text-slate-500">ⓘ</span></label>
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between">
             <ToolbarButton href="/client-management/clients?workflow=new-project-scanning">← Back</ToolbarButton>
-            <div className="flex items-center gap-3"><ToolbarButton><span className="inline-flex items-center gap-2"><SaveIcon />Save Draft</span></ToolbarButton><ToolbarButton primary>Generate Reports →</ToolbarButton></div>
+            <div className="flex items-center gap-3"><ToolbarButton><span className="inline-flex items-center gap-2"><SaveIcon />Save Draft</span></ToolbarButton><ToolbarButton primary type="submit">Generate Reports →</ToolbarButton></div>
           </div>
           <div className="mt-2 text-right text-[10px] text-slate-500">Reports will be available in the Documents tab once generated.</div>
         </DarkSidePanel>
+        </form>
       </div>
       <aside className="flex min-h-0 flex-col gap-3">
         <ProjectReportSummaryCard data={data} project={selectedProject} />
@@ -236,16 +239,16 @@ function ProjectInfoPanel() {
   return (
     <FormPanel title="1. Project Information">
       <div className="grid grid-cols-3 gap-4">
-        <Field required label="Project / Facility Name" value="Enter project name" />
+        <Field name="projectName" required label="Project / Facility Name" value="Enter project name" />
         <Field required label="Site" value="Select site" />
-        <Field required label="Project Type" value="Select project type" />
-        <Field label="Facility / Building" value="Enter facility or building name" />
-        <Field required label="Location" value="Enter city, state / province, country" />
-        <Field label="Project Manager" value="Enter project manager name" />
-        <Field required label="Start Date" value="Select start date" />
-        <Field label="Target Completion Date" value="Select target date" />
-        <Field label="Status" value="Planning" />
-        <Field className="col-span-3" multiline label="Description / Notes" value="Enter project description or notes..." />
+        <Field name="projectType" required label="Project Type" value="Select project type" />
+        <Field name="facilityName" label="Facility / Building" value="Enter facility or building name" />
+        <Field name="location" required label="Location" value="Enter city, state / province, country" />
+        <Field name="projectManager" label="Project Manager" value="Enter project manager name" />
+        <Field name="startDate" required label="Start Date" value="Select start date" />
+        <Field name="targetCompletionDate" label="Target Completion Date" value="Select target date" />
+        <Field name="status" label="Status" value="Planning" />
+        <Field className="col-span-3" multiline name="description" label="Description / Notes" value="Enter project description or notes..." />
       </div>
     </FormPanel>
   );
@@ -369,10 +372,10 @@ function Breadcrumb({ items }: { items: string[] }) {
   return <div className="text-[9px] text-slate-400">{items.map((item, index) => <span key={item}>{index ? <span className="mx-2">›</span> : null}<span className={index === items.length - 1 ? "text-slate-100" : ""}>{item}</span></span>)}</div>;
 }
 
-function ToolbarButton({ children, href, primary = false }: { children: ReactNode; href?: string; primary?: boolean }) {
+function ToolbarButton({ children, form, href, primary = false, type = "button" }: { children: ReactNode; form?: string; href?: string; primary?: boolean; type?: "button" | "submit" }) {
   const className = primary ? "rounded border border-[#05ff5e]/40 bg-[#0a7a35] px-4 py-2 text-[10px] font-semibold text-white" : "rounded border border-slate-700 bg-[#061421] px-3 py-2 text-[10px] text-slate-300";
 
-  return href ? <Link className={className} href={href}>{children}</Link> : <button className={className}>{children}</button>;
+  return href ? <Link className={className} href={href}>{children}</Link> : <button className={className} form={form} type={type}>{children}</button>;
 }
 
 function SearchBox({ placeholder, withIcon = false }: { placeholder: string; withIcon?: boolean }) {
@@ -395,8 +398,15 @@ function FormPanel({ children, title }: { children: ReactNode; title: string }) 
   return <section className="rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><h2 className="mb-3 text-[13px] font-semibold text-slate-100">{title}</h2>{children}</section>;
 }
 
-function Field({ className = "", label, multiline = false, required = false, value }: { className?: string; label: string; multiline?: boolean; required?: boolean; value: string }) {
-  return <label className={`block text-[9px] text-slate-300 ${className}`}><span>{label}{required ? <b className="text-red-400"> *</b> : null}</span><span className={multiline ? "mt-1 block h-[72px] rounded border border-cyan-300/12 bg-[#061421] px-2 py-2 text-slate-500" : "mt-1 block h-[28px] rounded border border-cyan-300/12 bg-[#061421] px-2 py-2 text-slate-500"}>{value}</span></label>;
+function Field({ className = "", label, multiline = false, name, required = false, value }: { className?: string; label: string; multiline?: boolean; name?: string; required?: boolean; value: string }) {
+  const controlClassName = multiline ? "mt-1 block h-[72px] w-full rounded border border-cyan-300/12 bg-[#061421] px-2 py-2 text-slate-500 outline-none" : "mt-1 block h-[28px] w-full rounded border border-cyan-300/12 bg-[#061421] px-2 py-2 text-slate-500 outline-none";
+
+  return (
+    <label className={`block text-[9px] text-slate-300 ${className}`}>
+      <span>{label}{required ? <b className="text-red-400"> *</b> : null}</span>
+      {multiline ? <textarea className={controlClassName} defaultValue={value} name={name} /> : <input className={controlClassName} defaultValue={value} name={name} />}
+    </label>
+  );
 }
 
 function UploadBox() {

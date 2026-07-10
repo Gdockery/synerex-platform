@@ -1,5 +1,7 @@
 using ECBS.Application.Common.Interfaces;
+using ECBS.Application.ClientManagement;
 using ECBS.Application.ScreenData;
+using ECBS.Infrastructure.ClientManagement;
 using ECBS.Infrastructure.Persistence;
 using ECBS.Infrastructure.ScreenData;
 using Microsoft.EntityFrameworkCore;
@@ -27,6 +29,7 @@ public static class DependencyInjection
 
         services.AddScoped<IAlarmEventsDataService, TrackingAlarmEventsDataService>();
         services.AddScoped<ICapacityIntelligenceDataService, TrackingCapacityIntelligenceDataService>();
+        services.AddScoped<IClientManagementCommandService, EfClientManagementCommandService>();
         services.AddScoped<IClientManagementDataService, TrackingClientManagementDataService>();
 
         return services;

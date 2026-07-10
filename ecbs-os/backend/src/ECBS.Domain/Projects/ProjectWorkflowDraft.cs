@@ -2,7 +2,7 @@ using ECBS.Domain.Common;
 
 namespace ECBS.Domain.Projects;
 
-public sealed class Project : BaseEntity
+public sealed class ProjectWorkflowDraft : BaseEntity
 {
     public Guid TenantId { get; set; }
 
@@ -10,9 +10,9 @@ public sealed class Project : BaseEntity
 
     public Guid? SiteId { get; set; }
 
-    public required string Name { get; set; }
+    public required string DraftName { get; set; }
 
-    public string? SiteCode { get; set; }
+    public string? ProjectName { get; set; }
 
     public string? ProjectType { get; set; }
 
@@ -28,15 +28,7 @@ public sealed class Project : BaseEntity
 
     public string? Status { get; set; }
 
-    public string? AddressLine1 { get; set; }
+    public string? RequiredDocumentStatus { get; set; }
 
-    public string? AddressLine2 { get; set; }
-
-    public string? City { get; set; }
-
-    public string? State { get; set; }
-
-    public string? PostalCode { get; set; }
-
-    public string? Description { get; set; }
+    public string? PayloadJson { get; set; }
 }
