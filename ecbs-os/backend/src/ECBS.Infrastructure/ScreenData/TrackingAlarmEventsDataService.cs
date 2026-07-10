@@ -852,7 +852,7 @@ public sealed class TrackingAlarmEventsDataService(
         };
     }
 
-    private sealed record AlarmDetailSiteContext(string Detail, string Name);
+    private sealed record AlarmDetailSiteContext(string Name, string Detail);
 
     private sealed record AlarmDetailTelemetry(
         double? AvgCurrent,
