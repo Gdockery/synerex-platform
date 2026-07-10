@@ -81,7 +81,7 @@ public sealed class TrackingAlarmEventsDataService(
                 Title: alarm.Title ?? alarm.AlarmType ?? "No Data",
                 TriggerConditions:
                 [
-                    new(metricText, alarm.RuleCondition ?? alarm.Condition ?? "No Data", thresholdText, alarm.RuleMetricKey ?? alarm.AlarmType ?? "No Data", threshold.HasValue && metricValue.HasValue && metricValue.Value > threshold.Value ? "Triggered" : "No Data", threshold.HasValue ? duration : "No Data"),
+                    new(metricText, alarm.RuleCondition ?? "No Data", thresholdText, alarm.RuleMetricKey ?? alarm.AlarmType ?? "No Data", threshold.HasValue && metricValue.HasValue && metricValue.Value > threshold.Value ? "Triggered" : "No Data", threshold.HasValue ? duration : "No Data"),
                     new(FormatNullable(telemetry.AvgPf, ""), "Telemetry Context", "No Data", "Power Factor (PF)", "No Data", "No Data"),
                     new(FormatNullable(telemetry.AvgCurrent, "A"), "Telemetry Context", "No Data", "Current (Avg)", "No Data", "No Data"),
                     new(FormatNullable(telemetry.AvgThd, "%"), "Telemetry Context", "No Data", "THD", "No Data", "No Data"),
