@@ -244,15 +244,11 @@ public sealed class TrackingCapacityIntelligenceDataService(
                 return EmptyUtilizationTrend("No Capacity Intelligence rollup was found for Ochsner project 13.");
             }
 
-            var meters = await ReadMetersAsync(connection, cancellationToken);
-            var mainMeter = meters.FirstOrDefault(meter => meter.IsMain) ?? meters.FirstOrDefault();
-            var telemetry = mainMeter is null
-                ? Array.Empty<CapacityMinuteTrendRow>()
-                : await ReadUtilizationTelemetryAsync(connection, mainMeter.Id, cancellationToken);
-            var samples = BuildUtilizationSamples(telemetry, capacity);
+            var trendRows = await ReadCapacityTrendAsync(connection, cancellationToken);
+            var samples = BuildUtilizationSamples(trendRows, capacity);
             if (samples.Count == 0)
             {
-                return EmptyUtilizationTrend("No recent main-meter telemetry was found for Capacity Utilization Trend.");
+                return EmptyUtilizationTrend("No recent Capacity Intelligence rollups were found for Capacity Utilization Trend.");
             }
 
             var avgUtilization = samples.Average(row => row.UtilizationPct);
@@ -895,39 +891,27 @@ public sealed class TrackingCapacityIntelligenceDataService(
     }
 
     private static IReadOnlyList<CapacityUtilizationSample> BuildUtilizationSamples(
-        IReadOnlyList<CapacityMinuteTrendRow> telemetry,
+        IReadOnlyList<CapacitySummary> trendRows,
         CapacitySummary capacity)
     {
-        if (telemetry.Count == 0)
+        var rows = trendRows.Count > 0 ? trendRows : new[] { capacity };
+        if (rows.Count == 0)
         {
-            if (capacity.BucketTs is null || capacity.InstalledCapacity <= 0)
-            {
-                return Array.Empty<CapacityUtilizationSample>();
-            }
-
-            return
-            [
-                new(
-                    AvailableKva: Math.Max(0, capacity.InstalledCapacity - capacity.UsedCapacity) + capacity.RecoverableCapacity,
-                    ConnectedKva: capacity.InstalledCapacity,
-                    Timestamp: capacity.BucketTs,
-                    UsedKva: capacity.UsedCapacity,
-                    UtilizationPct: ClampScore(capacity.UtilizationPct)),
-            ];
+            return Array.Empty<CapacityUtilizationSample>();
         }
 
-        return telemetry
-            .Where(row => row.TotalKva > 0 && row.BucketTs is not null && capacity.InstalledCapacity > 0)
+        return rows
+            .Where(row => row.InstalledCapacity > 0 && row.BucketTs is not null)
             .OrderBy(row => row.BucketTs)
             .Select(row =>
             {
-                var used = row.TotalKva;
+                var used = row.UsedCapacity;
                 return new CapacityUtilizationSample(
-                    AvailableKva: Math.Max(0, capacity.InstalledCapacity - used) + capacity.RecoverableCapacity,
-                    ConnectedKva: capacity.InstalledCapacity,
+                    AvailableKva: Math.Max(0, row.AvailableCapacity + row.RecoverableCapacity),
+                    ConnectedKva: row.InstalledCapacity,
                     Timestamp: row.BucketTs,
                     UsedKva: used,
-                    UtilizationPct: ClampScore(used / capacity.InstalledCapacity * 100));
+                    UtilizationPct: ClampScore(row.UtilizationPct > 0 ? row.UtilizationPct : used / row.InstalledCapacity * 100));
             })
             .ToList();
     }
