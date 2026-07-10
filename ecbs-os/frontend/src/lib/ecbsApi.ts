@@ -1,10 +1,27 @@
 import "server-only";
 
 import type { AlarmDetailData } from "@/lib/alarmDetailData";
+import type { ConfigureAlertRuleData } from "@/lib/configureAlertRuleData";
 import type { SetNotificationsData } from "@/lib/setNotificationsData";
 import type { AlertsEventsData } from "@/lib/trackingDashboardData";
 
 const apiBaseUrl = process.env.ECBS_API_BASE_URL ?? "http://localhost:5090";
+
+export async function getConfigureAlertRuleDataFromApi(): Promise<ConfigureAlertRuleData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/alerts/configure-alert-rule`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noConfigureAlertRuleData(`No applicable Configure Alert Rules data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as ConfigureAlertRuleData;
+  } catch {
+    return noConfigureAlertRuleData("No applicable Configure Alert Rules data was found because ECBS.Api is not reachable.");
+  }
+}
 
 export async function getAlarmDetailDataFromApi(): Promise<AlarmDetailData> {
   try {
@@ -91,6 +108,52 @@ function noAlarmDetailData(message: string): AlarmDetailData {
     ],
     triggeredAt: "No Data",
     updatedAt: "No Data",
+  };
+}
+
+function noConfigureAlertRuleData(message: string): ConfigureAlertRuleData {
+  return {
+    advancedRows: [
+      { label: "Alert Evaluation Frequency", value: "No Data" },
+      { label: "Clear Condition", value: "No Data" },
+      { label: "Hysteresis", value: "No Data" },
+      { label: "Debounce Time", value: "No Data" },
+      { label: "Suppress Alerts", value: "No Data" },
+    ],
+    message,
+    notificationRows: [
+      { label: "Notification Channels", value: "No Data" },
+      { label: "Recipients", value: "No Data" },
+      { label: "Enable Escalation", value: "No Data" },
+      { label: "Escalate After", value: "No Data" },
+      { label: "Escalate To", value: "No Data" },
+    ],
+    recentActivity: [],
+    ruleName: "No Data",
+    ruleSummary: [
+      { label: "Alert Name", value: "No Data" },
+      { label: "Description", value: "No Data" },
+      { label: "Priority", value: "No Data" },
+      { label: "Status", value: "No Data" },
+      { label: "Scope", value: "No Data" },
+      { label: "Condition", value: "No Data" },
+      { label: "Notifications", value: "No Data" },
+      { label: "Escalation", value: "No Data" },
+    ],
+    scopeRows: [
+      { label: "Apply To", value: "No Data" },
+      { label: "Location", value: "No Data" },
+      { label: "Assets", value: "No Data" },
+      { label: "Asset Groups", value: "No Data" },
+    ],
+    state: "no-data",
+    triggerRows: [
+      { label: "Parameter", value: "No Data" },
+      { label: "Condition", value: "No Data" },
+      { label: "Threshold", value: "No Data" },
+      { label: "Duration", value: "No Data" },
+      { label: "Logical Operator", value: "No Data" },
+    ],
   };
 }
 

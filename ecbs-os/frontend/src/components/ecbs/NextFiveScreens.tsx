@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import type { AlarmDetailData } from "@/lib/alarmDetailData";
+import type { ConfigureAlertRuleData } from "@/lib/configureAlertRuleData";
 import type { SetNotificationsData } from "@/lib/setNotificationsData";
 
 const enterpriseNav = [
@@ -170,7 +171,7 @@ export function AlarmEventsRuleScreen() {
   );
 }
 
-export function ConfigureAlertRuleScreen() {
+export function ConfigureAlertRuleScreen({ data }: { data: ConfigureAlertRuleData }) {
   return (
     <AlarmEventsWideShell>
       <section className="flex h-[92px] items-start justify-between pt-3">
@@ -187,16 +188,16 @@ export function ConfigureAlertRuleScreen() {
       </section>
       <section className="grid h-[722px] grid-cols-[1fr_300px] gap-3">
         <div className="grid min-h-0 grid-rows-[104px_154px_146px_150px_108px] gap-3">
-          <ConfigurePanel number="1" title="Alert Information"><ConfigureAlertInfo /></ConfigurePanel>
-          <ConfigurePanel number="2" title="Scope"><ConfigureScope /></ConfigurePanel>
-          <ConfigurePanel number="3" title="Trigger Conditions"><ConfigureTriggers /></ConfigurePanel>
-          <ConfigurePanel number="4" title="Notification Settings"><ConfigureNotifications /></ConfigurePanel>
-          <ConfigurePanel number="5" title="Advanced Settings (Optional)"><ConfigureAdvanced /></ConfigurePanel>
+          <ConfigurePanel number="1" title="Alert Information"><ConfigureAlertInfo data={data} /></ConfigurePanel>
+          <ConfigurePanel number="2" title="Scope"><ConfigureScope data={data} /></ConfigurePanel>
+          <ConfigurePanel number="3" title="Trigger Conditions"><ConfigureTriggers data={data} /></ConfigurePanel>
+          <ConfigurePanel number="4" title="Notification Settings"><ConfigureNotifications data={data} /></ConfigurePanel>
+          <ConfigurePanel number="5" title="Advanced Settings (Optional)"><ConfigureAdvanced data={data} /></ConfigurePanel>
         </div>
         <div className="grid min-h-0 grid-rows-[294px_138px_250px] gap-3">
-          <ConfigureSidePanel title="Alert Rule Summary"><ConfigureRuleSummary /></ConfigureSidePanel>
+          <ConfigureSidePanel title="Alert Rule Summary"><ConfigureRuleSummary data={data} /></ConfigureSidePanel>
           <ConfigureSidePanel title="How It Works"><p className="text-[10px] leading-relaxed text-slate-400">You will be notified when any of the defined conditions are met for the specified duration. The alert will automatically clear when the parameters return to normal based on the selected clear condition.</p><a className="mt-3 block text-[10px] text-[#05ff5e]" href="/enterprise/alarms-events/configure-alerts-page-alert-rules">Learn more about alerts →</a></ConfigureSidePanel>
-          <ConfigureSidePanel title="Recent Alert Activity (Preview)"><ConfigureRecentActivity /></ConfigureSidePanel>
+          <ConfigureSidePanel title="Recent Alert Activity (Preview)"><ConfigureRecentActivity data={data} /></ConfigureSidePanel>
         </div>
       </section>
     </AlarmEventsWideShell>
@@ -757,6 +758,10 @@ function SetNotifyToggle({ enabled }: { enabled: boolean }) {
   return <span className={enabled ? "inline-flex h-5 w-10 items-center rounded-full bg-[#1f7aff] p-0.5 shadow-[0_0_12px_rgba(31,122,255,.45)]" : "inline-flex h-5 w-10 items-center rounded-full bg-slate-600/70 p-0.5"}><span className={enabled ? "ml-auto block size-4 rounded-full bg-white" : "block size-4 rounded-full bg-white"} /></span>;
 }
 
+function configureValue(rows: Array<{ label: string; value: string }>, label: string) {
+  return rows.find((row) => row.label === label)?.value || "No Data";
+}
+
 function ConfigurePanel({ children, number, title }: { children: ReactNode; number: string; title: string }) {
   return (
     <section className="overflow-hidden rounded-md border border-cyan-300/12 bg-[#061521]/92 p-4">
@@ -770,51 +775,54 @@ function ConfigureSidePanel({ children, title }: { children: ReactNode; title: s
   return <section className="overflow-hidden rounded-md border border-cyan-300/12 bg-[#061521]/92 p-4"><h2 className="mb-3 text-[12px] font-semibold">{title}</h2>{children}</section>;
 }
 
-function ConfigureAlertInfo() {
-  return <div className="grid grid-cols-[1fr_1.45fr_120px_120px] gap-4 text-[9px]"><ConfigureField label="Alert Name" required value="High Demand Alert" /><ConfigureField label="Description" value="Alert when demand exceeds threshold" /><ConfigureField label="Priority" required value="↑ High ⌄" /><ConfigureField label="Status" value="● Active" /></div>;
+function ConfigureAlertInfo({ data }: { data: ConfigureAlertRuleData }) {
+  return <div className="grid grid-cols-[1fr_1.45fr_120px_120px] gap-4 text-[9px]"><ConfigureField label="Alert Name" required value={configureValue(data.ruleSummary, "Alert Name")} /><ConfigureField label="Description" value={data.state === "no-data" ? data.message : configureValue(data.ruleSummary, "Description")} /><ConfigureField label="Priority" required value={configureValue(data.ruleSummary, "Priority")} /><ConfigureField label="Status" value={configureValue(data.ruleSummary, "Status")} /></div>;
 }
 
-function ConfigureScope() {
+function ConfigureScope({ data }: { data: ConfigureAlertRuleData }) {
   return (
     <div className="grid grid-cols-[230px_1fr_280px] gap-6 text-[9px]">
-      <div><div className="mb-2 text-slate-400">Apply To <span className="text-red-400">*</span></div><div className="text-slate-300">○ Entire Network</div><div className="mt-3 text-[#147dff]">● Specific Assets</div><ConfigureField className="mt-3" label="Asset Type" value="Transformer ⌄" /></div>
-      <ConfigureField label="Assets" required value={"Main Transformer (TXFR-01)  ×\nTransformer T-2 (TXFR-02)  ×\n\n2 assets selected"} />
-      <div className="space-y-3"><ConfigureField label="Site" value="Flex Tijuana Manufacturing ⌄" /><ConfigureField label="Electrical Room / Location" value="Main Electrical Room ⌄" /></div>
+      <div><div className="mb-2 text-slate-400">Apply To <span className="text-red-400">*</span></div><div className="text-slate-300">○ Entire Network</div><div className="mt-3 text-[#147dff]">● Specific Assets</div><ConfigureField className="mt-3" label="Asset Type" value={configureValue(data.scopeRows, "Asset Groups")} /></div>
+      <ConfigureField label="Assets" required value={configureValue(data.scopeRows, "Assets")} />
+      <div className="space-y-3"><ConfigureField label="Site" value={configureValue(data.scopeRows, "Apply To")} /><ConfigureField label="Electrical Room / Location" value={configureValue(data.scopeRows, "Location")} /></div>
     </div>
   );
 }
 
-function ConfigureTriggers() {
-  const rows = [["◎", "Demand (kW)", "Greater Than (>)", "1,200", "kW", "15", "min", "🗑"], ["OR", "Power Factor (PF)", "Less Than (<)", "0.90", "PF", "10", "min", "🗑"]];
+function ConfigureTriggers({ data }: { data: ConfigureAlertRuleData }) {
+  const rows = [["◎", configureValue(data.triggerRows, "Parameter"), configureValue(data.triggerRows, "Condition"), configureValue(data.triggerRows, "Threshold"), "", configureValue(data.triggerRows, "Duration"), "", ""]];
   return <div className="text-[9px]"><table className="w-full text-left"><thead className="text-slate-500"><tr>{["", "Parameter", "Condition", "Threshold", "", "Duration", "", ""].map((h, i) => <th className="pb-2 font-medium" key={`${h}-${i}`}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[1]}>{row.map((cell, i) => <td className={`py-2 ${i === 7 ? "text-red-400" : i === 0 ? "text-[#05ff5e]" : "text-slate-300"}`} key={`${row[1]}-${i}`}>{cell}</td>)}</tr>)}</tbody></table><a className="mt-2 block text-[#147dff]" href="/enterprise/alarms-events/configure-alerts-page-alert-rules">+ Add Condition</a></div>;
 }
 
-function ConfigureNotifications() {
+function ConfigureNotifications({ data }: { data: ConfigureAlertRuleData }) {
   return (
     <div className="grid grid-cols-[220px_270px_1fr] gap-6 text-[8.5px]">
-      <div><div className="mb-1.5 text-slate-400">Notification Channels</div>{["In-Portal Alerts", "Email", "SMS / Text", "Push Notification", "Webhook"].map((item) => <div className="mt-1 text-slate-300" key={item}>☑ {item}</div>)}</div>
-      <ConfigureField label="Recipients" value={"john.smith@flex.com  ×\nmaintenance@flex.com  ×\nfacility.manager@flex.com  ×\n+ Add Recipient"} />
-      <div><div className="text-slate-300">☑ Enable Escalation</div><div className="mt-3 grid grid-cols-2 gap-3"><ConfigureField label="Escalate after" value="30    min" /><ConfigureField label="Escalate to" value="operations.manager@flex.com ⌄" /></div></div>
+      <div><div className="mb-1.5 text-slate-400">Notification Channels</div>{configureValue(data.notificationRows, "Notification Channels").split("\n").map((item) => <div className="mt-1 text-slate-300" key={item}>☑ {item}</div>)}</div>
+      <ConfigureField label="Recipients" value={configureValue(data.notificationRows, "Recipients")} />
+      <div><div className="text-slate-300">☑ Enable Escalation: {configureValue(data.notificationRows, "Enable Escalation")}</div><div className="mt-3 grid grid-cols-2 gap-3"><ConfigureField label="Escalate after" value={configureValue(data.notificationRows, "Escalate After")} /><ConfigureField label="Escalate to" value={configureValue(data.notificationRows, "Escalate To")} /></div></div>
     </div>
   );
 }
 
-function ConfigureAdvanced() {
-  return <div className="grid grid-cols-[1fr_1.15fr_1fr_1fr_1fr] gap-4 text-[9px]"><ConfigureField label="Alert Evaluation Frequency" value="1 minute ⌄" /><ConfigureField label="Clear Condition" value="Auto (When condition normalizes) ⌄" /><ConfigureField label="Hysteresis (Optional)" value="5          %" /><ConfigureField label="Debounce Time (Optional)" value="2          min" /><div><div className="text-slate-400">Suppress Alerts ⓘ</div><div className="mt-2 flex items-center gap-2"><SetNotifyToggle enabled={false} /><span className="text-slate-300">Off</span></div></div></div>;
+function ConfigureAdvanced({ data }: { data: ConfigureAlertRuleData }) {
+  return <div className="grid grid-cols-[1fr_1.15fr_1fr_1fr_1fr] gap-4 text-[9px]"><ConfigureField label="Alert Evaluation Frequency" value={configureValue(data.advancedRows, "Alert Evaluation Frequency")} /><ConfigureField label="Clear Condition" value={configureValue(data.advancedRows, "Clear Condition")} /><ConfigureField label="Hysteresis (Optional)" value={configureValue(data.advancedRows, "Hysteresis")} /><ConfigureField label="Debounce Time (Optional)" value={configureValue(data.advancedRows, "Debounce Time")} /><div><div className="text-slate-400">Suppress Alerts ⓘ</div><div className="mt-2 flex items-center gap-2"><SetNotifyToggle enabled={false} /><span className="text-slate-300">{configureValue(data.advancedRows, "Suppress Alerts")}</span></div></div></div>;
 }
 
 function ConfigureField({ className = "", label, required = false, value }: { className?: string; label: string; required?: boolean; value: string }) {
   return <label className={`block text-slate-400 ${className}`}>{label}{required ? <span className="text-red-400"> *</span> : null}<div className="mt-1 whitespace-pre-line rounded border border-slate-700 bg-[#07131f] px-3 py-1.5 text-slate-200">{value}</div></label>;
 }
 
-function ConfigureRuleSummary() {
-  const rows = [["Alert Name", "High Demand Alert"], ["Priority", "↑ High"], ["Status", "● Active"], ["Scope", "2 Assets\nTXFR-01, TXFR-02\nFlex Tijuana Manufacturing\nMain Electrical Room"]];
-  return <div className="text-[10px]">{rows.map(([label, value]) => <div className="mb-3 grid grid-cols-[86px_1fr] gap-3" key={label}><span className="text-slate-400">{label}</span><span className="whitespace-pre-line">{value}</span></div>)}<div className="mt-4 border-t border-white/8 pt-3"><div className="mb-2 text-slate-400">Conditions</div><div><span className="text-yellow-400">●</span> Demand (kW) &gt; 1,200 kW for 15 min</div><div className="mt-1"><span className="text-[#05ff5e]">●</span> OR Power Factor (PF) &lt; 0.90 for 10 min</div></div><div className="mt-4 border-t border-white/8 pt-3"><div className="mb-2 text-slate-400">Notifications</div><div>☑ In-Portal Alerts</div><div>✉ Email (3 recipients)</div><div>🔔 Push Notification</div></div><div className="mt-4"><div className="text-slate-400">Escalation</div><div>After 30 min to operations.manager@flex.com</div></div></div>;
+function ConfigureRuleSummary({ data }: { data: ConfigureAlertRuleData }) {
+  const rows = data.ruleSummary.slice(0, 5);
+  return <div className="text-[10px]">{data.state === "no-data" ? <div className="mb-3 rounded border border-amber-400/25 bg-amber-500/8 p-2 text-[9px] leading-relaxed text-amber-200">{data.message}</div> : null}{rows.map(({ label, value }) => <div className="mb-3 grid grid-cols-[86px_1fr] gap-3" key={label}><span className="text-slate-400">{label}</span><span className="whitespace-pre-line">{value}</span></div>)}<div className="mt-4 border-t border-white/8 pt-3"><div className="mb-2 text-slate-400">Conditions</div><div><span className="text-yellow-400">●</span> {configureValue(data.ruleSummary, "Condition")}</div></div><div className="mt-4 border-t border-white/8 pt-3"><div className="mb-2 text-slate-400">Notifications</div><div>{configureValue(data.ruleSummary, "Notifications")}</div></div><div className="mt-4"><div className="text-slate-400">Escalation</div><div>{configureValue(data.ruleSummary, "Escalation")}</div></div></div>;
 }
 
-function ConfigureRecentActivity() {
-  const rows = [["↑", "High Demand Alert", "TXFR-01", "10:12 AM"], ["⚠", "Low Power Factor Alert", "Panel LP-3", "9:58 AM"], ["ⓘ", "Transformer Temp Alert", "T-2", "9:41 AM"]];
-  return <div className="space-y-4 text-[10px]">{rows.map(([icon, title, asset, time]) => <div className="grid grid-cols-[18px_1fr_auto] gap-2" key={title}><span className={icon === "↑" ? "text-red-400" : icon === "⚠" ? "text-yellow-400" : "text-blue-400"}>{icon}</span><span>{title}<br /><span className="text-slate-500">{asset}</span></span><span className="text-slate-400">{time}</span></div>)}<a className="block pt-1 text-[#05ff5e]" href="/enterprise/alarms-events/alarm-events">View All Alerts →</a></div>;
+function ConfigureRecentActivity({ data }: { data: ConfigureAlertRuleData }) {
+  if (!data.recentActivity.length) {
+    return <div className="grid h-[178px] place-items-center rounded border border-amber-400/25 bg-amber-500/8 p-3 text-center text-[9px] leading-relaxed text-amber-200">{data.message || "No applicable recent alert activity was found in tracking."}</div>;
+  }
+
+  return <div className="space-y-4 text-[10px]">{data.recentActivity.map(({ asset, icon, time, title }) => <div className="grid grid-cols-[18px_1fr_auto] gap-2" key={`${title}-${time}`}><span className={icon === "↑" ? "text-red-400" : icon === "⚠" ? "text-yellow-400" : "text-blue-400"}>{icon}</span><span>{title}<br /><span className="text-slate-500">{asset}</span></span><span className="text-slate-400">{time}</span></div>)}<a className="block pt-1 text-[#05ff5e]" href="/enterprise/alarms-events/alarm-events">View All Alerts →</a></div>;
 }
 
 function AlarmButton({ children, primary = false }: { children: ReactNode; primary?: boolean }) {

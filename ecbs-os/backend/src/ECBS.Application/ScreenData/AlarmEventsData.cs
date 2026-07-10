@@ -108,3 +108,16 @@ public sealed record SetNotificationsRecipient(
     IReadOnlyList<string> SeverityColors,
     string Status,
     string Type);
+
+public sealed record ConfigureAlertRuleData(
+    IReadOnlyList<AlarmDetailKeyValue> AdvancedRows,
+    IReadOnlyList<ConfigureAlertRuleActivity> RecentActivity,
+    string Message,
+    IReadOnlyList<AlarmDetailKeyValue> NotificationRows,
+    string RuleName,
+    IReadOnlyList<AlarmDetailKeyValue> RuleSummary,
+    IReadOnlyList<AlarmDetailKeyValue> ScopeRows,
+    string State,
+    IReadOnlyList<AlarmDetailKeyValue> TriggerRows);
+
+public sealed record ConfigureAlertRuleActivity(string Asset, string Icon, string Time, string Title);

@@ -10,6 +10,81 @@ public sealed class TrackingAlarmEventsDataService(
     ILogger<TrackingAlarmEventsDataService> logger)
     : IAlarmEventsDataService
 {
+    public async Task<ConfigureAlertRuleData> GetOchsnerConfigureAlertRuleAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            await using var connection = new MySqlConnection(GetTrackingConnectionString());
+            await connection.OpenAsync(cancellationToken);
+
+            var rule = await ReadLatestNotificationRuleAsync(connection, cancellationToken);
+            if (rule is null)
+            {
+                return NoConfigureAlertRuleData("No applicable alert rule configuration was found in tracking for Ochsner project 13.");
+            }
+
+            var site = await ReadSiteContextAsync(connection, cancellationToken);
+            var recipients = await ReadNotificationRecipientsAsync(connection, ParseUserIds(rule.NotifyUserIds), rule, cancellationToken);
+            var channels = BuildNotificationChannels(rule);
+            var enabledChannels = channels.Where(channel => channel.Enabled).Select(channel => channel.Title).ToList();
+            var threshold = rule.Threshold.HasValue ? $"{rule.Threshold.Value:0.##} {rule.Unit}".Trim() : "No Data";
+            var priority = NormalizeSeverity(rule.Severity);
+
+            return new ConfigureAlertRuleData(
+                AdvancedRows:
+                [
+                    new("Alert Evaluation Frequency", "No Data"),
+                    new("Clear Condition", "No Data"),
+                    new("Hysteresis", "No Data"),
+                    new("Debounce Time", "No Data"),
+                    new("Suppress Alerts", "No Data"),
+                ],
+                RecentActivity: await ReadConfigureRecentActivityAsync(connection, cancellationToken),
+                Message: "",
+                NotificationRows:
+                [
+                    new("Notification Channels", enabledChannels.Count > 0 ? string.Join("\n", enabledChannels) : "No Data"),
+                    new("Recipients", recipients.Count > 0 ? string.Join("\n", recipients.Select(recipient => recipient.Email)) : "No Data"),
+                    new("Enable Escalation", "No Data"),
+                    new("Escalate After", "No Data"),
+                    new("Escalate To", "No Data"),
+                ],
+                RuleName: rule.Name ?? "No Data",
+                RuleSummary:
+                [
+                    new("Alert Name", rule.Name ?? "No Data"),
+                    new("Description", rule.Description ?? "No Data"),
+                    new("Priority", priority),
+                    new("Status", rule.IsActive ? "Active" : "Disabled"),
+                    new("Scope", $"{site.Name}\n{site.Detail}"),
+                    new("Condition", $"{rule.MetricKey ?? "No Data"} {rule.Condition ?? "No Data"} {threshold}".Trim()),
+                    new("Notifications", enabledChannels.Count > 0 ? string.Join(", ", enabledChannels) : "No Data"),
+                    new("Escalation", "No Data"),
+                ],
+                ScopeRows:
+                [
+                    new("Apply To", site.Name),
+                    new("Location", site.Detail),
+                    new("Assets", "No Data"),
+                    new("Asset Groups", "No Data"),
+                ],
+                State: "data",
+                TriggerRows:
+                [
+                    new("Parameter", rule.MetricKey ?? "No Data"),
+                    new("Condition", rule.Condition ?? "No Data"),
+                    new("Threshold", threshold),
+                    new("Duration", "No Data"),
+                    new("Logical Operator", "No Data"),
+                ]);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Failed to load Ochsner Configure Alert Rules data from tracking.");
+            return NoConfigureAlertRuleData("Tracking alert rule configuration could not be loaded for Ochsner project 13.");
+        }
+    }
+
     public async Task<AlarmDetailData> GetOchsnerAlarmDetailAsync(CancellationToken cancellationToken = default)
     {
         try
@@ -265,7 +340,7 @@ public sealed class TrackingAlarmEventsDataService(
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT id, name, category, metric_key, `condition`, threshold, unit, severity, notify_email, notify_sms, notify_push, notify_user_ids, is_active
+            SELECT id, name, description, category, metric_key, `condition`, threshold, unit, severity, notify_email, notify_sms, notify_push, notify_user_ids, is_active
             FROM alert_rules
             WHERE project_id = 13
               AND COALESCE(is_deleted, 0) = 0
@@ -282,6 +357,7 @@ public sealed class TrackingAlarmEventsDataService(
         return new SetNotificationsRule(
             Category: ReadString(reader, "category"),
             Condition: ReadString(reader, "condition"),
+            Description: ReadString(reader, "description"),
             Id: ReadInt(reader, "id"),
             IsActive: ReadBool(reader, "is_active"),
             MetricKey: ReadString(reader, "metric_key"),
@@ -293,6 +369,35 @@ public sealed class TrackingAlarmEventsDataService(
             Severity: ReadString(reader, "severity"),
             Threshold: ReadNullableDouble(reader, "threshold"),
             Unit: ReadString(reader, "unit"));
+    }
+
+    private static async Task<IReadOnlyList<ConfigureAlertRuleActivity>> ReadConfigureRecentActivityAsync(
+        MySqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT title, severity, asset_name, alarm_type, triggered_at, createdAt
+            FROM alarms
+            WHERE project_id = 13
+              AND COALESCE(isDeleted, 0) = 0
+            ORDER BY COALESCE(triggered_at, createdAt, 0) DESC
+            LIMIT 3
+            """;
+
+        var rows = new List<ConfigureAlertRuleActivity>();
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var triggered = ReadUnixMilliseconds(reader, "triggered_at") ?? ReadUnixMilliseconds(reader, "createdAt");
+            rows.Add(new ConfigureAlertRuleActivity(
+                Asset: ReadString(reader, "asset_name") ?? ReadString(reader, "alarm_type") ?? "No Data",
+                Icon: SeverityIcon(ReadString(reader, "severity")),
+                Time: triggered.HasValue ? FormatTime(triggered.Value) : "No Data",
+                Title: ReadString(reader, "title") ?? "No Data"));
+        }
+
+        return rows;
     }
 
     private static async Task<IReadOnlyList<SetNotificationsRecipient>> ReadNotificationRecipientsAsync(
@@ -378,6 +483,57 @@ public sealed class TrackingAlarmEventsDataService(
                 new("Severity", "● No Data"),
             ],
             State: "no-data");
+    }
+
+    private static ConfigureAlertRuleData NoConfigureAlertRuleData(string message)
+    {
+        return new ConfigureAlertRuleData(
+            AdvancedRows:
+            [
+                new("Alert Evaluation Frequency", "No Data"),
+                new("Clear Condition", "No Data"),
+                new("Hysteresis", "No Data"),
+                new("Debounce Time", "No Data"),
+                new("Suppress Alerts", "No Data"),
+            ],
+            RecentActivity: Array.Empty<ConfigureAlertRuleActivity>(),
+            Message: message,
+            NotificationRows:
+            [
+                new("Notification Channels", "No Data"),
+                new("Recipients", "No Data"),
+                new("Enable Escalation", "No Data"),
+                new("Escalate After", "No Data"),
+                new("Escalate To", "No Data"),
+            ],
+            RuleName: "No Data",
+            RuleSummary:
+            [
+                new("Alert Name", "No Data"),
+                new("Description", "No Data"),
+                new("Priority", "No Data"),
+                new("Status", "No Data"),
+                new("Scope", "No Data"),
+                new("Condition", "No Data"),
+                new("Notifications", "No Data"),
+                new("Escalation", "No Data"),
+            ],
+            ScopeRows:
+            [
+                new("Apply To", "No Data"),
+                new("Location", "No Data"),
+                new("Assets", "No Data"),
+                new("Asset Groups", "No Data"),
+            ],
+            State: "no-data",
+            TriggerRows:
+            [
+                new("Parameter", "No Data"),
+                new("Condition", "No Data"),
+                new("Threshold", "No Data"),
+                new("Duration", "No Data"),
+                new("Logical Operator", "No Data"),
+            ]);
     }
 
     private static IReadOnlyList<SetNotificationsChannel> BuildNotificationChannels(SetNotificationsRule? rule)
@@ -1132,6 +1288,7 @@ public sealed class TrackingAlarmEventsDataService(
     private sealed record SetNotificationsRule(
         string? Category,
         string? Condition,
+        string? Description,
         int Id,
         bool IsActive,
         string? MetricKey,
