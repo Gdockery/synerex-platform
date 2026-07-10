@@ -26,6 +26,7 @@ public static class DependencyInjection
             provider.GetRequiredService<EcbsDbContext>());
 
         services.AddScoped<IAlarmEventsDataService, TrackingAlarmEventsDataService>();
+        services.AddScoped<ICapacityIntelligenceDataService, TrackingCapacityIntelligenceDataService>();
 
         return services;
     }

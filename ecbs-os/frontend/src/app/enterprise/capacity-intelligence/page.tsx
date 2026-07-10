@@ -1,10 +1,10 @@
 import { CapacityIntelligenceScreen } from "@/components/ecbs/CapacityIntelligenceScreen";
-import { getOchsnerCapacityIntelligenceData } from "@/lib/trackingDashboardData";
+import { getCapacityIntelligenceDataFromApi } from "@/lib/ecbsApi";
 
 export const dynamic = "force-dynamic";
 
 export default async function CapacityIntelligencePage() {
-  const data = await getOchsnerCapacityIntelligenceData();
+  const data = await getCapacityIntelligenceDataFromApi();
 
   return <CapacityIntelligenceScreen data={data} />;
 }

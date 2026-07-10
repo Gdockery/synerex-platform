@@ -3,9 +3,25 @@ import "server-only";
 import type { AlarmDetailData } from "@/lib/alarmDetailData";
 import type { ConfigureAlertRuleData } from "@/lib/configureAlertRuleData";
 import type { SetNotificationsData } from "@/lib/setNotificationsData";
-import type { AlertsEventsData } from "@/lib/trackingDashboardData";
+import type { AlertsEventsData, CapacityIntelligenceData } from "@/lib/trackingDashboardData";
 
 const apiBaseUrl = process.env.ECBS_API_BASE_URL ?? "http://localhost:5090";
+
+export async function getCapacityIntelligenceDataFromApi(): Promise<CapacityIntelligenceData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/capacity-intelligence`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noCapacityIntelligenceData(`No applicable Capacity Intelligence data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as CapacityIntelligenceData;
+  } catch {
+    return noCapacityIntelligenceData("No applicable Capacity Intelligence data was found because ECBS.Api is not reachable.");
+  }
+}
 
 export async function getConfigureAlertRuleDataFromApi(): Promise<ConfigureAlertRuleData> {
   try {
@@ -154,6 +170,50 @@ function noConfigureAlertRuleData(message: string): ConfigureAlertRuleData {
       { label: "Duration", value: "No Data" },
       { label: "Logical Operator", value: "No Data" },
     ],
+  };
+}
+
+function noCapacityIntelligenceData(message: string): CapacityIntelligenceData {
+  return {
+    annualBenefit: "$0",
+    assets: [],
+    availableKva: 0,
+    avoidedUpgrade: message,
+    callouts: [
+      { icon: "!", label: "Capacity Data Unavailable", value: message },
+      { icon: "!", label: "Avoided Upgrade", value: "No Data" },
+      { icon: "!", label: "Annual Benefit", value: "No Data" },
+      { icon: "!", label: "Carbon Impact", value: "No Data" },
+    ],
+    capacityHealthScore: 0,
+    co2Tons: "No Data",
+    dateRange: "Tracking DB",
+    deferredCapitalValue: 0,
+    hiddenKva: 0,
+    installedKva: 0,
+    keyInsight: message,
+    kpis: [
+      { color: "#64748b", detail: "No Data", icon: "P", label: "Total Connected Capacity", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "G", label: "Current Utilized Capacity", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "B", label: "Available Capacity", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "R", label: "Recovered Capacity", value: "No Data" },
+      { color: "#64748b", detail: "No Data", icon: "$", label: "Upgrade Deferral Value", value: "No Data" },
+    ],
+    loadKva: 0,
+    recoveredKva: 0,
+    recoveredPct: 0,
+    siteName: "Ochsner Site",
+    state: "empty",
+    subScores: [
+      { label: "Load Balance", value: 0 },
+      { label: "Utilization Efficiency", value: 0 },
+      { label: "Voltage Stability", value: 0 },
+      { label: "Harmonic Impact", value: 0 },
+      { label: "Thermal Headroom", value: 0 },
+    ],
+    trend: [],
+    updatedAt: "No Data",
+    utilizationPct: 0,
   };
 }
 

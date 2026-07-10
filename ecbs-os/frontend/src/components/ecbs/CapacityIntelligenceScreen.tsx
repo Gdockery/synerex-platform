@@ -9,12 +9,12 @@ export function CapacityIntelligenceScreen({
   activeHref?: string;
   data: CapacityIntelligenceData;
 }) {
-  const screenData = data.state === "data" ? data : referenceCapacityData;
+  const screenData = data;
 
   return (
     <EcbsAppShell activeHref={activeHref}>
       <div className="flex h-screen min-h-0 flex-col overflow-hidden px-4 py-3">
-        <CapacityPortalHeader />
+        <CapacityPortalHeader data={screenData} />
 
         <section className="mt-3 grid h-[100px] shrink-0 grid-cols-5 gap-3">
           {screenData.kpis.map((kpi) => (
@@ -32,7 +32,7 @@ export function CapacityIntelligenceScreen({
           </DashboardPanel>
 
           <DashboardPanel title="Equivalent Capacity Gain" variant="enterprise">
-            <EquivalentCapacity />
+            <EquivalentCapacity data={screenData} />
           </DashboardPanel>
         </section>
 
@@ -58,7 +58,7 @@ export function CapacityIntelligenceScreen({
   );
 }
 
-function CapacityPortalHeader() {
+function CapacityPortalHeader({ data }: { data: CapacityIntelligenceData }) {
   return (
     <header className="shrink-0">
       <div className="flex h-[46px] items-center justify-between border-b border-cyan-300/10">
@@ -67,8 +67,8 @@ function CapacityPortalHeader() {
           <p className="mt-1 text-[11px] text-slate-300">Capacity Intelligence</p>
         </div>
         <div className="flex items-center gap-3 text-[10px] text-slate-300">
-          <button className="w-[142px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">Flex Tijuana⌄</button>
-          <button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">▣ May 12 - May 18, 2025⌄</button>
+          <button className="w-[142px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">{data.siteName}⌄</button>
+          <button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">▣ {data.dateRange}⌄</button>
           <span className="relative grid size-7 place-items-center rounded-full border border-slate-600">♟<span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] font-bold text-[#020a12]">3</span></span>
           <span className="grid size-7 place-items-center rounded-full border border-slate-600">?</span>
           <span className="grid size-8 place-items-center rounded-full bg-slate-700 text-sm">●</span>
@@ -133,6 +133,10 @@ function CapacityReferenceFooter({ updatedAt }: { updatedAt: string }) {
 }
 
 function CapacityTrend({ data }: { data: CapacityIntelligenceData }) {
+  if (!data.trend.length) {
+    return <CapacityNoData message={data.keyInsight} />;
+  }
+
   const chartMax = Math.max(
     data.installedKva,
     ...data.trend.flatMap((point) => [point.installed, point.available, point.used]),
@@ -218,13 +222,14 @@ function RecoveryImpact({ data }: { data: CapacityIntelligenceData }) {
   );
 }
 
-function EquivalentCapacity() {
+function EquivalentCapacity({ data }: { data: CapacityIntelligenceData }) {
+  if (data.recoveredKva <= 0) {
+    return <CapacityNoData message="No approved equivalent-capacity conversion source was found. Recovered capacity is No Data." />;
+  }
+
   const rows = [
-    { color: "#29b6f6", label: "4 x 50 HP Motors", value: 400 },
-    { color: "#ab47bc", label: "35 Server Racks", value: 350 },
-    { color: "#05ff5e", label: "2 Production Lines", value: 300 },
-    { color: "#ffd740", label: "Additional HVAC", value: 150 },
-    { color: "#94a3b8", label: "Other Capacity", value: 225 },
+    { color: "#05ff5e", label: "Recovered Capacity", value: data.recoveredKva },
+    { color: "#147dff", label: "Available Capacity After Recovery", value: data.availableKva + data.recoveredKva },
   ];
   const equivalentTotal = rows.reduce((total, row) => total + row.value, 0);
 
@@ -246,6 +251,14 @@ function EquivalentCapacity() {
 }
 
 function CapacityAssetTable({ assets }: { assets: CapacityIntelligenceAsset[] }) {
+  const totals = assets.reduce((sum, asset) => ({
+    available: sum.available + parseCapacityNumber(asset.availableKva),
+    connected: sum.connected + parseCapacityNumber(asset.connectedKva),
+    recovered: sum.recovered + parseCapacityNumber(asset.recoveredKva),
+    utilized: sum.utilized + parseCapacityNumber(asset.utilizedKva),
+  }), { available: 0, connected: 0, recovered: 0, utilized: 0 });
+  const totalUtilization = totals.connected > 0 ? totals.utilized / totals.connected * 100 : 0;
+
   return (
     <div className="h-full overflow-auto pr-1 [scrollbar-color:#0ea5b7_#061521] [scrollbar-width:thin]">
       <table className="w-full text-left text-[8.5px]">
@@ -262,6 +275,11 @@ function CapacityAssetTable({ assets }: { assets: CapacityIntelligenceAsset[] })
           </tr>
         </thead>
         <tbody>
+          {!assets.length ? (
+            <tr className="border-b border-white/5">
+              <td className="px-2 py-8 text-center text-slate-300" colSpan={8}>No applicable capacity assets were found in tracking.</td>
+            </tr>
+          ) : null}
           {assets.map((asset) => (
             <tr className="border-b border-white/5" key={asset.name}>
               <td className="px-2 py-[3px] font-semibold text-slate-200">{asset.name}</td>
@@ -285,11 +303,11 @@ function CapacityAssetTable({ assets }: { assets: CapacityIntelligenceAsset[] })
           ))}
           <tr className="border-t border-white/10 font-semibold text-slate-100">
             <td className="px-2 py-1">TOTAL</td>
-            <td className="px-2 py-1">3,250</td>
-            <td className="px-2 py-1">2,438</td>
-            <td className="px-2 py-1 text-[#ffd740]">75%</td>
-            <td className="px-2 py-1">812</td>
-            <td className="px-2 py-1 text-[#05ff5e]">425</td>
+            <td className="px-2 py-1">{assets.length ? formatCompact(totals.connected) : "No Data"}</td>
+            <td className="px-2 py-1">{assets.length ? formatCompact(totals.utilized) : "No Data"}</td>
+            <td className="px-2 py-1 text-[#ffd740]">{assets.length ? `${formatCompact(totalUtilization)}%` : "No Data"}</td>
+            <td className="px-2 py-1">{assets.length ? formatCompact(totals.available) : "No Data"}</td>
+            <td className="px-2 py-1 text-[#05ff5e]">{assets.length ? formatCompact(totals.recovered) : "No Data"}</td>
             <td className="px-2 py-1">—</td>
             <td className="px-2 py-1" />
           </tr>
@@ -340,63 +358,14 @@ function CapacityHealth({ data }: { data: CapacityIntelligenceData }) {
   );
 }
 
-const referenceCapacityData = {
-  annualBenefit: "$184,200",
-  assets: [
-    { availableKva: "750", connectedKva: "1,500", health: "Healthy", name: "Main Transformer", recoveredKva: "225", sparkline: "0,14 8,18 16,10 24,15 32,8 40,13 48,7 56,11", type: "Transformer", utilizedKva: "1,125", utilizationPct: "75%", utilizationValue: 75 },
-    { availableKva: "300", connectedKva: "1,200", health: "Healthy", name: "Main Switchgear", recoveredKva: "180", sparkline: "0,13 8,18 16,12 24,17 32,8 40,15 48,9 56,13", type: "Switchgear", utilizedKva: "900", utilizationPct: "75%", utilizationValue: 75 },
-    { availableKva: "90", connectedKva: "300", health: "Healthy", name: "Feeder A", recoveredKva: "60", sparkline: "0,15 8,19 16,11 24,16 32,9 40,14 48,8 56,12", type: "Feeder", utilizedKva: "210", utilizationPct: "70%", utilizationValue: 70 },
-    { availableKva: "70", connectedKva: "250", health: "Healthy", name: "Feeder B", recoveredKva: "50", sparkline: "0,12 8,17 16,10 24,16 32,7 40,13 48,9 56,12", type: "Feeder", utilizedKva: "180", utilizationPct: "72%", utilizationValue: 72 },
-    { availableKva: "75", connectedKva: "250", health: "Healthy", name: "Feeder C", recoveredKva: "45", sparkline: "0,16 8,18 16,12 24,15 32,9 40,14 48,8 56,11", type: "Feeder", utilizedKva: "175", utilizationPct: "70%", utilizationValue: 70 },
-    { availableKva: "80", connectedKva: "400", health: "Warning", name: "Distribution Panels", recoveredKva: "40", sparkline: "0,11 8,16 16,10 24,14 32,8 40,13 48,9 56,12", type: "Panel", utilizedKva: "320", utilizationPct: "80%", utilizationValue: 80 },
-    { availableKva: "22", connectedKva: "150", health: "Warning", name: "Other Loads", recoveredKva: "10", sparkline: "0,13 8,18 16,11 24,16 32,10 40,15 48,9 56,13", type: "Other", utilizedKva: "128", utilizationPct: "85%", utilizationValue: 85 },
-  ],
-  availableKva: 812,
-  avoidedUpgrade: "3,000 kVA transformer upgrade and associated switchgear",
-  callouts: [
-    { icon: "!", label: "Key Insight", value: "You have 812 kVA of available capacity, enough to support additional equipment or growth." },
-    { icon: "☼", label: "Avoided Upgrade", value: "You can defer a 3,000 kVA transformer upgrade and associated switchgear." },
-    { icon: "$", label: "Annual Benefit", value: "$184,200 in annual savings from recovered capacity." },
-    { icon: "✣", label: "Carbon Impact", value: "425 kVA recovered = 41.2 tons CO2e avoided annually." },
-  ],
-  capacityHealthScore: 92,
-  co2Tons: "41.2 tons",
-  dateRange: "May 12 - May 18, 2025",
-  deferredCapitalValue: 1240000,
-  hiddenKva: 425,
-  installedKva: 3250,
-  keyInsight: "Excellent capacity health. Your system is operating efficiently with significant headroom available.",
-  kpis: [
-    { color: "#147dff", detail: "Nameplate Capacity", icon: "⚙", label: "Total Connected Capacity", value: "3,250 kVA" },
-    { color: "#0da64a", detail: "75% of Connected Capacity", icon: "⌁", label: "Current Utilized Capacity", value: "2,438 kVA" },
-    { color: "#147dff", detail: "25% Remaining", icon: "▤", label: "Available Capacity", value: "812 kVA" },
-    { color: "#05ff5e", detail: "15% Recovered by XECO", icon: "✥", label: "Recovered Capacity", value: "425 kVA" },
-    { color: "#0da64a", detail: "Estimated CapEx Deferred", icon: "▣", label: "Upgrade Deferral Value", value: "$1,240,000" },
-  ],
-  loadKva: 2438,
-  recoveredKva: 425,
-  recoveredPct: 15,
-  siteName: "Flex Tijuana",
-  state: "data",
-  subScores: [
-    { label: "Load Balance", value: 96 },
-    { label: "Utilization Efficiency", value: 90 },
-    { label: "Voltage Stability", value: 94 },
-    { label: "Harmonic Impact", value: 88 },
-    { label: "Thermal Headroom", value: 92 },
-  ],
-  trend: [
-    { available: 780, installed: 3250, label: "May 12", used: 2040 },
-    { available: 640, installed: 3250, label: "May 13", used: 2210 },
-    { available: 720, installed: 3250, label: "May 14", used: 1990 },
-    { available: 650, installed: 3250, label: "May 15", used: 2290 },
-    { available: 700, installed: 3250, label: "May 16", used: 2145 },
-    { available: 620, installed: 3250, label: "May 17", used: 2310 },
-    { available: 812, installed: 3250, label: "May 18", used: 2438 },
-  ],
-  updatedAt: "May 18, 2025 10:15 AM",
-  utilizationPct: 75,
-} satisfies CapacityIntelligenceData;
+function CapacityNoData({ message }: { message: string }) {
+  return <div className="grid h-full place-items-center rounded border border-amber-400/25 bg-amber-500/8 p-4 text-center text-[10px] leading-relaxed text-amber-200">{message || "No Data"}</div>;
+}
+
+function parseCapacityNumber(value: string) {
+  const parsed = Number(value.replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : 0;
+}
 
 function CapacityColumn({
   bars,
