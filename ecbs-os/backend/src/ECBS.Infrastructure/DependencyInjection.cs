@@ -36,6 +36,7 @@ public static class DependencyInjection
         services.AddScoped<IDeploymentDocumentationDataService, EfDeploymentDocumentationDataService>();
         services.AddScoped<IDeploymentFieldWorkflowDataService, EfDeploymentFieldWorkflowDataService>();
         services.AddScoped<IDevicesDataService, EfDevicesDataService>();
+        services.AddScoped<IDigitalTwinDataService, TrackingDigitalTwinDataService>();
 
         return services;
     }

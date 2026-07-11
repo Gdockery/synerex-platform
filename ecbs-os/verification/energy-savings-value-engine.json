@@ -1,5 +1,16 @@
 {
   "name": "Energy Savings Value Engine",
+  "apiGets": [
+    {
+      "name": "capacity intelligence api",
+      "path": "/api/v1/capacity-intelligence",
+      "status": 200,
+      "expectJson": [
+        { "path": "siteName", "exists": true },
+        { "path": "state", "exists": true }
+      ]
+    }
+  ],
   "routes": [
     {
       "name": "cumulative savings",

@@ -39,16 +39,22 @@ def main() -> int:
     parser.add_argument("--verification-config", help="Run local verifier after deploy.")
     parser.add_argument("--include-mutating", action="store_true", help="Pass --include-mutating to the verifier.")
     parser.add_argument("--skip-migrations", action="store_true", help="Skip EF database update.")
+    parser.add_argument("--frontend-only", action="store_true", help="Only rebuild/restart the frontend container.")
+    parser.add_argument("--frontend-network", default=os.getenv("ECBS_FRONTEND_DOCKER_NETWORK", "synerex-platform_default"))
+    parser.add_argument("--frontend-host-port", default=os.getenv("ECBS_FRONTEND_HOST_PORT", "3001"))
+    parser.add_argument("--frontend-container-port", default=os.getenv("ECBS_FRONTEND_CONTAINER_PORT", "3001"))
     args = parser.parse_args()
 
-    required = [
-        "ECBS_CONNECTION_STRING",
-        "TRACKING_DB_HOST",
-        "TRACKING_DB_PORT",
-        "TRACKING_DB_NAME",
-        "TRACKING_DB_USER",
-        "TRACKING_DB_PASSWORD",
-    ]
+    required = []
+    if not args.frontend_only:
+        required = [
+            "ECBS_CONNECTION_STRING",
+            "TRACKING_DB_HOST",
+            "TRACKING_DB_PORT",
+            "TRACKING_DB_NAME",
+            "TRACKING_DB_USER",
+            "TRACKING_DB_PASSWORD",
+        ]
     missing = [name for name in required if not os.getenv(name)]
     if missing:
         print("Missing required environment variables:")
@@ -76,6 +82,34 @@ def main() -> int:
 
 
 def build_remote_command(args: argparse.Namespace) -> str:
+    remote_repo = shlex.quote(args.remote_repo)
+    branch = shlex.quote(args.branch)
+    frontend_api_base_url = shlex.quote(args.frontend_api_base_url)
+    frontend_network = shlex.quote(args.frontend_network)
+    frontend_host_port = shlex.quote(str(args.frontend_host_port))
+    frontend_container_port = shlex.quote(str(args.frontend_container_port))
+
+    frontend_command = (
+        "docker build -t ecbs-os-frontend:dev frontend; "
+        "docker rm -f ecbs-os-frontend || true; "
+        f"docker run -d --name ecbs-os-frontend --restart unless-stopped --network {frontend_network} "
+        f"-p {frontend_host_port}:{frontend_container_port} "
+        f"-e HOSTNAME=0.0.0.0 -e PORT={frontend_container_port} "
+        f"-e ECBS_API_BASE_URL={frontend_api_base_url} ecbs-os-frontend:dev; "
+        "actual_network=$(docker inspect -f '{{range $name, $_ := .NetworkSettings.Networks}}{{println $name}}{{end}}' ecbs-os-frontend | tr -d '\\r'); "
+        f"printf '%s\\n' \"$actual_network\" | awk -v expected={frontend_network} '$0 == expected {{found=1}} END {{exit found ? 0 : 1}}'; "
+        "docker ps --filter name=ecbs-os-frontend --format '{{.Names}} {{.Networks}} {{.Status}} {{.Ports}}'; "
+    )
+
+    if args.frontend_only:
+        return (
+            "set -e; "
+            f"cd {remote_repo}; "
+            f"git pull origin {branch}; "
+            "cd ecbs-os; "
+            f"{frontend_command}"
+        )
+
     ecbs_connection = shell_env("ConnectionStrings__EcbsMySql", os.environ["ECBS_CONNECTION_STRING"])
     tracking_env = " ".join(
         [
@@ -86,10 +120,6 @@ def build_remote_command(args: argparse.Namespace) -> str:
             shell_env("TRACKING_DB_PASSWORD", os.environ["TRACKING_DB_PASSWORD"]),
         ]
     )
-    remote_repo = shlex.quote(args.remote_repo)
-    branch = shlex.quote(args.branch)
-    frontend_api_base_url = shlex.quote(args.frontend_api_base_url)
-
     migration_command = ""
     if not args.skip_migrations:
         migration_command = (
@@ -105,10 +135,7 @@ def build_remote_command(args: argparse.Namespace) -> str:
         "cd ecbs-os; "
         "/home/xcorp/.dotnet/dotnet build ECBS.sln; "
         f"{migration_command} "
-        "docker build -t ecbs-os-frontend:dev frontend; "
-        "docker rm -f ecbs-os-frontend || true; "
-        "docker run -d --name ecbs-os-frontend --network synerex-platform_default -p 3001:3001 "
-        f"-e ECBS_API_BASE_URL={frontend_api_base_url} ecbs-os-frontend:dev; "
+        f"{frontend_command}"
         "pids=$(ps -eo pid,args | awk '/ECBS.Api|dotnet run --project backend\\/src\\/ECBS.Api/ && !/awk/ {print $1}'); "
         "if [ -n \"$pids\" ]; then kill $pids || true; sleep 2; fi; "
         f"{ecbs_connection} {tracking_env} "

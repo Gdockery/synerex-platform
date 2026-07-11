@@ -24,12 +24,14 @@ def main() -> int:
     parser.add_argument("--include-mutating", action="store_true", help="Run mutating API POST checks.")
     parser.add_argument("--base-url", help="Override frontend base URL.")
     parser.add_argument("--api-base-url", help="Override API base URL.")
+    parser.add_argument("--timeout", type=float, help="Request timeout in seconds; defaults to config requestTimeout or 30.")
     args = parser.parse_args()
 
     config_path = Path(args.config)
     config = json.loads(config_path.read_text())
     base_url = args.base_url or config.get("baseUrl", "")
     api_base_url = args.api_base_url or config.get("apiBaseUrl", "")
+    timeout = args.timeout if args.timeout is not None else float(config.get("requestTimeout", 30))
 
     failures: list[str] = []
     print(f"ECBS batch verification: {config.get('name', config_path.name)}")
@@ -39,14 +41,14 @@ def main() -> int:
             check_command(command, failures)
 
     for route in config.get("routes", []):
-        check_route(base_url, route, failures)
+        check_route(base_url, route, failures, timeout)
 
     for api_get in config.get("apiGets", []):
-        check_api_get(api_base_url, api_get, failures)
+        check_api_get(api_base_url, api_get, failures, timeout)
 
     if args.include_mutating:
         for api_post in config.get("apiPosts", []):
-            check_api_post(api_base_url, api_post, failures)
+            check_api_post(api_base_url, api_post, failures, timeout)
     elif config.get("apiPosts"):
         print("SKIP mutating API POST checks; pass --include-mutating to run them.")
 
@@ -69,12 +71,13 @@ def check_command(command: dict[str, Any], failures: list[str]) -> None:
         failures.append(f"Command failed ({result.returncode}): {label}")
 
 
-def check_route(base_url: str, route: dict[str, Any], failures: list[str]) -> None:
+def check_route(base_url: str, route: dict[str, Any], failures: list[str], timeout: float) -> None:
     path = route["path"]
     url = join_url(base_url, path)
-    status, body = fetch("GET", url)
+    print(f"ROUTE fetch {path}", flush=True)
+    status, body = fetch("GET", url, timeout=timeout)
     expected_status = route.get("status", 200)
-    print(f"ROUTE {status} {path}")
+    print(f"ROUTE {status} {path}", flush=True)
     if status != expected_status:
         failures.append(f"{path} returned {status}, expected {expected_status}")
         return
@@ -92,12 +95,13 @@ def check_route(base_url: str, route: dict[str, Any], failures: list[str]) -> No
             print(f"  text-ok {text}")
 
 
-def check_api_get(api_base_url: str, api_get: dict[str, Any], failures: list[str]) -> None:
+def check_api_get(api_base_url: str, api_get: dict[str, Any], failures: list[str], timeout: float) -> None:
     path = api_get["path"]
     url = join_url(api_base_url, path)
-    status, body = fetch("GET", url)
+    print(f"API GET fetch {path}", flush=True)
+    status, body = fetch("GET", url, timeout=timeout)
     expected_status = api_get.get("status", 200)
-    print(f"API GET {status} {path}")
+    print(f"API GET {status} {path}", flush=True)
     if status != expected_status:
         failures.append(f"GET {path} returned {status}, expected {expected_status}")
         return
@@ -110,13 +114,14 @@ def check_api_get(api_base_url: str, api_get: dict[str, Any], failures: list[str
         check_json_expectation(data, expectation, failures, f"GET {path}")
 
 
-def check_api_post(api_base_url: str, api_post: dict[str, Any], failures: list[str]) -> None:
+def check_api_post(api_base_url: str, api_post: dict[str, Any], failures: list[str], timeout: float) -> None:
     path = api_post["path"]
     url = join_url(api_base_url, path)
     body_bytes = json.dumps(api_post.get("body", {})).encode()
-    status, body = fetch("POST", url, body_bytes)
+    print(f"API POST fetch {path}", flush=True)
+    status, body = fetch("POST", url, body_bytes, timeout=timeout)
     expected_status = api_post.get("status", 200)
-    print(f"API POST {status} {path}")
+    print(f"API POST {status} {path}", flush=True)
     if status != expected_status:
         failures.append(f"POST {path} returned {status}, expected {expected_status}")
         return
@@ -140,7 +145,7 @@ def check_json_expectation(data: Any, expectation: dict[str, Any], failures: lis
         print(f"  json-ok {path}")
 
 
-def fetch(method: str, url: str, body: bytes | None = None) -> tuple[int, str]:
+def fetch(method: str, url: str, body: bytes | None = None, timeout: float = 30) -> tuple[int, str]:
     request = urllib.request.Request(
         url,
         data=body,
@@ -148,7 +153,7 @@ def fetch(method: str, url: str, body: bytes | None = None) -> tuple[int, str]:
         method=method,
     )
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
             return response.status, response.read().decode("utf-8", errors="replace")
     except urllib.error.HTTPError as error:
         return error.code, error.read().decode("utf-8", errors="replace")

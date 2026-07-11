@@ -1,5 +1,25 @@
 {
   "name": "Digital Twin And Energy Savings Core",
+  "apiGets": [
+    {
+      "name": "digital twin api",
+      "path": "/api/v1/digital-twin",
+      "status": 200,
+      "expectJson": [
+        { "path": "siteName", "exists": true },
+        { "path": "state", "exists": true }
+      ]
+    },
+    {
+      "name": "capacity intelligence api",
+      "path": "/api/v1/capacity-intelligence",
+      "status": 200,
+      "expectJson": [
+        { "path": "siteName", "exists": true },
+        { "path": "state", "exists": true }
+      ]
+    }
+  ],
   "routes": [
     {
       "name": "full network expanded",

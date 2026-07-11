@@ -17,6 +17,8 @@ import type {
   TrendCardData,
 } from "@/components/ecbs/DashboardCards";
 
+const apiBaseUrl = process.env.ECBS_API_BASE_URL ?? "http://localhost:5090";
+
 type ClientRow = {
   id: number;
   name: string;
@@ -972,307 +974,36 @@ export async function getOchsnerAlertsEventsData(): Promise<AlertsEventsData> {
 }
 
 export async function getOchsnerCapacityIntelligenceData(): Promise<CapacityIntelligenceData> {
-  const pool = createTrackingPool();
-
   try {
-    const [siteRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT s.id, s.name, p.name AS project_name
-        FROM site s
-        JOIN project p ON p.id = s.project_id
-        WHERE s.id = 3 AND p.id = 13
-        LIMIT 1
-      `,
-    );
-    const site = siteRows[0] as { id: number; name: string; project_name: string } | undefined;
+    const response = await fetch(`${apiBaseUrl}/api/v1/capacity-intelligence`, {
+      cache: "no-store",
+    });
 
-    if (!site) {
-      return emptyCapacityIntelligence("Ochsner site record was not found in tracking DB.");
+    if (!response.ok) {
+      return emptyCapacityIntelligence(`ECBS.Api returned ${response.status} for Capacity Intelligence.`);
     }
 
-    const [capacityRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT bucket_ts, installed_capacity, used_capacity, available_capacity, hidden_capacity,
-               recoverable_capacity, deferred_capital_value, capacity_health_score,
-               utilization_pct, hidden_pct, recoverable_pct
-        FROM capacity_intelligence
-        WHERE project_id = 13
-        ORDER BY bucket_ts DESC
-        LIMIT 1
-      `,
-    );
-    const capacity = firstRow<CapacitySummaryRow>(capacityRows);
-
-    if (!capacity) {
-      return emptyCapacityIntelligence("No Capacity Intelligence rollup was found for Ochsner project 13.");
-    }
-
-    const [trendRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT bucket_ts, installed_capacity, used_capacity, available_capacity, recoverable_capacity
-        FROM capacity_intelligence
-        WHERE project_id = 13
-        ORDER BY bucket_ts DESC
-        LIMIT 16
-      `,
-    );
-    const [assetRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT id, name, asset_type, kva_rating, amp_rating, voltage_primary, voltage_secondary, meter_id, status
-        FROM asset
-        WHERE site_id = 3 AND is_deleted = 0
-        ORDER BY
-          CASE asset_type
-            WHEN 'transformer' THEN 1
-            WHEN 'switchgear' THEN 2
-            WHEN 'generator' THEN 3
-            WHEN 'ecbs' THEN 4
-            ELSE 5
-          END,
-          id
-      `,
-    );
-    const [meterRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT id, name, isMain, isSub, isFilter, lastTotalKva, avg15MinuteKva, lastTotalPf, lastTotalTHD
-        FROM meter
-        WHERE project = 13 AND isDeleted = 0
-        ORDER BY isMain DESC, id
-      `,
-    );
-    const capacityMeters = meterRows as LatestMeterRow[];
-    const capacityMainMeter = capacityMeters.find((meter) => meter.isMain === 1) ?? capacityMeters[0];
-    const [minuteCapacityRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT md.recordedAt AS bucket_ts, md.totalKva
-        FROM meterdata md
-        WHERE md.meter = ?
-          AND md.recordedAt IS NOT NULL
-        ORDER BY md.recordedAt DESC
-        LIMIT 180
-      `,
-      [capacityMainMeter?.id ?? 0],
-    );
-    const [savingsRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT annual_savings, co2_reduction_tons
-        FROM savings_intelligence
-        WHERE project_id = 13
-        ORDER BY bucket_ts DESC
-        LIMIT 1
-      `,
-    );
-
-    const assets = assetRows as AssetRow[];
-    const meters = capacityMeters;
-    const savings = firstRow<SavingsSummaryRow>(savingsRows);
-    const installed = toNumber(capacity.installed_capacity);
-    const used = toNumber(capacity.used_capacity);
-    const available = toNumber(capacity.available_capacity);
-    const hidden = toNumber(capacity.hidden_capacity);
-    const recovered = toNumber(capacity.recoverable_capacity);
-    const deferred = toNumber(capacity.deferred_capital_value);
-    const health = clampScore(toNumber(capacity.capacity_health_score));
-    const utilization = clampScore(toNumber(capacity.utilization_pct));
-    const recoveredPct = installed > 0 ? (recovered / installed) * 100 : toNumber(capacity.recoverable_pct);
-    const annualBenefit = toNumber(savings?.annual_savings);
-    const co2 = toNumber(savings?.co2_reduction_tons);
-    const nowAvailable = available + recovered;
-    const nextUpgradeKva = Math.ceil(Math.max(installed, 1) / 500) * 500;
-
-    return {
-      annualBenefit: formatCurrency(annualBenefit),
-      assets: buildCapacityAssets(assets, meters, installed, used, recovered),
-      availableKva: available,
-      avoidedUpgrade: `${formatNumber(nextUpgradeKva, 0)} kVA transformer and switchgear upgrade`,
-      callouts: [
-        { icon: "i", label: "Key Insight", value: `${formatNumber(nowAvailable, 0)} kVA is available after ECBS recovery.` },
-        { icon: "u", label: "Avoided Upgrade", value: `${formatNumber(nextUpgradeKva, 0)} kVA transformer upgrade deferred.` },
-        { icon: "$", label: "Annual Benefit", value: `${formatCurrency(annualBenefit)} annual savings from capacity recovery.` },
-        { icon: "c", label: "Carbon Impact", value: `${formatNumber(co2, 0)} tons CO2e avoided annually.` },
-      ],
-      capacityHealthScore: health,
-      co2Tons: `${formatNumber(co2, 0)} tons`,
-      dateRange: "1-minute main-meter telemetry",
-      deferredCapitalValue: deferred,
-      hiddenKva: hidden,
-      installedKva: installed,
-      keyInsight: `Ochsner has ${formatNumber(nowAvailable, 0)} kVA of available capacity, including ${formatNumber(recovered, 0)} kVA recovered by ECBS.`,
-      kpis: [
-        { icon: "P", label: "Total Connected Capacity", value: `${formatNumber(installed, 0)} kVA`, detail: "Nameplate capacity", color: "#29b6f6" },
-        { icon: "G", label: "Current Utilized Capacity", value: `${formatNumber(used, 0)} kVA`, detail: `${formatNumber(utilization, 0)}% of connected capacity`, color: utilization > 85 ? "#ef4444" : "#f59e0b" },
-        { icon: "B", label: "Available Capacity", value: `${formatNumber(nowAvailable, 0)} kVA`, detail: `${formatNumber(Math.max(0, 100 - utilization), 0)}% remaining before recovery`, color: "#05ff5e" },
-        { icon: "R", label: "Recovered Capacity", value: `${formatNumber(recovered, 0)} kVA`, detail: `${formatNumber(recoveredPct, 0)}% recovered by ECBS`, color: "#05ff5e" },
-        { icon: "$", label: "Upgrade Deferral Value", value: formatCurrency(deferred), detail: "Estimated CapEx deferred", color: "#ab47bc" },
-      ],
-      loadKva: used,
-      recoveredKva: recovered,
-      recoveredPct,
-      siteName: site.name,
-      state: "data",
-      subScores: [
-        { label: "Load Balance", value: scoreLoadBalance(utilization) },
-        { label: "Utilization Efficiency", value: scoreUtilization(utilization) },
-        { label: "Voltage Stability", value: scoreVoltage(meters) },
-        { label: "Harmonic Impact", value: scoreHarmonics(meters) },
-        { label: "Thermal Headroom", value: scoreThermalHeadroom(utilization) },
-      ],
-      trend: ((minuteCapacityRows.length > 0 ? minuteCapacityRows : trendRows) as Array<CapacitySummaryRow & { totalKva?: number | null }>)
-        .reverse()
-        .map((row) => {
-          const minuteUsed = toNumber(row.totalKva);
-          const usedKva = minuteUsed > 0 ? minuteUsed : toNumber(row.used_capacity);
-
-          return {
-            available: Math.max(0, installed - usedKva) + recovered,
-            installed,
-            label: formatShortTime(toNumber(row.bucket_ts)),
-            used: usedKva,
-          };
-        }),
-      updatedAt: formatTimestamp(toNumber(capacity.calculated_at ?? capacity.bucket_ts) || Date.now()),
-      utilizationPct: utilization,
-    };
+    return (await response.json()) as CapacityIntelligenceData;
   } catch (error) {
-    console.error("Failed to load Capacity Intelligence data from tracking DB", error);
-    return emptyCapacityIntelligence("Tracking DB data is unavailable for Capacity Intelligence.");
-  } finally {
-    await pool.end();
+    console.error("Failed to load Capacity Intelligence data from ECBS.Api", error);
+    return emptyCapacityIntelligence("ECBS.Api data is unavailable for Capacity Intelligence.");
   }
 }
 
 export async function getOchsnerDigitalTwinData(): Promise<DigitalTwinData> {
-  const pool = createTrackingPool();
-
   try {
-    const [siteRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT s.id, s.name AS site_name, p.id AS project_id, p.name AS project_name
-        FROM site s
-        JOIN project p ON p.id = s.project_id
-        WHERE s.id = 3 AND p.id = 13
-        LIMIT 1
-      `,
-    );
-    const site = siteRows[0] as { id: number; project_id: number; project_name: string; site_name: string } | undefined;
+    const response = await fetch(`${apiBaseUrl}/api/v1/digital-twin`, {
+      cache: "no-store",
+    });
 
-    if (!site) {
-      return emptyDigitalTwin("Ochsner site record was not found in tracking DB.");
+    if (!response.ok) {
+      return emptyDigitalTwin(`ECBS.Api returned ${response.status} for Digital Twin.`);
     }
 
-    const [twinRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT id, site_id, project_id, status, version_number, label, source, notes, approved_at, updatedAt
-        FROM digital_twin
-        WHERE project_id = 13 AND is_deleted = 0
-        ORDER BY
-          CASE status WHEN 'locked' THEN 1 WHEN 'approved' THEN 2 ELSE 3 END,
-          version_number DESC
-        LIMIT 1
-      `,
-    );
-    const twin = firstRow<DigitalTwinRow>(twinRows);
-
-    if (!twin) {
-      return emptyDigitalTwin("No Digital Twin has been configured for Ochsner project 13.");
-    }
-
-    const [assetRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT id, name, asset_uid, asset_type, kva_rating, amp_rating, voltage_primary,
-               voltage_secondary, bus_id, drawing_ref, meter_id, status, notes
-        FROM asset
-        WHERE digital_twin_id = ? AND is_deleted = 0
-        ORDER BY id
-      `,
-      [twin.id],
-    );
-    const [relationshipRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT id, parent_asset_id, child_asset_id, relationship_type
-        FROM asset_relationship
-        WHERE digital_twin_id = ?
-        ORDER BY id
-      `,
-      [twin.id],
-    );
-    const [capacityRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        SELECT installed_capacity, used_capacity, available_capacity, recoverable_capacity
-        FROM capacity_intelligence
-        WHERE project_id = 13
-        ORDER BY bucket_ts DESC
-        LIMIT 1
-      `,
-    );
-    const [metricRows] = await pool.query<mysql.RowDataPacket[]>(
-      `
-        WITH latest AS (
-          SELECT MAX(bucket_ts) AS bucket_ts
-          FROM current_balance_metrics
-          WHERE project_id = 13
-        )
-        SELECT COUNT(*) AS meter_count, AVG(cbi_score) AS avg_cbi, SUM(avg_kva) AS sum_kva
-        FROM current_balance_metrics c
-        JOIN latest l ON l.bucket_ts = c.bucket_ts
-        WHERE c.project_id = 13
-      `,
-    );
-
-    const assets = (assetRows as AssetRow[]).map((asset) => ({
-      ampRating: toNumber(asset.amp_rating),
-      assetUid: asset.asset_uid ?? `asset-${asset.id}`,
-      busId: asset.bus_id ?? "",
-      drawingRef: asset.drawing_ref ?? "",
-      id: asset.id,
-      kvaRating: toNumber(asset.kva_rating),
-      meterId: asset.meter_id,
-      name: asset.name,
-      notes: asset.notes ?? "",
-      status: asset.status ?? "",
-      type: asset.asset_type,
-      voltagePrimary: toNumber(asset.voltage_primary),
-      voltageSecondary: toNumber(asset.voltage_secondary),
-    }));
-    const relationships = (relationshipRows as DigitalTwinRelationshipRow[]).map((relationship) => ({
-      childId: relationship.child_asset_id,
-      id: relationship.id,
-      parentId: relationship.parent_asset_id,
-      type: relationship.relationship_type,
-    }));
-    const capacity = firstRow<CapacitySummaryRow>(capacityRows);
-    const metrics = firstRow<MetricSummaryRow>(metricRows);
-    const transformer = assets.find((asset) => asset.type === "transformer");
-    const transformerKva = toNumber(capacity?.installed_capacity) || transformer?.kvaRating || 0;
-    const currentLoadKva = toNumber(capacity?.used_capacity);
-    const headroomKva = Math.max(0, transformerKva - currentLoadKva);
-    const recoveredCapacityKva = toNumber(capacity?.recoverable_capacity);
-
-    return {
-      activeMeters: toNumber(metrics?.meter_count),
-      assets,
-      cbiScore: toNumber(metrics?.avg_cbi),
-      currentLoadKva,
-      dateRange: "Approved Digital Twin",
-      headroomKva,
-      projectName: site.project_name,
-      recoveredCapacityKva,
-      relationships,
-      siteName: site.site_name,
-      state: "data",
-      status: twin.status,
-      transformerKva,
-      twinId: twin.id,
-      twinLabel: twin.label ?? "Ochsner Digital Twin",
-      twinNotes: twin.notes ?? "",
-      updatedAt: formatTimestamp(toNumber(twin.updatedAt ?? twin.approved_at) || Date.now()),
-      version: twin.version_number,
-    };
+    return (await response.json()) as DigitalTwinData;
   } catch (error) {
-    console.error("Failed to load Digital Twin data from tracking DB", error);
-    return emptyDigitalTwin("Tracking DB data is unavailable for Digital Twin.");
-  } finally {
-    await pool.end();
+    console.error("Failed to load Digital Twin data from ECBS.Api", error);
+    return emptyDigitalTwin("ECBS.Api data is unavailable for Digital Twin.");
   }
 }
 
