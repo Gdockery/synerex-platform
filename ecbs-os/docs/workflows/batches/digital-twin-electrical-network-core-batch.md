@@ -13,22 +13,22 @@
 
 | Order | Screen | Route | Screenshot / HTML reference | Status |
 |---:|---|---|---|---|
-| 1 | Digital Twin | `/enterprise/digital-twin` | `ECBS-Digital Twin Screenshot.png` | Pending |
-| 2 | Electrical Network | `/enterprise/digital-twin/electrical-network` | `ECBS-Electrical Network Screenshot.png` | Pending |
-| 3 | Electrical Network - Alerts Detail | `/enterprise/digital-twin/electrical-network-alerts-detail-screen` | `ECBS_Electrical Network - Alerts Detail screen.png` | Pending |
-| 4 | Electrical Network - Health Detail - Recent Health Events | `/enterprise/digital-twin/electrical-network-health-detail-recent-health-events-sub-screen` | `ECBS_Electrical Network - Health Detail - Recent Health Events sub screen.png` | Pending |
-| 5 | Electrical Network - Health Detail | `/enterprise/digital-twin/electrical-network-health-detail-screen` | `ECBS_Electrical Network - Health Detail Screen.png` | Pending |
-| 6 | Electrical Network - Load Detail - View All Peak Events | `/enterprise/digital-twin/electrical-network-load-detail-view-all-peak-events-screen` | `ECBS_Electrical Network - Load Detail - View All Peak Events screen.png` | Pending |
-| 7 | Electrical Network - Load Detail - Full Event Analysis | `/enterprise/digital-twin/electrical-network-load-detail-view-all-peak-events-screen-full-event-analysis-screen` | `ECBS_Electrical Network - Load Detail - View All Peak Events screen - Full Event Analysis Screen.png` | Pending |
-| 8 | Electrical Network - Load Detail | `/enterprise/digital-twin/electrical-network-load-detail-screen` | `ECBS_Electrical Network - Load Detail Screen.png` | Pending |
+| 1 | Digital Twin | `/enterprise/digital-twin` | `ECBS-Digital Twin Screenshot.png` | Deployed / HTTP 200 |
+| 2 | Electrical Network | `/enterprise/digital-twin/electrical-network` | `ECBS-Electrical Network Screenshot.png` | Deployed / HTTP 200 |
+| 3 | Electrical Network - Alerts Detail | `/enterprise/digital-twin/electrical-network-alerts-detail-screen` | `ECBS_Electrical Network - Alerts Detail screen.png` | Deployed / HTTP 200 |
+| 4 | Electrical Network - Health Detail - Recent Health Events | `/enterprise/digital-twin/electrical-network-health-detail-recent-health-events-sub-screen` | `ECBS_Electrical Network - Health Detail - Recent Health Events sub screen.png` | Deployed / HTTP 200 |
+| 5 | Electrical Network - Health Detail | `/enterprise/digital-twin/electrical-network-health-detail-screen` | `ECBS_Electrical Network - Health Detail Screen.png` | Deployed / HTTP 200 |
+| 6 | Electrical Network - Load Detail - View All Peak Events | `/enterprise/digital-twin/electrical-network-load-detail-view-all-peak-events-screen` | `ECBS_Electrical Network - Load Detail - View All Peak Events screen.png` | Deployed / HTTP 200 |
+| 7 | Electrical Network - Load Detail - Full Event Analysis | `/enterprise/digital-twin/electrical-network-load-detail-view-all-peak-events-screen-full-event-analysis-screen` | `ECBS_Electrical Network - Load Detail - View All Peak Events screen - Full Event Analysis Screen.png` | Deployed / HTTP 200 |
+| 8 | Electrical Network - Load Detail | `/enterprise/digital-twin/electrical-network-load-detail-screen` | `ECBS_Electrical Network - Load Detail Screen.png` | Deployed / HTTP 200 |
 
 ## Constitution Gates
 
-- [ ] `SITE != PROJECT != DEPLOYMENT` checked.
-- [ ] Digital Twin screens are scoped to the Ochsner site/project from the tracking adapter.
-- [ ] No UI invented beyond approved screenshots.
-- [ ] Existing TSX look and feel preserved.
-- [ ] Missing/unclear fields are stopped or marked `No Data / Question`.
+- [x] `SITE != PROJECT != DEPLOYMENT` checked.
+- [x] Digital Twin screens are scoped to the Ochsner site/project from the tracking adapter.
+- [x] No UI invented beyond approved screenshots.
+- [x] Existing TSX look and feel preserved.
+- [x] Missing/unclear fields are stopped or marked `No Data / Question`.
 
 ## Field Classification
 
@@ -66,14 +66,14 @@ Visible export, configure alerts, acknowledge, add note, assign, work-order, and
 
 | Source screen | User action | Expected target route | Implemented as link/form/action? |
 |---|---|---|---|
-| Nav | Digital Twin link | `/enterprise/digital-twin` | Pending |
-| Digital Twin | Electrical Network link | `/enterprise/digital-twin/electrical-network` | Pending |
-| Electrical Network | Alerts card/detail | `/enterprise/digital-twin/electrical-network-alerts-detail-screen` | Pending |
-| Electrical Network | Health card/detail | `/enterprise/digital-twin/electrical-network-health-detail-screen` | Pending |
-| Health Detail | Recent Health Events | `/enterprise/digital-twin/electrical-network-health-detail-recent-health-events-sub-screen` | Pending |
-| Electrical Network | Load card/detail | `/enterprise/digital-twin/electrical-network-load-detail-screen` | Pending |
-| Load Detail | View All Peak Events | `/enterprise/digital-twin/electrical-network-load-detail-view-all-peak-events-screen` | Pending |
-| Peak Events | Full Event Analysis | `/enterprise/digital-twin/electrical-network-load-detail-view-all-peak-events-screen-full-event-analysis-screen` | Pending |
+| Nav | Digital Twin link | `/enterprise/digital-twin` | Route exists / HTTP 200 |
+| Digital Twin | Electrical Network link | `/enterprise/digital-twin/electrical-network` | Route exists / HTTP 200 |
+| Electrical Network | Alerts card/detail | `/enterprise/digital-twin/electrical-network-alerts-detail-screen` | Route exists / HTTP 200 |
+| Electrical Network | Health card/detail | `/enterprise/digital-twin/electrical-network-health-detail-screen` | Route exists / HTTP 200 |
+| Health Detail | Recent Health Events | `/enterprise/digital-twin/electrical-network-health-detail-recent-health-events-sub-screen` | Route exists / HTTP 200 |
+| Electrical Network | Load card/detail | `/enterprise/digital-twin/electrical-network-load-detail-screen` | Route exists / HTTP 200 |
+| Load Detail | View All Peak Events | `/enterprise/digital-twin/electrical-network-load-detail-view-all-peak-events-screen` | Route exists / HTTP 200 |
+| Peak Events | Full Event Analysis | `/enterprise/digital-twin/electrical-network-load-detail-view-all-peak-events-screen-full-event-analysis-screen` | Route exists / HTTP 200 |
 
 ## No Data / Question Queue
 
@@ -88,19 +88,19 @@ Visible export, configure alerts, acknowledge, add note, assign, work-order, and
 
 ## Verification Config
 
-- Verification config path: planned `verification/digital-twin-electrical-network-core.json`
+- Verification config path: `verification/digital-twin-electrical-network-core.json`
 - Mutating checks required? No
 - Browser click checks required? Yes, one overview route plus one detail route.
 
 Required before deploy:
 
-- [ ] `dotnet build backend/src/ECBS.Api/ECBS.Api.csproj`
-- [ ] `npm run lint`
-- [ ] `npm run build`
-- [ ] `python3 scripts/ecbs_batch_verify.py verification/digital-twin-electrical-network-core.json`
-- [ ] Browser smoke check
-- [ ] Dev deploy completed
-- [ ] Deployed verifier passed
+- [x] `dotnet build backend/src/ECBS.Api/ECBS.Api.csproj`
+- [x] `npm run lint`
+- [x] `npm run build`
+- [x] `python3 scripts/ecbs_batch_verify.py verification/digital-twin-electrical-network-core.json --base-url http://100.91.109.59:8080 --api-base-url http://100.91.109.59:5090`
+- [x] Browser smoke check
+- [x] Dev deploy completed
+- [x] Deployed verifier passed
 
 ## Quirks To Carry Forward
 
@@ -116,11 +116,11 @@ Required before deploy:
 
 ## Checkpoint Summary
 
-- Screens completed:
-- Direct/Calculated fields wired:
-- Explicit `No Data` decisions:
-- Write actions implemented:
-- Verification results:
-- Dev URL(s):
-- Remaining questions:
+- Screens completed: 8 Digital Twin / Electrical Network core screens are wired and deployed.
+- Direct/Calculated fields wired: Ochsner site/project/twin context, Digital Twin asset identity/type/status/rating rows, asset relationship counts, current/installed/available/recovered capacity, active meter count, and CBI/network-health score.
+- Explicit `No Data` decisions: alerts, alert history, alert notes, health events, per-category health breakdowns, risk contributors, impact matrix, peak-event lists, full event analysis, demand timelines, load trends, voltage profile, feeder load percentages, losses, power quality details, event annotations, cost impact, and all unsupported action/report outputs.
+- Write actions implemented: none. Export, configure alerts, acknowledge, notes, assign, and work-order controls remain shell controls until write models are approved.
+- Verification results: local backend build, frontend lint, frontend build, remote frontend Docker rebuild, deployed route verifier, and browser snapshot smoke check passed.
+- Dev URL(s): `http://100.91.109.59:8080/enterprise/digital-twin/electrical-network` and the seven batch routes listed above.
+- Remaining questions: define alert/event model, peak-event/time-series contract, per-category health model, feeder-level telemetry mapping, losses model, and write models for alert/report actions.
 
