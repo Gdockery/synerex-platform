@@ -1,0 +1,58 @@
+{
+  "name": "Energy Savings Financials Batch",
+  "apiGets": [
+    {
+      "name": "capacity intelligence api",
+      "path": "/api/v1/capacity-intelligence",
+      "status": 200,
+      "expectJson": [
+        { "path": "siteName", "exists": true },
+        { "path": "state", "exists": true }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "name": "system health",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-system-health-screen",
+      "status": 200,
+      "expectText": ["SYSTEM HEALTH", "source_missing"]
+    },
+    {
+      "name": "utility forecasting",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-utility-forecasting-screen",
+      "status": 200,
+      "expectText": ["UTILITY FORECASTING", "source_missing"]
+    },
+    {
+      "name": "utility forecasting details",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-utility-forecasting-utility-forecasting-screen",
+      "status": 200,
+      "expectText": ["UTILITY FORECASTING - DETAILS", "source_missing"]
+    },
+    {
+      "name": "waterfall analysis",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-waterfall-analysis-screen",
+      "status": 200,
+      "expectText": ["SAVINGS WATERFALL ANALYSIS", "source_missing"]
+    },
+    {
+      "name": "savings financials",
+      "path": "/enterprise/energy-dashboard/savings-financials",
+      "status": 200,
+      "expectText": ["Savings Intelligence", "source_missing"]
+    },
+    {
+      "name": "ubill forecast preview",
+      "path": "/enterprise/energy-dashboard/savings-and-financials-ubillforecast-forecast-preview-screen",
+      "status": 200,
+      "expectText": ["Forecast Preview", "source_missing"]
+    },
+    {
+      "name": "ubill tracker usage summary",
+      "path": "/enterprise/energy-dashboard/savings-and-financials-ubilltracker-usage-summary-screen",
+      "status": 200,
+      "expectText": ["Usage Summary", "source_missing"]
+    }
+  ]
+}

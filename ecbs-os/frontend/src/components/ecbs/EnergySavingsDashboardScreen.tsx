@@ -1019,38 +1019,38 @@ function SavingsOverviewTable({ headers, link, rows }: { headers: string[]; link
   return <div className="h-full text-[6.8px]"><table className="w-full text-left"><thead className="text-slate-400"><tr>{headers.map(h=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row,ri)=><tr className="border-t border-white/5" key={`${row[0]}-${ri}`}>{row.map((cell,i)=><td className={i===row.length-1 || cell.startsWith("↑") ? "py-0.5 text-[#05ff5e]" : "py-0.5"} key={`${row[0]}-${i}`}>{cell}</td>)}</tr>)}</tbody></table><div className="mt-1 text-[#05ff5e]">{link}</div></div>;
 }
 
-export function EnergySavingsSystemHealthScreen() {
+export function EnergySavingsSystemHealthScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="whitespace-nowrap text-lg font-semibold leading-none">SYSTEM HEALTH & STATUS™</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time System Monitoring. Ensure Reliability. Prevent Issues.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025</button><span className="text-red-400">●</span><span>?</span><span>⚙</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}</button><span className="text-red-400">●</span><span>?</span><span>⚙</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div><span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">System Health & Status</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⚙ Configure</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts⌄</button></div></div>
         <section className="grid h-[86px] grid-cols-6 gap-2">
-          <HealthKpi icon="⌁" label="OVERALL SYSTEM HEALTH" value="98.7%" detail="Excellent" trend="▲ 1.2% vs Last 7 Days" tone="green" />
-          <HealthKpi icon="▣" label="DEVICES ONLINE" value="142 / 146" detail="97.3% Online" trend="▲ 2 Devices vs Last 7 Days" tone="cyan" />
-          <HealthKpi icon="△" label="ALERTS" value="8" detail="Active Alerts" trend="▼ -3 vs Last 7 Days" tone="orange" />
-          <HealthKpi icon="✚" label="CRITICAL ALERTS" value="2" detail="Requires Attention" trend="No Change vs Last 7 Days" tone="red" />
-          <HealthKpi icon="▤" label="DATA RELIABILITY" value="99.8%" detail="Excellent" trend="▲ 0.3% vs Last 7 Days" tone="purple" />
-          <HealthKpi icon="◴" label="LAST COMMUNICATION" value="23 sec" detail="Average Latency" trend="▼ -7 sec vs Last 7 Days" tone="cyan" />
+          <HealthKpi icon="⌁" label="OVERALL SYSTEM HEALTH" value={formatPctValue(data?.capacityHealthScore)} detail="Capacity health score" trend="Direct Data" tone="green" />
+          <HealthKpi icon="▣" label="DEVICES ONLINE" value="No Data" detail="No device rollup source" trend="source_missing" tone="cyan" />
+          <HealthKpi icon="△" label="ALERTS" value="No Data" detail="M-011 needs event source" trend="source_missing" tone="orange" />
+          <HealthKpi icon="✚" label="CRITICAL ALERTS" value="No Data" detail="M-011 needs event source" trend="source_missing" tone="red" />
+          <HealthKpi icon="▤" label="DATA RELIABILITY" value="No Data" detail="No data-quality rollup" trend="source_missing" tone="purple" />
+          <HealthKpi icon="◴" label="LAST COMMUNICATION" value="No Data" detail="No latency rollup" trend="source_missing" tone="cyan" />
         </section>
         <section className="mt-2 grid h-[214px] grid-cols-[1.12fr_0.84fr_0.72fr_0.72fr] gap-2">
-          <DashboardPanel title="SYSTEM HEALTH OVER TIME (Last 7 Days)" variant="enterprise"><SystemHealthTrend /></DashboardPanel>
-          <DashboardPanel title="DEVICE STATUS DISTRIBUTION" variant="enterprise"><DeviceStatusDistribution /></DashboardPanel>
-          <DashboardPanel title="ALERT BREAKDOWN" variant="enterprise"><HealthAlertBreakdown /></DashboardPanel>
-          <DashboardPanel title="TOP ACTIVE ALERTS" variant="enterprise"><TopActiveAlerts /></DashboardPanel>
+          <DashboardPanel title="SYSTEM HEALTH OVER TIME (Last 7 Days)" variant="enterprise"><NoDataBlock message="M-012 source_missing - indexed health trend rollup required." /></DashboardPanel>
+          <DashboardPanel title="DEVICE STATUS DISTRIBUTION" variant="enterprise"><NoDataBlock message="No Data - device status rollup source is missing." /></DashboardPanel>
+          <DashboardPanel title="ALERT BREAKDOWN" variant="enterprise"><NoDataBlock message="M-011 source_missing - event persistence/source contract required." /></DashboardPanel>
+          <DashboardPanel title="TOP ACTIVE ALERTS" variant="enterprise"><NoDataBlock message="M-011 source_missing - event persistence/source contract required." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[176px] grid-cols-[1.45fr_1fr] gap-2">
-          <DashboardPanel title="DEVICE HEALTH OVERVIEW" variant="enterprise"><DeviceHealthOverview /></DashboardPanel>
-          <DashboardPanel title="DATA & COMMUNICATION PERFORMANCE" variant="enterprise"><CommunicationPerformance /></DashboardPanel>
+          <DashboardPanel title="DEVICE HEALTH OVERVIEW" variant="enterprise"><NoDataBlock message="No Data - device telemetry mapping source is missing." /></DashboardPanel>
+          <DashboardPanel title="DATA & COMMUNICATION PERFORMANCE" variant="enterprise"><NoDataBlock message="No Data - communications performance rollup source is missing." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[178px] grid-cols-[0.78fr_0.78fr_0.72fr_0.92fr] gap-2">
-          <DashboardPanel title="SYSTEM COMPONENT HEALTH" variant="enterprise"><SystemComponentHealth /></DashboardPanel>
-          <DashboardPanel title="PREDICTIVE HEALTH INDICATORS" variant="enterprise"><PredictiveHealthIndicators /></DashboardPanel>
-          <DashboardPanel title="MAINTENANCE & SUPPORT" variant="enterprise"><MaintenanceSupport /></DashboardPanel>
-          <DashboardPanel title="SYSTEM RESILIENCY" variant="enterprise"><SystemResiliency /></DashboardPanel>
+          <DashboardPanel title="SYSTEM COMPONENT HEALTH" variant="enterprise"><NoDataBlock message="M-004 source_missing - component inputs required." /></DashboardPanel>
+          <DashboardPanel title="PREDICTIVE HEALTH INDICATORS" variant="enterprise"><NoDataBlock message="M-004 source_missing - predictive inputs required." /></DashboardPanel>
+          <DashboardPanel title="MAINTENANCE & SUPPORT" variant="enterprise"><NoDataBlock message="No Data - maintenance/workflow source is missing." /></DashboardPanel>
+          <DashboardPanel title="SYSTEM RESILIENCY" variant="enterprise"><NoDataBlock message="No Data - resiliency source contract is missing." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>System health is calculated using real-time telemetry, device diagnostics, and machine learning predictive analytics.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -1114,38 +1114,38 @@ function SystemResiliency() {
   return <div className="grid h-full grid-cols-[1fr_94px] gap-3 text-[7.5px]"><div className="space-y-2">{rows.map(([label,value])=><div className="flex justify-between border-b border-white/5 pb-1" key={label}><span>{label}</span><b className="text-[#05ff5e]">{value}</b></div>)}<div className="pt-1 text-[#05ff5e]">View Resiliency Details →</div></div><div className="flex flex-col items-center justify-center text-center"><svg className="size-20 text-slate-400" viewBox="0 0 80 80"><path d="M40 7 66 18v19c0 17-10 29-26 36-16-7-26-19-26-36V18L40 7Z" fill="none" stroke="currentColor" strokeWidth="3"/><path d="M40 18v42M27 30h26M27 42h26" stroke="currentColor" strokeWidth="3"/></svg><div className="mt-2">All Systems<br/><span className="text-xl text-[#05ff5e]">Operational</span></div></div></div>;
 }
 
-export function EnergySavingsUtilityForecastingDetailsScreen() {
+export function EnergySavingsUtilityForecastingDetailsScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="whitespace-nowrap text-lg font-semibold leading-none">UTILITY FORECASTING - DETAILS</h1><p className="mt-1 text-[10px] text-slate-300">Advanced forecasting, cost projections, and scenario modeling.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[188px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12, 2025 - May 18, 2025</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[188px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div><span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-slate-400">Utility Forecasting</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Utility Forecasting - Details</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⚙ Configure</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button></div></div>
         <section className="grid h-[86px] grid-cols-6 gap-2">
-          <UtilityForecastKpi icon="$" label="FORECASTED NEXT MONTH COST" value="$98,100" detail="Projected Cost" trend="▲ 5.0% vs Current Month" tone="orange" />
-          <UtilityForecastKpi icon="▰" label="FORECASTED NEXT MONTH DEMAND" value="742 kW" detail="Peak Demand" trend="▼ 3.2% vs Current Month" tone="blue" />
-          <UtilityForecastKpi icon="⌂" label="FORECASTED ANNUAL COST" value="$1.15M" detail="Annual Forecast" trend="▼ 14.3% vs Baseline Year" tone="purple" />
-          <UtilityForecastKpi icon="⌁" label="FORECASTED ANNUAL DEMAND" value="1,028 kW" detail="Annual Peak Demand" trend="▼ 8.7% vs Baseline Year" tone="cyan" />
-          <UtilityForecastKpi icon="ϟ" label="FORECASTED ANNUAL USAGE" value="18.62M kWh" detail="Annual Energy Usage" trend="▼ 12.6% vs Baseline Year" tone="yellow" />
-          <UtilityForecastKpi icon="✓" label="FORECAST CONFIDENCE" value="92%" detail="High Confidence" trend="" tone="green" />
+          <UtilityForecastKpi icon="$" label="FORECASTED NEXT MONTH COST" value="No Data" detail="M-008/M-009 source_missing" trend="tariff input required" tone="orange" />
+          <UtilityForecastKpi icon="▰" label="FORECASTED NEXT MONTH DEMAND" value="No Data" detail="M-007 source_missing" trend="rollup required" tone="blue" />
+          <UtilityForecastKpi icon="⌂" label="FORECASTED ANNUAL COST" value="No Data" detail="M-008 source_missing" trend="tariff input required" tone="purple" />
+          <UtilityForecastKpi icon="⌁" label="FORECASTED ANNUAL DEMAND" value="No Data" detail="M-007 source_missing" trend="rollup required" tone="cyan" />
+          <UtilityForecastKpi icon="ϟ" label="FORECASTED ANNUAL USAGE" value="No Data" detail="M-012 source_missing" trend="rollup required" tone="yellow" />
+          <UtilityForecastKpi icon="✓" label="FORECAST CONFIDENCE" value="No Data" detail="M-007 source_missing" trend="" tone="green" />
         </section>
         <section className="mt-2 grid h-[226px] grid-cols-[0.92fr_1fr_1.04fr] gap-2">
-          <DashboardPanel title="FORECAST SUMMARY" variant="enterprise"><UtilityForecastSummary /></DashboardPanel>
-          <DashboardPanel title="MONTHLY COST FORECAST (12 MONTHS)" variant="enterprise"><UtilityCostForecastChart /></DashboardPanel>
-          <DashboardPanel title="DEMAND FORECAST (12 MONTHS)" variant="enterprise"><UtilityDemandForecastChart /></DashboardPanel>
+          <DashboardPanel title="FORECAST SUMMARY" variant="enterprise"><NoDataBlock message="M-007/M-008 source_missing - utility forecast requires tariff, bill, and rollup inputs." /></DashboardPanel>
+          <DashboardPanel title="MONTHLY COST FORECAST (12 MONTHS)" variant="enterprise"><NoDataBlock message="M-012 source_missing - monthly utility cost rollup required." /></DashboardPanel>
+          <DashboardPanel title="DEMAND FORECAST (12 MONTHS)" variant="enterprise"><NoDataBlock message="M-007/M-012 source_missing - demand forecast rollup required." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[202px] grid-cols-[0.92fr_1fr_1.04fr] gap-2">
-          <DashboardPanel title="USAGE FORECAST (kWh)" variant="enterprise"><UtilityUsageForecastChart /></DashboardPanel>
-          <DashboardPanel title="COST COMPONENT FORECAST (12 MONTHS)" variant="enterprise"><UtilityCostComponentBars /></DashboardPanel>
-          <DashboardPanel title="FORECAST vs BASELINE (ANNUAL)" variant="enterprise"><UtilityBaselineVariance /></DashboardPanel>
+          <DashboardPanel title="USAGE FORECAST (kWh)" variant="enterprise"><NoDataBlock message="M-012 source_missing - usage rollup required." /></DashboardPanel>
+          <DashboardPanel title="COST COMPONENT FORECAST (12 MONTHS)" variant="enterprise"><NoDataBlock message="M-009 source_missing - cost component split requires utility bill/tariff inputs." /></DashboardPanel>
+          <DashboardPanel title="FORECAST vs BASELINE (ANNUAL)" variant="enterprise"><NoDataBlock message="M-008 source_missing - baseline and tariff source required." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[170px] grid-cols-[0.88fr_0.74fr_0.92fr_0.72fr] gap-2">
-          <DashboardPanel title="SEASONAL IMPACT ANALYSIS" variant="enterprise"><UtilitySeasonalImpact /></DashboardPanel>
-          <DashboardPanel title="RATE & ASSUMPTION SUMMARY" variant="enterprise"><UtilityRateAssumptions /></DashboardPanel>
-          <DashboardPanel title="SCENARIO MODELING" variant="enterprise"><UtilityScenarioModeling /></DashboardPanel>
-          <DashboardPanel title="FORECAST ALERTS" variant="enterprise"><UtilityForecastAlerts /></DashboardPanel>
+          <DashboardPanel title="SEASONAL IMPACT ANALYSIS" variant="enterprise"><NoDataBlock message="M-007 source_missing - seasonal/weather inputs required." /></DashboardPanel>
+          <DashboardPanel title="RATE & ASSUMPTION SUMMARY" variant="enterprise"><NoDataBlock message="No Data - tariff/rate assumption source is missing." /></DashboardPanel>
+          <DashboardPanel title="SCENARIO MODELING" variant="enterprise"><NoDataBlock message="M-013 source_missing - scenario assumptions/store required." /></DashboardPanel>
+          <DashboardPanel title="FORECAST ALERTS" variant="enterprise"><NoDataBlock message="M-011 source_missing - alert/event source contract required." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Forecasts are based on real-time data, historical trends, and advanced predictive analytics. Accuracy improves with more data.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -1154,37 +1154,37 @@ export function EnergySavingsUtilityForecastingDetailsScreen() {
   );
 }
 
-export function EnergySavingsUtilityForecastingScreen() {
+export function EnergySavingsUtilityForecastingScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="whitespace-nowrap text-lg font-semibold leading-none">UTILITY FORECASTING™</h1><p className="mt-1 text-[10px] text-slate-300">Predict future utility costs, demand, and savings with confidence.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[188px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12, 2025 - May 18, 2025</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[188px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div><span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Utility Forecasting</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⚙ Configure</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button></div></div>
         <section className="grid h-[86px] grid-cols-6 gap-2">
-          <UtilityForecastKpi icon="$" label="FORECASTED NEXT MONTH COST" value="$98,100" detail="Projected Cost" trend="▲ 5.0% vs Current Month" tone="orange" />
-          <UtilityForecastKpi icon="▰" label="FORECASTED NEXT MONTH DEMAND" value="742 kW" detail="Peak Demand" trend="▼ 3.2% vs Current Month" tone="blue" />
-          <UtilityForecastKpi icon="⌂" label="FORECASTED ANNUAL COST" value="$1.15M" detail="Annual Forecast" trend="▼ 14.3% vs Baseline Year" tone="purple" />
-          <UtilityForecastKpi icon="⌁" label="FORECASTED ANNUAL DEMAND" value="1,028 kW" detail="Annual Peak Demand" trend="▼ 8.7% vs Baseline Year" tone="cyan" />
-          <UtilityForecastKpi icon="ϟ" label="FORECASTED ANNUAL USAGE" value="18.62M kWh" detail="Annual Energy Usage" trend="▼ 12.6% vs Baseline Year" tone="yellow" />
-          <UtilityForecastKpi icon="✓" label="FORECAST CONFIDENCE" value="92%" detail="High Confidence" trend="" tone="green" />
+          <UtilityForecastKpi icon="$" label="FORECASTED NEXT MONTH COST" value="No Data" detail="M-008/M-009 source_missing" trend="tariff input required" tone="orange" />
+          <UtilityForecastKpi icon="▰" label="FORECASTED NEXT MONTH DEMAND" value="No Data" detail="M-007 source_missing" trend="rollup required" tone="blue" />
+          <UtilityForecastKpi icon="⌂" label="FORECASTED ANNUAL COST" value="No Data" detail="M-008 source_missing" trend="tariff input required" tone="purple" />
+          <UtilityForecastKpi icon="⌁" label="FORECASTED ANNUAL DEMAND" value="No Data" detail="M-007 source_missing" trend="rollup required" tone="cyan" />
+          <UtilityForecastKpi icon="ϟ" label="FORECASTED ANNUAL USAGE" value="No Data" detail="M-012 source_missing" trend="rollup required" tone="yellow" />
+          <UtilityForecastKpi icon="✓" label="FORECAST CONFIDENCE" value="No Data" detail="M-007 source_missing" trend="" tone="green" />
         </section>
         <section className="mt-2 grid h-[236px] grid-cols-2 gap-2">
-          <DashboardPanel title="UTILITY COST FORECAST (12 MONTHS)" variant="enterprise"><UtilityCostForecastChart /></DashboardPanel>
-          <DashboardPanel title="DEMAND FORECAST (12 MONTHS)" variant="enterprise"><UtilityDemandForecastChart /></DashboardPanel>
+          <DashboardPanel title="UTILITY COST FORECAST (12 MONTHS)" variant="enterprise"><NoDataBlock message="M-012 source_missing - monthly utility cost rollup required." /></DashboardPanel>
+          <DashboardPanel title="DEMAND FORECAST (12 MONTHS)" variant="enterprise"><NoDataBlock message="M-007/M-012 source_missing - demand forecast rollup required." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[204px] grid-cols-[0.66fr_0.84fr_0.86fr] gap-2">
-          <DashboardPanel title="FORECAST SUMMARY" variant="enterprise"><UtilityOverviewForecastSummary /></DashboardPanel>
-          <DashboardPanel title="COST COMPONENT FORECAST (NEXT 12 MONTHS)" variant="enterprise"><UtilityCostComponentBars /></DashboardPanel>
-          <DashboardPanel title="SAVINGS FORECAST (NEXT 5 YEARS)" variant="enterprise"><UtilitySavingsForecastFiveYear /></DashboardPanel>
+          <DashboardPanel title="FORECAST SUMMARY" variant="enterprise"><NoDataBlock message="M-007/M-008 source_missing - utility forecast requires tariff, bill, and rollup inputs." /></DashboardPanel>
+          <DashboardPanel title="COST COMPONENT FORECAST (NEXT 12 MONTHS)" variant="enterprise"><NoDataBlock message="M-009 source_missing - cost component split requires utility bill/tariff inputs." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS FORECAST (NEXT 5 YEARS)" variant="enterprise"><NoDataBlock message="M-008/M-012 source_missing - finance and snapshot inputs required." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[166px] grid-cols-[0.72fr_0.7fr_0.86fr_0.7fr] gap-2">
-          <DashboardPanel title="RATE & ASSUMPTION SETTINGS" variant="enterprise"><UtilityRateAssumptions /></DashboardPanel>
-          <DashboardPanel title="FORECAST DRIVERS" variant="enterprise"><UtilityForecastDrivers /></DashboardPanel>
-          <DashboardPanel title="SCENARIO ANALYSIS" variant="enterprise"><UtilityScenarioModeling /></DashboardPanel>
-          <DashboardPanel title="FORECAST ALERTS" variant="enterprise"><UtilityForecastAlerts /></DashboardPanel>
+          <DashboardPanel title="RATE & ASSUMPTION SETTINGS" variant="enterprise"><NoDataBlock message="No Data - tariff/rate assumption source is missing." /></DashboardPanel>
+          <DashboardPanel title="FORECAST DRIVERS" variant="enterprise"><NoDataBlock message="M-007 source_missing - forecast driver inputs required." /></DashboardPanel>
+          <DashboardPanel title="SCENARIO ANALYSIS" variant="enterprise"><NoDataBlock message="M-013 source_missing - scenario assumptions/store required." /></DashboardPanel>
+          <DashboardPanel title="FORECAST ALERTS" variant="enterprise"><NoDataBlock message="M-011 source_missing - alert/event source contract required." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Forecasts are based on real-time data, historical trends, and advanced predictive analytics. Accuracy improves with more data.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -1271,31 +1271,31 @@ function UtilityTinyTable({ headers, link, rows }: { headers: string[]; link: st
   return <div className="h-full text-[6.7px]"><table className="w-full text-left"><thead className="text-slate-400"><tr>{headers.map(h=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row,ri)=><tr className="border-t border-white/5" key={`${row[0]}-${ri}`}>{row.map((cell,i)=><td className={cell.startsWith("+") || cell.startsWith("-") || cell.includes("Low") || cell.includes("High") || cell==="Medium Risk" || cell==="Moderate" ? "py-0.5 text-[#05ff5e]" : "py-0.5"} key={`${row[0]}-${i}`}>{cell}</td>)}</tr>)}</tbody></table><div className="mt-1 text-[#05ff5e]">{link}</div></div>;
 }
 
-export function EnergySavingsWaterfallAnalysisScreen() {
+export function EnergySavingsWaterfallAnalysisScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="whitespace-nowrap text-lg font-semibold leading-none">SAVINGS WATERFALL ANALYSIS <span className="text-[12px]">(ANNUALIZED)</span></h1><p className="mt-1 text-[10px] text-slate-300">Understand how savings are generated and where value is created across the system.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[188px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12, 2024 - May 18, 2025</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[188px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>⌂ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Savings Waterfall Analysis</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⚙ Configure</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts⌄</button></div></div>
         <section className="grid h-[92px] grid-cols-6 gap-2">
-          <WaterfallKpi label="TOTAL ANNUAL SAVINGS" value="$489,320" detail="Annualized Savings" sub="Since Activation (May 12, 2024)" tone="green" />
-          <WaterfallKpi label="BASELINE UTILITY COST" value="$2,340,000" detail="Annual Cost" sub="May 12, 2023 - May 11, 2024" tone="blue" />
-          <WaterfallKpi label="CURRENT UTILITY COST" value="$1,850,680" detail="Annual Cost" sub="May 12, 2024 - May 11, 2025" tone="blue" />
-          <WaterfallKpi label="TOTAL COST REDUCTION" value="$489,320" detail="Annual Reduction" sub="20.9% vs Baseline" tone="orange" />
-          <WaterfallKpi label="TOTAL kWh REDUCTION" value="1,024,218 kWh" detail="Annual Reduction" sub="18.9% vs Baseline" tone="green" />
-          <WaterfallKpi label="PEAK DEMAND REDUCTION" value="540 kW" detail="Annual Reduction" sub="12.8% vs Baseline" tone="purple" />
+          <WaterfallKpi label="TOTAL ANNUAL SAVINGS" value={annualBenefitValue(data)} detail="Latest savings_intelligence row" sub="Direct Data" tone="green" />
+          <WaterfallKpi label="BASELINE UTILITY COST" value="No Data" detail="M-008 source_missing" sub="Baseline/tariff input required" tone="blue" />
+          <WaterfallKpi label="CURRENT UTILITY COST" value="No Data" detail="M-008 source_missing" sub="Utility cost input required" tone="blue" />
+          <WaterfallKpi label="TOTAL COST REDUCTION" value={annualBenefitValue(data)} detail="Latest annual savings" sub="Direct Data" tone="orange" />
+          <WaterfallKpi label="TOTAL kWh REDUCTION" value="No Data" detail="M-012 source_missing" sub="Energy rollup required" tone="green" />
+          <WaterfallKpi label="PEAK DEMAND REDUCTION" value="No Data" detail="M-012 source_missing" sub="Demand rollup required" tone="purple" />
         </section>
         <section className="mt-2 grid h-[318px] grid-cols-[1.35fr_0.95fr] gap-2">
-          <DashboardPanel title="SAVINGS WATERFALL (Annualized) ⓘ" variant="enterprise"><AnnualSavingsWaterfallChart /></DashboardPanel>
-          <DashboardPanel title="SAVINGS COMPONENT BREAKDOWN (Annualized)" variant="enterprise"><WaterfallComponentBreakdown /></DashboardPanel>
+          <DashboardPanel title="SAVINGS WATERFALL (Annualized) ⓘ" variant="enterprise"><NoDataBlock message="M-009/M-012 source_missing - waterfall split and trend inputs required." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS COMPONENT BREAKDOWN (Annualized)" variant="enterprise"><NoDataBlock message="M-009 source_missing - approved component split inputs required." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[318px] grid-cols-[0.58fr_0.94fr_0.52fr] gap-2">
-          <DashboardPanel title="COMPONENT INSIGHTS" variant="enterprise"><WaterfallComponentInsights /></DashboardPanel>
-          <DashboardPanel title="MONTHLY WATERFALL DETAIL" variant="enterprise"><WaterfallMonthlyDetail /></DashboardPanel>
-          <DashboardPanel title="KEY SAVINGS DRIVERS" variant="enterprise"><WaterfallKeyDrivers /></DashboardPanel>
+          <DashboardPanel title="COMPONENT INSIGHTS" variant="enterprise"><NoDataBlock message="M-013 source_missing - deterministic insight source/model inputs required." /></DashboardPanel>
+          <DashboardPanel title="MONTHLY WATERFALL DETAIL" variant="enterprise"><NoDataBlock message="M-012 source_missing - monthly savings snapshot contract required." /></DashboardPanel>
+          <DashboardPanel title="KEY SAVINGS DRIVERS" variant="enterprise"><NoDataBlock message="M-009/M-013 source_missing - driver attribution inputs required." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Savings are calculated using an approved baseline and verified measurement methodology in accordance with ANSI C12.20 Class 0.5.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -1343,7 +1343,7 @@ function WaterfallKeyDrivers() {
   return <div className="space-y-5 text-[7.8px]">{rows.map(([n,label,metric,value,color])=><div className="grid grid-cols-[18px_1fr_72px_58px] gap-2" key={label}><span className="grid size-4 place-items-center rounded text-white" style={{background:color}}>{n}</span><span>{label}</span><span>{metric}</span><b>{value}</b></div>)}<div className="pt-3 text-[#05ff5e]">View Driver Analysis →</div></div>;
 }
 
-export function SavingsFinancialsScreen() {
+export function SavingsFinancialsScreen({ data }: EnergySavingsScreenProps) {
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#020a12] text-slate-100">
       <div className="grid h-full grid-cols-[176px_1fr]">
@@ -1351,28 +1351,28 @@ export function SavingsFinancialsScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-3 py-3">
           <header className="flex h-[56px] items-start justify-between border-b border-cyan-300/12">
             <div><h1 className="text-[22px] font-medium leading-none">Savings Intelligence™</h1><p className="mt-2 text-[10px] text-slate-300">Measure. Verify, Quantify the Value of ECBS.</p></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[204px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">▣ &nbsp; May 12, 2025 - May 12, 2026⌄</button><button className="w-[174px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">Site: &nbsp; Austin Data Center⌄</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-500 text-[8px]">6</b></span><span className="text-lg">?</span><span className="text-lg">⇩</span><span className="grid size-8 place-items-center rounded-full bg-slate-700 text-[10px]">JD</span><span>John D.<br /><span className="text-slate-400">Facility Manager</span></span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[204px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">▣ &nbsp; May 12, 2025 - May 12, 2026⌄</button><button className="w-[174px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">Site: &nbsp; {data?.siteName ?? "Ochsner"}⌄</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-500 text-[8px]">6</b></span><span className="text-lg">?</span><span className="text-lg">⇩</span><span className="grid size-8 place-items-center rounded-full bg-slate-700 text-[10px]">JD</span><span>John D.<br /><span className="text-slate-400">Facility Manager</span></span><span>⌄</span></div>
           </header>
           <section className="mt-2 grid h-[88px] grid-cols-[1fr_1fr_1fr_1fr_0.74fr_0.92fr] gap-2">
-            <FinancialKpi icon="$" label="ANNUAL SAVINGS" value="$487,320" detail="▲ 13.6% vs prior year" tone="green" />
-            <FinancialKpi icon="▥" label="CAPACITY RECOVERED" value="1.82 MVA" detail="▲ 920 kVA recovered" tone="blue" />
-            <FinancialKpi icon="◒" label="ENERGY REDUCTION" value="8.4%" detail="▲ 1,450,000 kWh" tone="green" />
-            <FinancialKpi icon="⚡" label="DEMAND REDUCTION" value="12.7%" detail="▲ 540 kW" tone="yellow" />
-            <FinancialKpi icon="ROI" label="ROI" value="143%" detail="▲ Excellent" tone="purple" />
-            <FinancialKpi icon="◷" label="PAYBACK PERIOD" value="2.1 Years" detail="Target: 3.0 Years" tone="cyan" status="ECBS System Status: OPTIMAL" />
+            <FinancialKpi icon="$" label="ANNUAL SAVINGS" value={annualBenefitValue(data)} detail="Latest savings_intelligence row" tone="green" />
+            <FinancialKpi icon="▥" label="CAPACITY RECOVERED" value={formatKva(data?.recoveredKva)} detail="Latest capacity_intelligence row" tone="blue" />
+            <FinancialKpi icon="◒" label="ENERGY REDUCTION" value="No Data" detail="M-012 source_missing" tone="green" />
+            <FinancialKpi icon="⚡" label="DEMAND REDUCTION" value="No Data" detail="M-012 source_missing" tone="yellow" />
+            <FinancialKpi icon="ROI" label="ROI" value="No Data" detail="M-008 project cost input required" tone="purple" />
+            <FinancialKpi icon="◷" label="PAYBACK PERIOD" value="No Data" detail="M-008 project cost input required" tone="cyan" status="ECBS System Status: Data Partial" />
           </section>
           <section className="mt-2 grid h-[288px] grid-cols-[0.98fr_0.76fr_0.94fr] gap-2">
-            <FinancialPanel title="BASELINE vs CURRENT PERFORMANCE"><SavingsFinancialBaselineTable /></FinancialPanel>
-            <FinancialPanel title="SAVINGS WATERFALL (Annual)"><SavingsFinancialWaterfall /></FinancialPanel>
-            <FinancialPanel title="CUMULATIVE SAVINGS SINCE ACTIVATION"><SavingsFinancialCumulative /></FinancialPanel>
+            <FinancialPanel title="BASELINE vs CURRENT PERFORMANCE"><NoDataBlock message="M-008/M-012 source_missing - baseline utility and telemetry rollups required." /></FinancialPanel>
+            <FinancialPanel title="SAVINGS WATERFALL (Annual)"><NoDataBlock message="M-009 source_missing - approved savings split inputs required." /></FinancialPanel>
+            <FinancialPanel title="CUMULATIVE SAVINGS SINCE ACTIVATION"><NoDataBlock message="M-012 source_missing - cumulative savings snapshot contract required." /></FinancialPanel>
           </section>
           <section className="mt-2 grid h-[214px] grid-cols-[0.86fr_1.02fr_0.72fr] gap-2">
-            <FinancialPanel title="CAPACITY RECOVERY VALUE™"><SavingsFinancialCapacityValue /></FinancialPanel>
-            <FinancialPanel title="CURRENT BALANCE IMPROVEMENT"><SavingsFinancialBalanceImprovement /></FinancialPanel>
-            <FinancialPanel title="FINANCIAL INTELLIGENCE"><SavingsFinancialIntelligence /></FinancialPanel>
+            <FinancialPanel title="CAPACITY RECOVERY VALUE™"><CapacityBlock data={data} /></FinancialPanel>
+            <FinancialPanel title="CURRENT BALANCE IMPROVEMENT"><NoDataBlock message="M-005 source_missing - power quality baseline/current rollup required." /></FinancialPanel>
+            <FinancialPanel title="FINANCIAL INTELLIGENCE"><SavingsBreakdown data={data} /></FinancialPanel>
           </section>
           <section className="mt-2 h-[136px]">
-            <FinancialPanel title="BASELINE INFORMATION (LOCKED)"><SavingsFinancialBaselineInfo /></FinancialPanel>
+            <FinancialPanel title="BASELINE INFORMATION (LOCKED)"><NoDataBlock message="No Data - approved baseline metadata source is missing." /></FinancialPanel>
           </section>
           <footer className="absolute bottom-2 left-3 right-3 flex h-[32px] items-center justify-between border-t border-cyan-300/10 pt-2 text-[9px] text-slate-400"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span className="space-x-6 text-[#05ff5e]"><a>Privacy Policy</a><a>Terms of Service</a><a>Support</a></span><span>All times shown in local time &nbsp;&nbsp; ◷ Last Updated: 2 min ago &nbsp;&nbsp; <b className="text-[#05ff5e]">▥ Live</b></span></footer>
         </main>
@@ -1436,7 +1436,7 @@ function SavingsFinancialBaselineInfo() {
   return <div className="grid h-full grid-cols-[1.05fr_1fr_1fr_0.76fr_1.02fr] gap-5 text-[9px]">{items.map(([icon,a,b,c],i)=><div className="grid grid-cols-[42px_1fr] border-r border-cyan-300/10 pr-4 last:border-r-0" key={`${a}-${i}`}>{icon?<span className="grid size-10 place-items-center rounded-full bg-[#1f3b17] text-[20px] text-white">{icon}</span>:<span /> }<span className={i===4?"text-slate-300":""}><span className="text-slate-400">{a}</span><br /><b className={b==="LOCKED"?"text-[15px] text-[#05ff5e]":"text-slate-100"}>{b}</b><br /><span className="whitespace-pre-line text-slate-300">{c}</span></span></div>)}</div>;
 }
 
-export function UBillForecastPreviewScreen() {
+export function UBillForecastPreviewScreen({ data }: EnergySavingsScreenProps) {
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#020a12] text-slate-100">
       <div className="grid h-full grid-cols-[156px_1fr]">
@@ -1444,7 +1444,7 @@ export function UBillForecastPreviewScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_32%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><h1 className="text-[17px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</h1><div className="mt-4 text-[10px]"><span className="text-slate-300">Savings & Financials</span><span className="mx-3 text-slate-500">›</span><span>uBillForecast</span><span className="mx-3 text-slate-500">›</span><span className="text-[#05ff5e]">Forecast Preview</span></div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[140px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">Flex Tijuana⌄</button><button className="w-[176px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span className="text-lg">⚙</span><span className="grid size-8 place-items-center rounded-full bg-slate-700">●</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[140px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[176px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">▣ &nbsp; {energyDateRange(data)}⌄</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span className="text-lg">⚙</span><span className="grid size-8 place-items-center rounded-full bg-slate-700">●</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[64px] items-start justify-between">
             <div><h2 className="text-[20px] font-semibold leading-none">Forecast Preview</h2><p className="mt-2 text-[11px] text-slate-300">Predicted utility costs based on usage, demand, and rates.</p></div>
@@ -1458,21 +1458,21 @@ export function UBillForecastPreviewScreen() {
             <UBillToggle label="Comparison" active="Actuals" other="Budget        None" />
           </section>
           <section className="mt-3 grid h-[92px] grid-cols-6 gap-2">
-            <UBillKpi icon="$" label="FORECASTED COST (12 MO)" value="$941,200" detail="May 2025 - Apr 2026" tone="blue" />
-            <UBillKpi icon="↗" label="PROJECTED VS LAST 12 MO" value="▼ 5.6%" detail="$991,800 (May 2024 - Apr 2025)" tone="green" />
-            <UBillKpi icon="◎" label="FORECASTED AVG MONTHLY" value="$78,433" detail="May 2025 - Apr 2026" tone="purple" />
-            <UBillKpi icon="⚡" label="PEAK DEMAND (FORECAST)" value="1,520 kW" detail="Aug 2025" tone="orange" />
-            <UBillKpi icon="◔" label="LARGEST COST MONTH" value="July 2025" detail="$93,400" tone="cyan" />
-            <UBillKpi icon="◔" label="LOWEST COST MONTH" value="February 2026" detail="$63,100" tone="cyan" />
+            <UBillKpi icon="$" label="FORECASTED COST (12 MO)" value="No Data" detail="M-008/M-009 source_missing" tone="blue" />
+            <UBillKpi icon="↗" label="PROJECTED VS LAST 12 MO" value="No Data" detail="Baseline source required" tone="green" />
+            <UBillKpi icon="◎" label="FORECASTED AVG MONTHLY" value="No Data" detail="Monthly rollup required" tone="purple" />
+            <UBillKpi icon="⚡" label="PEAK DEMAND (FORECAST)" value="No Data" detail="Demand rollup required" tone="orange" />
+            <UBillKpi icon="◔" label="LARGEST COST MONTH" value="No Data" detail="Forecast source required" tone="cyan" />
+            <UBillKpi icon="◔" label="LOWEST COST MONTH" value="No Data" detail="Forecast source required" tone="cyan" />
           </section>
           <section className="mt-3 grid h-[330px] grid-cols-[1.58fr_0.65fr] gap-3">
-            <FinancialPanel title="FORECAST TREND (COST)"><UBillForecastTrend /></FinancialPanel>
-            <FinancialPanel title="KEY HIGHLIGHTS"><UBillHighlights /></FinancialPanel>
+            <FinancialPanel title="FORECAST TREND (COST)"><NoDataBlock message="M-012 source_missing - uBill forecast trend rollup required." /></FinancialPanel>
+            <FinancialPanel title="KEY HIGHLIGHTS"><NoDataBlock message="M-013 source_missing - forecast highlights require source/model inputs." /></FinancialPanel>
           </section>
           <section className="mt-3 grid h-[226px] grid-cols-[0.95fr_1.06fr_0.8fr] gap-3">
-            <FinancialPanel title="FORECASTED COST BREAKDOWN (12 MONTHS)"><UBillCostBreakdown /></FinancialPanel>
-            <FinancialPanel title="MONTHLY FORECAST SUMMARY"><UBillMonthlySummary /></FinancialPanel>
-            <FinancialPanel title="FORECAST CONFIDENCE"><UBillConfidence /></FinancialPanel>
+            <FinancialPanel title="FORECASTED COST BREAKDOWN (12 MONTHS)"><NoDataBlock message="M-009 source_missing - cost breakdown requires utility bill/tariff inputs." /></FinancialPanel>
+            <FinancialPanel title="MONTHLY FORECAST SUMMARY"><NoDataBlock message="M-012 source_missing - monthly forecast summary required." /></FinancialPanel>
+            <FinancialPanel title="FORECAST CONFIDENCE"><NoDataBlock message="M-007 source_missing - model confidence inputs required." /></FinancialPanel>
           </section>
           <footer className="absolute bottom-2 left-4 right-4 flex h-[32px] items-center justify-between border-t border-cyan-300/10 pt-2 text-[9px] text-slate-400"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span className="space-x-8 text-[#05ff5e]"><a>Privacy Policy</a><a>Terms of Service</a><a>Support</a></span><span>Data updated: May 18, 2025 10:15 AM &nbsp;&nbsp; <b className="text-[#05ff5e]">▥ Live</b></span></footer>
         </main>
@@ -1481,7 +1481,7 @@ export function UBillForecastPreviewScreen() {
   );
 }
 
-export function UBillTrackerUsageSummaryScreen() {
+export function UBillTrackerUsageSummaryScreen({ data }: EnergySavingsScreenProps) {
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#020a12] text-slate-100">
       <div className="grid h-full grid-cols-[156px_1fr]">
@@ -1489,7 +1489,7 @@ export function UBillTrackerUsageSummaryScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_32%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><h1 className="text-[17px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</h1><div className="mt-4 text-[10px]"><span className="text-slate-300">Savings & Financials</span><span className="mx-3 text-slate-500">›</span><span>uBillTracker</span><span className="mx-3 text-slate-500">›</span><span className="text-[#05ff5e]">Usage Summary</span></div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[140px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">Flex Tijuana⌄</button><button className="w-[176px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">1</b></span><span className="text-lg">?</span><span className="text-lg">⚙</span><span className="grid size-8 place-items-center rounded-full bg-slate-700">●</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[140px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[176px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">▣ &nbsp; {energyDateRange(data)}⌄</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">1</b></span><span className="text-lg">?</span><span className="text-lg">⚙</span><span className="grid size-8 place-items-center rounded-full bg-slate-700">●</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[54px] items-start justify-between">
             <div><h2 className="text-[20px] font-semibold leading-none">Usage Summary</h2><p className="mt-2 text-[11px] text-slate-300">Detailed view of energy usage across all meters and time periods.</p></div>
@@ -1503,26 +1503,26 @@ export function UBillTrackerUsageSummaryScreen() {
             <button className="mt-[14px] h-9 rounded border border-cyan-300/12 bg-[#061421] text-[10px]">▽ &nbsp; Filters</button>
           </section>
           <section className="mt-3 grid h-[84px] grid-cols-5 gap-2">
-            <UBillKpi icon="▥" label="TOTAL USAGE" value="1,125,000 kWh" detail="▲ 6.7% vs Mar 1 - Mar 31" tone="blue" />
-            <UBillKpi icon="♙" label="PEAK DEMAND" value="1,480 kW" detail="▲ 3.2% vs Mar 1 - Mar 31" tone="green" />
-            <UBillKpi icon="⚡" label="AVG POWER FACTOR" value="0.96" detail="▲ 0.02 vs Mar 1 - Mar 31" tone="blue" />
-            <UBillKpi icon="◔" label="TOTAL OPERATING HOURS" value="720 hrs" detail="▲ 2.1% vs Mar 1 - Mar 31" tone="green" />
-            <UBillKpi icon="▧" label="USAGE INTENSITY" value="0.42 kWh / ft²" detail="▲ 5.3% vs Mar 1 - Mar 31" tone="blue" />
+            <UBillKpi icon="▥" label="TOTAL USAGE" value="No Data" detail="M-012 source_missing" tone="blue" />
+            <UBillKpi icon="♙" label="PEAK DEMAND" value="No Data" detail="M-012 source_missing" tone="green" />
+            <UBillKpi icon="⚡" label="AVG POWER FACTOR" value="No Data" detail="PF rollup required" tone="blue" />
+            <UBillKpi icon="◔" label="TOTAL OPERATING HOURS" value="No Data" detail="Operating hours source missing" tone="green" />
+            <UBillKpi icon="▧" label="USAGE INTENSITY" value="No Data" detail="Area/intensity source missing" tone="blue" />
           </section>
           <section className="mt-3 grid h-[242px] grid-cols-[1.38fr_0.75fr] gap-3">
-            <FinancialPanel title="USAGE & DEMAND OVER TIME"><UBillUsageDemandChart /></FinancialPanel>
-            <FinancialPanel title="USAGE DISTRIBUTION"><UBillUsageDistribution /></FinancialPanel>
+            <FinancialPanel title="USAGE & DEMAND OVER TIME"><NoDataBlock message="M-012 source_missing - indexed usage and demand rollup required." /></FinancialPanel>
+            <FinancialPanel title="USAGE DISTRIBUTION"><NoDataBlock message="M-003/M-009 source_missing - load category allocation inputs required." /></FinancialPanel>
           </section>
           <section className="mt-3 grid h-[218px] grid-cols-[0.9fr_0.86fr_0.98fr] gap-3">
-            <FinancialPanel title="DAILY USAGE SUMMARY"><UBillDailySummary /></FinancialPanel>
-            <FinancialPanel title="USAGE BY TIME OF DAY (kWh)"><UBillHeatmap /></FinancialPanel>
-            <FinancialPanel title="USAGE COMPARISON"><UBillUsageComparison /></FinancialPanel>
+            <FinancialPanel title="DAILY USAGE SUMMARY"><NoDataBlock message="M-012 source_missing - daily usage rollup required." /></FinancialPanel>
+            <FinancialPanel title="USAGE BY TIME OF DAY (kWh)"><NoDataBlock message="M-012 source_missing - time-of-day usage rollup required." /></FinancialPanel>
+            <FinancialPanel title="USAGE COMPARISON"><NoDataBlock message="M-012 source_missing - comparison period rollups required." /></FinancialPanel>
           </section>
           <section className="mt-3 grid h-[86px] grid-cols-4 gap-3">
-            <UBillInsightCard icon="▣" title="INSIGHT" text="Total usage increased by 6.7% compared to the previous period, mainly due to higher production activity and longer operating hours." tone="green" />
-            <UBillInsightCard icon="▥" title="PEAK DAY" text="Highest usage on Apr 24, 2025 41,200 kWh | 1,580 kW" tone="green" />
-            <UBillInsightCard icon="▦" title="LOWEST DAY" text="Lowest usage on Apr 27, 2025 28,900 kWh | 1,120 kW" tone="blue" />
-            <UBillInsightCard icon="♙" title="RECOMMENDATION" text="Optimize HVAC scheduling during off-peak hours to reduce usage by up to 8%." tone="green" />
+            <UBillInsightCard icon="▣" title="INSIGHT" text="No Data - deterministic usage insight source/model inputs are missing." tone="green" />
+            <UBillInsightCard icon="▥" title="PEAK DAY" text="No Data - daily peak usage rollup source is missing." tone="green" />
+            <UBillInsightCard icon="▦" title="LOWEST DAY" text="No Data - daily low usage rollup source is missing." tone="blue" />
+            <UBillInsightCard icon="♙" title="RECOMMENDATION" text="No Data - recommendation source/model inputs are missing." tone="green" />
           </section>
           <footer className="absolute bottom-2 left-4 right-4 flex h-[32px] items-center justify-between border-t border-cyan-300/10 pt-2 text-[9px] text-slate-400"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span className="space-x-8 text-[#05ff5e]"><a>Privacy Policy</a><a>Terms of Service</a><a>Support</a></span><span><b className="text-[#05ff5e]">●</b> All Systems Operational &nbsp;&nbsp; <b className="text-[#05ff5e]">▥ Live</b></span></footer>
         </main>
