@@ -9,6 +9,7 @@ import type { ClientManagementData } from "@/lib/clientManagementData";
 import type { ConfigureAlertRuleData } from "@/lib/configureAlertRuleData";
 import type { DeploymentCompletionData } from "@/lib/deploymentCompletionData";
 import type { DeploymentDocumentationData, DocumentDataRow } from "@/lib/deploymentDocumentationData";
+import type { DeploymentFieldWorkflowData, FieldEquipmentRow, FieldReadingRow } from "@/lib/deploymentFieldWorkflowData";
 import type { SetNotificationsData } from "@/lib/setNotificationsData";
 import type { AlertsEventsData, CapacityIntelligenceData } from "@/lib/trackingDashboardData";
 
@@ -75,6 +76,22 @@ export async function getDeploymentDocumentationDataFromApi(deploymentId: string
     return (await response.json()) as DeploymentDocumentationData;
   } catch {
     return noDeploymentDocumentationData("No applicable Deployment Documentation data was found because ECBS.Api is not reachable.");
+  }
+}
+
+export async function getDeploymentFieldWorkflowDataFromApi(deploymentId: string): Promise<DeploymentFieldWorkflowData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/deployments/${deploymentId}/field-workflow`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noDeploymentFieldWorkflowData(`No applicable Deployment Field Workflow data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as DeploymentFieldWorkflowData;
+  } catch {
+    return noDeploymentFieldWorkflowData("No applicable Deployment Field Workflow data was found because ECBS.Api is not reachable.");
   }
 }
 
@@ -438,6 +455,67 @@ function noDeploymentDocumentationData(message: string): DeploymentDocumentation
     ],
     updatedAt: "No Data",
     versionRows: [row],
+  };
+}
+
+function noDeploymentFieldWorkflowData(message: string): DeploymentFieldWorkflowData {
+  const equipment: FieldEquipmentRow = {
+    id: "No Data",
+    lastCommunicatedAt: "No Data",
+    location: "No Data",
+    name: "No Data",
+    rating: "No Data",
+    serialNumber: "No Data",
+    status: message,
+    type: "No Data",
+  };
+  const reading: FieldReadingRow = {
+    delta: "No Data",
+    label: "No Data",
+    postValue: "No Data",
+    preValue: "No Data",
+    source: message,
+    unit: "No Data",
+  };
+  const document: DocumentDataRow = {
+    folder: "No Data",
+    id: "No Data",
+    name: "No Data",
+    size: "No Data",
+    status: message,
+    storageUri: "No Data",
+    type: "No Data",
+    uploadedAt: "No Data",
+    uploadedBy: "No Data",
+  };
+
+  return {
+    clientName: "No Data",
+    deploymentId: "No Data",
+    documentRows: [document],
+    equipmentRows: [equipment],
+    message,
+    postReadingRows: [reading],
+    preReadingRows: [reading],
+    projectName: "No Data",
+    siteName: "No Data",
+    siteRows: [
+      { label: "Site Name", value: "No Data" },
+      { label: "Site Number", value: "No Data" },
+      { label: "Address", value: "No Data" },
+      { label: "Utility", value: "No Data" },
+      { label: "Time Zone", value: "No Data" },
+      { label: "Status", value: "No Data" },
+    ],
+    state: "no-data",
+    status: "No Data",
+    summaryRows: [
+      { label: "Equipment", value: "No Data" },
+      { label: "Documents", value: "No Data" },
+      { label: "Readings", value: "No Data" },
+      { label: "Checklist", value: "No Data" },
+    ],
+    updatedAt: "No Data",
   };
 }
 

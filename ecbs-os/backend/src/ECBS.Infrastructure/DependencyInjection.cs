@@ -34,6 +34,7 @@ public static class DependencyInjection
         services.AddScoped<IClientManagementDataService, TrackingClientManagementDataService>();
         services.AddScoped<IDeploymentCompletionDataService, EfDeploymentCompletionDataService>();
         services.AddScoped<IDeploymentDocumentationDataService, EfDeploymentDocumentationDataService>();
+        services.AddScoped<IDeploymentFieldWorkflowDataService, EfDeploymentFieldWorkflowDataService>();
 
         return services;
     }

@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import type { DeploymentCompletionData } from "@/lib/deploymentCompletionData";
 import type { DeploymentDocumentationData, DocumentDataRow } from "@/lib/deploymentDocumentationData";
+import type { DeploymentFieldWorkflowData, FieldEquipmentRow, FieldReadingRow } from "@/lib/deploymentFieldWorkflowData";
 
 export type DeploymentWorkflowVariant =
   | "acceptance"
@@ -36,8 +37,8 @@ const steps = ["Site & Installation", "Equipment Inventory", "Pre-Installation R
 
 type DeploymentShellData = Pick<DeploymentCompletionData, "clientName" | "deploymentId" | "message" | "projectName" | "siteName" | "state" | "status" | "updatedAt">;
 
-export function DeploymentWorkflowScreen({ data, deploymentId = "1", documentationData, variant }: { data?: DeploymentCompletionData; deploymentId?: string; documentationData?: DeploymentDocumentationData; variant: DeploymentWorkflowVariant }) {
-  const shellData = data ?? documentationData;
+export function DeploymentWorkflowScreen({ data, deploymentId = "1", documentationData, fieldData, variant }: { data?: DeploymentCompletionData; deploymentId?: string; documentationData?: DeploymentDocumentationData; fieldData?: DeploymentFieldWorkflowData; variant: DeploymentWorkflowVariant }) {
+  const shellData = data ?? documentationData ?? fieldData;
   const title =
     variant === "commissioning" ? "Commissioning Summary Report" :
     variant === "acceptance" ? "Customer Acceptance" :
@@ -104,14 +105,14 @@ export function DeploymentWorkflowScreen({ data, deploymentId = "1", documentati
           {variant === "searchResults" ? <SearchResultsPage data={documentationData} /> : null}
           {variant === "uploadWizard" ? <UploadWizard data={documentationData} /> : null}
           {variant === "versionHistory" ? <VersionHistory data={documentationData} /> : null}
-          {variant === "documentation" ? <DocumentationHome /> : null}
-          {variant === "equipmentAdd" ? <AddEquipment /> : null}
-          {variant === "equipmentInventory" ? <EquipmentInventory /> : null}
-          {variant === "installationDetails" ? <InstallationDetails /> : null}
-          {variant === "photoDocs" ? <PhotoDocumentSystem /> : null}
-          {variant === "postReadings" ? <ReadingsScreen kind="post" /> : null}
-          {variant === "preReadings" ? <ReadingsScreen kind="pre" /> : null}
-          {variant === "siteDetails" ? <SiteInstallationDetails /> : null}
+          {variant === "documentation" ? <DocumentationHome data={documentationData} /> : null}
+          {variant === "equipmentAdd" ? <AddEquipment data={fieldData} /> : null}
+          {variant === "equipmentInventory" ? <EquipmentInventory data={fieldData} deploymentId={deploymentId} /> : null}
+          {variant === "installationDetails" ? <InstallationDetails data={fieldData} /> : null}
+          {variant === "photoDocs" ? <PhotoDocumentSystem data={fieldData} /> : null}
+          {variant === "postReadings" ? <ReadingsScreen data={fieldData} kind="post" /> : null}
+          {variant === "preReadings" ? <ReadingsScreen data={fieldData} kind="pre" /> : null}
+          {variant === "siteDetails" ? <SiteInstallationDetails data={fieldData} /> : null}
           {variant === "testingAddIssue" ? <TestingVerificationAddIssue /> : null}
           {variant === "testingVerification" ? <TestingVerificationMain /> : null}
           {variant === "testingViewDetails" ? <TestingVerificationViewDetails /> : null}
@@ -188,6 +189,39 @@ function documentIconColor(type: string) {
   if (type === "XLS" || type === "XLSX") return "text-green-400";
   if (type === "DWG") return "text-blue-400";
   return "text-red-400";
+}
+
+function emptyEquipmentRow(message = "No Data"): FieldEquipmentRow {
+  return {
+    id: "No Data",
+    lastCommunicatedAt: "No Data",
+    location: "No Data",
+    name: "No Data",
+    rating: "No Data",
+    serialNumber: "No Data",
+    status: message,
+    type: "No Data",
+  };
+}
+
+function equipmentRowsFromData(data?: DeploymentFieldWorkflowData) {
+  return data?.equipmentRows?.length ? data.equipmentRows : [emptyEquipmentRow(data?.message)];
+}
+
+function emptyReadingRow(message = "No Data"): FieldReadingRow {
+  return {
+    delta: "No Data",
+    label: "No Data",
+    postValue: "No Data",
+    preValue: "No Data",
+    source: message,
+    unit: "No Data",
+  };
+}
+
+function readingRowsFromData(data: DeploymentFieldWorkflowData | undefined, kind: "post" | "pre") {
+  const rows = kind === "post" ? data?.postReadingRows : data?.preReadingRows;
+  return rows?.length ? rows : [emptyReadingRow(data?.message)];
 }
 
 function DeploymentSidebar({ data, variant }: { data?: DeploymentShellData; variant: DeploymentWorkflowVariant }) {
@@ -1007,108 +1041,87 @@ function VersionTimeline({ data }: { data?: DeploymentDocumentationData }) {
   return <section className="mt-5 border-t border-white/10 pt-4"><h2 className="mb-3 text-[11px] font-semibold uppercase">Version Timeline</h2><div className="space-y-3">{items.map(([title, badge, time, detail], index) => <div className="grid grid-cols-[18px_1fr]" key={title}><span className={index === 0 ? "text-[#05ff5e]" : "text-yellow-400"}>●</span><div><div className="flex justify-between gap-2"><b>{title}</b><span className="text-[8px] text-slate-400">{time}</span></div>{badge ? <span className="rounded border border-[#05ff5e]/40 bg-[#063b27] px-1.5 py-0.5 text-[7px] text-[#05ff5e]">{badge}</span> : null}<div className="mt-1 whitespace-pre-line text-[8px] leading-relaxed text-slate-400">{detail}</div></div></div>)}</div></section>;
 }
 
-function DocumentationHome() {
+function DocumentationHome({ data }: { data?: DeploymentDocumentationData }) {
+  const documentCount = data?.documentRows?.filter((row) => row.name !== "No Data").length ?? 0;
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="flex items-center justify-between"><div><h1 className="text-[15px] font-semibold uppercase"><span className="mr-2 text-[#05ff5e]">▤</span>Documentation</h1><p className="mt-1 text-[9px] text-slate-400">Manage all documentation for this deployment.</p></div><div className="flex gap-4"><Button>⇧ Upload Files</Button><Button>▭ New Folder</Button><Button>▤ Document Templates</Button></div></div></section>
       <section className="mt-2 grid h-[598px] min-h-0 grid-cols-[0.52fr_1.55fr_0.64fr] gap-2">
         <div className="grid min-h-0 grid-rows-[1fr_112px] gap-2 overflow-hidden">
-          <ExportPanel title="Folders"><DocumentationFolders /></ExportPanel>
+          <ExportPanel title="Folders"><DocumentationFolders documentCount={documentCount} /></ExportPanel>
           <ExportPanel title="Storage Usage"><DocumentationStorage /></ExportPanel>
         </div>
-        <ExportPanel title="Documents (12)"><DocumentationTable /></ExportPanel>
+        <ExportPanel title={`Documents (${documentCount > 0 ? documentCount : "No Data"})`}><DocumentationTable data={data} /></ExportPanel>
         <div className="grid min-h-0 grid-rows-[286px_150px_1fr] gap-2 overflow-hidden">
-          <ExportPanel title="Document Details"><DocumentationDetails /></ExportPanel>
+          <ExportPanel title="Document Details"><DocumentationDetails data={data} /></ExportPanel>
           <ExportPanel title="Document Actions"><DocumentationActions /></ExportPanel>
-          <ExportPanel title="Version History (1)"><DocumentationVersionCard /></ExportPanel>
+          <ExportPanel title="Version History (No Data)"><DocumentationVersionCard data={data} /></ExportPanel>
         </div>
       </section>
     </>
   );
 }
 
-function DocumentationFolders() {
-  const folders = [["▾ ▣ All Documents", "12", "active"], ["› ▣ Engineering", "4", "cyan"], ["› ▣ Diagrams", "3", "blue"], ["› ▣ Permits & Approvals", "2", "yellow"], ["› ▣ Photos", "6", "yellow"], ["› ▣ Test Reports", "4", "purple"], ["› ▣ Safety", "2", "cyan"], ["› ▣ Installation Records", "3", "orange"], ["› ▣ Commissioning", "2", "red"], ["› ▣ Other", "1", "purple"]];
+function DocumentationFolders({ documentCount }: { documentCount: number }) {
+  const folders = [["▾ ▣ All Documents", documentCount > 0 ? String(documentCount) : "No Data", "active"], ["› ▣ Folders", "No Data", "cyan"]];
   return <div className="h-[calc(100%-22px)] text-[9px]"><div className="-mt-6 flex justify-end text-[#05ff5e]">＋</div><div className="space-y-2">{folders.map(([name, count, color]) => <div className={color === "active" ? "flex justify-between rounded bg-[#063b27] px-2 py-2 text-[#bbf7d0]" : "flex justify-between px-2 text-slate-300"} key={name}><span className={color === "cyan" ? "text-cyan-400" : color === "blue" ? "text-blue-400" : color === "yellow" ? "text-yellow-400" : color === "purple" ? "text-purple-400" : color === "orange" ? "text-orange-400" : color === "red" ? "text-red-400" : ""}>{name}</span><span>{count}</span></div>)}</div></div>;
 }
 
 function DocumentationStorage() {
-  return <div className="text-[9px] text-slate-400"><div className="mt-4 h-2 rounded-full bg-slate-800"><div className="h-2 w-[12%] rounded-full bg-[#05ff5e]" /></div><div className="mt-4 flex justify-between"><span>1.24 GB of 10 GB used</span><span>12%</span></div></div>;
+  return <div className="text-[9px] text-slate-400"><div className="mt-4 h-2 rounded-full bg-slate-800"><div className="h-2 w-0 rounded-full bg-[#05ff5e]" /></div><div className="mt-4 flex justify-between"><span>No Data</span><span>No Data</span></div></div>;
 }
 
-function DocumentationTable() {
-  const rows = [
-    ["PDF", "Single Line Diagram.pdf", "PDF", "Engineering", "John Doe", "May 12, 2025\n9:15 AM", "Uploaded", "1.2 MB", "red"],
-    ["PDF", "Panel Schedule.pdf", "PDF", "Engineering", "John Doe", "May 12, 2025\n9:16 AM", "Uploaded", "856 KB", "red"],
-    ["PDF", "Site Safety Plan.pdf", "PDF", "Safety", "John Doe", "May 12, 2025\n9:20 AM", "Uploaded", "1.4 MB", "red"],
-    ["PDF", "Installation Permit.pdf", "PDF", "Permits & Approvals", "John Doe", "May 12, 2025\n9:22 AM", "Pending Review", "712 KB", "red"],
-    ["JPG", "Panel Overview.jpg", "JPG", "Photos", "John Doe", "May 12, 2025\n9:35 AM", "Uploaded", "2.3 MB", "green"],
-    ["JPG", "CT Installation.jpg", "JPG", "Photos", "John Doe", "May 12, 2025\n9:26 AM", "Uploaded", "1.8 MB", "green"],
-    ["JPG", "Voltage Connections.jpg", "JPG", "Photos", "John Doe", "May 12, 2025\n9:26 AM", "Uploaded", "2.1 MB", "green"],
-    ["PDF", "Pre-Install Readings Report.pdf", "PDF", "Test Reports", "John Doe", "May 12, 2025\n9:30 AM", "Uploaded", "1.6 MB", "red"],
-    ["PDF", "Post-Install Readings Report.pdf", "PDF", "Test Reports", "John Doe", "May 12, 2025\n9:45 AM", "Uploaded", "1.7 MB", "red"],
-    ["PDF", "Testing & Verification Summary.pdf", "PDF", "Test Reports", "John Doe", "May 12, 2025\n9:50 AM", "Uploaded", "952 KB", "red"],
-    ["XLS", "ECBS Commissioning Checklist.xlsx", "XLSX", "Commissioning", "John Doe", "May 12, 2025\n10:00 AM", "Uploaded", "320 KB", "green"],
-    ["TXT", "Notes.txt", "TXT", "Other", "John Doe", "May 12, 2025\n10:05 AM", "Uploaded", "12 KB", "slate"],
-  ];
-  return <div className="flex h-full flex-col"><div className="mb-3 grid grid-cols-[1fr_0.27fr_0.27fr_36px_36px] gap-2"><div className="rounded border border-cyan-300/12 bg-[#03111c] px-3 py-2 text-[9px] text-slate-500">⌕ Search documents...</div><Button>All Types⌄</Button><Button>All Statuses⌄</Button><Button>▦</Button><Button>☷</Button></div><table className="w-full text-left text-[8.5px]"><thead className="text-slate-500"><tr>{["Name", "Type", "Folder", "Uploaded By", "Date Uploaded", "Status", "Size", ""].map((header) => <th className="border-b border-white/5 bg-[#092033] px-2 py-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row[1]}><td className="grid grid-cols-[24px_1fr] gap-2 px-2 py-[5px]"><span className={row[8] === "red" ? "grid size-5 place-items-center rounded border border-red-500/60 text-[7px] text-red-400" : row[8] === "green" ? "grid size-5 place-items-center rounded border border-[#05ff5e]/50 text-[7px] text-[#05ff5e]" : "grid size-5 place-items-center rounded border border-slate-500/50 text-[7px] text-slate-400"}>{row[0]}</span><span className="font-semibold text-slate-100">{row[1]}</span></td><td className="px-2">{row[2]}</td><td className="px-2">{row[3]}</td><td className="px-2">{row[4]}</td><td className="whitespace-pre-line px-2 leading-tight">{row[5]}</td><td className={row[6] === "Pending Review" ? "px-2 text-yellow-400" : "px-2 text-[#05ff5e]"}>◎ {row[6]}</td><td className="px-2">{row[7]}</td><td className="px-2">⋮</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-2 text-[9px] text-slate-400"><span>Showing 1 to 12 of 12 documents</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-4 py-1 text-slate-200">25⌄</b></span></div></div>;
+function DocumentationTable({ data }: { data?: DeploymentDocumentationData }) {
+  const rows = documentRowsFromData(data);
+  return <div className="flex h-full flex-col"><div className="mb-3 grid grid-cols-[1fr_0.27fr_0.27fr_36px_36px] gap-2"><div className="rounded border border-cyan-300/12 bg-[#03111c] px-3 py-2 text-[9px] text-slate-500">⌕ Search documents...</div><Button>All Types⌄</Button><Button>All Statuses⌄</Button><Button>▦</Button><Button>☷</Button></div><table className="w-full text-left text-[8.5px]"><thead className="text-slate-500"><tr>{["Name", "Type", "Folder", "Uploaded By", "Date Uploaded", "Status", "Size", ""].map((header) => <th className="border-b border-white/5 bg-[#092033] px-2 py-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={`${row.id}-${row.name}`}><td className="grid grid-cols-[24px_1fr] gap-2 px-2 py-[5px]"><span className={`grid size-5 place-items-center rounded border border-current text-[7px] ${documentIconColor(row.type)}`}>{row.type}</span><span className="font-semibold text-slate-100">{row.name}</span></td><td className="px-2">{row.type}</td><td className="px-2">{row.folder}</td><td className="px-2">{row.uploadedBy}</td><td className="whitespace-pre-line px-2 leading-tight">{row.uploadedAt}</td><td className={row.status === "No Data" ? "px-2 text-slate-400" : "px-2 text-[#05ff5e]"}>◎ {row.status}</td><td className="px-2">{row.size}</td><td className="px-2">⋮</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-2 text-[9px] text-slate-400"><span>Showing {rows.length} document rows</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-4 py-1 text-slate-200">25⌄</b></span></div></div>;
 }
 
-function DocumentationDetails() {
-  const rows = [["Folder", "Engineering"], ["Uploaded By", "John Doe"], ["Date Uploaded", "May 12, 2025 9:15 AM"], ["Last Modified", "May 12, 2025 9:15 AM"], ["Status", "Uploaded"], ["Description", "Single line diagram for the main electrical system."]];
-  return <div className="text-[9px]"><div className="mb-3 grid grid-cols-[34px_1fr] gap-3"><span className="grid size-8 place-items-center rounded border border-red-500/60 text-[9px] text-red-400">PDF</span><span><b>Single Line Diagram.pdf</b><br /><span className="text-slate-500">PDF Document • 1.2 MB</span></span></div><div className="mb-3 flex gap-2"><Button>◎ Preview Document</Button><Button>⇩ Download</Button></div><div className="space-y-1.5">{rows.map(([label, value]) => <div className="grid grid-cols-[86px_1fr] gap-2 border-b border-white/5 pb-1" key={label}><span className="text-slate-400">{label}</span><b className={label === "Status" ? "text-[#05ff5e]" : "text-slate-200"}>{label === "Status" ? "● " : ""}{value}</b></div>)}</div></div>;
+function DocumentationDetails({ data }: { data?: DeploymentDocumentationData }) {
+  const document = firstDocument(data);
+  const rows = data?.metadataRows?.length ? data.metadataRows : [{ label: "Status", value: document.status }];
+  return <div className="text-[9px]"><div className="mb-3 grid grid-cols-[34px_1fr] gap-3"><span className="grid size-8 place-items-center rounded border border-red-500/60 text-[9px] text-red-400">{document.type}</span><span><b>{document.name}</b><br /><span className="text-slate-500">{document.type} Document • {document.size}</span></span></div><div className="mb-3 flex gap-2"><Button>◎ Preview Document</Button><Button>⇩ Download</Button></div><div className="space-y-1.5">{rows.map((row) => <div className="grid grid-cols-[86px_1fr] gap-2 border-b border-white/5 pb-1" key={row.label}><span className="text-slate-400">{row.label}</span><b className={row.label === "Status" ? "text-[#05ff5e]" : "text-slate-200"}>{row.label === "Status" ? "● " : ""}{row.value}</b></div>)}</div></div>;
 }
 
 function DocumentationActions() {
   return <div className="space-y-3 text-[9px] text-slate-300"><div>▣ Move / Copy</div><div>✎ Rename</div><div className="text-red-400">▢ Delete</div></div>;
 }
 
-function DocumentationVersionCard() {
-  return <div className="text-[9px]"><div className="-mt-6 flex justify-end text-cyan-400">View All</div><div className="rounded border border-cyan-300/12 bg-[#03111c] p-3"><div className="flex justify-between"><b>Version 1 (Current)</b><span className="text-[#05ff5e]">●</span></div><div className="mt-2 flex justify-between text-slate-400"><span>May 12, 2025 9:15 AM</span><span>John Doe</span></div><div className="mt-2 text-slate-400">Original upload</div></div></div>;
+function DocumentationVersionCard({ data }: { data?: DeploymentDocumentationData }) {
+  const row = data?.versionRows?.[0] ?? emptyDocumentRow("No approved document version history model exists.");
+  return <div className="text-[9px]"><div className="-mt-6 flex justify-end text-cyan-400">View All</div><div className="rounded border border-cyan-300/12 bg-[#03111c] p-3"><div className="flex justify-between"><b>{row.name}</b><span className="text-slate-400">●</span></div><div className="mt-2 flex justify-between text-slate-400"><span>{row.uploadedAt}</span><span>{row.uploadedBy}</span></div><div className="mt-2 text-slate-400">{row.status}</div></div></div>;
 }
 
-function EquipmentInventory() {
+function EquipmentInventory({ data, deploymentId }: { data?: DeploymentFieldWorkflowData; deploymentId: string }) {
+  const equipmentCount = data?.equipmentRows?.filter((row) => row.name !== "No Data").length ?? 0;
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
         <div className="flex items-center justify-between">
           <div><h1 className="text-[15px] font-semibold uppercase">Equipment Inventory & Readings</h1><p className="mt-1 text-[9px] text-slate-400">Inventory all installed equipment and capture baseline readings where applicable.</p></div>
-          <div className="flex gap-3"><Button>All Equipment⌄</Button><div className="w-[230px] rounded border border-cyan-300/12 bg-[#03111c] px-3 py-2 text-[9px] text-slate-500">⌕ Search equipment...</div><Button>▾ Filters</Button><button className="rounded bg-[#087a35] px-5 py-2 text-[10px] font-semibold text-white">＋ Add Equipment</button></div>
+          <div className="flex gap-3"><Button>All Equipment⌄</Button><div className="w-[230px] rounded border border-cyan-300/12 bg-[#03111c] px-3 py-2 text-[9px] text-slate-500">⌕ Search equipment...</div><Button>▾ Filters</Button><Link className="rounded bg-[#087a35] px-5 py-2 text-[10px] font-semibold text-white" href={`/operations/deployments/${deploymentId}/equipment?mode=add`}>＋ Add Equipment</Link></div>
         </div>
       </section>
       <section className="mt-2 grid h-[572px] min-h-0 grid-cols-[1.55fr_0.9fr] gap-2">
-        <ExportPanel title=""><EquipmentInventoryTable /></ExportPanel>
+        <ExportPanel title=""><EquipmentInventoryTable data={data} /></ExportPanel>
         <aside className="grid min-h-0 grid-rows-[286px_128px_1fr] gap-2 overflow-hidden">
-          <ExportPanel title="Baseline Readings Summary"><BaselineReadingsSummary /></ExportPanel>
+          <ExportPanel title="Baseline Readings Summary"><BaselineReadingsSummary data={data} /></ExportPanel>
           <ExportPanel title="Equipment Readings Actions"><EquipmentReadingActions /></ExportPanel>
-          <ExportPanel title="Equipment Inventory Summary"><EquipmentInventorySummary /></ExportPanel>
+          <ExportPanel title="Equipment Inventory Summary"><EquipmentInventorySummary count={equipmentCount} /></ExportPanel>
         </aside>
       </section>
     </>
   );
 }
 
-function EquipmentInventoryTable() {
-  const rows = [
-    ["▣", "Main Transformer", "Transformer", "Main Electrical Room", "1500 kVA\n480Y/277V", "Installed", "Captured\nMay 12, 8:50 AM"],
-    ["▤", "Panel B - Phase A", "Panel", "Main Electrical Room", "2000 A\n480/277V", "Installed", "Captured\nMay 12, 8:52 AM"],
-    ["▤", "Panel B - Phase B", "Panel", "Main Electrical Room", "2000 A\n480/277V", "Installed", "Captured\nMay 12, 8:52 AM"],
-    ["▤", "Panel B - Phase C", "Panel", "Main Electrical Room", "2000 A\n480/277V", "Installed", "Captured\nMay 12, 8:53 AM"],
-    ["▤", "Panel B - Neutral", "Panel", "Main Electrical Room", "2000 A\n480/277V", "Installed", "Captured\nMay 12, 8:53 AM"],
-    ["◇", "Cap Bank 1", "Capacitor Bank", "Panel B", "300 kVAR\n480V", "Installed", "Captured\nMay 12, 8:54 AM"],
-    ["◇", "Cap Bank 2", "Capacitor Bank", "Panel B", "300 kVAR\n480V", "Installed", "Captured\nMay 12, 8:54 AM"],
-    ["◎", "Meter M-01", "Meter", "Main Transformer", "-", "Installed", "Captured\nMay 12, 8:48 AM"],
-    ["◎", "Meter M-02", "Meter", "Panel B - Phase A", "-", "Installed", "Captured\nMay 12, 8:49 AM"],
-    ["◎", "Meter M-03", "Meter", "Panel B - Phase B", "-", "Installed", "Captured\nMay 12, 8:49 AM"],
-    ["◎", "Meter M-04", "Meter", "Panel B - Phase C", "-", "Installed", "Captured\nMay 12, 8:49 AM"],
-    ["◎", "Meter M-05", "Meter", "Cap Bank 1", "-", "Installed", "Captured\nMay 12, 8:50 AM"],
-  ];
-  const tabs = ["All Equipment (18)", "Transformers (2)", "Switchgear / Panels (6)", "Capacitor Banks (2)", "Meters (6)", "Other (2)"];
-  return <div className="flex h-full flex-col"><div className="mb-2 flex gap-7 text-[9px]">{tabs.map((tab, index) => <span className={index === 0 ? "border-b border-[#05ff5e] pb-1 text-[#05ff5e]" : "text-slate-400"} key={tab}>{tab}</span>)}</div><table className="w-full text-left text-[8.5px]"><thead className="text-slate-500"><tr>{["Equipment Name", "Type", "Location / Panel", "Rating", "Status", "Baseline Readings", "Actions"].map((h) => <th className="border-b border-white/5 bg-[#092033] px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row[1]}><td className="grid grid-cols-[22px_1fr] gap-2 px-2 py-[7px]"><span className="text-cyan-400">{row[0]}</span><b className="text-slate-100">{row[1]}</b></td><td className="px-2">{row[2]}</td><td className="px-2">{row[3]}</td><td className="whitespace-pre-line px-2 leading-tight">{row[4]}</td><td className="px-2 text-[#05ff5e]">{row[5]}</td><td className="whitespace-pre-line px-2 leading-tight text-[#05ff5e]">◎ {row[6]}</td><td className="px-2 text-slate-300">◎ &nbsp; ⋮</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-2 text-[9px] text-slate-400"><span>Showing 1 to 12 of 18 equipment items</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> 2 ›</span></div><div className="mt-2 flex gap-8 border-t border-white/5 pt-2 text-[9px]"><span className="text-[#05ff5e]">◎ Installed</span><span className="text-yellow-400">◎ Pending</span><span className="text-red-400">◎ Not Installed</span><span className="text-blue-400">◎ Not Applicable</span></div></div>;
+function EquipmentInventoryTable({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const rows = equipmentRowsFromData(data).slice(0, 12);
+  const equipmentCount = rows.filter((row) => row.name !== "No Data").length;
+  const tabs = [`All Equipment (${equipmentCount > 0 ? equipmentCount : "No Data"})`, "Transformers (No Data)", "Switchgear / Panels (No Data)", "Capacitor Banks (No Data)", "Meters (No Data)", "Other (No Data)"];
+  return <div className="flex h-full flex-col"><div className="mb-2 flex gap-7 text-[9px]">{tabs.map((tab, index) => <span className={index === 0 ? "border-b border-[#05ff5e] pb-1 text-[#05ff5e]" : "text-slate-400"} key={tab}>{tab}</span>)}</div><table className="w-full text-left text-[8.5px]"><thead className="text-slate-500"><tr>{["Equipment Name", "Type", "Location / Panel", "Rating", "Status", "Baseline Readings", "Actions"].map((h) => <th className="border-b border-white/5 bg-[#092033] px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={`${row.id}-${row.name}`}><td className="grid grid-cols-[22px_1fr] gap-2 px-2 py-[7px]"><span className="text-cyan-400">▣</span><b className="text-slate-100">{row.name}</b></td><td className="px-2">{row.type}</td><td className="px-2">{row.location}</td><td className="whitespace-pre-line px-2 leading-tight">{row.rating}</td><td className={row.status === "No Data" ? "px-2 text-slate-400" : "px-2 text-[#05ff5e]"}>{row.status}</td><td className="whitespace-pre-line px-2 leading-tight text-slate-400">◎ {row.lastCommunicatedAt}</td><td className="px-2 text-slate-300">◎ &nbsp; ⋮</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-2 text-[9px] text-slate-400"><span>Showing {rows.length} equipment rows</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> ›</span></div><div className="mt-2 flex gap-8 border-t border-white/5 pt-2 text-[9px]"><span className="text-[#05ff5e]">◎ Data</span><span className="text-yellow-400">◎ Pending</span><span className="text-red-400">◎ Not Installed</span><span className="text-blue-400">◎ Not Applicable</span></div></div>;
 }
 
-function BaselineReadingsSummary() {
-  const cards = [["Voltage (L-L Avg)", "481", "V", "green"], ["Voltage (L-N Avg)", "277", "V", "green"], ["Frequency", "60.01", "Hz", "green"], ["Total kW", "384.2", "kW", "blue"], ["Total kVA", "512.6", "kVA", "purple"], ["Power Factor", "0.75", "Lagging", "orange"], ["Total kVAR", "339.1", "kVAR", "purple"], ["THD (I Avg)", "5.2", "%", "blue"], ["THD (V Avg)", "2.8", "%", "blue"]];
+function BaselineReadingsSummary({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const cards: [string, string, string, string][] = readingRowsFromData(data, "pre").map((row) => [row.label, row.preValue, row.unit, row.source === "No Data" ? "slate" : "blue"]);
   return <div className="h-[calc(100%-22px)]"><div className="mb-1 flex justify-end text-[8px] text-cyan-400">Live / Latest</div><div className="grid grid-cols-3 gap-2">{cards.map(([title, value, unit, color]) => <div className="rounded border border-cyan-300/12 bg-[#03111c] p-2" key={title}><div className="text-[8px] text-slate-400">{title}</div><div className="text-[18px] leading-none text-slate-100">{value}</div><div className="text-[8px] text-slate-400">{unit}</div><div className={color === "green" ? "mt-2 h-4 rounded bg-[linear-gradient(90deg,#05ff5e33,#05ff5e)]" : color === "purple" ? "mt-2 h-4 rounded bg-[linear-gradient(90deg,#a855f733,#a855f7)]" : color === "orange" ? "mt-2 h-4 rounded bg-[linear-gradient(90deg,#f9731633,#f97316)]" : "mt-2 h-4 rounded bg-[linear-gradient(90deg,#0ea5e933,#0ea5e9)]"} /></div>)}</div></div>;
 }
 
@@ -1117,19 +1130,19 @@ function EquipmentReadingActions() {
   return <div className="grid grid-cols-2 gap-2 text-[9px]">{actions.map(([icon, title, detail]) => <div className="grid grid-cols-[24px_1fr_12px] items-center gap-2 rounded border border-cyan-300/12 bg-[#03111c] p-2" key={title}><span className="text-cyan-400">{icon}</span><span><b>{title}</b><br /><span className="text-[8px] text-slate-400">{detail}</span></span><span>›</span></div>)}</div>;
 }
 
-function EquipmentInventorySummary() {
-  const values = [["Installed", "18", "100%", "green"], ["Pending", "0", "0%", "yellow"], ["Not Installed", "0", "0%", "red"], ["N/A", "0", "0%", "blue"]];
+function EquipmentInventorySummary({ count }: { count: number }) {
+  const values = [["Equipment", count > 0 ? String(count) : "No Data", count > 0 ? "Data" : "No Data", "green"], ["Pending", "No Data", "No Data", "yellow"], ["Not Installed", "No Data", "No Data", "red"], ["N/A", "No Data", "No Data", "blue"]];
   return <div className="h-[calc(100%-22px)]"><div className="mb-1 flex justify-end text-[8px] text-cyan-400">View Details</div><div className="grid h-[calc(100%-14px)] grid-cols-4 items-center gap-2 text-center text-[9px]">{values.map(([label, value, percent, color]) => <div className="border-l border-cyan-300/10 first:border-l-0" key={label}><div className={color === "green" ? "text-[#05ff5e]" : color === "yellow" ? "text-yellow-400" : color === "red" ? "text-red-400" : "text-blue-400"}>◎ {label}</div><div className="mt-3 text-[22px] leading-none text-slate-100">{value}</div><div className="mt-1 text-slate-400">{percent}</div></div>)}</div></div>;
 }
 
-function AddEquipment() {
+function AddEquipment({ data }: { data?: DeploymentFieldWorkflowData }) {
   return (
     <>
       <div className="mt-3 flex h-[44px] items-center justify-between"><div><h1 className="text-[15px] font-semibold uppercase">Add Equipment</h1><p className="text-[9px] text-slate-400">Enter equipment details to include in the inventory and readings list.</p></div><span className="text-slate-400">x</span></div>
       <section className="mt-2 grid h-[738px] min-h-0 grid-cols-[0.92fr_0.92fr_0.6fr] gap-2">
         <div className="grid min-h-0 grid-rows-[250px_222px_1fr] gap-2">
           <Panel title="1 Equipment Type"><EquipmentTypePicker /></Panel>
-          <Panel title="2 Equipment Details"><EquipmentDetailsFields /></Panel>
+          <Panel title="2 Equipment Details"><EquipmentDetailsFields data={data} /></Panel>
           <Panel title="3 Location & Association"><LocationAssociationFields /></Panel>
         </div>
         <div className="grid min-h-0 grid-rows-[250px_266px_1fr] gap-2">
@@ -1152,20 +1165,21 @@ function EquipmentTypePicker() {
   return <div><Field label="Equipment Type *" value="Select equipment type" /><div className="mt-3 grid grid-cols-4 gap-2">{types.map((item) => <div className="grid h-[64px] place-items-center rounded border border-cyan-300/12 bg-[#03111c] text-center text-[8px]" key={item}><span><span className="text-[20px] text-slate-300">{item === "Meter" ? "◎" : item === "Other" ? "•••" : "▣"}</span><br />{item}</span></div>)}</div></div>;
 }
 
-function EquipmentDetailsFields() {
-  return <div className="grid grid-cols-2 gap-3"><Field label="Equipment Name / Tag *" value="e.g., Panel B - Phase A" /><Field label="Manufacturer" value="e.g., Siemens" /><Field label="Model" value="e.g., SENTRON P1" /><Field label="Serial Number" value="e.g., SN12345678" /><Field label="Rating / Capacity *" value="e.g., 2000 A, 1500 kVA, 300 kVAR" /><Field label="Unit" value="Select unit" /></div>;
+function EquipmentDetailsFields({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const equipment = equipmentRowsFromData(data)[0] ?? emptyEquipmentRow();
+  return <div className="grid grid-cols-2 gap-3"><Field label="Equipment Name / Tag *" value={equipment.name} /><Field label="Manufacturer" value="No Data" /><Field label="Model" value="No Data" /><Field label="Serial Number" value={equipment.serialNumber} /><Field label="Rating / Capacity *" value={equipment.rating} /><Field label="Unit" value="No Data" /></div>;
 }
 
 function LocationAssociationFields() {
-  return <div className="grid grid-cols-2 gap-3"><Field label="Location / Panel *" value="Select location / panel" /><Field label="Parent Equipment (Optional)" value="Select parent equipment" /><Field label="Electrical Room / Area" value="e.g., Main Electrical Room" /><Field label="Floor / Level" value="e.g., 1" /></div>;
+  return <div className="grid grid-cols-2 gap-3"><Field label="Location / Panel *" value="No Data" /><Field label="Parent Equipment (Optional)" value="No Data" /><Field label="Electrical Room / Area" value="No Data" /><Field label="Floor / Level" value="No Data" /></div>;
 }
 
 function ElectricalSpecificationFields() {
-  return <div><div className="grid grid-cols-3 gap-3"><Field label="Phase" value="Select phase" /><Field label="Voltage (L-L)" value="e.g., 480      V" /><Field label="Voltage (L-N)" value="e.g., 277      V" /><Field label="Frequency" value="e.g., 60.01      Hz" /><Field label="CT Ratio (If Applicable)" value="e.g., 2000:5" /><Field label="No. of Poles" value="e.g., 3" /></div><div className="mt-4 grid grid-cols-2 gap-3"><Field label="System" value="Select system" /><Field label="Connection Type" value="Select connection type" /></div></div>;
+  return <div><div className="grid grid-cols-3 gap-3"><Field label="Phase" value="No Data" /><Field label="Voltage (L-L)" value="No Data" /><Field label="Voltage (L-N)" value="No Data" /><Field label="Frequency" value="No Data" /><Field label="CT Ratio (If Applicable)" value="No Data" /><Field label="No. of Poles" value="No Data" /></div><div className="mt-4 grid grid-cols-2 gap-3"><Field label="System" value="No Data" /><Field label="Connection Type" value="No Data" /></div></div>;
 }
 
 function InstallationStatusFields() {
-  return <div><div className="grid grid-cols-2 gap-3"><Field label="Installation Status *" value="Installed" /><Field label="Installation Date" value="▣  May 12, 2025" /><Field label="Installed By" value="Select installer" /><Field label="Verified By" value="Select verifier" /></div><div className="mt-4 text-[9px] text-slate-300"><div className="mb-2 text-slate-400">Operational Status</div><div className="flex gap-12"><span className="text-[#05ff5e]">◎ Operational</span><span>○ Standby</span><span>○ Out of Service</span></div></div><div className="mt-4"><div className="mb-1 text-[8px] text-slate-400">Notes</div><div className="h-[58px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[9px] text-slate-500">Enter any additional notes about this equipment...<br /><span className="float-left mt-6">0 / 500 characters</span></div></div></div>;
+  return <div><div className="grid grid-cols-2 gap-3"><Field label="Installation Status *" value="No Data" /><Field label="Installation Date" value="No Data" /><Field label="Installed By" value="No Data" /><Field label="Verified By" value="No Data" /></div><div className="mt-4 text-[9px] text-slate-300"><div className="mb-2 text-slate-400">Operational Status</div><div className="flex gap-12"><span className="text-slate-500">◎ No Data</span><span>○ Standby</span><span>○ Out of Service</span></div></div><div className="mt-4"><div className="mb-1 text-[8px] text-slate-400">Notes</div><div className="h-[58px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[9px] text-slate-500">No Data<br /><span className="float-left mt-6">0 / 500 characters</span></div></div></div>;
 }
 
 function AttachmentDrop() {
@@ -1177,30 +1191,30 @@ function EquipmentTypeGuide() {
   return <div><p className="mb-4 text-[9px] leading-relaxed text-slate-400">Select the correct equipment type to ensure accurate data tracking and reporting.</p><div className="space-y-3">{rows.map(([title, description]) => <div className="grid grid-cols-[24px_1fr] gap-3 text-[9px]" key={title}><span className={title === "Panel" ? "text-yellow-400" : title === "Meter" ? "text-blue-400" : title === "Other" ? "text-slate-400" : "text-cyan-400"}>{title === "Other" ? "•••" : "▣"}</span><span><b className="text-slate-200">{title}</b><br /><span className="text-slate-400">{description}</span></span></div>)}</div></div>;
 }
 
-function InstallationDetails() {
+function InstallationDetails({ data }: { data?: DeploymentFieldWorkflowData }) {
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
         <div className="grid grid-cols-[1fr_190px_210px_190px] items-center gap-5">
           <div><h1 className="text-[15px] font-semibold uppercase">Installation Details</h1><p className="mt-1 text-[9px] text-slate-400">Capture detailed information about the installation work performed.</p></div>
-          <Field label="Installation Start" value="▣ May 12, 2025  9:15 AM" />
-          <Field label="Installer / Technician *" value="John Doe⌄" />
-          <div><div className="mb-1 text-[8px] text-slate-400">Installation Status</div><span className="inline-flex rounded border border-[#05ff5e]/40 bg-[#063b27] px-4 py-1.5 text-[10px] text-[#05ff5e]">In Progress</span></div>
+          <Field label="Installation Start" value={data?.updatedAt ?? "No Data"} />
+          <Field label="Installer / Technician *" value="No Data" />
+          <div><div className="mb-1 text-[8px] text-slate-400">Installation Status</div><span className="inline-flex rounded border border-slate-600 bg-[#03111c] px-4 py-1.5 text-[10px] text-slate-300">{data?.status ?? "No Data"}</span></div>
         </div>
       </section>
       <section className="mt-2 grid h-[650px] min-h-0 grid-cols-[0.92fr_1.18fr_0.98fr] gap-2">
         <div className="grid min-h-0 grid-rows-[386px_1fr] gap-2 overflow-hidden">
           <ExportPanel title="Installation Checklist" subtitle="Verify completed installation tasks."><InstallationChecklistPanel /></ExportPanel>
-          <ExportPanel title="Installation Information"><InstallationInfoPanel /></ExportPanel>
+          <ExportPanel title="Installation Information"><InstallationInfoPanel data={data} /></ExportPanel>
         </div>
         <div className="grid min-h-0 grid-rows-[386px_1fr] gap-2 overflow-hidden">
-          <ExportPanel title="Installed Equipment / Panels" subtitle="Panels and equipment installed at this site."><InstallationEquipmentPanel /></ExportPanel>
-          <ExportPanel title="Installation Photos" subtitle="Capture photos of installation progress." action={<span className="text-cyan-400">View All (8)</span>}><InstallationPhotosPanel /></ExportPanel>
+          <ExportPanel title="Installed Equipment / Panels" subtitle="Panels and equipment installed at this site."><InstallationEquipmentPanel data={data} /></ExportPanel>
+          <ExportPanel title="Installation Photos" subtitle="Capture photos of installation progress." action={<span className="text-cyan-400">View All (No Data)</span>}><InstallationPhotosPanel /></ExportPanel>
         </div>
         <div className="grid min-h-0 grid-rows-[300px_102px_1fr] gap-2 overflow-hidden">
           <ExportPanel title="Wiring & Connection Verification" subtitle="Verify critical wiring and connections."><InstallationWiringPanel /></ExportPanel>
           <ExportPanel title="Notes"><InstallationNotesPanel /></ExportPanel>
-          <ExportPanel title="Installation Status Summary"><InstallationStatusPanel /></ExportPanel>
+          <ExportPanel title="Installation Status Summary"><InstallationStatusPanel data={data} /></ExportPanel>
         </div>
       </section>
     </>
@@ -1208,20 +1222,8 @@ function InstallationDetails() {
 }
 
 function InstallationChecklistPanel() {
-  const rows = [
-    ["Equipment received and inspected", "Completed", true],
-    ["Panels accessible and safe to work", "Completed", true],
-    ["Mounting locations prepared", "Completed", true],
-    ["Equipment mounted / installed", "In Progress", true],
-    ["Wiring and connections completed", "In Progress", false],
-    ["CTs installed and labeled", "Not Started", false],
-    ["Capacitor banks installed", "Not Started", false],
-    ["Grounding verified", "Not Started", false],
-    ["All connections torqued", "Not Started", false],
-    ["Panel labels updated", "Not Started", false],
-    ["Installation area cleaned", "Not Started", false],
-  ] as const;
-  return <div className="flex h-[calc(100%-30px)] flex-col"><div className="grid grid-cols-[1fr_96px] bg-[#092033] px-2 py-1.5 text-[8px] text-slate-400"><span>Task</span><span>Status</span></div><div className="min-h-0 flex-1 overflow-hidden text-[8px]">{rows.map(([task, status, checked]) => <div className="grid grid-cols-[1fr_96px] items-center border-b border-white/5 px-2 py-[3px]" key={task}><span className="flex items-center gap-2"><span className={checked ? "text-[#05ff5e]" : "text-slate-500"}>{checked ? "◎" : "○"}</span>{task}</span><InstallationStatusPill status={status} /></div>)}</div><div className="mt-1.5 grid grid-cols-[1fr_128px_38px] items-center gap-2 text-[8px] text-slate-400"><span>2 of 11 tasks completed</span><MiniProgress value={18} color="green" /><span className="text-right">18%</span></div></div>;
+  const rows = [["Installation Checklist", "No Data", false], ["Workflow Model", "No Data", false]] as const;
+  return <div className="flex h-[calc(100%-30px)] flex-col"><div className="grid grid-cols-[1fr_96px] bg-[#092033] px-2 py-1.5 text-[8px] text-slate-400"><span>Task</span><span>Status</span></div><div className="min-h-0 flex-1 overflow-hidden text-[8px]">{rows.map(([task, status, checked]) => <div className="grid grid-cols-[1fr_96px] items-center border-b border-white/5 px-2 py-[3px]" key={task}><span className="flex items-center gap-2"><span className={checked ? "text-[#05ff5e]" : "text-slate-500"}>{checked ? "◎" : "○"}</span>{task}</span><InstallationStatusPill status={status} /></div>)}</div><div className="mt-1.5 grid grid-cols-[1fr_128px_38px] items-center gap-2 text-[8px] text-slate-400"><span>No approved checklist schema</span><MiniProgress value={0} color="green" /><span className="text-right">0%</span></div></div>;
 }
 
 function InstallationStatusPill({ status }: { status: string }) {
@@ -1229,9 +1231,9 @@ function InstallationStatusPill({ status }: { status: string }) {
   return <span className={`rounded border px-2 py-px text-[7.5px] ${tone}`}>{status}⌄</span>;
 }
 
-function InstallationEquipmentPanel() {
-  const rows = [["Main Transformer", "Transformer", "Main Electrical Room"], ["Panel B - Phase A", "Panel", "Main Electrical Room"], ["Panel B - Phase B", "Panel", "Main Electrical Room"], ["Panel B - Phase C", "Panel", "Main Electrical Room"], ["Panel B - Neutral", "Panel", "Main Electrical Room"], ["Cap Bank 1", "Capacitor Bank", "Panel B"], ["Cap Bank 2", "Capacitor Bank", "Panel B"], ["Meter M-01", "Meter", "Main Transformer"]];
-  return <div className="h-[calc(100%-30px)]"><table className="w-full text-left text-[8.6px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Equipment / Panel", "Type", "Location", "Status", "Actions"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([name, type, location]) => <tr className="border-b border-white/5" key={name}><td className="px-2 py-[7px] text-slate-200">{name}</td><td className="px-2">{type}</td><td className="px-2">{location}</td><td className="px-2 text-[#05ff5e]">Installed</td><td className="px-2 text-slate-400">⋮</td></tr>)}</tbody></table><div className="mt-3"><Button>＋ Add Equipment</Button></div></div>;
+function InstallationEquipmentPanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const rows = equipmentRowsFromData(data).slice(0, 8);
+  return <div className="h-[calc(100%-30px)]"><table className="w-full text-left text-[8.6px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Equipment / Panel", "Type", "Location", "Status", "Actions"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={`${row.id}-${row.name}`}><td className="px-2 py-[7px] text-slate-200">{row.name}</td><td className="px-2">{row.type}</td><td className="px-2">{row.location}</td><td className={row.status === "No Data" ? "px-2 text-slate-400" : "px-2 text-[#05ff5e]"}>{row.status}</td><td className="px-2 text-slate-400">⋮</td></tr>)}</tbody></table><div className="mt-3"><Button>＋ Add Equipment</Button></div></div>;
 }
 
 function InstallationWiringPanel() {
@@ -1239,8 +1241,8 @@ function InstallationWiringPanel() {
   return <table className="w-full text-left text-[8.4px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Item", "Verified", "Status"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([check, item, verified, status]) => <tr className="border-b border-white/5" key={item}><td className="px-2 py-[6px]"><span className="mr-2 text-slate-400">{check}</span>{item}</td><td className="px-2 text-slate-300">{verified}</td><td className="px-2"><span className={status === "Verified" ? "rounded bg-[#063b27] px-2 py-1 text-[8px] text-[#05ff5e]" : "rounded bg-[#3d3308] px-2 py-1 text-[8px] text-yellow-300"}>{status}</span></td></tr>)}</tbody></table>;
 }
 
-function InstallationInfoPanel() {
-  return <div className="space-y-2 text-[8.5px]"><div className="grid grid-cols-3 gap-2"><Field label="Installation Type" value="New Installation⌄" /><Field label="Installation Purpose" value="Energy Optimization⌄" /><Field label="Rack / Panel Location" value="Panel B⌄" /></div><div className="grid grid-cols-2 gap-2"><Field label="Electrical Room / Area" value="Main Electrical Room⌄" /><Field label="Ambient Temperature (°C)" value="24" /></div><div><div className="mb-1 text-[8px] text-slate-400">Work Performed</div><div className="h-[78px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[9px] leading-relaxed text-slate-300">Mounted equipment, connected Panel B phases A, B, C and Neutral. Verified incoming voltages and CT connections.</div><div className="mt-1 text-[8px] text-slate-500">105 / 1000 characters</div></div></div>;
+function InstallationInfoPanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  return <div className="space-y-2 text-[8.5px]"><div className="grid grid-cols-3 gap-2"><Field label="Installation Type" value="No Data" /><Field label="Installation Purpose" value="No Data" /><Field label="Rack / Panel Location" value="No Data" /></div><div className="grid grid-cols-2 gap-2"><Field label="Electrical Room / Area" value="No Data" /><Field label="Ambient Temperature (°C)" value="No Data" /></div><div><div className="mb-1 text-[8px] text-slate-400">Work Performed</div><div className="h-[78px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[9px] leading-relaxed text-slate-300">{data?.message || "No approved installation notes source exists."}</div><div className="mt-1 text-[8px] text-slate-500">0 / 1000 characters</div></div></div>;
 }
 
 function InstallationPhotosPanel() {
@@ -1252,8 +1254,9 @@ function InstallationNotesPanel() {
   return <div><div className="h-[54px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8.5px] text-slate-500">Enter any notes about the installation work...</div><div className="mt-1 text-[8px] text-slate-500">0 / 1000 characters</div></div>;
 }
 
-function InstallationStatusPanel() {
-  return <div className="space-y-4 text-[8.5px]"><p className="text-slate-400">Overall status of installation tasks and verification.</p><InstallationSummaryRow label="Checklist Progress" value="18%" progress={18} color="green" /><InstallationSummaryRow label="Equipment Installed" value="8 of 8" progress={100} color="green" /><InstallationSummaryRow label="Wiring Verified" value="3 of 7" progress={43} color="orange" /><div className="grid grid-cols-[1fr_auto]"><span>Photos Captured</span><span className="text-slate-200">8</span></div><div className="grid grid-cols-[1fr_auto]"><span>Open Issues</span><span className="text-red-400">1 <span className="ml-8 text-cyan-400">View Issues</span></span></div></div>;
+function InstallationStatusPanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const equipmentCount = data?.equipmentRows?.filter((row) => row.name !== "No Data").length ?? 0;
+  return <div className="space-y-4 text-[8.5px]"><p className="text-slate-400">Overall status of installation tasks and verification.</p><InstallationSummaryRow label="Checklist Progress" value="No Data" progress={0} color="green" /><InstallationSummaryRow label="Equipment Installed" value={equipmentCount > 0 ? String(equipmentCount) : "No Data"} progress={equipmentCount > 0 ? 100 : 0} color="green" /><InstallationSummaryRow label="Wiring Verified" value="No Data" progress={0} color="orange" /><div className="grid grid-cols-[1fr_auto]"><span>Photos Captured</span><span className="text-slate-200">No Data</span></div><div className="grid grid-cols-[1fr_auto]"><span>Open Issues</span><span className="text-red-400">No Data <span className="ml-8 text-cyan-400">View Issues</span></span></div></div>;
 }
 
 function InstallationSummaryRow({ color, label, progress, value }: { color: "green" | "orange"; label: string; progress: number; value: string }) {
@@ -1264,7 +1267,7 @@ function MiniProgress({ color, value }: { color: "green" | "orange"; value: numb
   return <div className="h-2 rounded bg-slate-800"><div className={color === "green" ? "h-2 rounded bg-[#05ff5e]" : "h-2 rounded bg-orange-400"} style={{ width: `${value}%` }} /></div>;
 }
 
-function PhotoDocumentSystem() {
+function PhotoDocumentSystem({ data }: { data?: DeploymentFieldWorkflowData }) {
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
@@ -1272,7 +1275,7 @@ function PhotoDocumentSystem() {
           <span className="grid size-6 place-items-center rounded border border-[#05ff5e]/50 text-[14px] text-[#05ff5e]">▣</span>
           <div><h1 className="text-[15px] font-semibold uppercase">Photo & Document System</h1><p className="mt-1 text-[9px] text-slate-400">Capture, organize, and manage all photos and documents for this deployment.</p></div>
         </div>
-        <div className="grid grid-cols-[130px_120px_110px_1fr_130px_120px] gap-5 text-[9px]"><Info label="Deployment ID" value="DEP-2025-0512-001" /><Info label="Site" value="Flex Tijuana" /><Info label="Customer" value="Flex" /><Info label="Address" value="Av. El Salto 1234, Tijuana, BC 22100, Mexico" /><Info label="Captured On" value="May 12, 2025" /><Info label="Captured By" value="John Doe" /></div>
+        <div className="grid grid-cols-[130px_120px_110px_1fr_130px_120px] gap-5 text-[9px]"><Info label="Deployment ID" value={data?.deploymentId ?? "No Data"} /><Info label="Site" value={data?.siteName ?? "No Data"} /><Info label="Customer" value={data?.clientName ?? "No Data"} /><Info label="Address" value={data?.siteRows?.find((row) => row.label === "Address")?.value ?? "No Data"} /><Info label="Captured On" value={data?.updatedAt ?? "No Data"} /><Info label="Captured By" value="No Data" /></div>
       </section>
       <section className="mt-2 grid h-[564px] min-h-0 grid-cols-[1.04fr_1fr] gap-2">
         <div className="grid min-h-0 grid-rows-[1fr_104px] gap-2 overflow-hidden">
@@ -1280,7 +1283,7 @@ function PhotoDocumentSystem() {
           <ExportPanel title="Notes"><PhotoNotesPanel /></ExportPanel>
         </div>
         <div className="grid min-h-0 grid-rows-[286px_1fr] gap-2 overflow-hidden">
-          <ExportPanel title="▧ Document Library" action={<Button>⇧ Upload Document</Button>}><PhotoDocumentLibrary /></ExportPanel>
+          <ExportPanel title="▧ Document Library" action={<Button>⇧ Upload Document</Button>}><PhotoDocumentLibrary data={data} /></ExportPanel>
           <div className="grid min-h-0 grid-cols-[1fr_1fr] gap-2 overflow-hidden">
             <ExportPanel title="Required Documents Checklist"><RequiredDocumentsChecklist /></ExportPanel>
             <ExportPanel title="Photo Requirements Checklist"><PhotoRequirementsChecklist /></ExportPanel>
@@ -1296,9 +1299,8 @@ function PhotoGalleryActions() {
 }
 
 function PhotoGalleryPanel() {
-  const photos = ["Main Electrical Room", "Panel B Overview", "ECBS Panel Mounted", "CT Installation", "Voltage Connections", "Capacitor Banks", "Grounding Termination", "Gateway Installation", "Meter Installation", "Phase A CT", "Phase B CT", "Phase C CT"];
-  const times = ["May 12, 2025 8:15 AM", "May 12, 2025 8:17 AM", "May 12, 2025 8:25 AM", "May 12, 2025 8:32 AM", "May 12, 2025 8:35 AM", "May 12, 2025 8:40 AM", "May 12, 2025 8:45 AM", "May 12, 2025 8:52 AM", "May 12, 2025 6:05 AM", "May 12, 2025 9:05 AM", "May 12, 2025 9:06 AM", "May 12, 2025 9:07 AM"];
-  return <div className="flex h-[calc(100%-22px)] flex-col"><div className="mb-3 flex gap-7 text-[8.5px]"><span className="border-b border-[#05ff5e] pb-1 text-[#05ff5e]">All (124)</span><span>Installation (54)</span><span>Equipment (32)</span><span>Readings (18)</span><span>Other (20)</span></div><div className="grid grid-cols-4 gap-x-3 gap-y-3">{photos.map((photo, index) => <PhotoDocumentThumb index={index} key={photo} label={photo} time={times[index]} />)}</div><div className="mt-auto flex items-center justify-between pt-2 text-[9px] text-slate-400"><span>Showing 1 to 12 of 124 photos</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> 2 3 4 5 ... 11 ›</span></div></div>;
+  const photos = ["No Data"];
+  return <div className="flex h-[calc(100%-22px)] flex-col"><div className="mb-3 flex gap-7 text-[8.5px]"><span className="border-b border-[#05ff5e] pb-1 text-[#05ff5e]">All (No Data)</span><span>Installation (No Data)</span><span>Equipment (No Data)</span><span>Readings (No Data)</span><span>Other (No Data)</span></div><div className="grid grid-cols-4 gap-x-3 gap-y-3">{photos.map((photo, index) => <PhotoDocumentThumb index={index} key={photo} label={photo} time="No Data" />)}</div><div className="mt-auto flex items-center justify-between pt-2 text-[9px] text-slate-400"><span>Showing No Data photos</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> ›</span></div></div>;
 }
 
 function PhotoDocumentThumb({ index, label, time }: { index: number; label: string; time: string }) {
@@ -1307,19 +1309,20 @@ function PhotoDocumentThumb({ index, label, time }: { index: number; label: stri
   return <div><div className={warm ? "relative h-[88px] overflow-hidden rounded bg-[radial-gradient(circle_at_65%_45%,#f59e0b_0_14%,transparent_15%),linear-gradient(135deg,#374151,#111827_50%,#7c2d12)]" : meter ? "relative h-[88px] overflow-hidden rounded bg-[radial-gradient(circle_at_center,#d1d5db_0_16%,#111827_17%_28%,transparent_29%),linear-gradient(135deg,#57534e,#0f172a)]" : "relative h-[88px] overflow-hidden rounded bg-[linear-gradient(135deg,#9ca3af,#1f2937_48%,#334155)]"}><div className="absolute inset-2 rounded border border-black/25 bg-[repeating-linear-gradient(90deg,rgba(255,255,255,.18)_0_2px,transparent_2px_15px)] opacity-70" /><span className="absolute right-1 top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#02100a]">✓</span></div><div className="mt-1 text-[8px] font-semibold text-slate-200">{label}</div><div className="text-[7.5px] text-slate-500">{time}</div></div>;
 }
 
-function PhotoDocumentLibrary() {
-  const rows = [["Single Line Diagram", "Drawings", "PDF", "Uploaded", "May 12, 2025 9:10 AM", "⇩"], ["Panel Schedule", "Engineering", "PDF", "Uploaded", "May 12, 2025 9:12 AM", "⇩"], ["Site Safety Plan", "Safety", "PDF", "Uploaded", "May 12, 2025 9:15 AM", "⇩"], ["Installation Permit", "Permit", "PDF", "Pending", "-", "..."], ["Test Results Summary", "Testing", "PDF", "Uploaded", "May 12, 2025 10:00 AM", "⇩"], ["Warranty Registration", "Customer", "PDF", "Optional", "-", "..."]];
-  return <div className="flex h-[calc(100%-22px)] flex-col"><div className="mb-2 flex gap-7 text-[8.5px]"><span className="border-b border-[#05ff5e] pb-1 text-[#05ff5e]">All Documents (6)</span><span>Required (5)</span><span>Optional (1)</span></div><table className="w-full text-left text-[8.4px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Document Name", "Category", "Type", "Status", "Uploaded On", "Action"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([name, category, type, status, uploaded, action]) => <tr className="border-b border-white/5" key={name}><td className="px-2 py-[6px] text-slate-200">{name}</td><td className="px-2">{category}</td><td className="px-2">{type}</td><td className={status === "Pending" ? "px-2 text-yellow-300" : status === "Optional" ? "px-2 text-cyan-300" : "px-2 text-[#05ff5e]"}>{status}</td><td className="px-2">{uploaded}</td><td className="px-2 text-cyan-400">{action}</td></tr>)}</tbody></table><div className="mt-auto rounded border border-dashed border-cyan-300/20 bg-[#03111c] py-4 text-center text-[8.5px] text-slate-400">▧ &nbsp; Drag and drop files here or <button className="ml-2 rounded border border-cyan-300/12 bg-[#061421] px-4 py-1 text-slate-200">Select Files</button><br /><span className="text-[7.5px]">Max file size: 50MB per file</span></div></div>;
+function PhotoDocumentLibrary({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const rows = data?.documentRows?.length ? data.documentRows : [emptyDocumentRow(data?.message)];
+  const count = rows.filter((row) => row.name !== "No Data").length;
+  return <div className="flex h-[calc(100%-22px)] flex-col"><div className="mb-2 flex gap-7 text-[8.5px]"><span className="border-b border-[#05ff5e] pb-1 text-[#05ff5e]">All Documents ({count > 0 ? count : "No Data"})</span><span>Required (No Data)</span><span>Optional (No Data)</span></div><table className="w-full text-left text-[8.4px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Document Name", "Category", "Type", "Status", "Uploaded On", "Action"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={`${row.id}-${row.name}`}><td className="px-2 py-[6px] text-slate-200">{row.name}</td><td className="px-2">{row.folder}</td><td className="px-2">{row.type}</td><td className={row.status === "No Data" ? "px-2 text-slate-400" : "px-2 text-[#05ff5e]"}>{row.status}</td><td className="px-2">{row.uploadedAt}</td><td className="px-2 text-cyan-400">No Data</td></tr>)}</tbody></table><div className="mt-auto rounded border border-dashed border-cyan-300/20 bg-[#03111c] py-4 text-center text-[8.5px] text-slate-400">▧ &nbsp; Drag and drop files here or <button className="ml-2 rounded border border-cyan-300/12 bg-[#061421] px-4 py-1 text-slate-200">Select Files</button><br /><span className="text-[7.5px]">No upload command implemented</span></div></div>;
 }
 
 function RequiredDocumentsChecklist() {
-  const rows = [["Single Line Diagram", "Uploaded", "green"], ["Panel Schedule", "Uploaded", "green"], ["Site Safety Plan", "Uploaded", "green"], ["Installation Permit", "Pending", "yellow"], ["Test Results Summary", "Uploaded", "green"]] as const;
+  const rows = [["Required Document Model", "No Data", "yellow"], ["Checklist Source", "No Data", "yellow"]] as const;
   return <ChecklistMini rows={rows} />;
 }
 
 function PhotoRequirementsChecklist() {
-  const rows = [["Main Electrical Room", "Captured", "green"], ["Panel Nameplate", "Captured", "green"], ["CT Installation (All Phases)", "Captured", "green"], ["Voltage Connections", "Captured", "green"], ["ECBS Device Installation", "Captured", "green"]] as const;
-  return <div className="h-[calc(100%-22px)]"><ChecklistMini rows={rows} /><div className="mt-4 border-t border-white/5 pt-3 text-[9px] text-[#05ff5e]">◎ All required photos captured.</div></div>;
+  const rows = [["Photo Metadata Model", "No Data", "yellow"], ["Photo Requirements", "No Data", "yellow"]] as const;
+  return <div className="h-[calc(100%-22px)]"><ChecklistMini rows={rows} /><div className="mt-4 border-t border-white/5 pt-3 text-[9px] text-slate-400">No approved photo metadata source exists.</div></div>;
 }
 
 function ChecklistMini({ rows }: { rows: readonly (readonly [string, string, string])[] }) {
@@ -1330,13 +1333,13 @@ function PhotoNotesPanel() {
   return <div className="text-[9px]"><p className="mb-2 text-slate-400">Add any notes related to photos or documents for this deployment.</p><div className="grid grid-cols-[1fr_68px] gap-2"><div className="rounded border border-cyan-300/12 bg-[#03111c] px-2 py-2 text-slate-500">Enter notes (optional)...</div><button className="rounded bg-[#092033] px-3 py-2 text-[8px] text-slate-300">Save Note</button></div></div>;
 }
 
-function ReadingsScreen({ kind }: { kind: "pre" | "post" }) {
+function ReadingsScreen({ data, kind }: { data?: DeploymentFieldWorkflowData; kind: "pre" | "post" }) {
   const isPost = kind === "post";
-  if (isPost) return <PostInstallationReadings />;
-  return <PreInstallationReadings />;
+  if (isPost) return <PostInstallationReadings data={data} />;
+  return <PreInstallationReadings data={data} />;
 }
 
-function PreInstallationReadings() {
+function PreInstallationReadings({ data }: { data?: DeploymentFieldWorkflowData }) {
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
@@ -1345,13 +1348,13 @@ function PreInstallationReadings() {
       <section className="mt-2 grid h-[650px] min-h-0 grid-cols-[1.68fr_0.58fr] gap-2">
         <div className="grid min-h-0 grid-rows-[164px_1fr] gap-2 overflow-hidden">
           <div className="grid min-h-0 grid-cols-[0.92fr_1fr] gap-2 overflow-hidden">
-            <ExportPanel title="Meter / Snapshot Selection"><PreMeterSelection /></ExportPanel>
-            <ExportPanel title="Reading Capture Status"><PreReadingCaptureStatus /></ExportPanel>
+            <ExportPanel title="Meter / Snapshot Selection"><PreMeterSelection data={data} /></ExportPanel>
+            <ExportPanel title="Reading Capture Status"><PreReadingCaptureStatus data={data} /></ExportPanel>
           </div>
-          <ExportPanel title="Pre-Installation Readings"><PreReadingsTable /></ExportPanel>
+          <ExportPanel title="Pre-Installation Readings"><PreReadingsTable data={data} /></ExportPanel>
         </div>
         <div className="grid min-h-0 grid-rows-[212px_150px_1fr] gap-2 overflow-hidden">
-          <ExportPanel title="Baseline Summary"><BaselineSummaryPanel /></ExportPanel>
+          <ExportPanel title="Baseline Summary"><BaselineSummaryPanel data={data} /></ExportPanel>
           <ExportPanel title="Quality Check"><PostQualityCheck /></ExportPanel>
           <ExportPanel title="Notes"><PreNotes /></ExportPanel>
         </div>
@@ -1360,29 +1363,31 @@ function PreInstallationReadings() {
   );
 }
 
-function PreMeterSelection() {
-  return <div className="grid grid-cols-[1fr_1fr_94px] gap-2 text-[9px]"><div className="space-y-2"><Field label="Source Type" value="Meter⌄" /><Field label="Snapshot Time *" value="May 12, 2025   ▣" /><Button>⌁ Live Data</Button></div><div className="space-y-2"><Field label="Meter / Device" value="Main Meter - Utility⌄" /><Field label="" value="8:52 AM      ◷" /></div><div className="mt-[44px] rounded border border-[#05ff5e]/30 bg-[#063b27]/35 p-2 text-center text-[7.5px]"><div className="font-semibold text-[#05ff5e]">Connected</div><div className="text-slate-400">Last Data: 10:15:23 AM</div></div></div>;
+function PreMeterSelection({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const equipment = equipmentRowsFromData(data)[0] ?? emptyEquipmentRow();
+  return <div className="grid grid-cols-[1fr_1fr_94px] gap-2 text-[9px]"><div className="space-y-2"><Field label="Source Type" value="Meter" /><Field label="Snapshot Time *" value={data?.updatedAt ?? "No Data"} /><Button>⌁ Live Data</Button></div><div className="space-y-2"><Field label="Meter / Device" value={equipment.name} /><Field label="" value={equipment.lastCommunicatedAt} /></div><div className="mt-[44px] rounded border border-slate-600 bg-[#03111c] p-2 text-center text-[7.5px]"><div className="font-semibold text-slate-300">{data?.state === "data" ? "Data" : "No Data"}</div><div className="text-slate-400">Last Data: {equipment.lastCommunicatedAt}</div></div></div>;
 }
 
-function PreReadingCaptureStatus() {
-  const cards = [["Total Readings Required", "24", "", "white"], ["Captured", "24", "100%", "green"], ["Pending", "0", "0%", "yellow"], ["Not Applicable", "0", "0%", "blue"]];
-  return <div className="h-[calc(100%-22px)]"><div className="grid grid-cols-4 gap-2">{cards.map(([label, value, sub, tone]) => <div className="rounded border border-cyan-300/12 bg-[#03111c] p-2" key={label}><div className="text-[8px] text-slate-400">{label}</div><div className={tone === "green" ? "text-[23px] leading-tight text-[#05ff5e]" : tone === "yellow" ? "text-[23px] leading-tight text-yellow-300" : tone === "blue" ? "text-[23px] leading-tight text-cyan-400" : "text-[23px] leading-tight text-slate-100"}>{value}</div><div className={tone === "green" ? "text-[8px] text-[#05ff5e]" : tone === "yellow" ? "text-[8px] text-yellow-300" : tone === "blue" ? "text-[8px] text-cyan-400" : "text-[8px] text-slate-500"}>{sub}</div></div>)}</div><div className="mt-3 h-2 rounded bg-slate-800"><div className="h-2 w-full rounded bg-[#22c55e]" /></div><p className="mt-3 text-[8.5px] text-slate-400">All required baseline readings captured successfully.</p></div>;
+function PreReadingCaptureStatus({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const count = data?.preReadingRows?.filter((row) => row.label !== "No Data").length ?? 0;
+  const cards = [["Reading Rows", count > 0 ? String(count) : "No Data", "", "white"], ["Captured", count > 0 ? String(count) : "No Data", count > 0 ? "Data" : "No Data", "green"], ["Pending", "No Data", "No Data", "yellow"], ["Not Applicable", "No Data", "No Data", "blue"]];
+  return <div className="h-[calc(100%-22px)]"><div className="grid grid-cols-4 gap-2">{cards.map(([label, value, sub, tone]) => <div className="rounded border border-cyan-300/12 bg-[#03111c] p-2" key={label}><div className="text-[8px] text-slate-400">{label}</div><div className={tone === "green" ? "text-[23px] leading-tight text-[#05ff5e]" : tone === "yellow" ? "text-[23px] leading-tight text-yellow-300" : tone === "blue" ? "text-[23px] leading-tight text-cyan-400" : "text-[23px] leading-tight text-slate-100"}>{value}</div><div className={tone === "green" ? "text-[8px] text-[#05ff5e]" : tone === "yellow" ? "text-[8px] text-yellow-300" : tone === "blue" ? "text-[8px] text-cyan-400" : "text-[8px] text-slate-500"}>{sub}</div></div>)}</div><div className="mt-3 h-2 rounded bg-slate-800"><div className="h-2 rounded bg-[#22c55e]" style={{ width: count > 0 ? "100%" : "0%" }} /></div><p className="mt-3 text-[8.5px] text-slate-400">{data?.message || "Readings are sourced from ecbs_os.telemetry_intervals when scoped rows exist."}</p></div>;
 }
 
-function BaselineSummaryPanel() {
-  return <div className="h-[calc(100%-22px)] text-[9px]"><MetricList rows={[["Total kW", "279.7 kW"], ["Total kVA", "351.0 kVA"], ["Total kVAR", "212.0 kVAR"], ["Power Factor (Avg)", "0.80 Lagging"], ["Frequency (Avg)", "60.01 Hz"], ["Voltage (L-L Avg)", "480.2 V"], ["Voltage (L-N Avg)", "277.1 V"], ["THD V (Avg)", "3.2 %"], ["THD I (Avg)", "8.4 %"]]} /></div>;
+function BaselineSummaryPanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  return <div className="h-[calc(100%-22px)] text-[9px]"><MetricList rows={readingRowsFromData(data, "pre").map((row) => [row.label, `${row.preValue} ${row.unit}`])} /></div>;
 }
 
-function PreReadingsTable() {
-  const rows = readingRows(false).slice(0, 10);
-  return <div className="flex h-[calc(100%-22px)] flex-col"><table className="w-full text-left text-[8.8px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Parameter", "L1", "L2", "L3", "Average", "Unit", "Status", "Captured Time", "Actions"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={String(row[0])}><td className="px-2 py-[7px] text-slate-200">{row[0]}</td>{row.slice(1, 6).map((cell, index) => <td className="px-2" key={index}>{cell}</td>)}<td className="px-2 text-[#05ff5e]">Captured</td><td className="px-2">May 12, 8:52 AM</td><td className="px-2 text-cyan-300">▣ &nbsp;▥</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-3 text-[9px] text-slate-400"><span>Showing 1 to 10 of 24 readings</span><span className="flex items-center gap-6">‹ <b className="rounded border border-[#05ff5e] px-3 py-1 text-[#05ff5e]">1</b> 2 3 ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-3 py-1 text-slate-200">10⌄</b></span></div></div>;
+function PreReadingsTable({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const rows = readingRowsFromData(data, "pre").slice(0, 10);
+  return <div className="flex h-[calc(100%-22px)] flex-col"><table className="w-full text-left text-[8.8px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Parameter", "L1", "L2", "L3", "Average", "Unit", "Status", "Captured Time", "Actions"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row.label}><td className="px-2 py-[7px] text-slate-200">{row.label}</td><td className="px-2">No Data</td><td className="px-2">No Data</td><td className="px-2">No Data</td><td className="px-2">{row.preValue}</td><td className="px-2">{row.unit}</td><td className={row.source === "No Data" ? "px-2 text-slate-400" : "px-2 text-[#05ff5e]"}>{row.source === "No Data" ? "No Data" : "Captured"}</td><td className="px-2">{data?.updatedAt ?? "No Data"}</td><td className="px-2 text-cyan-300">▣ &nbsp;▥</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-3 text-[9px] text-slate-400"><span>Showing {rows.length} reading rows</span><span className="flex items-center gap-6">‹ <b className="rounded border border-[#05ff5e] px-3 py-1 text-[#05ff5e]">1</b> ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-3 py-1 text-slate-200">10⌄</b></span></div></div>;
 }
 
 function PreNotes() {
   return <div><div className="h-[124px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[9px] text-slate-500">Enter any notes about baseline readings...</div><div className="mt-2 text-[8px] text-slate-500">0 / 1000 characters</div></div>;
 }
 
-function PostInstallationReadings() {
+function PostInstallationReadings({ data }: { data?: DeploymentFieldWorkflowData }) {
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
@@ -1391,13 +1396,13 @@ function PostInstallationReadings() {
       <section className="mt-2 grid h-[438px] min-h-0 grid-cols-[1.66fr_0.62fr] gap-2">
         <div className="grid min-h-0 grid-rows-[126px_1fr] gap-2 overflow-hidden">
           <div className="grid min-h-0 grid-cols-[0.9fr_1fr] gap-2 overflow-hidden">
-            <ExportPanel title="Meter / Snapshot Selection"><PostMeterSelection /></ExportPanel>
-            <ExportPanel title="Reading Capture Status"><PostReadingCaptureStatus /></ExportPanel>
+            <ExportPanel title="Meter / Snapshot Selection"><PostMeterSelection data={data} /></ExportPanel>
+            <ExportPanel title="Reading Capture Status"><PostReadingCaptureStatus data={data} /></ExportPanel>
           </div>
-          <ExportPanel title="Post-Installation Readings"><PostReadingsTable /></ExportPanel>
+          <ExportPanel title="Post-Installation Readings"><PostReadingsTable data={data} /></ExportPanel>
         </div>
         <div className="grid min-h-0 grid-rows-[220px_112px_1fr] gap-2 overflow-hidden">
-          <ExportPanel title="Before vs After Summary" action={<span className="text-cyan-400">View Details</span>}><BeforeAfterSummary /></ExportPanel>
+          <ExportPanel title="Before vs After Summary" action={<span className="text-cyan-400">View Details</span>}><BeforeAfterSummary data={data} /></ExportPanel>
           <ExportPanel title="Quality Check"><PostQualityCheck /></ExportPanel>
           <ExportPanel title="Notes"><PostNotes /></ExportPanel>
         </div>
@@ -1406,48 +1411,51 @@ function PostInstallationReadings() {
   );
 }
 
-function PostMeterSelection() {
-  return <div className="grid grid-cols-[1fr_1fr_92px] gap-2 text-[9px]"><div className="space-y-2"><Field label="Source Type" value="Meter⌄" /><Field label="Snapshot Time *" value="May 12, 2025   ▣" /></div><div className="space-y-2"><Field label="Meter / Device" value="Main Meter - Utility⌄" /><Field label="" value="10:05 AM      ◷" /></div><div className="mt-[34px] rounded border border-[#05ff5e]/30 bg-[#063b27]/35 p-1.5 text-center text-[7.5px]"><div className="font-semibold text-[#05ff5e]">Connected</div><div className="mt-0.5 text-slate-400">⌁ Live Data</div><div className="text-slate-400">Last Data:<br />10:15:23 AM</div></div></div>;
+function PostMeterSelection({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const equipment = equipmentRowsFromData(data)[0] ?? emptyEquipmentRow();
+  return <div className="grid grid-cols-[1fr_1fr_92px] gap-2 text-[9px]"><div className="space-y-2"><Field label="Source Type" value="Meter" /><Field label="Snapshot Time *" value={data?.updatedAt ?? "No Data"} /></div><div className="space-y-2"><Field label="Meter / Device" value={equipment.name} /><Field label="" value={equipment.lastCommunicatedAt} /></div><div className="mt-[34px] rounded border border-slate-600 bg-[#03111c] p-1.5 text-center text-[7.5px]"><div className="font-semibold text-slate-300">{data?.state === "data" ? "Data" : "No Data"}</div><div className="mt-0.5 text-slate-400">⌁ Live Data</div><div className="text-slate-400">Last Data:<br />{equipment.lastCommunicatedAt}</div></div></div>;
 }
 
-function PostReadingCaptureStatus() {
-  const cards = [["Total Readings Required", "24", "", "white"], ["Captured", "24", "100%", "green"], ["Pending", "0", "0%", "yellow"], ["Not Applicable", "0", "0%", "blue"]];
-  return <div className="h-[calc(100%-22px)]"><div className="grid grid-cols-4 gap-2">{cards.map(([label, value, sub, tone]) => <div className="rounded border border-cyan-300/12 bg-[#03111c] p-2" key={label}><div className="text-[8px] text-slate-400">{label}</div><div className={tone === "green" ? "text-[21px] leading-tight text-[#05ff5e]" : tone === "yellow" ? "text-[21px] leading-tight text-yellow-300" : tone === "blue" ? "text-[21px] leading-tight text-cyan-400" : "text-[21px] leading-tight text-slate-100"}>{value}</div><div className={tone === "green" ? "text-[8px] text-[#05ff5e]" : tone === "yellow" ? "text-[8px] text-yellow-300" : tone === "blue" ? "text-[8px] text-cyan-400" : "text-[8px] text-slate-500"}>{sub}</div></div>)}</div><div className="mt-2 h-2 rounded bg-slate-800"><div className="h-2 w-full rounded bg-[#22c55e]" /></div><p className="mt-2 text-[8.5px] text-slate-400">All post-installation readings captured successfully.</p></div>;
+function PostReadingCaptureStatus({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const count = data?.postReadingRows?.filter((row) => row.label !== "No Data").length ?? 0;
+  const cards = [["Reading Rows", count > 0 ? String(count) : "No Data", "", "white"], ["Captured", count > 0 ? String(count) : "No Data", count > 0 ? "Data" : "No Data", "green"], ["Pending", "No Data", "No Data", "yellow"], ["Not Applicable", "No Data", "No Data", "blue"]];
+  return <div className="h-[calc(100%-22px)]"><div className="grid grid-cols-4 gap-2">{cards.map(([label, value, sub, tone]) => <div className="rounded border border-cyan-300/12 bg-[#03111c] p-2" key={label}><div className="text-[8px] text-slate-400">{label}</div><div className={tone === "green" ? "text-[21px] leading-tight text-[#05ff5e]" : tone === "yellow" ? "text-[21px] leading-tight text-yellow-300" : tone === "blue" ? "text-[21px] leading-tight text-cyan-400" : "text-[21px] leading-tight text-slate-100"}>{value}</div><div className={tone === "green" ? "text-[8px] text-[#05ff5e]" : tone === "yellow" ? "text-[8px] text-yellow-300" : tone === "blue" ? "text-[8px] text-cyan-400" : "text-[8px] text-slate-500"}>{sub}</div></div>)}</div><div className="mt-2 h-2 rounded bg-slate-800"><div className="h-2 rounded bg-[#22c55e]" style={{ width: count > 0 ? "100%" : "0%" }} /></div><p className="mt-2 text-[8.5px] text-slate-400">{data?.message || "Readings are sourced from ecbs_os.telemetry_intervals when scoped rows exist."}</p></div>;
 }
 
-function BeforeAfterSummary() {
-  return <div className="h-[calc(100%-22px)] text-[8.5px]"><div className="mb-2 grid grid-cols-[84px_1fr]"><span className="text-slate-400">Key Improvement</span><span className="rounded border border-cyan-300/12 bg-[#03111c] px-2 py-1 text-slate-200">Energy Savings (kW)⌄</span></div><MetricList rows={[["Total kW (Baseline)", "384.2 kW"], ["Total kW (After)", "279.7 kW"], ["Change", "-104.5 kW"], ["Improvement", "↓ 27.2%"]]} /><div className="mt-2 grid h-[70px] grid-cols-4 items-end gap-4 px-4 text-center text-[7px] text-slate-400"><BarPair label="A" before={86} after={62} /><BarPair label="B" before={80} after={56} /><BarPair label="C" before={78} after={52} /><BarPair label="Total" before={72} after={46} /></div></div>;
+function BeforeAfterSummary({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const rows: [string, string][] = readingRowsFromData(data, "post").slice(0, 4).map((row) => [row.label, row.delta === "No Data" ? "No Data" : `${row.delta} ${row.unit}`]);
+  return <div className="h-[calc(100%-22px)] text-[8.5px]"><div className="mb-2 grid grid-cols-[84px_1fr]"><span className="text-slate-400">Key Improvement</span><span className="rounded border border-cyan-300/12 bg-[#03111c] px-2 py-1 text-slate-200">Telemetry Delta⌄</span></div><MetricList rows={rows} /><div className="mt-2 grid h-[70px] grid-cols-4 items-end gap-4 px-4 text-center text-[7px] text-slate-400"><BarPair label="A" before={0} after={0} /><BarPair label="B" before={0} after={0} /><BarPair label="C" before={0} after={0} /><BarPair label="Total" before={0} after={0} /></div></div>;
 }
 
 function BarPair({ after, before, label }: { after: number; before: number; label: string }) {
   return <div><div className="mx-auto flex h-[54px] items-end justify-center gap-1"><span className="w-3 bg-slate-500" style={{ height: `${before}%` }} /><span className="w-3 bg-[#22c55e]" style={{ height: `${after}%` }} /></div><div>{label}</div></div>;
 }
 
-function PostReadingsTable() {
-  const rows = readingRows(true).slice(0, 10);
-  return <div className="flex h-[calc(100%-22px)] flex-col"><table className="w-full text-left text-[7.8px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Parameter", "L1", "L2", "L3", "Average", "Unit", "Status", "Change vs Baseline", "Captured Time", "Actions"].map((h) => <th className="px-2 py-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={String(row[0])}><td className="px-2 py-[4px] text-slate-200">{row[0]}</td>{row.slice(1, 6).map((cell, index) => <td className="px-2" key={index}>{cell}</td>)}<td className="px-2 text-[#05ff5e]">Captured</td><td className="px-2 text-[#05ff5e]">↓ {row[7]}</td><td className="px-2">May 12, 10:05 AM</td><td className="px-2 text-cyan-300">▣ &nbsp;▥</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-1 text-[8.5px] text-slate-400"><span>Showing 1 to 10 of 24 readings</span><span className="flex items-center gap-6">‹ <b className="rounded border border-[#05ff5e] px-3 py-1 text-[#05ff5e]">1</b> 2 3 ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-3 py-1 text-slate-200">10⌄</b></span></div></div>;
+function PostReadingsTable({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const rows = readingRowsFromData(data, "post").slice(0, 10);
+  return <div className="flex h-[calc(100%-22px)] flex-col"><table className="w-full text-left text-[7.8px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Parameter", "L1", "L2", "L3", "Average", "Unit", "Status", "Change vs Baseline", "Captured Time", "Actions"].map((h) => <th className="px-2 py-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row.label}><td className="px-2 py-[4px] text-slate-200">{row.label}</td><td className="px-2">No Data</td><td className="px-2">No Data</td><td className="px-2">No Data</td><td className="px-2">{row.postValue}</td><td className="px-2">{row.unit}</td><td className={row.source === "No Data" ? "px-2 text-slate-400" : "px-2 text-[#05ff5e]"}>{row.source === "No Data" ? "No Data" : "Captured"}</td><td className="px-2 text-slate-300">{row.delta}</td><td className="px-2">{data?.updatedAt ?? "No Data"}</td><td className="px-2 text-cyan-300">▣ &nbsp;▥</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-1 text-[8.5px] text-slate-400"><span>Showing {rows.length} reading rows</span><span className="flex items-center gap-6">‹ <b className="rounded border border-[#05ff5e] px-3 py-1 text-[#05ff5e]">1</b> ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-3 py-1 text-slate-200">10⌄</b></span></div></div>;
 }
 
 function PostQualityCheck() {
-  return <div className="space-y-2 text-[9px]">{["All phases captured", "No missing required readings", "Values within expected range", "Data quality: Good"].map((item) => <div className="flex items-center gap-2" key={item}><span className="text-[#05ff5e]">◎</span>{item}</div>)}</div>;
+  return <div className="space-y-2 text-[9px]">{["Phase-specific readings: No Data", "Missing-reading checks: No Data", "Expected range model: No Data", "Data quality score: No Data"].map((item) => <div className="flex items-center gap-2" key={item}><span className="text-slate-500">◎</span>{item}</div>)}</div>;
 }
 
 function PostNotes() {
   return <div><div className="h-[118px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[9px] text-slate-500">Enter any notes about post-installation readings...</div><div className="mt-2 text-[8px] text-slate-500">0 / 1000 characters</div></div>;
 }
 
-function SiteInstallationDetails() {
+function SiteInstallationDetails({ data }: { data?: DeploymentFieldWorkflowData }) {
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><h1 className="text-[15px] font-semibold uppercase"><span className="mr-2 text-[#05ff5e]">▣</span>Site & Installation Details</h1><p className="mt-1 text-[9px] text-slate-400">Enter and verify site information and installation configuration.</p></section>
       <section className="mt-2 grid h-[650px] min-h-0 grid-cols-[0.98fr_1fr_1fr] gap-2">
         <div className="grid min-h-0 grid-rows-[400px_1fr] gap-2 overflow-hidden">
-          <ExportPanel title="1. Site Information"><SiteInformationPanel /></ExportPanel>
-          <ExportPanel title="2. Installation Information"><SiteInstallInfoPanel /></ExportPanel>
+          <ExportPanel title="1. Site Information"><SiteInformationPanel data={data} /></ExportPanel>
+          <ExportPanel title="2. Installation Information"><SiteInstallInfoPanel data={data} /></ExportPanel>
         </div>
         <div className="grid min-h-0 grid-rows-[352px_1fr] gap-2 overflow-hidden">
-          <ExportPanel title="3. Installation Location"><SiteLocationPanel /></ExportPanel>
-          <ExportPanel title="4. System Configuration Summary"><SiteConfigurationSummary /></ExportPanel>
+          <ExportPanel title="3. Installation Location"><SiteLocationPanel data={data} /></ExportPanel>
+          <ExportPanel title="4. System Configuration Summary"><SiteConfigurationSummary data={data} /></ExportPanel>
         </div>
         <div className="grid min-h-0 grid-rows-[196px_196px_1fr] gap-2 overflow-hidden">
           <ExportPanel title="5. Site Photo" titleSuffix="(Optional)"><SiteDropZone icon="▣" label="Drag & drop image here or click to upload" sub="JPG, PNG up to 10MB" /></ExportPanel>
@@ -1459,20 +1467,22 @@ function SiteInstallationDetails() {
   );
 }
 
-function SiteInformationPanel() {
-  return <div className="space-y-2 text-[9px]"><Field label="Site *" value="Flex Tijuana⌄" /><Field label="Customer" value="Flex" /><Field label="Address *" value="Av. El Salto 1234, Tijuana, BC 22100, Mexico" /><div className="grid grid-cols-3 gap-2"><Field label="City *" value="Tijuana" /><Field label="State / Province *" value="Baja California⌄" /><Field label="Postal Code *" value="22100" /></div><div className="grid grid-cols-[0.9fr_1.1fr] gap-2"><Field label="Country *" value="Mexico⌄" /><Field label="Time Zone *" value="(UTC-08:00) Pacific Time (US & Canada)⌄" /></div><div className="grid grid-cols-2 gap-2"><Field label="Site Contact" value="Pedro Ramirez" /><Field label="Contact Phone" value="+52 664 555 0187" /></div><Field label="Contact Email" value="pedro.ramirez@flex.com" /></div>;
+function SiteInformationPanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const siteValue = (label: string) => data?.siteRows?.find((row) => row.label === label)?.value ?? "No Data";
+  return <div className="space-y-2 text-[9px]"><Field label="Site *" value={data?.siteName ?? siteValue("Site Name")} /><Field label="Customer" value={data?.clientName ?? "No Data"} /><Field label="Address *" value={siteValue("Address")} /><div className="grid grid-cols-3 gap-2"><Field label="City *" value="No Data" /><Field label="State / Province *" value="No Data" /><Field label="Postal Code *" value="No Data" /></div><div className="grid grid-cols-[0.9fr_1.1fr] gap-2"><Field label="Country *" value="No Data" /><Field label="Time Zone *" value={siteValue("Time Zone")} /></div><div className="grid grid-cols-2 gap-2"><Field label="Site Contact" value="No Data" /><Field label="Contact Phone" value="No Data" /></div><Field label="Contact Email" value="No Data" /></div>;
 }
 
-function SiteInstallInfoPanel() {
-  return <div className="space-y-2 text-[9px]"><div className="grid grid-cols-2 gap-2"><Field label="Installation Type *" value="New Installation⌄" /><Field label="Installation Purpose" value="Energy Optimization" /></div><div className="grid grid-cols-2 gap-2"><Field label="Project Reference / PO #" value="PO-784512" /><Field label="Target Completion Date" value="▣  May 30, 2025" /></div><div className="grid grid-cols-2 gap-2"><Field label="Weather Conditions" value="Clear⌄" /><Field label="Ambient Temperature (°C)" value="24" /></div></div>;
+function SiteInstallInfoPanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  return <div className="space-y-2 text-[9px]"><div className="grid grid-cols-2 gap-2"><Field label="Installation Type *" value="No Data" /><Field label="Installation Purpose" value="No Data" /></div><div className="grid grid-cols-2 gap-2"><Field label="Project Reference / PO #" value={data?.projectName ?? "No Data"} /><Field label="Target Completion Date" value={data?.updatedAt ?? "No Data"} /></div><div className="grid grid-cols-2 gap-2"><Field label="Weather Conditions" value="No Data" /><Field label="Ambient Temperature (°C)" value="No Data" /></div></div>;
 }
 
-function SiteLocationPanel() {
-  return <div className="space-y-2 text-[9px]"><Field label="Facility / Building" value="Main Manufacturing Building" /><Field label="Area / Room" value="Main Electrical Room" /><div className="grid grid-cols-2 gap-2"><Field label="Electrical Room ID" value="ER-01" /><Field label="Floor / Level" value="1" /></div><div className="mb-1 text-[8px] text-slate-400">GPS Coordinates (optional)</div><div className="grid grid-cols-[1fr_1fr_30px] gap-2"><Field label="Latitude" value="32.5149" /><Field label="Longitude" value="-117.0382" /><button className="mt-[14px] rounded border border-cyan-300/12 bg-[#03111c] text-cyan-300">⌾</button></div><div><div className="mb-1 text-[8px] text-slate-400">Access Notes</div><div className="h-[58px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[9px] leading-relaxed text-slate-300">Access provided by facility maintenance.<br />Installed in Panel B next to main breaker.</div></div></div>;
+function SiteLocationPanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  return <div className="space-y-2 text-[9px]"><Field label="Facility / Building" value={data?.siteName ?? "No Data"} /><Field label="Area / Room" value="No Data" /><div className="grid grid-cols-2 gap-2"><Field label="Electrical Room ID" value="No Data" /><Field label="Floor / Level" value="No Data" /></div><div className="mb-1 text-[8px] text-slate-400">GPS Coordinates (optional)</div><div className="grid grid-cols-[1fr_1fr_30px] gap-2"><Field label="Latitude" value="No Data" /><Field label="Longitude" value="No Data" /><button className="mt-[14px] rounded border border-cyan-300/12 bg-[#03111c] text-cyan-300">⌾</button></div><div><div className="mb-1 text-[8px] text-slate-400">Access Notes</div><div className="h-[58px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[9px] leading-relaxed text-slate-300">{data?.message || "No approved access notes source exists."}</div></div></div>;
 }
 
-function SiteConfigurationSummary() {
-  const rows = [["Main Service Voltage (L-L)", "480 V"], ["System Frequency", "60.01 Hz"], ["Phases", "3Ø 4W"], ["Service Entrance Location", "Main Electrical Room"], ["Main Switchgear / Panel", "Panel B"], ["Existing Transformer", "1500 kVA"], ["CTs Installed (Estimated)", "8"], ["Capacitor Banks (Existing)", "1"]];
+function SiteConfigurationSummary({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const equipmentCount = data?.equipmentRows?.filter((row) => row.name !== "No Data").length ?? 0;
+  const rows = [["Main Service Voltage (L-L)", "No Data"], ["System Frequency", "No Data"], ["Phases", "No Data"], ["Service Entrance Location", "No Data"], ["Main Switchgear / Panel", "No Data"], ["Existing Transformer", "No Data"], ["Equipment Rows", equipmentCount > 0 ? String(equipmentCount) : "No Data"], ["Capacitor Banks (Existing)", "No Data"]];
   return <div className="space-y-2 text-[9px]">{rows.map(([label, value]) => <div className="grid grid-cols-[1fr_0.8fr] border-b border-white/5 pb-1" key={label}><span className="text-slate-400">{label}</span><span className="text-slate-200">{value}</span></div>)}</div>;
 }
 
@@ -1481,7 +1491,7 @@ function SiteDropZone({ icon, label, sub }: { icon: string; label: string; sub: 
 }
 
 function SiteNotesPanel() {
-  return <div><div className="h-[112px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[9px] text-slate-500">Enter any additional notes about the site or installation...</div><div className="mt-2 text-[8px] text-slate-500">0 / 1000 characters</div></div>;
+  return <div><div className="h-[112px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[9px] text-slate-500">No Data</div><div className="mt-2 text-[8px] text-slate-500">0 / 1000 characters</div></div>;
 }
 
 function ChecklistTable({ acceptance = false }: { acceptance?: boolean }) {

@@ -1,0 +1,74 @@
+{
+  "name": "Deployment Field Workflow",
+  "apiGets": [
+    {
+      "name": "deployment field workflow no-data payload",
+      "path": "/api/v1/deployments/1/field-workflow",
+      "status": 200,
+      "expectJson": [
+        { "path": "state", "equals": "no-data" },
+        { "path": "equipmentRows.0.name", "equals": "No Data" },
+        { "path": "preReadingRows.0.source", "contains": "No scoped telemetry" }
+      ]
+    },
+    {
+      "name": "deployment documentation parent payload",
+      "path": "/api/v1/deployments/1/documentation",
+      "status": 200,
+      "expectJson": [
+        { "path": "state", "equals": "no-data" }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "name": "documentation parent",
+      "path": "/operations/deployments/1/documents/documentation-screen",
+      "status": 200,
+      "expectText": ["Documentation", "No Data"]
+    },
+    {
+      "name": "add equipment",
+      "path": "/operations/deployments/1/equipment?mode=add",
+      "status": 200,
+      "expectText": ["Add Equipment", "No Data"]
+    },
+    {
+      "name": "equipment inventory",
+      "path": "/operations/deployments/1/equipment",
+      "status": 200,
+      "expectText": ["Equipment Inventory", "No Data"]
+    },
+    {
+      "name": "installation details",
+      "path": "/operations/deployments/1/installation-details-screen",
+      "status": 200,
+      "expectText": ["Installation Details", "No Data"]
+    },
+    {
+      "name": "photo document system",
+      "path": "/operations/deployments/1/documents/photo-and-document-system-screen",
+      "status": 200,
+      "expectText": ["Photo & Document System", "No Data"]
+    },
+    {
+      "name": "post installation readings",
+      "path": "/operations/deployments/1/post-installation-readings",
+      "status": 200,
+      "expectText": ["Post-Installation Readings", "No Data"]
+    },
+    {
+      "name": "pre installation readings",
+      "path": "/operations/deployments/1/pre-installation-readings",
+      "status": 200,
+      "expectText": ["Pre-Installation Readings", "No Data"]
+    },
+    {
+      "name": "site installation details",
+      "path": "/operations/deployments/1/site-and-installation-details-screen",
+      "status": 200,
+      "expectText": ["Site & Installation Details", "No Data"]
+    }
+  ]
+}
+
