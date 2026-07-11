@@ -13,22 +13,22 @@
 
 | Order | Screen | Route | Status |
 |---:|---|---|---|
-| 1 | Energy and Savings Dashboard - Cumulative Savings Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-cumulative-savings-screen` | Pending |
-| 2 | Energy and Savings Dashboard - ROI Payback | `/enterprise/energy-dashboard/energy-and-savings-dashboard-roi-payback` | Pending |
-| 3 | Energy and Savings Dashboard - ROI Payback - ROI Payback Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-roi-payback-roi-payback-screen` | Pending |
-| 4 | Energy and Savings Dashboard - Real-Time Value Engine - Real-Time Value Engine Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-real-time-value-engine-real-time-value-engine-screen` | Pending |
-| 5 | Energy and Savings Dashboard - Real-Time Value Engine Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-real-time-value-engine-screen` | Pending |
-| 6 | Energy and Savings Dashboard - Savings Engine - Savings Engine - Savings Engine - Savings Engine | `/enterprise/energy-dashboard/energy-and-savings-dashboard-savings-engine-savings-engine-savings-engine-savings-engine` | Pending |
-| 7 | Energy and Savings Dashboard - Savings Engine - Savings Engine Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-savings-engine-savings-engine-screen` | Pending |
-| 8 | Energy and Savings Dashboard - Savings Engine Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-savings-engine-screen` | Pending |
+| 1 | Energy and Savings Dashboard - Cumulative Savings Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-cumulative-savings-screen` | Completed |
+| 2 | Energy and Savings Dashboard - ROI Payback | `/enterprise/energy-dashboard/energy-and-savings-dashboard-roi-payback` | Completed |
+| 3 | Energy and Savings Dashboard - ROI Payback - ROI Payback Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-roi-payback-roi-payback-screen` | Completed |
+| 4 | Energy and Savings Dashboard - Real-Time Value Engine - Real-Time Value Engine Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-real-time-value-engine-real-time-value-engine-screen` | Completed |
+| 5 | Energy and Savings Dashboard - Real-Time Value Engine Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-real-time-value-engine-screen` | Completed |
+| 6 | Energy and Savings Dashboard - Savings Engine - Savings Engine - Savings Engine - Savings Engine | `/enterprise/energy-dashboard/energy-and-savings-dashboard-savings-engine-savings-engine-savings-engine-savings-engine` | Completed |
+| 7 | Energy and Savings Dashboard - Savings Engine - Savings Engine Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-savings-engine-savings-engine-screen` | Completed |
+| 8 | Energy and Savings Dashboard - Savings Engine Screen | `/enterprise/energy-dashboard/energy-and-savings-dashboard-savings-engine-screen` | Completed |
 
 ## Constitution Gates
 
-- [ ] `SITE != PROJECT != DEPLOYMENT` checked.
-- [ ] Existing TSX look and feel preserved.
-- [ ] Only direct/calculated fields wired.
-- [ ] Missing model outputs explicitly render `No Data`.
-- [ ] No write/report/export command behavior invented.
+- [x] `SITE != PROJECT != DEPLOYMENT` checked.
+- [x] Existing TSX look and feel preserved.
+- [x] Only direct/calculated fields wired.
+- [x] Missing model outputs explicitly render `No Data`.
+- [x] No write/report/export command behavior invented.
 
 ## Field Classification
 
@@ -79,11 +79,11 @@
 
 ## Checkpoint Summary
 
-- Screens completed:
-- Direct/Calculated fields wired:
-- Explicit `No Data` decisions:
-- Write actions implemented:
-- Verification results:
-- Dev URL(s):
-- Remaining questions:
+- Screens completed: 8 routes, validation sequences 103-107 and 109-111.
+- Direct/Calculated fields wired: latest annual savings, recovered capacity, deferred capital value, site/date context from the existing tracking adapter.
+- Explicit `No Data` decisions: lifetime/cumulative savings, monthly/daily rollups, real-time value engine, savings splits/drivers, ROI/payback/IRR/NPV/cash flow, baseline comparisons, events, forecasts, and report/action behavior.
+- Write actions implemented: none; export/share/configure/report controls remain shell UI only.
+- Verification results: backend build passed; frontend lint/build passed with existing warnings; local route verifier passed; browser smoke check passed; dev direct `3001` verifier passed; dev nginx `8080` verifier passed.
+- Dev URL(s): `http://100.91.109.59:8080/enterprise/energy-dashboard/energy-and-savings-dashboard-cumulative-savings-screen`, `http://100.91.109.59:8080/enterprise/energy-dashboard/energy-and-savings-dashboard-savings-engine-screen`.
+- Remaining questions: approve lifetime savings rollup, monthly/daily savings rollup, real-time value algorithm, savings split/allocation model, baseline/investment model, and Energy report/action APIs before wiring blocked fields.
 
