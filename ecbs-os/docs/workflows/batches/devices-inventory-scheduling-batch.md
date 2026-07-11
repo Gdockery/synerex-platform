@@ -13,23 +13,23 @@
 
 | Order | Screen | Route | Screenshot / HTML reference | Status |
 |---:|---|---|---|---|
-| 1 | Device Health Detail Page | `/devices/device-health-detail-page` | `ECBS-Device Health Detail Page Screenshot.png` | Pending |
-| 2 | Device Scheduling | `/devices/switches/device-switches-device-scheduling` | `ECBS-Device-Switches-Device Scheduling Screenshot.png` | Pending |
-| 3 | Gateways | `/devices/gateways` | `ECBS-Devices-Gateways Screenshot.png` | Pending |
-| 4 | Meters | `/devices/meters` | `ECBS-Devices-Meters Screenshot.png` | Pending |
-| 5 | Repeaters | `/devices/repeaters` | `ECBS-Devices-Repeaters Screenshot.png` | Pending |
-| 6 | Scheduling Commissioning / Testing | `/devices/switches/devices-switches-device-scheduling-commissioning-testing` | `ECBS-Devices-Switches-Device Scheduling-Commissioning_Testing Screenshot.png` | Pending |
-| 7 | Scheduling Commissioning / Testing Next Step | `/devices/switches/devices-switches-device-scheduling-commissioning-testing-next-step` | `ECBS-Devices-Switches-Device Scheduling-Commissioning_Testing Screenshot-Next Step.png` | Pending |
-| 8 | Job Costing | `/devices/switches/devices-switches-job-costing` | `ECBS-Devices-Switches-Job Costing Screenshot.png` | Pending |
+| 1 | Device Health Detail Page | `/devices/device-health-detail-page` | `ECBS-Device Health Detail Page Screenshot.png` | Deployed / HTTP 200 |
+| 2 | Device Scheduling | `/devices/switches/device-switches-device-scheduling` | `ECBS-Device-Switches-Device Scheduling Screenshot.png` | Deployed / HTTP 200 |
+| 3 | Gateways | `/devices/gateways` | `ECBS-Devices-Gateways Screenshot.png` | Deployed / HTTP 200 |
+| 4 | Meters | `/devices/meters` | `ECBS-Devices-Meters Screenshot.png` | Deployed / HTTP 200 |
+| 5 | Repeaters | `/devices/repeaters` | `ECBS-Devices-Repeaters Screenshot.png` | Deployed / HTTP 200 |
+| 6 | Scheduling Commissioning / Testing | `/devices/switches/devices-switches-device-scheduling-commissioning-testing` | `ECBS-Devices-Switches-Device Scheduling-Commissioning_Testing Screenshot.png` | Deployed / HTTP 200 |
+| 7 | Scheduling Commissioning / Testing Next Step | `/devices/switches/devices-switches-device-scheduling-commissioning-testing-next-step` | `ECBS-Devices-Switches-Device Scheduling-Commissioning_Testing Screenshot-Next Step.png` | Deployed / HTTP 200 |
+| 8 | Job Costing | `/devices/switches/devices-switches-job-costing` | `ECBS-Devices-Switches-Job Costing Screenshot.png` | Deployed / HTTP 200 |
 
 ## Constitution Gates
 
-- [ ] `SITE != PROJECT != DEPLOYMENT` checked.
-- [ ] Device screens are scoped to approved site/device context.
-- [ ] Invalid sequence 59 is not implemented.
-- [ ] No UI invented beyond approved screenshots.
-- [ ] Existing TSX look and feel preserved.
-- [ ] Missing/unclear fields are stopped or marked `No Data / Question`.
+- [x] `SITE != PROJECT != DEPLOYMENT` checked.
+- [x] Device screens are scoped to approved site/device context.
+- [x] Invalid sequence 59 is not implemented.
+- [x] No UI invented beyond approved screenshots.
+- [x] Existing TSX look and feel preserved.
+- [x] Missing/unclear fields are stopped or marked `No Data / Question`.
 
 ## Field Classification
 
@@ -52,9 +52,9 @@
 
 ## API / Data Contract
 
-- Read endpoint(s): planned `GET /api/v1/devices`.
+- Read endpoint(s): `GET /api/v1/devices`.
 - Write command endpoint(s): none in this batch.
-- New DTOs: planned `DevicesData`, `DeviceDataRow`, `DeviceTelemetrySummary`.
+- New DTOs: `DevicesData`, `DeviceDataRow`, `DeviceKindSummary`, `DeviceTelemetrySummary`.
 - `ecbs_os` tables queried/written: read `devices`, `telemetry_intervals`; no writes.
 - `tracking` tables queried: none unless a later approved adapter exists.
 
@@ -66,14 +66,14 @@ Visible schedule, configure, restart, export, update firmware, commissioning, an
 
 | Source screen | User action | Expected target route | Implemented as link/form/action? |
 |---|---|---|---|
-| Devices root/switches | Device Health card | `/devices/device-health-detail-page` | Pending |
-| Devices root/switches | Gateways tab | `/devices/gateways` | Pending |
-| Devices root/switches | Meters tab | `/devices/meters` | Pending |
-| Devices root/switches | Repeaters tab | `/devices/repeaters` | Pending |
-| Switches | Device Scheduling | `/devices/switches/device-switches-device-scheduling` | Pending |
-| Scheduling | Commissioning / Testing | `/devices/switches/devices-switches-device-scheduling-commissioning-testing` | Pending |
-| Commissioning / Testing | Next Step | `/devices/switches/devices-switches-device-scheduling-commissioning-testing-next-step` | Pending |
-| Switches | Job Costing | `/devices/switches/devices-switches-job-costing` | Pending |
+| Devices root/switches | Device Health card | `/devices/device-health-detail-page` | Route exists / HTTP 200 |
+| Devices root/switches | Gateways tab | `/devices/gateways` | Route exists / HTTP 200 |
+| Devices root/switches | Meters tab | `/devices/meters` | Route exists / HTTP 200 |
+| Devices root/switches | Repeaters tab | `/devices/repeaters` | Route exists / HTTP 200 |
+| Switches | Device Scheduling | `/devices/switches/device-switches-device-scheduling` | Route exists / HTTP 200 |
+| Scheduling | Commissioning / Testing | `/devices/switches/devices-switches-device-scheduling-commissioning-testing` | Route exists / HTTP 200 |
+| Commissioning / Testing | Next Step | `/devices/switches/devices-switches-device-scheduling-commissioning-testing-next-step` | Route exists / HTTP 200 |
+| Switches | Job Costing | `/devices/switches/devices-switches-job-costing` | Route exists / HTTP 200 |
 
 ## No Data / Question Queue
 
@@ -88,19 +88,19 @@ Visible schedule, configure, restart, export, update firmware, commissioning, an
 
 ## Verification Config
 
-- Verification config path: planned `verification/devices-inventory-scheduling.json`
+- Verification config path: `verification/devices-inventory-scheduling.json`
 - Mutating checks required? No
 - Browser click checks required? Yes, one inventory route plus one scheduling/job-costing route.
 
 Required before deploy:
 
-- [ ] `dotnet build backend/src/ECBS.Api/ECBS.Api.csproj`
-- [ ] `npm run lint`
-- [ ] `npm run build`
-- [ ] `python3 scripts/ecbs_batch_verify.py verification/devices-inventory-scheduling.json`
-- [ ] Browser smoke check
-- [ ] Dev deploy completed
-- [ ] Deployed verifier passed
+- [x] `dotnet build backend/src/ECBS.Api/ECBS.Api.csproj`
+- [x] `npm run lint`
+- [x] `npm run build`
+- [x] `python3 scripts/ecbs_batch_verify.py verification/devices-inventory-scheduling.json --base-url http://100.91.109.59:8080 --api-base-url http://100.91.109.59:5090`
+- [x] Browser smoke check
+- [x] Dev deploy completed
+- [x] Deployed verifier passed
 
 ## Quirks To Carry Forward
 
@@ -110,14 +110,16 @@ Required before deploy:
 | `DeviceKind` lacks Repeater. | Repeaters must be explicit No Data until modeled. |
 | Many device controls are write actions. | Leave controls as shell; do not implement writes. |
 | Browser screenshots can be stale. | Take a fresh snapshot after navigation. |
+| Manual frontend Docker run must match container port. | Next container listens on `3001`; map host `3000:3001`. |
+| Proxy container resolves by Docker network name. | Connect `ecbs-os-frontend` to `synerex-platform_default` before proxy verification. |
 
 ## Checkpoint Summary
 
-- Screens completed:
-- Direct/Calculated fields wired:
-- Explicit `No Data` decisions:
-- Write actions implemented:
-- Verification results:
-- Dev URL(s):
-- Remaining questions:
+- Screens completed: 8 Devices inventory/scheduling screens are wired and deployed.
+- Direct/Calculated fields wired: `ecbs_os.devices` identity/kind/serial/last-communicated status summaries and latest `ecbs_os.telemetry_intervals` kW/kVA/kWh/PF where present.
+- Explicit `No Data` decisions: repeater model, device location, firmware, health score, alerts/events, uptime, IP/MAC/network data, schedule model, commissioning test model, and job-costing allocation/cost models.
+- Write actions implemented: none. Schedule, configure, restart, export, update firmware, commissioning, and job-costing actions remain shell controls until write models are approved.
+- Verification results: local backend build, frontend lint, frontend build, remote backend build, remote frontend Docker build, API restart, deployed route/API verifier, and browser smoke check passed.
+- Dev URL(s): `http://100.91.109.59:8080/devices/gateways` plus the seven batch routes listed above.
+- Remaining questions: define repeater entity/kind, device health/firmware/location models, device scheduling write model, commissioning test model, and job-costing allocation source.
 
