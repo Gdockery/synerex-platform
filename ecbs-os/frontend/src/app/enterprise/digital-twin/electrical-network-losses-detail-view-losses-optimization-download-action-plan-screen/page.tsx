@@ -1,5 +1,10 @@
 import { ElectricalNetworkScreen } from "@/components/ecbs/DigitalTwinScreen";
+import { getOchsnerDigitalTwinData } from "@/lib/trackingDashboardData";
 
-export default function ElectricalNetworkLossesActionPlanPage() {
-  return <ElectricalNetworkScreen variant="lossesActionPlan" />;
+export const dynamic = "force-dynamic";
+
+export default async function ElectricalNetworkLossesActionPlanPage() {
+  const data = await getOchsnerDigitalTwinData();
+
+  return <ElectricalNetworkScreen data={data} variant="lossesActionPlan" />;
 }

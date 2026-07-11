@@ -1,0 +1,53 @@
+{
+  "name": "Electrical Network Losses And Power",
+  "routes": [
+    {
+      "name": "losses action plan",
+      "path": "/enterprise/digital-twin/electrical-network-losses-detail-view-losses-optimization-download-action-plan-screen",
+      "status": 200,
+      "expectText": ["Download Action Plan", "No Data"]
+    },
+    {
+      "name": "losses optimization",
+      "path": "/enterprise/digital-twin/electrical-network-losses-detail-view-losses-optimization-screen",
+      "status": 200,
+      "expectText": ["Losses Optimization", "No Data"]
+    },
+    {
+      "name": "losses detail",
+      "path": "/enterprise/digital-twin/electrical-network-losses-detail-screen",
+      "status": 200,
+      "expectText": ["Losses Detail", "No Data"]
+    },
+    {
+      "name": "optimization detail",
+      "path": "/enterprise/digital-twin/electrical-network-optimization-detail-screen",
+      "status": 200,
+      "expectText": ["Optimization Detail", "No Data"]
+    },
+    {
+      "name": "low pf events",
+      "path": "/enterprise/digital-twin/electrical-network-power-detail-view-all-low-pf-events-screen",
+      "status": 200,
+      "expectText": ["Low Power Factor Events", "No Data"]
+    },
+    {
+      "name": "reactive power detail",
+      "path": "/enterprise/digital-twin/electrical-network-power-detail-view-reactive-power-detail-screen",
+      "status": 200,
+      "expectText": ["Reactive Power Detail", "No Data"]
+    },
+    {
+      "name": "power detail",
+      "path": "/enterprise/digital-twin/electrical-network-power-detail-screen",
+      "status": 200,
+      "expectText": ["Power Detail", "No Data"]
+    },
+    {
+      "name": "optimization recommendations",
+      "path": "/enterprise/digital-twin/electrical-network-optimization-recommendations",
+      "status": 200,
+      "expectText": ["Electrical Network Optimization Recommendations", "No Data"]
+    }
+  ]
+}

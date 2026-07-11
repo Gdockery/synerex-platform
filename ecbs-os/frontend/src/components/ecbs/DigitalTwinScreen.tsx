@@ -184,14 +184,14 @@ export function ElectricalNetworkScreen({ data, variant }: { data?: DigitalTwinD
   if (variant === "peakEvents") return <PeakEventsReferenceScreen data={payload} />;
   if (variant === "peakFullAnalysis") return <PeakFullAnalysisReferenceScreen data={payload} />;
   if (variant === "loadDetail") return <LoadDetailReferenceScreen data={payload} />;
-  if (variant === "lossesActionPlan") return <LossesActionPlanReferenceScreen />;
-  if (variant === "lossesOptimization") return <LossesOptimizationReferenceScreen />;
-  if (variant === "lossesDetail") return <LossesDetailReferenceScreen />;
-  if (variant === "optimizationDetail") return <OptimizationDetailReferenceScreen />;
-  if (variant === "lowPfEvents") return <LowPfEventsReferenceScreen />;
-  if (variant === "reactivePowerDetail") return <ReactivePowerDetailReferenceScreen />;
-  if (variant === "powerDetail") return <PowerDetailReferenceScreen />;
-  if (variant === "optimizationRecommendations") return <OptimizationRecommendationsReferenceScreen />;
+  if (variant === "lossesActionPlan") return <LossesActionPlanReferenceScreen data={payload} />;
+  if (variant === "lossesOptimization") return <LossesOptimizationReferenceScreen data={payload} />;
+  if (variant === "lossesDetail") return <LossesDetailReferenceScreen data={payload} />;
+  if (variant === "optimizationDetail") return <OptimizationDetailReferenceScreen data={payload} />;
+  if (variant === "lowPfEvents") return <LowPfEventsReferenceScreen data={payload} />;
+  if (variant === "reactivePowerDetail") return <ReactivePowerDetailReferenceScreen data={payload} />;
+  if (variant === "powerDetail") return <PowerDetailReferenceScreen data={payload} />;
+  if (variant === "optimizationRecommendations") return <OptimizationRecommendationsReferenceScreen data={payload} />;
   if (variant === "fullNetworkExpanded") return <FullNetworkExpandedReferenceScreen />;
   if (variant === "oneLineScanner") return <OneLineDrawingScannerReferenceScreen />;
 
@@ -1176,28 +1176,28 @@ function LossesActionPlanScreen() {
   return <LossesOptimizationLayout actionPlan />;
 }
 
-function LossesDetailReferenceScreen() {
+function LossesDetailReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
         <header className="flex h-[44px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[12px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; Flex Tijuana⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; {siteLabel(data)}⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.dateRange || "No Data"}⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[78px] items-center justify-between">
           <div><div className="text-[10px] text-slate-400">⊞ Electrical Network &nbsp; › &nbsp; <span className="text-[#05ff5e]">Losses Detail</span></div><h1 className="mt-1 text-2xl font-light">Losses Detail</h1><p className="mt-1 text-[10px] text-slate-300">Comprehensive analysis of system losses and energy waste across the electrical network.</p></div>
           <div className="flex flex-col items-end gap-2 text-[9px]"><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">♧ Configure Alerts</button></div><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Overview</button></div>
         </div>
         <section className="grid h-[88px] grid-cols-6 gap-3">
-          <LossKpi icon="ϟ" label="Total Losses ⓘ" value="178 kW" detail="↓ 2.78% vs Last 7 Days" tone="red" />
-          <LossKpi icon="⌁" label="Total Loss Energy ⓘ" value="3.42 MWh" detail="↓ 3.12% vs Last 7 Days" tone="orange" />
-          <LossKpi icon="$" label="Estimated Cost Of Losses" value="$342 / day" detail="~$10,260 / month" tone="purple" />
-          <LossKpi icon="%" label="Loss Percentage" value="2.78%" detail="Of Total Energy" tone="blue" />
-          <LossKpi icon="♧" label="CO₂ Impact" value="2.34" detail="metric tons / day" tone="green" />
-          <LossKpi icon="⌁" label="Peak Loss (Momentary)" value="245 kW" detail="May 14, 2:18 PM" tone="yellow" />
+          <LossKpi icon="ϟ" label="Total Losses ⓘ" value="No Data" detail="No approved losses model" tone="red" />
+          <LossKpi icon="⌁" label="Total Loss Energy ⓘ" value="No Data" detail="No approved losses model" tone="orange" />
+          <LossKpi icon="$" label="Estimated Cost Of Losses" value="No Data" detail="No approved cost model" tone="purple" />
+          <LossKpi icon="%" label="Loss Percentage" value="No Data" detail="No approved losses model" tone="blue" />
+          <LossKpi icon="♧" label="CO2 Impact" value="No Data" detail="No approved emissions model" tone="green" />
+          <LossKpi icon="⌁" label="Peak Loss (Momentary)" value="No Data" detail="No approved loss events source" tone="yellow" />
         </section>
         <section className="mt-2 grid h-[32px] grid-cols-[190px_170px_180px_160px_auto_1fr] items-center gap-3 text-[9px]">
-          {["▣ May 12 - May 18, 2025⌄", "All Feeders⌄", "All Loss Categories⌄", "All Severity⌄"].map((label) => <button className="h-full rounded border border-cyan-300/12 bg-[#061421] px-3 text-left text-slate-300" key={label}>{label}</button>)}
+          {[`▣ ${data.dateRange || "No Data"}⌄`, "All Feeders⌄", "All Loss Categories⌄", "All Severity⌄"].map((label) => <button className="h-full rounded border border-cyan-300/12 bg-[#061421] px-3 text-left text-slate-300" key={label}>{label}</button>)}
           <button className="text-left text-slate-400">× Clear Filters</button>
         </section>
         <section className="mt-2 grid h-[572px] min-h-0 grid-cols-[0.98fr_0.96fr_1fr] gap-3 overflow-hidden">
@@ -1215,7 +1215,7 @@ function LossesDetailReferenceScreen() {
             <PeakBox title="LOSSES INSIGHTS"><LossesInsightsReference /></PeakBox>
           </div>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
@@ -1227,63 +1227,70 @@ function LossKpi({ detail, icon, label, tone, value }: { detail: string; icon: s
 }
 
 function LossesTrendReference() {
+  if (!hasApprovedElectricalModel("losses")) return <NoDataPanel message="No approved losses trend source." />;
   const losses = "28,100 70,96 112,108 154,72 196,50 238,92 280,82 322,118 364,126 406,98 448,88 490,68 532,58";
   const percentage = "28,116 70,108 112,122 154,96 196,78 238,86 280,116 322,104 364,118 406,110 448,94 490,84 532,76";
   return <div className="h-full text-[8px]"><div className="mb-1 flex justify-center gap-5"><span className="text-red-500">━ Total Losses (kW)</span><span className="text-cyan-300">━ Loss Percentage (%)</span></div><svg className="h-[142px] w-full" viewBox="0 0 560 150"><g stroke="rgba(148,163,184,.18)">{[24,48,72,96,120,140].map((y) => <line key={y} x1="30" x2="548" y1={y} y2={y} />)}</g><g fill="#94a3b8" fontSize="8"><text x="0" y="28">300</text><text x="0" y="52">250</text><text x="0" y="76">200</text><text x="0" y="100">150</text><text x="0" y="124">100</text></g><polyline fill="none" points={losses} stroke="#ef4444" strokeWidth="2.4" />{parseNetworkPoints(losses).map(([x, y]) => <circle cx={x} cy={y} fill="#061521" key={`l-${x}`} r="3.2" stroke="#ef4444" strokeWidth="2" />)}<polyline fill="none" points={percentage} stroke="#29b6f6" strokeWidth="2.4" />{parseNetworkPoints(percentage).map(([x, y]) => <circle cx={x} cy={y} fill="#061521" key={`p-${x}`} r="3.2" stroke="#29b6f6" strokeWidth="2" />)}<line stroke="#ef4444" strokeDasharray="4 4" x1="196" x2="196" y1="30" y2="140" /><rect fill="#061421" height="54" rx="4" stroke="#1e3a5f" width="112" x="206" y="34" /><text fill="#e2e8f0" fontSize="8" x="214" y="49">May 14, 2:18 PM</text><text fill="#e2e8f0" fontSize="8" x="214" y="65">Losses: 245 kW</text><text fill="#e2e8f0" fontSize="8" x="214" y="81">Loss %: 3.42%</text></svg><div className="flex justify-between px-7 text-[8px] text-slate-500"><span>May 12</span><span>May 13</span><span>May 14</span><span>May 15</span><span>May 16</span><span>May 17</span><span>May 18</span></div><div className="mt-1 flex gap-2 text-[8px]"><span className="rounded border border-cyan-300/12 px-3 py-1">15 Min</span><span className="rounded border border-cyan-300/12 px-3 py-1">1 HOUR</span><span className="rounded border border-cyan-300/12 px-3 py-1">1 DAY</span><span className="rounded bg-[#063b27] px-3 py-1 text-[#05ff5e]">7 DAYS</span><span className="rounded border border-cyan-300/12 px-3 py-1">30 DAYS</span></div></div>;
 }
 
 function LossesBreakdownReference() {
+  if (!hasApprovedElectricalModel("losses")) return <NoDataPanel message="No approved losses category model." />;
   const rows = [["IR Conductor Losses", "72 kW (40.4%)", "#ef4444"], ["Transformer Losses", "46 kW (25.8%)", "#ff8a00"], ["Harmonic Losses", "32 kW (18.0%)", "#ffd740"], ["Eddy Current Losses", "16 kW (9.0%)", "#29b6f6"], ["Other Losses", "12 kW (6.7%)", "#a855f7"]];
   return <div className="grid h-full grid-cols-[150px_1fr] items-center gap-4"><div className="grid size-32 place-items-center rounded-full" style={{ background: "conic-gradient(#ef4444 0 40%, #ff8a00 40% 66%, #ffd740 66% 84%, #29b6f6 84% 93%, #a855f7 93% 100%)" }}><div className="grid size-20 place-items-center rounded-full bg-[#061521] text-center text-xl">178 kW<br /><span className="text-[8px] text-slate-400">Total Losses</span></div></div><div className="space-y-3 text-[8px]">{rows.map(([label, value, color]) => <div className="flex justify-between gap-2" key={label}><span><span className="mr-2 inline-block size-2 rounded-full" style={{ backgroundColor: color }} />{label}</span><b>{value}</b></div>)}</div></div>;
 }
 
 function LossesLocationReference() {
+  if (!hasApprovedElectricalModel("losses")) return <NoDataPanel message="No approved losses by location source." />;
   const rows = [["Feeder 4", "48 kW", "72%", "red"], ["Feeder 1", "34 kW", "55%", "red"], ["Main Transformer", "24 kW", "45%", "yellow"], ["Feeder 2", "22 kW", "34%", "green"], ["Building 3 Panel", "14 kW", "28%", "green"], ["Feeder 3", "12 kW", "22%", "green"], ["Feeder 5", "8 kW", "18%", "blue"], ["Utility Service", "6 kW", "12%", "purple"], ["Switchgear Bus", "5 kW", "10%", "purple"], ["Other", "5 kW", "8%", "slate"]];
   return <div className="h-full text-[8px]"><div className="mb-1 grid grid-cols-[92px_1fr_42px] text-slate-400"><span>kW</span><span></span><span></span></div>{rows.map(([label, value, width, tone]) => <div className="grid grid-cols-[92px_1fr_42px] items-center gap-2 py-[3px]" key={label}><span>{label}</span><span className="h-2.5 rounded bg-slate-900"><span className={tone === "red" ? "block h-2.5 rounded bg-red-500" : tone === "yellow" ? "block h-2.5 rounded bg-yellow-400" : tone === "green" ? "block h-2.5 rounded bg-[#05ff5e]" : tone === "blue" ? "block h-2.5 rounded bg-cyan-400" : tone === "purple" ? "block h-2.5 rounded bg-purple-500" : "block h-2.5 rounded bg-slate-400"} style={{ width }} /></span><b className="text-right font-normal">{value}</b></div>)}<div className="mt-1 flex justify-between pl-[94px] pr-10 text-[7px] text-slate-500"><span>0</span><span>15</span><span>30</span><span>45</span><span>60</span></div></div>;
 }
 
 function LossesComponentTypeReference() {
+  if (!hasApprovedElectricalModel("losses")) return <NoDataPanel message="No approved component losses source." />;
   const rows = [["Conductors (IR)", "72", "40.4%", "1.38", "↓ 3.6%", "High"], ["Transformers", "46", "25.8%", "0.88", "↓ 2.1%", "High"], ["Harmonics", "32", "18.0%", "0.61", "↓ 4.8%", "Medium"], ["Eddy Currents", "16", "9.0%", "0.31", "↓ 1.7%", "Medium"], ["Connections", "7", "3.9%", "0.13", "↓ 5.2%", "Low"], ["Other", "5", "2.9%", "0.09", "↓ 0.8%", "Low"], ["Total", "178", "100%", "3.42", "↓ 2.78%", "—"]];
   return <div className="flex h-full flex-col"><table className="w-full text-left text-[7.4px]"><thead className="text-slate-400"><tr>{["Component Type", "Losses (kW)", "% of Total", "Losses (MWh)", "Trend vs Last 7 Days", "Status"].map((h) => <th className="pb-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([type, loss, pct, mwh, trend, status]) => <tr className="border-t border-white/6" key={type}><td className="py-[4px]">{type}</td><td>{loss}</td><td>{pct}</td><td>{mwh}</td><td className="text-[#05ff5e]">{trend}</td><td className={status === "High" ? "text-red-400" : status === "Medium" ? "text-yellow-300" : status === "Low" ? "text-[#05ff5e]" : "text-slate-400"}>{status}</td></tr>)}</tbody></table><div className="mt-auto text-right text-[9px] text-[#05ff5e]">View Component Losses Details →</div></div>;
 }
 
 function LossesHeatMapReference() {
+  if (!hasApprovedElectricalModel("losses")) return <NoDataPanel message="No approved losses heat-map source." />;
   return <div className="relative h-full text-[8px]"><svg className="absolute inset-0 h-full w-full" viewBox="0 0 430 260"><g fill="#94a3b8" fontSize="8" textAnchor="middle"><text x="220" y="22">Utility</text><text x="220" y="34">115 kV</text></g><g stroke="#ffd740" strokeWidth="2"><line x1="220" x2="220" y1="40" y2="63" /><line x1="220" x2="220" y1="100" y2="115" /><line x1="80" x2="360" y1="170" y2="170" />{[80,150,220,290,360].map((x) => <line key={x} x1={x} x2={x} y1="170" y2="196" />)}</g><rect fill="#061521" height="30" rx="4" stroke="#1e3a5f" width="110" x="165" y="62" /><rect fill="#061521" height="30" rx="4" stroke="#1e3a5f" width="110" x="165" y="116" /><g fill="#e2e8f0" fontSize="8" textAnchor="middle"><text x="220" y="76">Main Transformer</text><text fill="#05ff5e" x="220" y="88">1.5 MVA</text><text x="220" y="130">Main Switchgear</text><text fill="#05ff5e" x="220" y="142">480 V</text></g>{[[80,"F1","34 kW","#ef4444"],[150,"F2","22 kW","#ff8a00"],[220,"F3","12 kW","#ffd740"],[290,"F4","48 kW","#ef4444"],[360,"F5","8 kW","#05ff5e"]].map(([x,label,value,color]) => <g key={String(label)}><rect fill={String(color)} height="18" rx="2" width="38" x={Number(x)-19} y="197" /><text fill="#061521" fontSize="8" fontWeight="700" textAnchor="middle" x={Number(x)} y="210">{String(value)}</text><circle cx={Number(x)} cy="235" fill="#061521" r="9" stroke="#94a3b8" /><text fill="#e2e8f0" fontSize="7" textAnchor="middle" x={Number(x)} y="238">{String(label)}</text></g>)}</svg><div className="absolute bottom-1 left-0 right-0 flex justify-center gap-5 text-[8px]"><span className="text-[#05ff5e]">■ &lt; 5 kW</span><span className="text-yellow-300">■ 5 - 15 kW</span><span className="text-orange-400">■ 15 - 30 kW</span><span className="text-red-400">■ 30 - 50 kW</span><span className="text-red-500">■ &gt; 50 kW</span></div></div>;
 }
 
 function LossesTimeOfDayReference() {
+  if (!hasApprovedElectricalModel("losses")) return <NoDataPanel message="No approved losses time-of-day source." />;
   const rows = ["12 AM", "6 AM", "12 PM", "6 PM"];
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   return <div className="h-full text-[8px]"><div className="grid grid-cols-[44px_1fr_18px] gap-2"><div className="grid grid-rows-4 gap-1 text-slate-300">{rows.map((r) => <span key={r}>{r}</span>)}</div><div><div className="grid grid-cols-12 gap-1">{Array.from({ length: 48 }).map((_, index) => { const col = index % 12; const color = col < 4 ? "#16a34a" : col < 8 ? "#facc15" : col < 10 ? "#ff8a00" : "#ef4444"; return <span className="h-[13px] rounded-sm border border-[#061521]" key={index} style={{ backgroundColor: color, opacity: 0.76 + (index % 3) * 0.08 }} />; })}</div><div className="mt-1 grid grid-cols-7 text-center text-slate-500">{days.map((d) => <span key={d}>{d}</span>)}</div></div><div className="grid h-[72px] grid-rows-3 text-right text-slate-400"><span>300</span><span>200</span><span>100</span></div></div></div>;
 }
 
 function LossesInsightsReference() {
+  if (!hasApprovedElectricalModel("losses")) return <MetricListSmall rows={noDataRows("No approved losses insight model")} />;
   const rows = [["!", "Feeder 4 has the highest losses (48 kW), representing 26.9% of total losses.", "text-red-500"], ["!", "Harmonic losses are 18.0% of total. Power factor improvement could reduce ~32 kW.", "text-orange-400"], ["i", "Peak losses occurred on May 14 at 2:18 PM (245 kW).", "text-cyan-300"], ["✓", "Estimated monthly cost of losses: $10,260.", "text-[#05ff5e]"], ["$", "Potential savings opportunity: $62,000 annually with optimization.", "text-purple-400"]];
   return <div className="flex h-full flex-col gap-1.5 text-[7.7px]">{rows.map(([icon, text, color]) => <div className="grid grid-cols-[24px_1fr] gap-2 border-b border-white/6 pb-1" key={text}><span className={`grid size-5 place-items-center rounded-full border ${color}`}>{icon}</span><span>{text}</span></div>)}<div className="mt-auto text-right text-[9px] text-[#05ff5e]">View Losses Optimization →</div></div>;
 }
 
-function LossesOptimizationReferenceScreen() {
+function LossesOptimizationReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
         <header className="flex h-[44px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[12px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; Flex Tijuana⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; {siteLabel(data)}⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.dateRange || "No Data"}⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[82px] items-center justify-between">
           <div><div className="text-[10px] text-slate-400">⊞ Electrical Network &nbsp; › &nbsp; Losses Detail &nbsp; › &nbsp; <span className="text-[#05ff5e]">Losses Optimization</span></div><h1 className="mt-1 text-2xl font-light">Losses Optimization</h1><p className="mt-1 text-[10px] text-slate-300">Identify, prioritize, and implement actions to reduce system losses and energy waste.</p></div>
           <div className="flex flex-col items-end gap-2 text-[9px]"><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">♧ Configure Alerts</button></div><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Losses Detail</button></div>
         </div>
         <section className="grid h-[88px] grid-cols-6 gap-3">
-          <PeakKpi icon="◎" label="Total Optimization Potential" value="62 kW" detail="Estimated Reduction (34.8% of Total Losses)" tone="green" />
-          <PeakKpi icon="$" label="Estimated Annual Savings" value="$62,000" detail="~$5,167 / month" tone="purple" />
-          <PeakKpi icon="◷" label="Payback Period" value="5.1 months" detail="Very Good" tone="orange" />
-          <PeakKpi icon="⌘" label="Implementation Cost" value="$23,800" detail="One-Time" tone="blue" />
-          <PeakKpi icon="PF" label="Expected PF Improvement" value="+0.06" detail="From 0.91 to 0.97" tone="green" />
-          <PeakKpi icon="♧" label="CO₂ Reduction" value="~70.2" detail="metric tons / year" tone="green" />
+          <PeakKpi icon="◎" label="Total Optimization Potential" value="No Data" detail="No approved losses optimization model" tone="green" />
+          <PeakKpi icon="$" label="Estimated Annual Savings" value="No Data" detail="No approved savings model" tone="purple" />
+          <PeakKpi icon="◷" label="Payback Period" value="No Data" detail="No approved cost model" tone="orange" />
+          <PeakKpi icon="⌘" label="Implementation Cost" value="No Data" detail="No approved implementation model" tone="blue" />
+          <PeakKpi icon="PF" label="Expected PF Improvement" value="No Data" detail="No approved PF model" tone="green" />
+          <PeakKpi icon="♧" label="CO2 Reduction" value="No Data" detail="No approved emissions model" tone="green" />
         </section>
         <section className="mt-2 grid h-[32px] grid-cols-[190px_142px_160px_150px_140px_auto_1fr] items-center gap-3 text-[9px]">
-          {["▣ May 12 - May 18, 2025⌄", "All Feeders⌄", "All Loss Categories⌄", "All Severities⌄", "All Actions⌄"].map((label) => <button className="h-full rounded border border-cyan-300/12 bg-[#061421] px-3 text-left text-slate-300" key={label}>{label}</button>)}
+          {[`▣ ${data.dateRange || "No Data"}⌄`, "All Feeders⌄", "All Loss Categories⌄", "All Severities⌄", "All Actions⌄"].map((label) => <button className="h-full rounded border border-cyan-300/12 bg-[#061421] px-3 text-left text-slate-300" key={label}>{label}</button>)}
           <button className="text-left text-slate-400">× Clear Filters</button>
           <button className="justify-self-end rounded bg-[#087a35] px-6 py-2 text-[#eafff1]">Recalculate Potential</button>
         </section>
@@ -1301,66 +1308,71 @@ function LossesOptimizationReferenceScreen() {
             <PeakBox title="IMPLEMENTATION ROADMAP"><LossesRoadmapReference /></PeakBox>
           </aside>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
 }
 
 function LossReductionPotentialReference() {
+  if (!hasApprovedElectricalModel("lossOptimization")) return <NoDataPanel message="No approved loss-reduction model." />;
   const rows = [["IR Conductor Losses", "24 kW (39%)", "90%", "red"], ["Transformer Losses", "16 kW (26%)", "58%", "orange"], ["Harmonic Losses", "10 kW (16%)", "39%", "yellow"], ["Eddy Current Losses", "7 kW (11%)", "24%", "blue"], ["Other Losses", "5 kW (8%)", "18%", "purple"]];
   return <div className="h-full text-[8px]"><div className="grid h-full grid-cols-[96px_1fr_64px] items-center gap-x-2">{rows.map(([label, value, width, tone]) => <div className="contents" key={label}><span>{label}</span><span className="h-3 rounded-sm bg-slate-900/80"><span className={tone === "red" ? "block h-3 rounded-sm bg-red-500" : tone === "orange" ? "block h-3 rounded-sm bg-orange-500" : tone === "yellow" ? "block h-3 rounded-sm bg-yellow-400" : tone === "blue" ? "block h-3 rounded-sm bg-cyan-400" : "block h-3 rounded-sm bg-purple-500"} style={{ width }} /></span><b className="text-right font-normal text-slate-300">{value}</b></div>)}</div><div className="mt-1 grid grid-cols-[96px_1fr_64px] gap-2 text-slate-500"><span></span><span className="flex justify-between"><span>0</span><span>10</span><span>20</span><span>30</span></span><span></span><span></span><span className="text-center">Potential Reduction (kW)</span></div></div>;
 }
 
 function OptimizationImpactSummaryReference() {
+  if (!hasApprovedElectricalModel("lossOptimization")) return <NoDataPanel message="No approved loss-optimization impact model." />;
   const rows = [["Total Losses", "178 kW", "116 kW", "62 kW (34.8%)"], ["Losses Percentage", "2.78%", "1.80%", "0.98%"], ["Energy Lost", "3.42 MWh", "2.22 MWh", "1.20 MWh / day"], ["Cost of Losses", "$342 / day", "$280 / day", "$62 / day"], ["CO₂ Impact", "2.34 t / day", "1.89 t / day", "0.45 t / day"], ["Power Factor", "0.91", "0.97", "+0.06"]];
   return <table className="w-full text-left text-[8px]"><thead className="text-slate-400"><tr>{["", "Before Optimization", "After Optimization", "Improvement"].map((h) => <th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([label, before, after, improvement]) => <tr className="border-t border-white/6" key={label}><td className="py-2 text-slate-300">{label}</td><td>{before}</td><td>{after}</td><td className="font-semibold text-[#05ff5e]">{improvement}</td></tr>)}</tbody></table>;
 }
 
 function TopOptimizationOpportunitiesReference() {
+  if (!hasApprovedElectricalModel("lossOptimization")) return <NoDataPanel message="No approved optimization opportunity source." />;
   const rows = [["1", "Upgrade Capacitor Bank on Feeder 4", "High", "18 kW", "$18,900", "1.8 mo"], ["2", "Balance Transformer Loading", "High", "12 kW", "$12,600", "2.4 mo"], ["3", "Install Harmonic Filter on Feeder 1", "Medium", "10 kW", "$10,400", "3.2 mo"], ["4", "Tighten Connections - Feeder 2", "Medium", "8 kW", "$8,200", "2.1 mo"], ["5", "Replace Aging Cables - Feeder 3", "Low", "7 kW", "$7,300", "4.6 mo"], ["6", "Optimize Motor Efficiency (VFD)", "Low", "5 kW", "$4,600", "6.2 mo"]];
   return <div className="flex h-full flex-col"><table className="w-full text-left text-[7.5px]"><thead className="text-slate-400"><tr>{["", "", "", "Potential (kW)", "Annual Savings", "Payback"].map((h, i) => <th className={i === 1 ? "pb-1.5 font-medium" : "pb-1.5 text-right font-medium"} key={`${h}-${i}`}>{h}</th>)}</tr></thead><tbody>{rows.map(([rank, action, sev, potential, savings, payback]) => <tr className="border-t border-white/6" key={rank}><td className="py-1.5 text-red-400">{rank}</td><td className="py-1.5 text-slate-300">{action}</td><td className={sev === "High" ? "py-1.5 text-red-400" : sev === "Medium" ? "py-1.5 text-yellow-300" : "py-1.5 text-[#05ff5e]"}>{sev}</td><td className="py-1.5 text-right">{potential}</td><td className="py-1.5 text-right">{savings}</td><td className="py-1.5 text-right">{payback}</td></tr>)}</tbody></table><div className="mt-auto text-right text-[9px] text-[#05ff5e]">View All Opportunities →</div></div>;
 }
 
 function LossesOptimizationActionPlanReference() {
+  if (!hasApprovedElectricalModel("lossOptimization")) return <NoDataPanel message="No approved optimization action-plan model." />;
   const headers = ["#", "Action", "Category", "Location / Asset", "Severity", "Potential Reduction (kW)", "Est. Cost", "Annual Savings", "Payback", "Status"];
   return <div className="flex h-full flex-col overflow-hidden text-[8px]"><table className="w-full table-fixed text-left"><colgroup><col className="w-[5%]" /><col className="w-[21%]" /><col className="w-[11%]" /><col className="w-[12%]" /><col className="w-[8%]" /><col className="w-[10%]" /><col className="w-[8%]" /><col className="w-[10%]" /><col className="w-[7%]" /><col className="w-[8%]" /></colgroup><thead className="text-slate-400"><tr>{headers.map((h) => <th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{lossesOptimizationRows.map((row) => <tr className="border-t border-white/6" key={row.rank}><td className="py-2">{row.rank}</td><td>{row.action}</td><td>{row.category}</td><td>{row.asset}</td><td className={row.severity === "High" ? "text-red-400" : row.severity === "Medium" ? "text-yellow-300" : "text-[#05ff5e]"}>{row.severity}</td><td>{row.potential}</td><td>{row.cost}</td><td>{row.savings}</td><td>{row.payback}</td><td className={row.status === "Recommended" ? "text-[#05ff5e]" : "text-slate-300"}>{row.status}</td></tr>)}</tbody></table><div className="mt-auto grid grid-cols-[37%_10%_8%_10%_8%_10%_17%] border-t border-white/6 pt-2 text-[8px]"><b>Total / Average</b><span></span><b>60 kW</b><b>$23,800</b><b>$62,000</b><b>5.1 mo</b><span></span></div><div className="flex justify-between pt-2 text-[8px] text-slate-400"><span>Showing 1 to 6 of 6 actions</span><button className="text-[#05ff5e]">Download Action Plan &nbsp; ⇩</button></div></div>;
 }
 
 function LossesSavingsForecastReference() {
+  if (!hasApprovedElectricalModel("lossOptimization")) return <NoDataPanel message="No approved loss-savings forecast model." />;
   const current = "28,84 78,78 128,86 178,72 228,88 278,82 328,58 378,52 428,72 478,66 528,60";
   const projected = "28,108 78,100 128,106 178,94 228,110 278,104 328,88 378,82 428,96 478,92 528,86";
   return <div className="h-full text-[8px]"><div className="mb-1 flex justify-end gap-4"><span className="text-red-400">━ Current Losses (kWh)</span><span className="text-[#05ff5e]">━ Projected Losses (kWh)</span><span className="rounded bg-[#063b27] px-2 py-0.5 text-[#05ff5e]">Daily</span><span>Monthly</span></div><svg className="h-[112px] w-full" viewBox="0 0 550 124"><g stroke="rgba(148,163,184,.16)">{[20,44,68,92,116].map((y) => <line key={y} x1="28" x2="540" y1={y} y2={y} />)}</g><g fill="#94a3b8" fontSize="8"><text x="0" y="24">6 MWh</text><text x="0" y="52">4 MWh</text><text x="0" y="80">2 MWh</text><text x="12" y="118">0</text></g><polyline fill="none" points={current} stroke="#ef4444" strokeWidth="2.4" />{parseNetworkPoints(current).map(([x, y]) => <circle cx={x} cy={y} fill="#061521" key={`c-${x}`} r="3" stroke="#ef4444" strokeWidth="2" />)}<polyline fill="none" points={projected} stroke="#05ff5e" strokeWidth="2.4" />{parseNetworkPoints(projected).map(([x, y]) => <circle cx={x} cy={y} fill="#061521" key={`p-${x}`} r="3" stroke="#05ff5e" strokeWidth="2" />)}<text fill="#ef4444" fontSize="9" x="468" y="64">3.42 MWh / day</text><text fill="#05ff5e" fontSize="9" x="468" y="90">2.22 MWh / day</text></svg><div className="flex justify-between px-8 text-[8px] text-slate-500"><span>May 12</span><span>May 13</span><span>May 14</span><span>May 15</span><span>May 16</span><span>May 17</span><span>May 18</span></div></div>;
 }
 
-function LossesActionPlanReferenceScreen() {
+function LossesActionPlanReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
         <header className="flex h-[44px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[12px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; Flex Tijuana⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; {siteLabel(data)}⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.dateRange || "No Data"}⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[78px] items-center justify-between">
           <div><div className="text-[10px] text-slate-400">⊞ Electrical Network &nbsp; › &nbsp; Losses Detail &nbsp; › &nbsp; Losses Optimization &nbsp; › &nbsp; <span className="text-[#05ff5e]">Download Action Plan</span></div><h1 className="mt-1 text-2xl font-light">Download Action Plan</h1><p className="mt-1 text-[10px] text-slate-300">Comprehensive action plan to reduce losses, improve efficiency, and optimize system performance.</p></div>
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">♧ Configure Alerts</button></div>
         </div>
         <section className="grid h-[94px] grid-cols-6 gap-3">
-          <PeakKpi icon="◎" label="Total Optimization Potential" value="62 kW" detail="34.8% of Total Losses" tone="green" />
-          <PeakKpi icon="$" label="Estimated Annual Savings" value="$62,000" detail="~$5,167 / month" tone="purple" />
-          <PeakKpi icon="◷" label="Payback Period" value="5.1 months" detail="Very Good" tone="orange" />
-          <PeakKpi icon="⌘" label="Implementation Cost" value="$23,800" detail="One-Time" tone="blue" />
-          <PeakKpi icon="↗" label="CO₂ Reduction" value="~70.2" detail="metric tons / year" tone="green" />
-          <PeakKpi icon="⌁" label="Expected PF Improvement" value="+0.06" detail="From 0.91 to 0.97" tone="orange" />
+          <PeakKpi icon="◎" label="Total Optimization Potential" value="No Data" detail="No approved losses optimization model" tone="green" />
+          <PeakKpi icon="$" label="Estimated Annual Savings" value="No Data" detail="No approved savings model" tone="purple" />
+          <PeakKpi icon="◷" label="Payback Period" value="No Data" detail="No approved cost model" tone="orange" />
+          <PeakKpi icon="⌘" label="Implementation Cost" value="No Data" detail="No approved implementation model" tone="blue" />
+          <PeakKpi icon="↗" label="CO2 Reduction" value="No Data" detail="No approved emissions model" tone="green" />
+          <PeakKpi icon="⌁" label="Expected PF Improvement" value="No Data" detail="No approved PF model" tone="orange" />
         </section>
         <section className="mt-2 flex h-[34px] items-center justify-between rounded border border-cyan-300/15 bg-[#062033] px-3 text-[9px] text-cyan-100">
-          <span>ⓘ &nbsp; This action plan is customized for your network and based on the current analysis period: May 12 - May 18, 2025. Implementation of all recommended actions can achieve maximum potential savings.</span>
+          <span>ⓘ &nbsp; Action-plan calculations are No Data until a losses optimization model is approved. Analysis period: {data.dateRange || "No Data"}.</span>
           <span className="flex gap-2"><button className="rounded border border-cyan-300/20 bg-[#061421] px-4 py-1.5 text-slate-200">⚙ Customize Plan</button><button className="rounded bg-[#087a35] px-4 py-1.5 text-[#eafff1]">⇩ Download PDF</button></span>
         </section>
         <section className="mt-2 grid h-[556px] min-h-0 grid-cols-[1.34fr_0.62fr] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[1fr_30px] gap-3 overflow-hidden">
             <PeakBox title="RECOMMENDED ACTION PLAN"><LossesActionPlanTableReference /></PeakBox>
-            <div className="flex items-center gap-2 rounded border border-cyan-300/12 bg-[#061521]/92 px-3 text-[8px] text-slate-300"><span className="text-yellow-300">💡</span><span><b>Note:</b> Implementation of all recommended actions can reduce total losses by up to 62 kW (34.8%) and generate annual savings of $62,000.</span></div>
+            <div className="flex items-center gap-2 rounded border border-cyan-300/12 bg-[#061521]/92 px-3 text-[8px] text-slate-300"><span className="text-yellow-300">i</span><span><b>Note:</b> Loss reduction, annual savings, and implementation calculations are No Data until a losses optimization model is approved.</span></div>
           </div>
           <aside className="grid min-h-0 grid-rows-[166px_142px_1fr] gap-3 overflow-hidden">
             <PeakBox title="SAVINGS BREAKDOWN"><LossesSavingsBreakdown /></PeakBox>
@@ -1368,13 +1380,14 @@ function LossesActionPlanReferenceScreen() {
             <PeakBox title="PLAN INCLUDES"><LossesPlanIncludes /></PeakBox>
           </aside>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
 }
 
 function LossesActionPlanTableReference() {
+  if (!hasApprovedElectricalModel("lossOptimization")) return <NoDataPanel message="No approved downloadable action-plan rows." />;
   const headers = ["Priority", "Action", "Category", "Location / Asset", "Potential Reduction (kW)", "Est. Cost", "Annual Savings", "Payback", "Implementation Time", "Status"];
   return (
     <div className="flex h-full flex-col overflow-hidden text-[8px]">
@@ -1414,16 +1427,19 @@ function LossesActionRowReference({ row }: { row: typeof lossesActionPlanRows[nu
 }
 
 function LossesSavingsBreakdown() {
+  if (!hasApprovedElectricalModel("lossOptimization")) return <NoDataPanel message="No approved savings breakdown model." />;
   const rows = [["Reactive Power Savings", "$31,500 (50.8%)", "#05ff5e"], ["Transformer Savings", "$12,600 (20.3%)", "#a855f7"], ["Harmonic Savings", "$10,400 (16.8%)", "#ff8a00"], ["IR Conductor Savings", "$7,300 (11.8%)", "#29b6f6"], ["Other Savings", "$300 (0.5%)", "#64748b"]];
   return <div className="grid h-full grid-cols-[112px_1fr] items-center gap-3"><div className="grid size-24 place-items-center rounded-full" style={{ background: "conic-gradient(#05ff5e 0 51%, #a855f7 51% 71%, #ff8a00 71% 88%, #29b6f6 88% 99%, #64748b 99% 100%)" }}><div className="grid size-16 place-items-center rounded-full bg-[#061521] text-center text-lg">$62,000<br /><span className="text-[7px] text-slate-400">Annual Savings</span></div></div><div className="space-y-1.5 text-[8px]">{rows.map(([label, value, color]) => <div className="flex justify-between gap-2" key={label}><span><span className="mr-1 inline-block size-2 rounded-full" style={{ backgroundColor: color }} />{label}</span><b>{value}</b></div>)}</div></div>;
 }
 
 function LossesRoadmapReference() {
+  if (!hasApprovedElectricalModel("lossOptimization")) return <NoDataPanel message="No approved implementation roadmap model." />;
   const items = [["1", "Quick Wins", "(0 - 30 days)", "26 kW", "$21,100 / yr"], ["2", "Short Term", "(1 - 3 months)", "18 kW", "$18,700 / yr"], ["3", "Mid Term", "(3 - 6 months)", "11 kW", "$11,500 / yr"], ["4", "Long Term", "(6 - 12 months)", "5 kW", "$5,700 / yr"], ["5", "Total Potential", "(12+ months)", "60 kW", "$62,000 / yr"]];
   return <div className="h-full text-center text-[8px]"><div className="relative mt-2 grid grid-cols-5 gap-1"><div className="absolute left-[10%] right-[10%] top-3 h-0.5 bg-gradient-to-r from-[#05ff5e] via-[#ffd740] to-[#a855f7]" />{items.map(([step, label, time, kw, savings], index) => <div className="relative" key={step}><div className={index === 4 ? "mx-auto grid size-7 place-items-center rounded-full border border-purple-400 bg-[#061521] text-purple-400" : index === 3 ? "mx-auto grid size-7 place-items-center rounded-full border border-cyan-300 bg-[#061521] text-cyan-300" : index === 2 ? "mx-auto grid size-7 place-items-center rounded-full border border-yellow-300 bg-[#061521] text-yellow-300" : index === 1 ? "mx-auto grid size-7 place-items-center rounded-full border border-orange-400 bg-[#061521] text-orange-400" : "mx-auto grid size-7 place-items-center rounded-full border border-[#05ff5e] bg-[#061521] text-[#05ff5e]"}>{step}</div><div className={index === 4 ? "mt-2 text-purple-400" : index === 3 ? "mt-2 text-cyan-300" : index === 2 ? "mt-2 text-yellow-300" : index === 1 ? "mt-2 text-orange-400" : "mt-2 text-[#05ff5e]"}>{label}</div><div className="text-[7px] text-slate-500">{time}</div><b className={index === 4 ? "text-purple-400" : "text-[#05ff5e]"}>{kw}</b><br /><span className="text-yellow-300">{savings}</span></div>)}</div></div>;
 }
 
 function LossesPlanIncludes() {
+  if (!hasApprovedElectricalModel("lossOptimization")) return <MetricListSmall rows={noDataRows("No approved report package model")} />;
   const rows = ["Detailed action steps and implementation guidelines", "Technical specifications and equipment recommendations", "Expected savings calculations and ROI analysis", "Implementation timeline and resource requirements", "Risk assessment and mitigation strategies"];
   return <div className="grid h-full grid-cols-[1fr_118px] gap-5 text-[9px]"><div className="space-y-3">{rows.map((row) => <div className="flex gap-2 text-slate-300" key={row}><span className="text-[#05ff5e]">✓</span><span>{row}</span></div>)}</div><div className="grid place-items-center border-l border-cyan-300/12"><div className="text-center"><div className="mx-auto grid h-20 w-16 place-items-center rounded border-2 border-slate-500 text-xl text-slate-300">PDF</div><div className="mt-3 text-slate-300">Professional<br />Report Format</div></div></div></div>;
 }
@@ -1488,13 +1504,13 @@ function OptimizationDetailScreen() {
   );
 }
 
-function OptimizationDetailReferenceScreen() {
+function OptimizationDetailReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
         <header className="flex h-[44px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[12px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; Flex Tijuana⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; {siteLabel(data)}⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.dateRange || "No Data"}⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[78px] items-center justify-between">
           <div><div className="text-[10px] text-slate-400">⊞ Electrical Network &nbsp; › &nbsp; Optimization Opportunities &nbsp; › &nbsp; <span className="text-[#05ff5e]">Optimization Detail</span></div><h1 className="mt-1 text-2xl font-light">Optimization Detail</h1><p className="mt-1 text-[10px] text-slate-300">Detailed analysis of selected optimization opportunity and implementation plan.</p></div>
@@ -1502,14 +1518,14 @@ function OptimizationDetailReferenceScreen() {
         </div>
         <section className="grid h-[84px] grid-cols-[1.72fr_repeat(5,1fr)] gap-3">
           <article className="rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
-            <div className="text-[10px] font-semibold uppercase text-slate-200">Load Rebalancing on Feeder 4 <span className="ml-2 rounded bg-[#064d2b] px-2 py-0.5 text-[7px] text-[#05ff5e]">Recommended</span></div>
-            <p className="mt-2 max-w-[360px] text-[9px] leading-snug text-slate-300">Rebalance load distribution on Feeder 4 to reduce overload, improve capacity utilization, and defer infrastructure upgrades.</p>
+            <div className="text-[10px] font-semibold uppercase text-slate-200">Optimization Opportunity <span className="ml-2 rounded bg-[#13283a] px-2 py-0.5 text-[7px] text-slate-300">No Data</span></div>
+            <p className="mt-2 max-w-[360px] text-[9px] leading-snug text-slate-300">No approved recommendation engine/model exists for a selected optimization opportunity.</p>
           </article>
-          <PeakKpi icon="↗" label="Capacity Gain" value="120 kVA" detail="Recoverable" tone="green" />
-          <PeakKpi icon="$" label="Estimated Savings" value="$52,300 / yr" detail="$4,358 / month" tone="purple" />
-          <PeakKpi icon="◷" label="Payback Period" value="2.1 months" detail="Very Good" tone="orange" />
-          <PeakKpi icon="⌘" label="Implementation Time" value="1-2 weeks" detail="Low Impact" tone="blue" />
-          <PeakKpi icon="◈" label="Confidence Score" value="92%" detail="High" tone="blue" />
+          <PeakKpi icon="↗" label="Capacity Gain" value="No Data" detail="No approved optimization model" tone="green" />
+          <PeakKpi icon="$" label="Estimated Savings" value="No Data" detail="No approved savings model" tone="purple" />
+          <PeakKpi icon="◷" label="Payback Period" value="No Data" detail="No approved cost model" tone="orange" />
+          <PeakKpi icon="⌘" label="Implementation Time" value="No Data" detail="No approved implementation model" tone="blue" />
+          <PeakKpi icon="◈" label="Confidence Score" value="No Data" detail="No approved model score" tone="blue" />
         </section>
         <section className="mt-2 grid h-[574px] min-h-0 grid-cols-[1.38fr_0.58fr] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[204px_174px_1fr] gap-3 overflow-hidden">
@@ -1535,54 +1551,64 @@ function OptimizationDetailReferenceScreen() {
             <PeakBox title="IMPLEMENTATION NOTES"><ImplementationNotesReference /></PeakBox>
           </aside>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
 }
 
 function OptimizationConditionGauge({ foot, label, metrics, tone, value }: { foot: string; label: string; metrics: string[][]; tone: "green" | "red"; value: string }) {
+  if (!hasApprovedElectricalModel("recommendations")) return <NoDataPanel message="No approved optimization condition model." />;
   const color = tone === "red" ? "#ef4444" : "#05ff5e";
   return <div className="grid h-full grid-cols-[120px_1fr] items-center gap-3 text-[8px]"><div className="text-center"><div className="grid size-28 place-items-center rounded-full" style={{ background: `conic-gradient(${color} 0 ${tone === "red" ? "92%" : "80%"}, #0f2533 ${tone === "red" ? "92%" : "80%"} 100%)` }}><div className="grid size-[72px] place-items-center rounded-full bg-[#061521] text-center text-3xl" style={{ color }}>{value}<br /><span className="text-[8px] text-slate-300">{label}</span></div></div><div className={tone === "red" ? "mt-2 text-red-400" : "mt-2 text-[#05ff5e]"}>{foot}</div></div><div className="space-y-[5px]">{metrics.map(([k, v]) => <div className="flex justify-between border-b border-white/6 pb-1" key={k}><span>{k}</span><b className={Number.parseFloat(v) > 90 || v === "0.87" ? "text-red-400" : v === "0.95" || v === "1.8%" || v === "80%" || v === "86%" ? "text-[#05ff5e]" : "text-slate-200"}>{v}</b></div>)}</div></div>;
 }
 
 function CapacityImpactReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <NoDataPanel message="No approved capacity impact model." />;
   return <div className="h-full text-[8px]"><svg className="h-[150px] w-full" viewBox="0 0 230 150"><g stroke="rgba(148,163,184,.18)">{[20,48,76,104,132].map((y) => <line key={y} x1="34" x2="224" y1={y} y2={y} />)}</g><g fill="#94a3b8" fontSize="8"><text x="2" y="24">2,500</text><text x="2" y="52">2,000</text><text x="2" y="80">1,500</text><text x="2" y="108">1,000</text><text x="12" y="136">0</text></g>{[["Current Used",62,"#ef4444","1,840 kVA"],["Optimized Used",74,"#22c55e","1,600 kVA"],["Available",106,"#29b6f6","400 kVA"]].map(([label,x,color,text]) => <g key={String(label)}><rect fill={String(color)} height={132-Number(x)} width="26" x={Number(x)} y={Number(x)} /><text fill="#e2e8f0" fontSize="8" textAnchor="middle" x={Number(x)+13} y={Number(x)-5}>{String(text)}</text><text fill="#94a3b8" fontSize="7" textAnchor="middle" x={Number(x)+13} y="145">{String(label).split(" ")[0]}</text></g>)}</svg><div className="mt-1 flex gap-3 text-[7px]"><span className="text-red-400">■ Current Used</span><span className="text-[#05ff5e]">■ Optimized Used</span><span className="text-cyan-300">■ Available</span></div></div>;
 }
 
 function LoadDistributionBeforeAfter() {
+  if (!hasApprovedElectricalModel("recommendations")) return <NoDataPanel message="No approved before/after load distribution model." />;
   return <div className="h-full text-[8px]"><div className="mb-1 flex justify-between"><span>kVA</span><span>Before Optimization</span><span>After Optimization (Simulated)</span></div><svg className="h-[136px] w-full" viewBox="0 0 330 140"><g fill="#94a3b8" fontSize="8"><text x="0" y="24">1000</text><text x="0" y="62">750</text><text x="0" y="100">500</text></g>{[[48,30,"910","#ef4444"],[86,62,"650","#eab308"],[124,68,"630","#147dff"],[210,64,"720","#22c55e"],[248,70,"690","#22c55e"],[286,72,"670","#22c55e"]].map(([x,y,val,color]) => <g key={`${x}-${val}`}><rect fill={String(color)} height={122-Number(y)} width="24" x={Number(x)} y={Number(y)} /><text fill="#e2e8f0" fontSize="8" textAnchor="middle" x={Number(x)+12} y={Number(y)-5}>{String(val)}</text></g>)}<path d="M160 74 H190" stroke="#94a3b8" strokeWidth="5" /><path d="M190 74 l-10 -8 v16 z" fill="#94a3b8" /><g fill="#94a3b8" fontSize="8" textAnchor="middle"><text x="60" y="136">Phase A</text><text x="98" y="136">Phase B</text><text x="136" y="136">Phase C</text><text x="222" y="136">Phase A</text><text x="260" y="136">Phase B</text><text x="298" y="136">Phase C</text></g></svg><div className="text-right text-[7px] text-slate-400">Optimal Range (±10%)</div></div>;
 }
 
 function HourlyLoadProfileReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <NoDataPanel message="No approved optimized load profile source." />;
   const before = "20,120 48,118 76,112 104,96 132,78 160,58 188,76 216,68 244,48 272,62 300,70 328,88 356,94 384,110 412,118";
   const after = "20,138 48,136 76,130 104,116 132,98 160,78 188,96 216,88 244,70 272,80 300,92 328,106 356,112 384,124 412,130";
   return <div className="h-full text-[8px]"><div className="mb-1 flex justify-center gap-5"><span className="text-red-400">━ Before Optimization</span><span className="text-[#05ff5e]">━ After Optimization</span><span className="text-slate-400">-- Capacity Limit</span></div><svg className="h-[136px] w-full" viewBox="0 0 430 140"><g stroke="rgba(148,163,184,.18)">{[20,48,76,104,128].map((y) => <line key={y} x1="20" x2="420" y1={y} y2={y} />)}</g><line stroke="#ef4444" strokeDasharray="5 5" x1="20" x2="420" y1="36" y2="36" /><polyline fill="none" points={before} stroke="#ef4444" strokeWidth="2" />{parseNetworkPoints(before).map(([x,y]) => <circle cx={x} cy={y} fill="#061521" key={`b-${x}`} r="3" stroke="#ef4444" strokeWidth="2" />)}<polyline fill="none" points={after} stroke="#05ff5e" strokeWidth="2" />{parseNetworkPoints(after).map(([x,y]) => <circle cx={x} cy={y} fill="#061521" key={`a-${x}`} r="3" stroke="#05ff5e" strokeWidth="2" />)}</svg><div className="flex justify-between text-[7px] text-slate-500"><span>12 AM</span><span>4 AM</span><span>8 AM</span><span>12 PM</span><span>4 PM</span><span>8 PM</span><span>12 AM</span></div></div>;
 }
 
 function SavingsBreakdownReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <MetricListSmall rows={noDataRows("No approved savings breakdown model")} />;
   return <div className="space-y-3 text-[8px]">{[["Demand Charge Reduction", "$28,600", "54.7%"], ["Loss Reduction Savings", "$12,400", "23.7%"], ["Efficiency Improvement", "$11,300", "21.6%"]].map(([label,value,pct]) => <div className="grid grid-cols-[1fr_58px_40px] border-b border-white/6 pb-2" key={label}><span>{label}</span><b className="text-[#05ff5e]">{value}</b><span>{pct}</span></div>)}<div className="flex justify-between pt-2 text-[#05ff5e]"><b>Total Annual Savings</b><b>$52,300&nbsp;&nbsp;&nbsp;100%</b></div></div>;
 }
 
 function ImplementationStepsReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <NoDataPanel message="No approved implementation-step model." />;
   const rows = [["1", "Load analysis & mapping", "Engineering Team", "1 day", "Completed"], ["2", "Load redistribution plan", "Engineering Team", "1 day", "In Progress"], ["3", "Capacitor bank optimization", "Field Technician", "0.5 day", "Pending"], ["4", "Phase balancing adjustments", "Field Technician", "1 day", "Pending"], ["5", "Post optimization verification", "Engineering Team", "0.5 day", "Pending"]];
   return <table className="w-full text-left text-[7.2px]"><thead className="text-slate-400"><tr>{["Step", "Action", "Owner", "Duration", "Status"].map((h) => <th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([step,action,owner,duration,status]) => <tr className="border-t border-white/6" key={step}><td className="py-[2.6px]"><span className="grid size-4 place-items-center rounded-full border border-[#05ff5e] text-[#05ff5e]">{step}</span></td><td>{action}</td><td>{owner}</td><td>{duration}</td><td className={status === "Completed" ? "text-[#05ff5e]" : status === "In Progress" ? "text-yellow-300" : "text-slate-300"}>{status}</td></tr>)}</tbody></table>;
 }
 
 function FinancialSummaryReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <MetricListSmall rows={noDataRows("No approved financial model")} />;
   return <div className="flex h-full flex-col text-[7.7px]">{[["Implementation Cost", "$6,500"], ["Annual Savings", "$52,300"], ["Payback Period", "2.1 months"], ["ROI (1 Year)", "705%"]].map(([label,value]) => <div className="flex justify-between border-b border-white/6 py-1" key={label}><span>{label}</span><b className="text-[#05ff5e]">{value}</b></div>)}<div className="mt-auto rounded border border-cyan-300/12 bg-[#061421] p-1.5"><div className="text-slate-400">Net Present Value (5 Years)</div><div className="text-xl leading-tight text-[#05ff5e]">$221,600</div></div></div>;
 }
 
 function OpportunityInfoReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <MetricListSmall rows={noDataRows("No approved opportunity model")} />;
   const rows = [["Opportunity ID", "OPT-2025-0001"], ["Type", "Capacity Optimization"], ["Location", "Electrical Room"], ["Asset / Feeder", "Feeder 4"], ["Identified", "May 18, 2025 10:12 AM"], ["Priority", "High"], ["Status", "Recommended"]];
   return <div className="space-y-1 text-[8px]">{rows.map(([label,value]) => <div className="flex justify-between border-b border-white/6 pb-1.5" key={label}><span>{label}</span><b className={value === "High" ? "text-red-400" : "text-[#05ff5e]"}>{value}</b></div>)}</div>;
 }
 
 function OptimizationBullets({ rows }: { rows: string[][] }) {
+  if (!hasApprovedElectricalModel("recommendations")) return <MetricListSmall rows={noDataRows("No approved recommendation detail model")} />;
   return <div className="space-y-2 text-[8px]">{rows.map(([icon,text,color]) => <div className="grid grid-cols-[20px_1fr_auto] gap-2 border-b border-white/6 pb-1.5" key={text}><span className={color}>{icon}</span><span>{text}</span><b className={color}>{text.includes("detected") ? "Detected" : text.includes(">80") ? ">80%" : text.includes("Phase") ? "Phase A" : text.includes("Reactive") ? "Higher kVA" : "Recommended"}</b></div>)}</div>;
 }
 
 function ImplementationNotesReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <MetricListSmall rows={noDataRows("No approved implementation-note model")} />;
   return <div className="flex h-full flex-col text-[8px]"><div className="space-y-2">{[["No hardware upgrade required.", "Not required"], ["Coordination with operations team recommended.", "Operations team"], ["Can be implemented during normal operation.", "Normal operation"]].map(([label,value]) => <div className="grid grid-cols-[20px_1fr_auto] gap-2 border-b border-white/6 pb-1.5" key={label}><span className="text-[#05ff5e]">ⓘ</span><span>{label}</span><b className="text-[#05ff5e]">{value}</b></div>)}</div><button className="mt-auto rounded bg-[#087a35] py-2 text-[9px] text-[#eafff1]">▣ Generate Implementation Plan</button></div>;
 }
 
@@ -1614,25 +1640,25 @@ function PowerDetailScreen() {
   );
 }
 
-function PowerDetailReferenceScreen() {
+function PowerDetailReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
         <header className="flex h-[44px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[12px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; Flex Tijuana⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; {siteLabel(data)}⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.dateRange || "No Data"}⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[78px] items-center justify-between">
           <div><div className="text-[10px] text-slate-400">⊞ Electrical Network &nbsp; › &nbsp; <span className="text-[#05ff5e]">Power Detail</span></div><h1 className="mt-1 text-2xl font-light">Power Detail</h1><p className="mt-1 text-[10px] text-slate-300">Comprehensive analysis of apparent power, real power, reactive power, and power factor performance.</p></div>
           <div className="flex flex-col items-end gap-2 text-[9px]"><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">♧ Configure Alerts</button></div><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Overview</button></div>
         </div>
         <section className="grid h-[88px] grid-cols-6 gap-3">
-          <LossKpi icon="⌁" label="Total Apparent Power ⓘ" value="6.41 MVA" detail="↑ 4.3% vs Last 7 Days" tone="purple" />
-          <LossKpi icon="⌁" label="Total Real Power ⓘ" value="5.82 MW" detail="↑ 4.1% vs Last 7 Days" tone="green" />
-          <LossKpi icon="⌁" label="Total Reactive Power ⓘ" value="2.68 MVAR" detail="↓ 2.7% vs Last 7 Days" tone="blue" />
-          <LossKpi icon="⌘" label="Power Factor (Avg) ⓘ" value="0.91" detail="+0.03 vs Last 7 Days" tone="orange" />
-          <LossKpi icon="⌁" label="Power Factor (Min) ⓘ" value="0.78" detail="May 15, 2:14 PM" tone="orange" />
-          <LossKpi icon="⌁" label="kVA Utilization ⓘ" value="75%" detail="Of System Capacity" tone="purple" />
+          <LossKpi icon="⌁" label="Total Apparent Power ⓘ" value="No Data" detail="No approved apparent-power source" tone="purple" />
+          <LossKpi icon="⌁" label="Total Real Power ⓘ" value={formatMw(data.currentLoadKva)} detail="Latest capacity intelligence" tone="green" />
+          <LossKpi icon="⌁" label="Total Reactive Power ⓘ" value="No Data" detail="No approved reactive-power source" tone="blue" />
+          <LossKpi icon="⌘" label="Power Factor (Avg) ⓘ" value="No Data" detail="No approved power-factor source" tone="orange" />
+          <LossKpi icon="⌁" label="Power Factor (Min) ⓘ" value="No Data" detail="No approved low-PF event source" tone="orange" />
+          <LossKpi icon="⌁" label="kVA Utilization ⓘ" value={data.transformerKva > 0 ? `${utilizationPct(data)}%` : "No Data"} detail="Used capacity over transformer capacity" tone="purple" />
         </section>
         <section className="mt-2 grid h-[604px] min-h-0 grid-cols-[1.34fr_0.9fr] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[244px_170px_1fr] gap-3 overflow-hidden">
@@ -1656,13 +1682,14 @@ function PowerDetailReferenceScreen() {
             <PeakBox title="INSIGHTS"><PowerInsightsReference /></PeakBox>
           </aside>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
 }
 
 function PowerTrendReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved power trend source." />;
   const real = "24,112 58,104 92,98 126,96 160,90 194,82 228,78 262,86 296,76 330,80 364,72 398,76 432,74 466,78 500,82 534,76";
   const reactive = "24,136 58,132 92,130 126,126 160,116 194,106 228,118 262,110 296,96 330,108 364,116 398,108 432,112 466,110 500,106 534,102";
   const apparent = "24,72 58,70 92,68 126,64 160,60 194,58 228,62 262,56 296,54 330,60 364,58 398,56 432,58 466,57 500,56 534,55";
@@ -1671,37 +1698,45 @@ function PowerTrendReference() {
 }
 
 function PowerFeederTableReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved feeder-level power source." />;
   const rows = [["Feeder 4","1.42 MW","0.91 MVAR","1.68 MVA","0.84","Fair","26%"],["Feeder 1","1.24 MW","0.48 MVAR","1.32 MVA","0.94","Good","21%"],["Feeder 3","1.08 MW","0.66 MVAR","1.27 MVA","0.85","Fair","20%"],["Feeder 2","0.99 MW","0.51 MVAR","1.11 MVA","0.89","Fair","17%"],["Feeder 5","1.10 MW","0.42 MVAR","1.18 MVA","0.93","Good","16%"],["Total","5.82 MW","2.98 MVAR","6.41 MVA","0.91","Good","100%"]];
   return <table className="w-full text-left text-[7.5px]"><thead className="text-slate-400"><tr>{["Feeder","kW (P)","kVAR (Q)","kVA (S)","PF","PF Status","% of S"].map((h) => <th className="pb-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([f,p,q,s,pf,status,total]) => <tr className="border-t border-white/6" key={f}><td className="py-[4px]">{f}</td><td>{p}</td><td>{q}</td><td>{s}</td><td>{pf}</td><td className={status === "Fair" ? "text-yellow-300" : "text-[#05ff5e]"}>{status}</td><td>{total}</td></tr>)}</tbody></table>;
 }
 
 function PowerTimeOfDayReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved power time-of-day source." />;
   const rows = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   return <div className="h-full text-[8px]"><div className="mb-1 ml-9 grid grid-cols-4 text-center text-slate-400"><span>12 AM</span><span>6 AM</span><span>12 PM</span><span>6 PM</span></div><div className="grid grid-cols-[28px_1fr] gap-2"><div className="grid grid-rows-7 gap-1 text-slate-300">{rows.map((r) => <span key={r}>{r}</span>)}</div><div className="grid grid-cols-12 gap-1">{Array.from({ length: 84 }).map((_, index) => { const col = index % 12; const color = col < 4 ? "#16a34a" : col < 7 ? "#facc15" : col < 9 ? "#ff8a00" : "#ef4444"; return <span className="h-[13px] rounded-sm border border-[#061521]" key={index} style={{ backgroundColor: color, opacity: 0.72 + (index % 3) * 0.09 }} />; })}</div></div><div className="mt-2 flex justify-between text-[7px] text-slate-400"><span>Low</span><span className="h-2 flex-1 mx-3 rounded-full bg-gradient-to-r from-[#05ff5e] via-[#facc15] to-[#ef4444]" /><span>High</span></div></div>;
 }
 
 function DemandVsCapacityReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved apparent power trend source." />;
   const apparent = "20,118 52,112 84,116 116,96 148,102 180,86 212,80 244,98 276,90 308,86 340,82 372,76";
   return <div className="h-full text-[8px]"><div className="mb-1 flex justify-center gap-5"><span className="text-purple-400">━ Apparent Power (MVA)</span><span className="text-cyan-300">-- Capacity (MVA)</span></div><svg className="h-[112px] w-full" viewBox="0 0 400 120"><g stroke="rgba(148,163,184,.16)">{[20,48,76,104].map((y) => <line key={y} x1="20" x2="390" y1={y} y2={y} />)}</g><line stroke="#29b6f6" strokeDasharray="4 4" x1="20" x2="390" y1="42" y2="42" /><polyline fill="none" points={apparent} stroke="#a855f7" strokeWidth="2" />{parseNetworkPoints(apparent).map(([x,y]) => <circle cx={x} cy={y} fill="#061521" key={x} r="3" stroke="#a855f7" strokeWidth="2" />)}<text fill="#29b6f6" fontSize="8" x="350" y="40">8.50 MVA</text><text fill="#a855f7" fontSize="8" x="350" y="74">6.41 MVA</text></svg><div className="flex justify-between text-[7px] text-slate-500"><span>May 12</span><span>May 13</span><span>May 14</span><span>May 15</span><span>May 16</span><span>May 17</span><span>May 18</span></div></div>;
 }
 
 function PowerReactiveAnalysisReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <MetricListSmall rows={noDataRows("No approved reactive-power source")} />;
   return <div className="flex h-full flex-col text-[8px]">{[["Leading (Capacitive)", "-0.45 MVAR", "17%"], ["Neutral", "0.00 - 0.20 MVAR", "8%"], ["Lagging (Inductive)", "2.68 MVAR", "75%"]].map(([label,value,pct]) => <div className="flex justify-between border-b border-white/6 py-2" key={label}><span>{label}</span><b className="text-[#05ff5e]">{value}<br /><span>{pct}</span></b></div>)}<div className="mt-auto text-right text-[#05ff5e]">View Reactive Power Details →</div></div>;
 }
 
 function PowerComponentBreakdownReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved power component model." />;
   return <div className="grid h-full grid-cols-[92px_1fr] items-center gap-3"><div className="grid size-24 place-items-center rounded-full" style={{ background: "conic-gradient(#05ff5e 0 72%, #147dff 72% 98%, #ff8a00 98% 100%)" }}><div className="grid size-14 place-items-center rounded-full bg-[#061521] text-center text-lg">6.41<br /><span className="text-[8px]">MVA</span><br /><span className="text-[7px]">Total</span></div></div><div className="space-y-3 text-[8px]">{[["Real Power (P)","5.82 MW","71.6%","#05ff5e"],["Reactive Power (Q)","2.68 MVAR","33.0%","#147dff"],["Losses","0.12 MW","1.4%","#ff8a00"]].map(([l,v,p,c]) => <div className="grid grid-cols-[1fr_54px_28px] gap-2" key={l}><span><span className="mr-1 inline-block size-2 rounded-full" style={{ backgroundColor: c }} />{l}</span><b>{v}</b><span>{p}</span></div>)}</div></div>;
 }
 
 function PowerFactorDistributionReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved power-factor distribution source." />;
   return <div className="h-full text-[8px]"><div className="grid h-8 grid-cols-[8%_32%_38%_22%] overflow-hidden rounded"><span className="bg-red-500 text-center leading-8">8%</span><span className="bg-orange-500 text-center leading-8">32%</span><span className="bg-yellow-400 text-center leading-8 text-slate-900">38%</span><span className="bg-[#05ff5e] text-center leading-8 text-slate-900">22%</span></div><div className="mt-2 grid grid-cols-4 text-center text-[7px]"><span>Poor<br />&lt; 0.80</span><span>Fair<br />0.80 - 0.90</span><span>Good<br />0.90 - 0.95</span><span>Excellent<br />&gt; 0.95</span></div></div>;
 }
 
 function PowerLowPfEventsReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved low power-factor event source." />;
   return <div className="flex h-full flex-col"><table className="w-full text-left text-[7.2px]"><thead className="text-slate-400"><tr>{["Time","Min PF","Duration","Location","Impact"].map((h) => <th className="pb-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{lowPfRows.map(([time,minPf,duration,feeder,impact]) => <tr className="border-t border-white/6" key={time}><td className="py-[3px]">{time}</td><td>{minPf}</td><td>{duration}</td><td>{feeder}</td><td className={impact === "High" ? "text-red-400" : impact === "Medium" ? "text-yellow-300" : "text-[#05ff5e]"}>{impact}</td></tr>)}</tbody></table><div className="mt-auto text-right text-[9px] text-[#05ff5e]">View All Low PF Events →</div></div>;
 }
 
 function PowerInsightsReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <MetricListSmall rows={noDataRows("No approved power-quality insight model")} />;
   const rows = [["◎","Power factor improved 0.03 compared to the previous 7 days.","text-purple-400"],["◎","Peak apparent power occurred on May 16 at 2:18 PM (6.78 MVA).","text-[#05ff5e]"],["◎","Reactive power is within acceptable range.","text-orange-400"],["◎","Maintaining PF above 0.90 could save an estimated 62 kW in losses.","text-cyan-300"]];
   return <div className="flex h-full flex-col gap-2 text-[7.8px]">{rows.map(([icon,text,color]) => <div className="grid grid-cols-[22px_1fr] gap-2 border-b border-white/6 pb-1" key={text}><span className={color}>{icon}</span><span>{text}</span></div>)}<div className="mt-auto text-right text-[#05ff5e]">View All Insights →</div></div>;
 }
@@ -1731,29 +1766,29 @@ function LowPfEventsScreen() {
   );
 }
 
-function LowPfEventsReferenceScreen() {
+function LowPfEventsReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
         <header className="flex h-[44px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[12px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; Flex Tijuana⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; {siteLabel(data)}⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.dateRange || "No Data"}⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[78px] items-center justify-between">
           <div><div className="text-[10px] text-slate-400">⊞ Electrical Network &nbsp; › &nbsp; Power Detail &nbsp; › &nbsp; <span className="text-[#05ff5e]">Low Power Factor Events</span></div><h1 className="mt-1 text-2xl font-light">Low Power Factor Events</h1><p className="mt-1 text-[10px] text-slate-300">Detailed list of low power factor events detected across the network.</p></div>
           <div className="flex flex-col items-end gap-2 text-[9px]"><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">♧ Configure Alerts</button></div><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Power Detail</button></div>
         </div>
         <section className="grid h-[88px] grid-cols-6 gap-3">
-          <LossKpi icon="×" label="Total Low PF Events" value="27" detail="In Last 7 Days" tone="purple" />
-          <LossKpi icon="⌁" label="Avg Min PF" value="0.78" detail="Below 0.90 Threshold" tone="orange" />
-          <LossKpi icon="⌁" label="Lowest PF Recorded" value="0.62" detail="May 14, 9:37 AM" tone="red" />
-          <LossKpi icon="◷" label="Total Duration" value="8h 47m" detail="Across All Events" tone="blue" />
-          <LossKpi icon="▦" label="Affected Feeders" value="5" detail="of 5 Feeders" tone="green" />
-          <LossKpi icon="▤" label="Affected Load" value="18" detail="Panels / Loads" tone="yellow" />
+          <LossKpi icon="×" label="Total Low PF Events" value="No Data" detail="No approved low-PF event source" tone="purple" />
+          <LossKpi icon="⌁" label="Avg Min PF" value="No Data" detail="No approved PF source" tone="orange" />
+          <LossKpi icon="⌁" label="Lowest PF Recorded" value="No Data" detail="No approved PF event source" tone="red" />
+          <LossKpi icon="◷" label="Total Duration" value="No Data" detail="No approved event duration source" tone="blue" />
+          <LossKpi icon="▦" label="Affected Feeders" value="No Data" detail="No approved event source" tone="green" />
+          <LossKpi icon="▤" label="Affected Load" value="No Data" detail="No approved event load source" tone="yellow" />
         </section>
         <section className="mt-2 grid h-[32px] grid-cols-[1fr_124px_110px_128px_128px_178px_auto] items-center gap-3 text-[9px]">
           <div className="h-full rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-slate-500">⌕ &nbsp; Search events, feeders, locations...</div>
-          {["All Feeders⌄", "PF < 0.90⌄", "All Severities⌄", "All Causes⌄", "▣ May 12 - May 18, 2025⌄"].map((label) => <button className="h-full rounded border border-cyan-300/12 bg-[#061421] px-3 text-left text-slate-300" key={label}>{label}</button>)}
+          {["All Feeders⌄", "PF < 0.90⌄", "All Severities⌄", "All Causes⌄", `▣ ${data.dateRange || "No Data"}⌄`].map((label) => <button className="h-full rounded border border-cyan-300/12 bg-[#061421] px-3 text-left text-slate-300" key={label}>{label}</button>)}
           <button className="text-left text-slate-400">× Clear Filters</button>
         </section>
         <section className="mt-2 grid h-[572px] min-h-0 grid-cols-[1.55fr_0.48fr] gap-3 overflow-hidden">
@@ -1769,28 +1804,32 @@ function LowPfEventsReferenceScreen() {
             <PeakBox title="EVENT DETAILS"><LowPfEventDetailsReference /></PeakBox>
           </aside>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
 }
 
 function LowPfTrendReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved low-PF trend source." />;
   const pf = "24,78 58,76 92,80 126,74 160,112 194,102 228,96 262,124 296,142 330,104 364,88 398,102 432,116 466,114 500,110 534,110";
   return <div className="h-full text-[8px]"><div className="mb-1 flex justify-between"><span>PF</span><span className="text-red-400">Threshold (0.90)</span></div><svg className="h-[138px] w-full" viewBox="0 0 550 148"><g stroke="rgba(148,163,184,.16)">{[20,48,76,104,132].map((y) => <line key={y} x1="24" x2="540" y1={y} y2={y} />)}</g><g fill="#94a3b8" fontSize="8"><text x="0" y="24">1.00</text><text x="0" y="52">0.90</text><text x="0" y="80">0.80</text><text x="0" y="108">0.70</text><text x="0" y="136">0.60</text></g><line stroke="#ef4444" strokeDasharray="4 4" x1="24" x2="540" y1="48" y2="48" /><polyline fill="none" points={pf} stroke="#05ff5e" strokeWidth="2.4" />{parseNetworkPoints(pf).map(([x,y]) => <circle cx={x} cy={y} fill="#061521" key={x} r="3" stroke="#05ff5e" strokeWidth="2" />)}</svg><div className="flex justify-between px-6 text-[7px] text-slate-500"><span>May 12</span><span>May 13</span><span>May 14</span><span>May 15</span><span>May 17</span><span>May 18</span></div></div>;
 }
 
 function LowPfByHourReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved low-PF hourly event source." />;
   const bars = [2,3,2,4,5,4,3,4,6,5,7,4,8,9,7,5,9,5,4,7,4,3];
   return <div className="h-full text-[8px]"><svg className="h-[138px] w-full" viewBox="0 0 460 148"><g stroke="rgba(148,163,184,.16)">{[20,48,76,104,132].map((y) => <line key={y} x1="28" x2="452" y1={y} y2={y} />)}</g><g fill="#94a3b8" fontSize="8"><text x="6" y="24">10</text><text x="12" y="52">8</text><text x="12" y="80">6</text><text x="12" y="108">4</text><text x="12" y="136">0</text></g>{bars.map((value, index) => { const color = index < 8 ? "#facc15" : index < 14 ? "#ff8a00" : "#ef4444"; const height = value * 12; const x = 38 + index * 18; return <rect fill={color} height={height} key={index} rx="1" width="11" x={x} y={132 - height} />; })}</svg><div className="flex justify-between px-8 text-[7px] text-slate-500"><span>12 AM</span><span>3 AM</span><span>6 AM</span><span>9 AM</span><span>12 PM</span><span>3 PM</span><span>6 PM</span><span>9 PM</span></div><div className="mt-1 flex justify-center gap-5 text-[8px]"><span className="text-yellow-300">■ PF 0.80 - 0.90</span><span className="text-orange-400">■ PF 0.70 - 0.80</span><span className="text-red-400">■ PF &lt; 0.70</span></div></div>;
 }
 
 function LowPfSeverityBreakdownReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved low-PF severity source." />;
   const rows = [["Critical (PF < 0.70)", "5 (19%)", "#ef4444"], ["High (PF 0.70 - 0.80)", "10 (37%)", "#ff8a00"], ["Medium (PF 0.80 - 0.90)", "12 (44%)", "#facc15"]];
   return <div className="grid h-full grid-cols-[94px_1fr] items-center gap-3"><div className="grid size-20 place-items-center rounded-full" style={{ background: "conic-gradient(#ef4444 0 19%, #ff8a00 19% 56%, #facc15 56% 100%)" }}><div className="grid size-12 place-items-center rounded-full bg-[#061521] text-center text-xl">27<br /><span className="text-[7px]">Total</span></div></div><div className="space-y-3 text-[8px]">{rows.map(([label,value,color]) => <div className="flex justify-between gap-2" key={label}><span><span className="mr-2 inline-block size-2 rounded-full" style={{ backgroundColor: color }} />{label}</span><b>{value}</b></div>)}</div></div>;
 }
 
 function LowPfEventsTableReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved low-PF event table source." />;
   const headers = ["#", "Start Time", "End Time", "Duration", "Min PF", "Avg PF", "Feeder", "Location / Asset", "Cause", "Severity", "Impact", "Status", "Actions"];
   return <div className="flex h-full flex-col overflow-hidden"><table className="w-full table-fixed text-left text-[7.2px]"><colgroup><col className="w-[3%]" /><col className="w-[10%]" /><col className="w-[10%]" /><col className="w-[7%]" /><col className="w-[6%]" /><col className="w-[6%]" /><col className="w-[8%]" /><col className="w-[11%]" /><col className="w-[11%]" /><col className="w-[7%]" /><col className="w-[7%]" /><col className="w-[7%]" /><col className="w-[7%]" /></colgroup><thead className="text-slate-400"><tr>{headers.map((h) => <th className="pb-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{lowPfEventRows.map((row) => <LowPfEventRowReference key={`${row[0]}-${row[1]}`} row={row} />)}</tbody></table><div className="mt-auto grid grid-cols-3 items-center pt-3 text-[8px] text-slate-400"><span>Showing 1 to 10 of 27 events</span><div className="flex justify-center gap-2"><button className="rounded border border-cyan-300/12 px-2 py-1">‹</button><button className="rounded bg-[#087a35] px-3 py-1 text-[#05ff5e]">1</button><button className="rounded border border-cyan-300/12 px-3 py-1">2</button><button className="rounded border border-cyan-300/12 px-3 py-1">3</button><button className="rounded border border-cyan-300/12 px-2 py-1">›</button></div><span className="justify-self-end">Rows per page: <b className="ml-2 rounded border border-cyan-300/12 px-3 py-1 text-slate-300">10⌄</b></span></div></div>;
 }
@@ -1803,6 +1842,7 @@ function LowPfEventRowReference({ row }: { row: string[] }) {
 }
 
 function LowPfEventDetailsReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <MetricListSmall rows={noDataRows("No approved low-PF event detail source")} />;
   const rows = [["Duration", "18 min"], ["Avg PF", "0.71"], ["Start Time", "May 14, 2025 9:37 AM"], ["End Time", "May 14, 2025 9:55 AM"], ["Lowest PF", "0.62"], ["PF Threshold", "0.90"], ["PF Deviation", "-0.28"], ["Energy Impact", "22.1 kWh"], ["Estimated Cost Impact", "$3.42"], ["Cause", "Motor Starting"], ["Notes", "Two 50 HP motors started simultaneously."]];
   return <div className="flex h-full flex-col text-[8px]"><div className="mb-3 flex items-center justify-between"><span>May 14, 2025 9:37 AM</span><span className="rounded border border-red-500 px-2 py-0.5 text-red-400">Critical</span></div><div className="mb-3 grid grid-cols-2 gap-4 border-l border-cyan-400 pl-3"><div><div className="text-3xl font-light">0.62</div><div className="text-slate-400">Min PF</div></div><div><div className="text-lg">Feeder 1</div><div className="text-slate-400">Building 3 Panel</div></div></div><div className="space-y-[5px]">{rows.map(([label,value]) => <div className="flex justify-between gap-3 border-b border-white/6 pb-1" key={label}><span className="text-slate-400">{label}</span><b className="text-right">{value}</b></div>)}</div><button className="mt-auto rounded border border-[#05ff5e] py-2 text-[9px] text-[#05ff5e]">View Event Analysis →</button></div>;
 }
@@ -1838,25 +1878,25 @@ function ReactivePowerDetailScreen() {
   );
 }
 
-function ReactivePowerDetailReferenceScreen() {
+function ReactivePowerDetailReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
         <header className="flex h-[44px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[12px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; Flex Tijuana⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[146px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; {siteLabel(data)}⌄</button><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.dateRange || "No Data"}⌄</button><span className="text-[#05ff5e]">● Live</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[78px] items-center justify-between">
           <div><div className="text-[10px] text-slate-400">⊞ Electrical Network &nbsp; › &nbsp; Power Detail &nbsp; › &nbsp; <span className="text-[#05ff5e]">Reactive Power Detail</span></div><h1 className="mt-1 text-2xl font-light">Reactive Power Detail</h1><p className="mt-1 text-[10px] text-slate-300">In-depth analysis of reactive power, power factor, and VAR performance across the network.</p></div>
           <div className="flex flex-col items-end gap-2 text-[9px]"><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">♧ Configure Alerts</button></div><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Power Detail</button></div>
         </div>
         <section className="grid h-[88px] grid-cols-6 gap-3">
-          <LossKpi icon="⌁" label="Total Reactive Power ⓘ" value="2.68 MVAR" detail="↓ 2.7% vs Last 7 Days" tone="purple" />
-          <LossKpi icon="⌘" label="Inductive Reactive (Lagging) ⓘ" value="2.14 MVAR" detail="80% of Total" tone="orange" />
-          <LossKpi icon="⌁" label="Capacitive Reactive (Leading)" value="0.54 MVAR" detail="20% of Total" tone="blue" />
-          <LossKpi icon="PF" label="Average Power Factor ⓘ" value="0.91" detail="+0.03 vs Last 7 Days" tone="green" />
-          <LossKpi icon="⌘" label="PF Improvement Potential" value="+0.06" detail="Estimated" tone="yellow" />
-          <LossKpi icon="$" label="Est. kW Savings (if PF optimized)" value="62 kW" detail="~$128 / day" tone="green" />
+          <LossKpi icon="⌁" label="Total Reactive Power ⓘ" value="No Data" detail="No approved reactive-power source" tone="purple" />
+          <LossKpi icon="⌘" label="Inductive Reactive (Lagging) ⓘ" value="No Data" detail="No approved reactive source" tone="orange" />
+          <LossKpi icon="⌁" label="Capacitive Reactive (Leading)" value="No Data" detail="No approved reactive source" tone="blue" />
+          <LossKpi icon="PF" label="Average Power Factor ⓘ" value="No Data" detail="No approved power-factor source" tone="green" />
+          <LossKpi icon="⌘" label="PF Improvement Potential" value="No Data" detail="No approved PF model" tone="yellow" />
+          <LossKpi icon="$" label="Est. kW Savings (if PF optimized)" value="No Data" detail="No approved savings model" tone="green" />
         </section>
         <section className="mt-2 grid h-[604px] min-h-0 grid-cols-[1.34fr_0.9fr] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[244px_170px_1fr] gap-3 overflow-hidden">
@@ -1881,13 +1921,14 @@ function ReactivePowerDetailReferenceScreen() {
             <PeakBox title="INSIGHTS"><ReactiveInsightsReference /></PeakBox>
           </aside>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
 }
 
 function ReactivePowerTrendReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved reactive-power trend source." />;
   const reactive = "24,118 58,110 92,106 126,120 160,96 194,76 228,112 262,92 296,52 330,72 364,106 398,84 432,118 466,96 500,86 534,74";
   const inductive = "24,130 58,124 92,128 126,118 160,112 194,98 228,126 262,108 296,84 330,102 364,124 398,108 432,130 466,116 500,110 534,104";
   const capacitive = "24,154 58,150 92,152 126,148 160,144 194,136 228,150 262,144 296,128 330,140 364,152 398,142 432,150 466,146 500,142 534,138";
@@ -1896,46 +1937,56 @@ function ReactivePowerTrendReference() {
 }
 
 function ReactiveFeederTableReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved feeder reactive-power source." />;
   const rows = [["Feeder 4","0.92","0.18","0.74","0.88","Fair","27.6%"],["Feeder 1","0.68","0.12","0.56","0.92","Good","20.9%"],["Feeder 3","0.42","0.10","0.32","0.93","Good","11.9%"],["Feeder 2","0.38","0.06","0.32","0.90","Fair","11.9%"],["Feeder 5","0.36","0.08","0.28","0.94","Good","10.4%"],["Total","2.76","0.54","2.68","0.91","—","100%"]];
   return <table className="w-full text-left text-[7.5px]"><thead className="text-slate-400"><tr>{["Feeder","Inductive (MVAR)","Capacitive (MVAR)","Net Reactive (MVAR)","PF (Avg)","PF Status","% of Total"].map((h) => <th className="pb-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([f,i,c,n,pf,status,total]) => <tr className="border-t border-white/6" key={f}><td className="py-[4px]">{f}</td><td>{i}</td><td>{c}</td><td>{n}</td><td>{pf}</td><td className={status === "Fair" ? "text-yellow-300" : status === "Good" ? "text-[#05ff5e]" : "text-slate-400"}>{status}</td><td>{total}</td></tr>)}</tbody></table>;
 }
 
 function ReactiveTimeOfDayReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved reactive-power time-of-day source." />;
   const rows = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
   const cols = ["12 AM","6 AM","12 PM","6 PM"];
   return <div className="h-full text-[8px]"><div className="mb-1 ml-9 grid grid-cols-4 text-center text-slate-400">{cols.map((c) => <span key={c}>{c}</span>)}</div><div className="grid grid-cols-[28px_1fr] gap-2"><div className="grid grid-rows-7 gap-1 text-slate-300">{rows.map((r) => <span key={r}>{r}</span>)}</div><div className="grid grid-cols-12 gap-1">{Array.from({ length: 84 }).map((_, index) => { const col = index % 12; const color = col < 3 ? "#147dff" : col < 6 ? "#38bdf8" : col < 9 ? "#facc15" : "#ff8a00"; return <span className="h-[13px] rounded-sm border border-[#061521]" key={index} style={{ backgroundColor: color, opacity: 0.72 + (index % 3) * 0.09 }} />; })}</div></div><div className="mt-2 grid grid-cols-3 text-center text-[7px] text-slate-400"><span>Leading (Capacitive)</span><span>Neutral (0 MVAR)</span><span>Lagging (Inductive)</span></div></div>;
 }
 
 function ReactiveCompensationReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved compensation source." />;
   return <div className="grid h-full grid-cols-[92px_1fr] gap-4 text-[8px]"><div><div className="text-4xl text-slate-300">▥</div><MetricListSmall compact rows={[["Installed Capacitor Banks", "5"], ["Total Capacity", "1.20 MVAR"], ["Status", "Good"]]} /></div><div className="space-y-3 border-l border-cyan-300/12 pl-4"><div className="font-semibold text-slate-300">Compensation Summary</div>{[["Reactive power compensated", "0.54 MVAR"], ["Compensation efficiency", "85%"], ["PF improvement achieved", "0.04"]].map(([label,value]) => <div className="flex justify-between gap-2" key={label}><span className="text-[#05ff5e]">✓ {label}</span><b>{value}</b></div>)}<div className="mt-auto text-right text-[#05ff5e]">View Capacitor Bank Details →</div></div></div>;
 }
 
 function ReactiveOpportunitiesReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <MetricListSmall rows={noDataRows("No approved reactive-power recommendation model")} />;
   const rows = [["▣","Install additional 0.40 MVAR capacitors on Feeder 4","Estimated PF improvement: +0.03"],["◎","Optimize capacitor switching to reduce overcompensation","Estimated kW savings: 18 kW"],["◌","Reduce lagging VARs by balancing motor loads","Estimated PF improvement: +0.02"]];
   return <div className="flex h-full flex-col gap-3 text-[8px]">{rows.map(([icon,title,detail]) => <div className="grid grid-cols-[24px_1fr] gap-2" key={title}><span className="text-cyan-300">{icon}</span><span><b>{title}</b><br /><span className="text-slate-400">{detail}</span></span></div>)}<div className="mt-auto text-right text-[#05ff5e]">View All Recommendations →</div></div>;
 }
 
 function ReactiveTriangleReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved apparent/reactive power source." />;
   return <div className="h-full text-[8px]"><svg className="h-[112px] w-full" viewBox="0 0 170 118"><path d="M34 18 L34 92 L126 92 Z" fill="rgba(6,20,33,.7)" stroke="#a855f7" strokeWidth="2" /><path d="M34 92 H126" stroke="#05ff5e" strokeWidth="2" /><path d="M126 92 V44" stroke="#29b6f6" strokeWidth="2" /><text fill="#a855f7" fontSize="10" x="78" y="18">S</text><text fill="#a855f7" fontSize="8" x="70" y="30">6.41 MVA</text><text fill="#e2e8f0" fontSize="8" x="54" y="72">PF</text><text fill="#05ff5e" fontSize="9" x="54" y="84">0.91</text><text fill="#05ff5e" fontSize="9" x="83" y="106">P</text><text fill="#05ff5e" fontSize="8" x="70" y="116">5.82 MW</text><text fill="#29b6f6" fontSize="9" x="134" y="70">Q</text><text fill="#29b6f6" fontSize="8" x="130" y="82">2.68 MVAR</text></svg><div className="text-center text-[10px]">ϕ 24.7°<br /><span className="text-slate-400">Phase Angle</span></div></div>;
 }
 
 function ReactiveBreakdownReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved reactive-power breakdown source." />;
   return <div className="grid h-full grid-cols-[84px_1fr] items-center gap-3"><div className="grid size-20 place-items-center rounded-full" style={{ background: "conic-gradient(#ff8a00 0 80%, #147dff 80% 100%)" }}><div className="grid size-12 place-items-center rounded-full bg-[#061521] text-center text-sm">2.68<br /><span className="text-[7px]">MVAR</span><br /><span className="text-[7px]">Total</span></div></div><div className="space-y-3 text-[8px]">{[["Inductive (Lagging)","2.14 MVAR","80%","#ff8a00"],["Capacitive (Leading)","0.54 MVAR","20%","#147dff"]].map(([l,v,p,c]) => <div className="grid grid-cols-[1fr_54px_26px] gap-2" key={l}><span><span className="mr-1 inline-block size-2 rounded-full" style={{ backgroundColor: c }} />{l}</span><b>{v}</b><span>{p}</span></div>)}</div></div>;
 }
 
 function ReactiveBalanceReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved reactive balance source." />;
   return <div className="h-full text-[8px]"><div className="mb-2 flex justify-between text-slate-400"><span>-3.0 MVAR</span><span>0</span><span>+3.0 MVAR</span></div><div className="relative h-4 rounded bg-gradient-to-r from-[#05ff5e] via-[#ff8a00] to-[#ef4444]"><span className="absolute left-[84%] top-[-5px] text-white">▼</span></div><div className="mt-3 flex justify-between"><span>Leading (Capacitive)</span><b className="text-orange-400">Net Lagging<br />2.68 MVAR (84% of Capacity)</b><span>Lagging (Inductive)</span></div></div>;
 }
 
 function ReactiveCapacityReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved reactive capacity source." />;
   return <div className="h-full text-[8px]"><div className="mb-2 flex justify-between px-8 text-slate-400"><span>1.5 MVAR</span><span>3.0 MVAR</span></div><div className="relative h-4 rounded bg-gradient-to-r from-[#05ff5e] via-[#ff8a00] to-[#ef4444]"><span className="absolute left-[89%] top-[-5px] text-white">▼</span></div><div className="mt-3 flex justify-around"><b className="text-orange-400">Used 2.68 MVAR (89%)</b><b className="text-[#05ff5e]">Available 0.32 MVAR (11%)</b></div></div>;
 }
 
 function ReactiveLowPfEventsReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <NoDataPanel message="No approved low-PF event source." />;
   return <div className="flex h-full flex-col"><table className="w-full text-left text-[6.8px]"><thead className="text-slate-400"><tr>{["Time","Feeder","Min PF","Duration","Cause","Impact"].map((h) => <th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{lowPfRows.map(([time,minPf,duration,feeder,impact]) => <tr className="border-t border-white/6" key={time}><td className="py-[2.4px]">{time}</td><td>{feeder}</td><td>{minPf}</td><td>{duration}</td><td>{time.includes("15") ? "High Inductive Load" : time.includes("14") ? "HVAC Systems" : time.includes("13") ? "Motor Loads" : "Compressor Start"}</td><td className={impact === "High" ? "text-red-400" : impact === "Medium" ? "text-yellow-300" : "text-[#05ff5e]"}>{impact}</td></tr>)}</tbody></table><div className="mt-auto text-right text-[8.5px] text-[#05ff5e]">View All PF Events →</div></div>;
 }
 
 function ReactiveInsightsReference() {
+  if (!hasApprovedElectricalModel("powerQuality")) return <MetricListSmall rows={noDataRows("No approved reactive-power insight model")} />;
   const rows = [["◎","Net reactive power is lagging (inductive) by 2.68 MVAR.","text-purple-400"],["◎","Power factor improved by 0.03 compared to the previous 7 days.","text-[#05ff5e]"],["◎","Optimizing PF to 0.97 could save an estimated 62 kW in losses.","text-[#05ff5e]"],["◎","Feeder 4 has the highest lagging reactive contribution (27.6%).","text-orange-400"]];
   return <div className="flex h-full flex-col gap-1.5 text-[7.2px]">{rows.map(([icon,text,color]) => <div className="grid grid-cols-[18px_1fr] gap-2 border-b border-white/6 pb-0.5" key={text}><span className={color}>{icon}</span><span>{text}</span></div>)}<div className="mt-auto text-right text-[8.5px] text-[#05ff5e]">View All Insights →</div></div>;
 }
@@ -1966,25 +2017,25 @@ function OptimizationRecommendationsScreen() {
   );
 }
 
-function OptimizationRecommendationsReferenceScreen() {
+function OptimizationRecommendationsReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
         <header className="flex h-[44px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[12px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Client<br /><b>Flex Ltd.</b>⌄</button><button className="w-[210px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 18, 2025 10:15 AM CDT⌄</button><span className="text-[#05ff5e]">● Live</span><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">JS</span><span>John Smith<br /><span className="text-slate-400">OEM Admin</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Client<br /><b>{siteLabel(data)}</b>⌄</button><button className="w-[210px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.updatedAt || data.dateRange || "No Data"}⌄</button><span className="text-[#05ff5e]">● Live</span><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[84px] items-center justify-between">
-          <div><div className="text-[10px] text-slate-400">Clients &nbsp; › &nbsp; Flex Ltd. &nbsp; › &nbsp; Projects &nbsp; › &nbsp; Flex Tijuana Manufacturing &nbsp; › &nbsp; Electrical Network &nbsp; › &nbsp; <span className="text-[#05ff5e]">Optimization Recommendations</span></div><h1 className="mt-1 text-2xl font-light">Electrical Network Optimization Recommendations</h1><p className="mt-1 text-[10px] text-slate-300">Actionable recommendations to improve power quality, reduce demand and maximize energy savings.</p></div>
+          <div><div className="text-[10px] text-slate-400">Clients &nbsp; › &nbsp; {siteLabel(data)} &nbsp; › &nbsp; Projects &nbsp; › &nbsp; {data.projectName || "No Data"} &nbsp; › &nbsp; Electrical Network &nbsp; › &nbsp; <span className="text-[#05ff5e]">Optimization Recommendations</span></div><h1 className="mt-1 text-2xl font-light">Electrical Network Optimization Recommendations</h1><p className="mt-1 text-[10px] text-slate-300">Actionable recommendations to improve power quality, reduce demand and maximize energy savings.</p></div>
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Electrical Network</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Recommendations</button><button className="rounded bg-[#147dff] px-4 py-2 text-white">⟳ Recalculate Analysis</button></div>
         </div>
         <section className="grid h-[72px] grid-cols-6 gap-3">
-          <CompactRecKpi icon="⌁" label="Total Connected Load" value="3.2 MW" />
-          <CompactRecKpi icon="▣" label="Total Demand (Live)" value="1,063 kW" />
-          <CompactRecKpi icon="⌘" label="Power Factor (Avg)" value="0.98" />
-          <CompactRecKpi icon="⌁" label="Total Harmonic Distortion (THD)" value="4.1%" />
-          <CompactRecKpi icon="◔" label="Capacity Utilization" value="85%" />
-          <CompactRecKpi icon="$" label="Annual Savings Potential" value="$286,450" />
+          <CompactRecKpi icon="⌁" label="Total Connected Load" value={formatMw(data.currentLoadKva)} />
+          <CompactRecKpi icon="▣" label="Total Demand (Live)" value={formatKva(data.currentLoadKva)} />
+          <CompactRecKpi icon="⌘" label="Power Factor (Avg)" value="No Data" />
+          <CompactRecKpi icon="⌁" label="Total Harmonic Distortion (THD)" value="No Data" />
+          <CompactRecKpi icon="◔" label="Capacity Utilization" value={data.transformerKva > 0 ? `${utilizationPct(data)}%` : "No Data"} />
+          <CompactRecKpi icon="$" label="Annual Savings Potential" value="No Data" />
         </section>
         <section className="mt-2 grid h-[620px] min-h-0 grid-cols-[1.52fr_0.58fr] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[356px_1fr] gap-3 overflow-hidden">
@@ -2000,7 +2051,7 @@ function OptimizationRecommendationsReferenceScreen() {
             <PeakBox title="NEXT STEPS"><NextStepsReference /></PeakBox>
           </aside>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
@@ -2012,6 +2063,7 @@ function CompactRecKpi({ icon, label, value }: { icon: string; label: string; va
 }
 
 function OptimizationRecommendationsTableReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <NoDataPanel message="No approved optimization recommendation engine." />;
   const rows = [
     ["High", "Install XECO Active Power Filter (XAPF-200)", "Main Switchboard (Upstream) 1200A, 480Y/277V", "THD 4.1% exceeds target (≤ 3%) PF 0.98 can be improved", "PF ↑ 0.99+ THD ↓ < 3%", "$112,430", "1.6 yrs", "95%", "View Details"],
     ["High", "Balance Phase Loads", "Panel LP-3, LP-4, LP-6 3 Phase Load", "Phase imbalance 5.2% (> 3% target)", "Reduce unbalance to < 2%", "$34,250", "0.8 yrs", "85%", "View Details"],
@@ -2031,26 +2083,31 @@ function OptimizationRecommendationRow({ index, row }: { index: number; row: str
 }
 
 function OptimizationNetworkHeatMapReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <NoDataPanel message="No approved recommendation heat-map source." />;
   const panels = [["PANEL LP-1","125 kW","#05ff5e"],["PANEL LP-2","118 kW","#05ff5e"],["PANEL LP-3","110 kW","#ff8a00"],["PANEL LP-4","142 kW","#ff8a00"],["PANEL LP-5","95 kW","#05ff5e"],["PANEL LP-6","90 kW","#05ff5e"]];
   return <div className="relative h-full text-[8px]"><svg className="absolute inset-0 h-full w-full" viewBox="0 0 470 210"><g fill="#e2e8f0" fontSize="8" textAnchor="middle"><text x="235" y="18">UTILITY SOURCE</text><text x="235" y="30">13.2 kV</text></g><g stroke="#94a3b8" strokeWidth="1.5"><line x1="235" x2="235" y1="36" y2="62" /><line x1="235" x2="235" y1="88" y2="110" /><line x1="70" x2="400" y1="130" y2="130" />{[70,136,202,268,334,400].map((x) => <line key={x} x1={x} x2={x} y1="130" y2="158" />)}</g><rect fill="#061521" height="30" rx="4" stroke="#94a3b8" width="98" x="186" y="58" /><rect fill="#061521" height="30" rx="4" stroke="#94a3b8" width="98" x="186" y="106" /><g fill="#e2e8f0" fontSize="8" textAnchor="middle"><text x="235" y="71">MAIN TRANSFORMER</text><text x="235" y="82">1500 kVA</text><text x="235" y="119">MAIN SWITCHBOARD</text><text x="235" y="130">1200A, 480Y/277V</text></g>{panels.map(([label,load,color], i) => { const x = 70 + i * 66; return <g key={label}><rect fill="#061521" height="24" rx="2" stroke="#94a3b8" width="54" x={x - 27} y="158" /><text fill="#e2e8f0" fontSize="7" textAnchor="middle" x={x} y="169">{label}</text><text fill="#94a3b8" fontSize="7" textAnchor="middle" x={x} y="179">{load}</text><circle cx={x} cy="194" fill={color} r="4" /></g>; })}</svg><div className="absolute bottom-0 left-0 right-0 flex justify-between text-[8px]"><span className="text-[#05ff5e]">● Good (PF ≥ 0.96, THD ≤ 3%)</span><span className="text-yellow-300">● Monitor (Near Limit)</span><span className="text-orange-400">● Poor (Action Recommended)</span><span className="text-[#05ff5e]">View Full Network →</span></div></div>;
 }
 
 function TopPriorityActionsReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <MetricListSmall rows={noDataRows("No approved priority action model")} />;
   const rows = [["1","Install XECO Active Power Filter (XAPF-200)","Main Switchboard (Upstream)","Savings / Yr: $112,430","Payback: 1.6 yrs","Impact: PF ↑, THD ↓","High"],["2","Balance Phase Loads","Panel LP-3, LP-4, LP-6","Savings / Yr: $34,250","Payback: 0.8 yrs","Impact: Unbalance ↓","High"],["3","Install Capacitor Bank","Panel LP-5","Savings / Yr: $21,780","Payback: 1.3 yrs","Impact: kVAR ↓, PF ↑","Medium"]];
   return <div className="flex h-full flex-col gap-2 text-[7.4px]">{rows.map(([rank,title,sub,savings,payback,impact,sev]) => <div className="rounded border border-cyan-300/12 bg-[#061421] p-1.5" key={rank}><div className="flex items-center justify-between"><span><b className="mr-2 inline-grid size-5 place-items-center rounded-full bg-[#147dff]">{rank}</b><b>{title}</b></span><span className={sev === "High" ? "rounded border border-red-400 px-2 py-0.5 text-red-400" : "rounded border border-yellow-300 px-2 py-0.5 text-yellow-300"}>{sev}</span></div><div className="ml-7 mt-0.5 text-slate-400">{sub}</div><div className="ml-7 mt-0.5 flex gap-4 text-slate-300"><span>{savings}</span><span>{payback}</span><span>{impact}</span></div></div>)}<div className="mt-auto text-[8px] text-[#05ff5e]">View All Recommendations →</div></div>;
 }
 
 function OptimizationImpactSummaryCard() {
+  if (!hasApprovedElectricalModel("recommendations")) return <MetricListSmall rows={noDataRows("No approved optimization impact model")} />;
   return <div className="space-y-2 text-[8px]">{[["Total Annual Savings Potential","$286,450"],["Demand Reduction Potential","187 kW"],["Energy Reduction Potential","524,300 kWh"],["CO₂ Reduction Potential","284 tons / yr"]].map(([label,value]) => <div className="grid grid-cols-[22px_1fr_auto] border-b border-white/6 pb-1.5" key={label}><span className="text-[#05ff5e]">ⓘ</span><span>{label}</span><b className="text-[#05ff5e]">{value}</b></div>)}</div>;
 }
 
 function SavingsPotentialOverTimeReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <NoDataPanel message="No approved savings forecast model." />;
   const cumulative = "26,142 76,126 126,106 176,86 226,66 276,46 326,22";
   const annual = "26,150 76,138 126,144 176,136 226,142 276,148 326,140";
   return <div className="h-full text-[8px]"><div className="mb-1 flex justify-between"><span>Savings (USD)</span><button className="rounded border border-cyan-300/12 px-2 py-0.5 text-[7px]">5 Years⌄</button></div><svg className="h-[150px] w-full" viewBox="0 0 350 158"><g stroke="rgba(148,163,184,.16)">{[20,52,84,116,146].map((y) => <line key={y} x1="26" x2="342" y1={y} y2={y} />)}</g><g fill="#94a3b8" fontSize="8"><text x="0" y="24">$1.5M</text><text x="0" y="56">$1.2M</text><text x="0" y="88">$900K</text><text x="0" y="120">$600K</text><text x="0" y="150">$0</text></g><polyline fill="none" points={cumulative} stroke="#05ff5e" strokeWidth="2" />{parseNetworkPoints(cumulative).map(([x,y]) => <circle cx={x} cy={y} fill="#061521" key={x} r="3" stroke="#05ff5e" strokeWidth="2" />)}{parseNetworkPoints(annual).map(([x,y], i) => <rect fill="#147dff" height={148-y} key={x} width="16" x={x - 8} y={y} opacity=".8" />)}<rect fill="#063b27" height="18" rx="3" width="46" x="286" y="12" /><text fill="#05ff5e" fontSize="8" textAnchor="middle" x="309" y="24">$1.43M</text></svg><div className="flex justify-between px-7 text-[7px] text-slate-500"><span>Year 1</span><span>Year 2</span><span>Year 3</span><span>Year 4</span><span>Year 5</span></div><div className="mt-1 flex justify-center gap-5 text-[8px]"><span className="text-[#05ff5e]">━ Cumulative Savings</span><span className="text-[#147dff]">■ Annual Savings</span></div></div>;
 }
 
 function NextStepsReference() {
+  if (!hasApprovedElectricalModel("recommendations")) return <MetricListSmall rows={noDataRows("No approved recommendation workflow model")} />;
   const rows = ["Review recommendations and target locations", "Approve recommended actions", "Generate detailed scope of work", "Schedule installation with XECO team", "Monitor results and verify savings"];
   return <div className="flex h-full flex-col text-[8px]"><div className="space-y-3">{rows.map((row) => <div className="grid grid-cols-[22px_1fr] gap-2" key={row}><span className="grid size-5 place-items-center rounded-full border border-[#05ff5e] text-[#05ff5e]">✓</span><span>{row}</span></div>)}</div><div className="mt-auto rounded border border-cyan-300/12 bg-[#062033] p-3 text-cyan-100">ⓘ &nbsp; These recommendations are based on real-time data and industry best practices. Actual results may vary.</div></div>;
 }
@@ -2166,6 +2223,11 @@ function voltageLevels(data: DigitalTwinData) {
 
 function NoDataPanel({ message }: { message: string }) {
   return <div className="grid h-full min-h-[80px] place-items-center rounded border border-dashed border-cyan-300/20 bg-[#03111c] p-4 text-center text-[9px] text-slate-400">No Data<br />{message}</div>;
+}
+
+function hasApprovedElectricalModel(model: "losses" | "lossOptimization" | "powerQuality" | "recommendations") {
+  void model;
+  return false;
 }
 
 function FullNetworkExpandedReferenceScreen() {
