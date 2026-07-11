@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 import type { DeploymentCompletionData } from "@/lib/deploymentCompletionData";
+import type { DeploymentDocumentationData, DocumentDataRow } from "@/lib/deploymentDocumentationData";
 
 export type DeploymentWorkflowVariant =
   | "acceptance"
@@ -33,7 +34,10 @@ export type DeploymentWorkflowVariant =
 
 const steps = ["Site & Installation", "Equipment Inventory", "Pre-Installation Readings", "Installation Details", "Post-Installation Readings", "Testing & Verification", "Documentation", "Completion", "Customer Acceptance"];
 
-export function DeploymentWorkflowScreen({ data, deploymentId = "1", variant }: { data?: DeploymentCompletionData; deploymentId?: string; variant: DeploymentWorkflowVariant }) {
+type DeploymentShellData = Pick<DeploymentCompletionData, "clientName" | "deploymentId" | "message" | "projectName" | "siteName" | "state" | "status" | "updatedAt">;
+
+export function DeploymentWorkflowScreen({ data, deploymentId = "1", documentationData, variant }: { data?: DeploymentCompletionData; deploymentId?: string; documentationData?: DeploymentDocumentationData; variant: DeploymentWorkflowVariant }) {
+  const shellData = data ?? documentationData;
   const title =
     variant === "commissioning" ? "Commissioning Summary Report" :
     variant === "acceptance" ? "Customer Acceptance" :
@@ -69,9 +73,9 @@ export function DeploymentWorkflowScreen({ data, deploymentId = "1", variant }: 
   return (
     <div className="h-screen min-h-[682px] w-screen min-w-[1024px] overflow-hidden bg-[#020a12] text-slate-100">
       <div className="grid h-full grid-cols-[144px_1fr]">
-        <DeploymentSidebar data={data} variant={variant} />
+        <DeploymentSidebar data={shellData} variant={variant} />
         <main className="flex min-w-0 flex-col bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.08),transparent_30%),linear-gradient(180deg,#04111c,#020910)] px-4">
-          <Topbar data={data} variant={variant} />
+          <Topbar data={shellData} variant={variant} />
           {standardStepper ? <Stepper active={activeStepForVariant(variant)} actionLabel={variant === "acceptance" ? "Print Acceptance Form" : variant === "checklist" ? "Print Checklist" : variant === "closure" ? "Print Closure Certificate" : variant === "completionDashboard" ? "Export Dashboard" : variant === "completion" ? "Export Summary" : variant === "siteDetails" || variant === "equipmentInventory" || variant === "installationDetails" || variant === "photoDocs" || variant === "postReadings" || variant === "preReadings" || variant === "testingAddIssue" || variant === "testingVerification" || variant === "testingViewTrend" ? "Save & Exit" : "Export Report"} activeLabel={variant === "acceptance" || variant === "checklist" || variant === "documentation" || variant === "siteDetails" || variant === "equipmentInventory" || variant === "installationDetails" || variant === "photoDocs" || variant === "postReadings" || variant === "preReadings" || variant === "testingAddIssue" || variant === "testingVerification" || variant === "testingViewTrend" ? "In Progress" : variant === "closure" ? "Current Step" : "Current Stage"} completedLabel={variant === "photoDocs" || variant === "postReadings" || variant === "preReadings" || variant === "testingAddIssue" || variant === "testingVerification" || variant === "testingViewTrend" ? "In Progress" : variant === "documentation" || variant === "equipmentInventory" || variant === "installationDetails" ? "In Progress" : "Completed"} firstCompletedLabel={variant === "photoDocs" ? "In Progress" : undefined} futureLabel={variant === "siteDetails" || variant === "equipmentInventory" || variant === "installationDetails" || variant === "photoDocs" || variant === "postReadings" || variant === "preReadings" || variant === "testingAddIssue" || variant === "testingVerification" || variant === "testingViewTrend" ? "Pending" : ""} showActions={variant === "commissioning" || variant === "acceptance" || variant === "checklist" || variant === "closure" || variant === "completion" || variant === "completionDashboard" || variant === "siteDetails" || variant === "equipmentInventory" || variant === "installationDetails" || variant === "photoDocs" || variant === "postReadings" || variant === "preReadings" || variant === "testingVerification"} tall={variant === "completion" || variant === "documentation"} /> : null}
           {fullBleed || customHeader ? null : (
             <section className={variant === "commissioning" || variant === "checklist" || variant === "closure" ? "mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-2.5" : "mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"}>
@@ -82,7 +86,7 @@ export function DeploymentWorkflowScreen({ data, deploymentId = "1", variant }: 
                 </div>
                 {variant === "commissioning" || variant === "acceptance" || variant === "completion" || variant === "completionDashboard" || variant === "signoff" || variant === "closure" ? null : <SummaryDots variant={variant} />}
               </div>
-              <DeploymentMeta data={data} variant={variant} />
+              <DeploymentMeta data={shellData} variant={variant} />
             </section>
           )}
           {variant === "commissioning" ? <CommissioningReport /> : null}
@@ -92,14 +96,14 @@ export function DeploymentWorkflowScreen({ data, deploymentId = "1", variant }: 
           {variant === "closure" ? <ClosureConfirmation data={data} /> : null}
           {variant === "completionDashboard" ? <CompletionDashboard data={data} /> : null}
           {variant === "completion" ? <CompletionSummary data={data} deploymentId={deploymentId} /> : null}
-          {variant === "documentViewer" ? <DocumentViewer /> : null}
-          {variant === "exportPackage" ? <ExportPackageBuilder /> : null}
-          {variant === "folderDetail" ? <FolderDetailView /> : null}
-          {variant === "permissions" ? <PermissionsAccessControl /> : null}
-          {variant === "reviewQueue" ? <ReviewApprovalQueue /> : null}
-          {variant === "searchResults" ? <SearchResultsPage /> : null}
-          {variant === "uploadWizard" ? <UploadWizard /> : null}
-          {variant === "versionHistory" ? <VersionHistory /> : null}
+          {variant === "documentViewer" ? <DocumentViewer data={documentationData} /> : null}
+          {variant === "exportPackage" ? <ExportPackageBuilder data={documentationData} /> : null}
+          {variant === "folderDetail" ? <FolderDetailView data={documentationData} /> : null}
+          {variant === "permissions" ? <PermissionsAccessControl data={documentationData} /> : null}
+          {variant === "reviewQueue" ? <ReviewApprovalQueue data={documentationData} /> : null}
+          {variant === "searchResults" ? <SearchResultsPage data={documentationData} /> : null}
+          {variant === "uploadWizard" ? <UploadWizard data={documentationData} /> : null}
+          {variant === "versionHistory" ? <VersionHistory data={documentationData} /> : null}
           {variant === "documentation" ? <DocumentationHome /> : null}
           {variant === "equipmentAdd" ? <AddEquipment /> : null}
           {variant === "equipmentInventory" ? <EquipmentInventory /> : null}
@@ -157,7 +161,36 @@ function descriptionForVariant(variant: DeploymentWorkflowVariant) {
   return "Review and confirm all items before closing the deployment.";
 }
 
-function DeploymentSidebar({ data, variant }: { data?: DeploymentCompletionData; variant: DeploymentWorkflowVariant }) {
+function emptyDocumentRow(message = "No Data"): DocumentDataRow {
+  return {
+    folder: "No Data",
+    id: "No Data",
+    name: "No Data",
+    size: "No Data",
+    status: message,
+    storageUri: "No Data",
+    type: "No Data",
+    uploadedAt: "No Data",
+    uploadedBy: "No Data",
+  };
+}
+
+function documentRowsFromData(data?: DeploymentDocumentationData) {
+  return data?.documentRows?.length ? data.documentRows : [emptyDocumentRow(data?.message)];
+}
+
+function firstDocument(data?: DeploymentDocumentationData) {
+  return documentRowsFromData(data)[0] ?? emptyDocumentRow(data?.message);
+}
+
+function documentIconColor(type: string) {
+  if (type === "JPG" || type === "PNG") return "text-[#05ff5e]";
+  if (type === "XLS" || type === "XLSX") return "text-green-400";
+  if (type === "DWG") return "text-blue-400";
+  return "text-red-400";
+}
+
+function DeploymentSidebar({ data, variant }: { data?: DeploymentShellData; variant: DeploymentWorkflowVariant }) {
   const acceptance = variant === "acceptance";
   const completed = variant === "checklist";
   const closed = variant === "closure";
@@ -177,7 +210,7 @@ function DeploymentSidebar({ data, variant }: { data?: DeploymentCompletionData;
   );
 }
 
-function Topbar({ data, variant }: { data?: DeploymentCompletionData; variant: DeploymentWorkflowVariant }) {
+function Topbar({ data, variant }: { data?: DeploymentShellData; variant: DeploymentWorkflowVariant }) {
   return (
     <header className="flex h-[50px] items-center justify-between border-b border-cyan-300/10">
       <div><div className="text-[13px] font-semibold">ECBS Deployment App</div><div className="mt-1 text-[9px] text-slate-400">Deployments › New Deployment › Field Data Entry › {variant === "documentViewer" ? "Documentation › Document Viewer" : variant === "exportPackage" ? "Documentation › Export Package Builder" : variant === "folderDetail" ? "Documentation › Folder Detail" : variant === "permissions" ? "Documentation › Permissions / Access Control" : variant === "reviewQueue" ? "Documentation › Review / Approval Queue" : variant === "searchResults" ? "Documentation › Search Results" : variant === "uploadWizard" ? "Documentation › Upload Wizard" : variant === "versionHistory" ? "Documentation › Document Viewer › Version History" : variant === "documentation" ? "Documentation" : variant === "equipmentAdd" ? "Equipment Inventory & Readings › Add Equipment" : variant === "equipmentInventory" ? "Equipment Inventory & Readings" : variant === "installationDetails" ? "Installation Details" : variant === "photoDocs" ? "Photo & Document System" : variant === "postReadings" ? "Post-Installation Readings" : variant === "preReadings" ? "Pre-Installation Readings" : variant === "siteDetails" ? "Site & Installation Details" :
@@ -197,7 +230,7 @@ function Stepper({ actionLabel = "Export Report", active, activeLabel = "Current
   return <div className="relative border-b border-cyan-300/10"><div className={showActions ? `grid ${height} ${columns} items-center gap-1 pr-[260px] text-center text-[7px]` : `grid ${height} ${columns} items-center gap-1 text-center text-[7px]`}>{displaySteps.map((step, index) => <div className="relative" key={step}><div className={index === active ? "mx-auto grid size-6 place-items-center rounded-full bg-[#05ff5e] font-semibold text-[#02100a]" : index < active ? "mx-auto grid size-5 place-items-center rounded-full bg-slate-400 font-semibold text-[#02100a]" : "mx-auto grid size-5 place-items-center rounded-full bg-slate-600"}>{index + 1}</div><div className="mt-0.5 text-slate-300">{step}</div><div className={index < active ? "text-[#05ff5e]" : index === active ? "text-slate-300" : "text-slate-500"}>{index < active ? firstCompletedLabel && index === 0 ? firstCompletedLabel : completedLabel : index === active ? activeLabel : futureLabel}</div></div>)}</div>{showActions ? <div className={tall ? "absolute right-0 top-4 flex items-center gap-3 text-[8px]" : "absolute right-0 top-2 flex items-center gap-3 text-[8px]"}><span className="text-[#05ff5e]">● Auto-saved: 10:15:23 AM</span><Button>{actionLabel === "Export Report" ? "⇩ " : actionLabel === "Save & Exit" ? "" : "▣ "}{actionLabel}</Button></div> : null}</div>;
 }
 
-function DeploymentMeta({ data, variant }: { data?: DeploymentCompletionData; variant: DeploymentWorkflowVariant }) {
+function DeploymentMeta({ data, variant }: { data?: DeploymentShellData; variant: DeploymentWorkflowVariant }) {
   if (variant === "closure") return <div className="mt-2 grid grid-cols-[0.75fr_0.7fr_0.65fr_1.8fr_0.8fr_0.7fr] gap-4 border-t border-cyan-300/10 pt-2 text-[9px]"><Info label="Deployment ID" value={data?.deploymentId ?? "No Data"} /><Info label="Site" value={data?.siteName ?? "No Data"} /><Info label="Customer" value={data?.clientName ?? "No Data"} /><Info label="Address" value="No Data" /><Info label="Closed On" value="No Data" /><Info label="Closed By" value="No Data" /></div>;
   return <div className="mt-2 grid grid-cols-[0.75fr_0.7fr_0.65fr_1.45fr_0.7fr_0.95fr_0.6fr] gap-4 border-t border-cyan-300/10 pt-2 text-[9px]"><Info label="Deployment ID" value={data?.deploymentId ?? "No Data"} /><Info label="Site" value={data?.siteName ?? "No Data"} /><Info label="Customer" value={data?.clientName ?? "No Data"} /><Info label="Address" value="No Data" /><Info label="Technician" value="No Data" /><Info label="Commissioned On" value={data?.updatedAt ?? "No Data"} /><Info label="Duration" value="No Data" /></div>;
 }
@@ -571,28 +604,29 @@ function CompletionSummary({ data, deploymentId }: { data?: DeploymentCompletion
   );
 }
 
-function DocumentViewer() {
+function DocumentViewer({ data }: { data?: DeploymentDocumentationData }) {
+  const document = firstDocument(data);
   return (
     <>
       <div className="mt-3 flex h-[32px] items-center justify-between text-[9px]"><span className="text-slate-400">← Back to Documentation</span></div>
       <section className="grid min-h-0 flex-1 grid-cols-[1fr_258px] gap-2 pb-2">
         <div className="grid min-h-0 grid-rows-[76px_1fr_34px] overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061521]/92">
-          <DocumentViewerHeader />
+          <DocumentViewerHeader document={document} />
           <div className="grid min-h-0 grid-cols-[132px_1fr]">
-            <DocumentThumbnails />
+            <DocumentThumbnails document={document} />
             <div className="grid min-h-0 grid-rows-[38px_1fr]">
               <DocumentToolbar />
               <div className="min-h-0 overflow-hidden px-4 pb-3">
-                <SingleLineDrawing />
+                <DocumentPreview document={document} />
               </div>
             </div>
           </div>
           <DocumentAnnotationToolbar />
         </div>
         <aside className="grid min-h-0 grid-rows-[378px_176px_1fr] gap-2 overflow-hidden">
-          <Panel title="Document Details"><DocumentDetails /></Panel>
-          <Panel title="Version History"><DocumentVersions /></Panel>
-          <Panel title="Linked To"><DocumentLinkedTo /></Panel>
+          <Panel title="Document Details"><DocumentDetails data={data} document={document} /></Panel>
+          <Panel title="Version History"><DocumentVersions data={data} /></Panel>
+          <Panel title="Linked To"><DocumentLinkedTo data={data} /></Panel>
         </aside>
       </section>
       <footer className="flex h-[54px] items-center justify-between border-t border-cyan-300/10"><Button>← Back</Button><div className="flex gap-2"><Button>‹ Previous Document</Button><Button>Next Document ›</Button><button className="rounded bg-[#087a35] px-8 py-2 text-[10px] font-semibold">Back to Documentation →</button></div></footer>
@@ -600,16 +634,16 @@ function DocumentViewer() {
   );
 }
 
-function DocumentViewerHeader() {
-  return <div className="grid grid-cols-[42px_1fr_auto] items-center gap-3 border-b border-cyan-300/10 px-3 text-[9px]"><div className="grid size-9 place-items-center rounded border border-red-500/60 text-[8px] font-bold text-red-400">PDF</div><div><div className="flex items-center gap-3"><span className="text-[15px] font-semibold text-slate-100">Single Line Diagram.pdf</span><span className="rounded border border-[#05ff5e]/30 bg-[#063b27]/60 px-2 py-0.5 text-[8px] text-[#05ff5e]">Version 1 (Current)</span></div><div className="mt-2 flex gap-4 text-slate-400"><span>Folder: <b className="text-slate-300">Engineering</b></span><span>|</span><span>Uploaded by: <b className="text-slate-300">John Doe</b></span><span>|</span><span>May 12, 2025 9:15 AM</span><span>|</span><span>1.2 MB</span></div></div><div className="flex gap-2"><Button>⇩ Download</Button><Button>▣ Print</Button><Button>••• More</Button></div></div>;
+function DocumentViewerHeader({ document }: { document: DocumentDataRow }) {
+  return <div className="grid grid-cols-[42px_1fr_auto] items-center gap-3 border-b border-cyan-300/10 px-3 text-[9px]"><div className="grid size-9 place-items-center rounded border border-red-500/60 text-[8px] font-bold text-red-400">{document.type}</div><div><div className="flex items-center gap-3"><span className="text-[15px] font-semibold text-slate-100">{document.name}</span><span className="rounded border border-[#05ff5e]/30 bg-[#063b27]/60 px-2 py-0.5 text-[8px] text-[#05ff5e]">{document.status}</span></div><div className="mt-2 flex gap-4 text-slate-400"><span>Folder: <b className="text-slate-300">{document.folder}</b></span><span>|</span><span>Uploaded by: <b className="text-slate-300">{document.uploadedBy}</b></span><span>|</span><span>{document.uploadedAt}</span><span>|</span><span>{document.size}</span></div></div><div className="flex gap-2"><Button>⇩ Download</Button><Button>▣ Print</Button><Button>••• More</Button></div></div>;
 }
 
 function DocumentToolbar() {
   return <div className="flex items-center gap-5 border-b border-cyan-300/10 px-3 text-[10px] text-slate-300"><span>▣</span><span>⌕</span><span className="text-slate-500">‹</span><span className="text-slate-500">›</span><span className="rounded border border-cyan-300/12 bg-[#03111c] px-3 py-1">1</span><span>/ 4</span><span className="ml-6">−</span><span>+</span><span className="rounded border border-cyan-300/12 bg-[#03111c] px-4 py-1">100%⌄</span><span className="ml-auto">⟳</span><span>⛶</span><span>⌇</span><span>✎</span><span>⌕</span></div>;
 }
 
-function DocumentThumbnails() {
-  return <div className="min-h-0 overflow-hidden border-r border-cyan-300/10 px-3 py-2 text-center text-[9px] text-slate-400">{[1, 2, 3, 4].map((page) => <div className="mb-3" key={page}><div className={page === 1 ? "rounded border-2 border-[#05ff5e] bg-white p-1 shadow-[0_0_14px_rgba(5,255,94,.25)]" : "rounded border border-slate-600/30 bg-white/70 p-1 opacity-70"}><MiniDiagram /></div><div className="mt-1">{page}</div></div>)}</div>;
+function DocumentThumbnails({ document }: { document: DocumentDataRow }) {
+  return <div className="min-h-0 overflow-hidden border-r border-cyan-300/10 px-3 py-2 text-center text-[9px] text-slate-400">{[1, 2, 3, 4].map((page) => <div className="mb-3" key={page}><div className={page === 1 ? "rounded border-2 border-[#05ff5e] bg-white p-1 shadow-[0_0_14px_rgba(5,255,94,.25)]" : "rounded border border-slate-600/30 bg-white/70 p-1 opacity-70"}>{document.name === "No Data" ? <div className="grid h-[78px] place-items-center text-[8px] text-slate-500">No Data</div> : <MiniDiagram />}</div><div className="mt-1">{page}</div></div>)}</div>;
 }
 
 function MiniDiagram() {
@@ -620,40 +654,51 @@ function SingleLineDrawing() {
   return <div className="mx-auto h-full max-h-[575px] w-[790px] bg-white p-4 text-slate-900 shadow-2xl"><svg className="h-full w-full" viewBox="0 0 790 535"><rect x="0" y="0" width="790" height="535" fill="white" stroke="#111" /><text x="395" y="26" textAnchor="middle" fontSize="14" fontWeight="700" textDecoration="underline">MAIN ELECTRICAL SINGLE LINE DIAGRAM</text><g fill="none" stroke="#111" strokeWidth="2"><path d="M410 52v82M210 157h490M410 134v23M120 262h620M160 262v82M245 262v82M340 262v82M435 262v82M530 262v82M625 262v82M710 262v82M90 430h610" /><path d="M210 157v105M300 157v105M410 157v105M520 157v105M630 157v105" /><path d="M396 94h28M396 103h28M396 112h28M395 122h30" /><circle cx="168" cy="366" r="17" /><circle cx="246" cy="366" r="17" /><rect x="326" y="348" width="44" height="36" /><rect x="425" y="348" width="44" height="36" /><rect x="515" y="348" width="44" height="36" /><rect x="610" y="348" width="44" height="36" /><path d="M360 175v34l-10 10 20 0 -10 10v33M470 175v34l-10 10h20l-10 10v33" /><path d="M395 134c0 18 30 18 30 0M395 148c0 18 30 18 30 0" /></g><g fontSize="10" fill="#111"><text x="410" y="50" textAnchor="middle">UTILITY INCOMING</text><text x="345" y="67">34.5kV</text><text x="345" y="81">3Ø, 60Hz</text><text x="448" y="104">TX-1</text><text x="448" y="118">34.5kV / 480Y/277V</text><text x="448" y="132">1500 kVA</text><text x="430" y="188">MAIN BREAKER</text><text x="430" y="202">1600A</text><text x="430" y="216">3P</text><text x="112" y="246">480Y/277V</text><text x="112" y="260">3Ø, 4W</text><text x="112" y="274">60Hz</text>{["MCC-1\\n800A\\n3P", "MCC-2\\n600A\\n3P", "PANEL DP-1\\n400A\\n3P", "PANEL DP-2\\n400A\\n3P", "PANEL LP-1\\n225A\\n3P", "PANEL LP-2\\n225A\\n3P"].map((label, i) => <text key={label} x={[150,235,325,420,515,610][i]} y="305">{label.split("\\n").map((line, idx) => <tspan x={[150,235,325,420,515,610][i]} dy={idx === 0 ? 0 : 13} key={line}>{line}</tspan>)}</text>)}<text x="168" y="402" textAnchor="middle">P-1</text><text x="168" y="416" textAnchor="middle">75 HP</text><text x="246" y="402" textAnchor="middle">P-2</text><text x="246" y="416" textAnchor="middle">50 HP</text><text x="535" y="402" textAnchor="middle">HVAC-1</text><text x="535" y="416" textAnchor="middle">15 kW</text><text x="630" y="402" textAnchor="middle">LTS-1</text><text x="630" y="416" textAnchor="middle">10 kVA</text></g><g transform="translate(615 50)"><rect width="120" height="96" fill="none" stroke="#111" /><text x="60" y="16" textAnchor="middle" fontSize="10" fontWeight="700">LEGEND</text><g fill="none" stroke="#111" fontSize="7"><rect x="15" y="26" width="11" height="11" /><text x="36" y="35">CIRCUIT BREAKER</text><circle cx="20" cy="50" r="6" /><text x="36" y="53">FUSED DISCONNECT</text><path d="M14 68l12-12" /><text x="36" y="67">DISCONNECT SWITCH</text><path d="M15 80c0-8 12-8 12 0" /><text x="36" y="82">CURRENT TRANSFORMER</text></g></g><g fontSize="9" fill="#111"><rect x="12" y="455" width="766" height="68" fill="none" stroke="#111" /><path d="M160 455v68M395 455v68M565 455v68M690 455v68" stroke="#111" /><text x="18" y="470" fontWeight="700">NOTES:</text><text x="18" y="485">1. ALL EQUIPMENT SHALL BE RATED</text><text x="30" y="499">FOR 480V, 3Ø, 4W, 60Hz.</text><text x="170" y="485">PROJECT:</text><text x="170" y="501" fontSize="13">FLEX TIJUANA FACILITY</text><text x="405" y="485">DRAWING TITLE:</text><text x="405" y="501" fontSize="13">MAIN ELECTRICAL</text><text x="405" y="516" fontSize="13">SINGLE LINE DIAGRAM</text><text x="575" y="482">DRAWN BY:</text><text x="630" y="482">XECO Engineering</text><text x="575" y="501">DATE:</text><text x="630" y="501">05/12/2025</text><text x="700" y="482">DRAWING NO.:</text><text x="700" y="501">E-100</text><text x="700" y="518">REV: A</text></g></svg></div>;
 }
 
+function DocumentPreview({ document }: { document: DocumentDataRow }) {
+  if (document.name === "No Data") {
+    return <div className="grid h-full place-items-center rounded border border-dashed border-cyan-300/20 bg-[#03111c] text-center text-[12px] text-slate-400">No Data<br /><span className="mt-2 text-[9px]">No approved document preview source exists for this route.</span></div>;
+  }
+
+  return <SingleLineDrawing />;
+}
+
 function DocumentAnnotationToolbar() {
   return <div className="flex items-center gap-5 border-t border-cyan-300/10 px-3 text-[9px] text-slate-300"><span className="rounded bg-[#063b27] px-3 py-1 text-[#05ff5e]">⌖ Select</span><span>☝ Pan</span><span>▣ Comment</span><span className="text-yellow-400">✎ Highlight</span><span>╱ Draw</span><span>A Text</span><span>□ Shapes</span><span>♜ Stamp</span><span>◎ Measure</span><span>••• More</span><span className="ml-auto">♲ Clear All</span></div>;
 }
 
-function DocumentDetails() {
-  return <div className="space-y-2 text-[8.5px] text-slate-300"><InfoIcon label="Type" value="PDF Document" icon="▤" color="text-red-400" /><InfoIcon label="Status" value="Uploaded" icon="●" color="text-[#05ff5e]" /><Info label="Size" value="1.2 MB" /><Info label="Pages" value="4" /><InfoIcon label="Folder" value="Engineering" icon="▣" color="text-slate-400" /><Info label="Uploaded By" value="John Doe" /><Info label="Date Uploaded" value="May 12, 2025 9:15 AM" /><Info label="Last Modified" value="May 12, 2025 9:15 AM" /><Info label="Description" value="Single line diagram for the main electrical system." /><div><div className="text-slate-500">Tags</div><div className="mt-1 flex flex-wrap gap-1"><span className="rounded border border-cyan-300/15 px-2 py-0.5">Electrical</span><span className="rounded border border-cyan-300/15 px-2 py-0.5">Single Line</span><span className="rounded border border-cyan-300/15 px-2 py-0.5">Main Panel</span><span className="rounded border border-cyan-300/15 px-2 py-0.5">+</span></div></div></div>;
+function DocumentDetails({ data, document }: { data?: DeploymentDocumentationData; document: DocumentDataRow }) {
+  const rows = data?.metadataRows?.length ? data.metadataRows : [{ label: "Message", value: "No Data" }];
+  return <div className="space-y-2 text-[8.5px] text-slate-300"><InfoIcon label="Type" value={document.type} icon="▤" color="text-red-400" /><InfoIcon label="Status" value={document.status} icon="●" color="text-[#05ff5e]" />{rows.map((row) => <Info label={row.label} value={row.value} key={row.label} />)}<div><div className="text-slate-500">Tags</div><div className="mt-1 flex flex-wrap gap-1"><span className="rounded border border-cyan-300/15 px-2 py-0.5">No Data</span></div></div></div>;
 }
 
 function InfoIcon({ color, icon, label, value }: { color: string; icon: string; label: string; value: string }) {
   return <div className="grid grid-cols-[70px_1fr] gap-2"><span className="text-slate-500">{label}</span><span><b className={color}>{icon}</b> {value}</span></div>;
 }
 
-function DocumentVersions() {
-  return <div className="space-y-4 text-[9px] text-slate-300"><div className="float-right text-blue-400">View All</div><div className="flex gap-3"><span className="text-[#05ff5e]">●</span><span><b>Version 1 (Current)</b><br /><span className="text-slate-500">May 12, 2025 9:15 AM</span> <span className="ml-3">John Doe</span><br />Original upload</span></div><div className="flex gap-3"><span className="text-slate-500">●</span><span><b>Version 0</b><br /><span className="text-slate-500">May 12, 2025 8:55 AM</span> <span className="ml-3">John Doe</span><br />Initial version</span></div></div>;
+function DocumentVersions({ data }: { data?: DeploymentDocumentationData }) {
+  const rows = data?.versionRows?.length ? data.versionRows : [emptyDocumentRow("No approved document version history model exists.")];
+  return <div className="space-y-4 text-[9px] text-slate-300"><div className="float-right text-blue-400">View All</div>{rows.slice(0, 2).map((row) => <div className="flex gap-3" key={`${row.id}-${row.status}`}><span className="text-slate-500">●</span><span><b>{row.name}</b><br /><span className="text-slate-500">{row.uploadedAt}</span> <span className="ml-3">{row.uploadedBy}</span><br />{row.status}</span></div>)}</div>;
 }
 
-function DocumentLinkedTo() {
-  return <div className="space-y-4 text-[9px]"><Info label="Asset" value="Main Electrical System ↗" /><Info label="Related Test" value="Power System Verification ↗" /></div>;
+function DocumentLinkedTo({ data }: { data?: DeploymentDocumentationData }) {
+  return <div className="space-y-4 text-[9px]"><Info label="Project" value={data?.projectName ?? "No Data"} /><Info label="Deployment" value={data?.deploymentId ?? "No Data"} /></div>;
 }
 
-function ExportPackageBuilder() {
+function ExportPackageBuilder({ data }: { data?: DeploymentDocumentationData }) {
+  const itemCount = data?.documentRows?.filter((row) => row.name !== "No Data").length ?? 0;
   return (
     <>
       <ExportPackageProgress />
       <ExportPackageHeader />
       <section className="mt-2 grid min-h-0 flex-1 grid-cols-[0.74fr_1.42fr_0.88fr] gap-2">
         <ExportPanel title="1. Select Content" subtitle="Choose folders and documents to include in the package.">
-          <ExportFolderPicker />
+          <ExportFolderPicker data={data} />
         </ExportPanel>
-        <ExportPanel title="2. Package Contents" titleSuffix="(56 items selected)" action={<span className="text-red-400">▢ Remove All</span>} subtitle="Review the items that will be included in the export package.">
-          <ExportPackageTable />
+        <ExportPanel title="2. Package Contents" titleSuffix={`(${itemCount > 0 ? itemCount : "No Data"} items selected)`} action={<span className="text-red-400">▢ Remove All</span>} subtitle="Review the items that will be included in the export package.">
+          <ExportPackageTable data={data} />
         </ExportPanel>
         <ExportPanel title="3. Package Summary" subtitle="Review and configure your export package.">
-          <ExportPackageSummary />
+          <ExportPackageSummary data={data} />
         </ExportPanel>
       </section>
     </>
@@ -673,71 +718,74 @@ function ExportPanel({ action, children, subtitle, title, titleSuffix }: { actio
   return <section className="h-full min-h-0 overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="mb-1 flex items-center justify-between"><h2 className="text-[11px] font-semibold uppercase text-slate-200">{title} {titleSuffix ? <span className="text-[8px] font-normal normal-case text-slate-400">{titleSuffix}</span> : null}</h2>{action ? <div className="text-[8px]">{action}</div> : null}</div>{subtitle ? <p className="mb-2 text-[8.5px] text-slate-400">{subtitle}</p> : null}{children}</section>;
 }
 
-function ExportFolderPicker() {
-  const rows = [["▾", "All Documents", "97", true, 0], ["▾", "Engineering", "24", true, 1], ["›", "Electrical", "7", true, 2], ["›", "Mechanical", "5", true, 2], ["›", "Civil", "3", true, 2], ["›", "Control Systems", "3", true, 2], ["▾", "Diagrams", "6", true, 1], ["▾", "Permits & Approvals", "12", true, 1], ["›", "Installation Permits", "6", true, 2], ["›", "Approvals", "6", true, 2], ["▾", "Photos", "18", true, 1], ["▾", "Test Reports", "11", true, 1], ["▾", "Safety", "8", true, 1], ["›", "Installation Records", "7", false, 1], ["›", "Commissioning", "4", false, 1], ["›", "Other", "3", false, 1]] as const;
+function ExportFolderPicker({ data }: { data?: DeploymentDocumentationData }) {
+  const rows = [["▾", "All Documents", String(data?.documentRows?.filter((row) => row.name !== "No Data").length || "No Data"), true, 0], ["›", "Folders", "No Data", false, 1]] as const;
   return <div className="flex h-[calc(100%-22px)] flex-col"><div className="mb-2 rounded border border-cyan-300/12 bg-[#03111c] px-2 py-2 text-[9px] text-slate-500">⌕ Search folders and documents...</div><div className="min-h-0 flex-1 space-y-1 overflow-hidden text-[9px]">{rows.map(([arrow, label, count, checked, indent]) => <div className={label === "All Documents" ? "flex items-center justify-between rounded bg-[#063b27] px-2 py-1 text-slate-200" : "flex items-center justify-between px-2 py-0.5 text-slate-300"} key={label} style={{ paddingLeft: 8 + Number(indent) * 16 }}><span>{arrow} <span className={checked ? "text-[#05ff5e]" : "text-slate-500"}>{checked ? "☑" : "☐"}</span> {label}</span><span>{count}</span></div>)}</div><button className="mx-auto mt-3 w-32 rounded border border-cyan-300/12 bg-[#03111c] py-2 text-[9px] text-slate-300">Clear Selection</button></div>;
 }
 
-function ExportPackageTable() {
-  const rows = documentRows().slice(0, 12);
-  return <div className="flex h-[calc(100%-22px)] flex-col"><table className="w-full text-left text-[8.5px]"><thead className="text-slate-500"><tr><th className="pb-2 font-medium">Name</th><th className="pb-2 font-medium">Type</th><th className="pb-2 font-medium">Folder</th><th className="pb-2 text-right font-medium">Size</th><th /></tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}><td className="py-1.5"><span className={row[1] === "PDF" ? "text-red-400" : row[1] === "JPG" ? "text-[#05ff5e]" : "text-green-400"}>▣</span> {row[0]}</td><td>{row[1]}</td><td>{row[2]}</td><td className="text-right">{row[4]}</td><td className="text-right text-slate-400">×</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-2 text-[9px]"><Button>+ Add Custom Files</Button><span className="text-slate-400">Total Size (estimated): 124.7 MB</span></div></div>;
+function ExportPackageTable({ data }: { data?: DeploymentDocumentationData }) {
+  const rows = documentRowsFromData(data).slice(0, 12);
+  return <div className="flex h-[calc(100%-22px)] flex-col"><table className="w-full text-left text-[8.5px]"><thead className="text-slate-500"><tr><th className="pb-2 font-medium">Name</th><th className="pb-2 font-medium">Type</th><th className="pb-2 font-medium">Folder</th><th className="pb-2 text-right font-medium">Size</th><th /></tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={`${row.id}-${row.name}`}><td className="py-1.5"><span className={documentIconColor(row.type)}>▣</span> {row.name}</td><td>{row.type}</td><td>{row.folder}</td><td className="text-right">{row.size}</td><td className="text-right text-slate-400">×</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-2 text-[9px]"><Button>+ Add Custom Files</Button><span className="text-slate-400">Total Size (estimated): No Data</span></div></div>;
 }
 
-function ExportPackageSummary() {
-  return <div className="flex h-[calc(100%-22px)] flex-col text-[8.5px]"><Field label="Package Name *" value="Flex Tijuana - Documentation Package - 2025-05-12" /><div className="mt-2"><div className="mb-1 text-[8px] text-slate-400">Description</div><div className="h-[58px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-slate-400">Complete documentation package for project handover including engineering drawings, permits, test reports, photos, and installation records.</div></div><div className="mt-2 space-y-1.5">{[["▣", "Total Items", "56"], ["◈", "Total Size (Estimated)", "124.7 MB"], ["▣", "Included Folders", "8"], ["☷", "Include File Types", "PDF, JPG, XLSX, TXT"], ["▣", "Date Range", "All Time"], ["▣", "Export Format", "ZIP Archive"], ["▣", "Security", "Basic (Password protected)"]].map(([icon, label, value]) => <div className="flex justify-between border-b border-white/5 pb-0.5" key={label}><span className="text-slate-400"><span className="mr-2 text-blue-400">{icon}</span>{label}</span><b>{value}</b></div>)}<a className="block text-right text-blue-400">Configure Security</a></div><div className="mt-3 border-t border-cyan-300/10 pt-2"><div className="mb-1.5 text-[8.5px] font-semibold uppercase">Include Additional Content</div><div className="space-y-1.5 text-[8px]"><div><span className="text-[#05ff5e]">☑</span> Include Audit Trail<br /><span className="ml-4 text-slate-500">Include document activity logs and version history</span></div><div><span className="text-[#05ff5e]">☑</span> Include Metadata<br /><span className="ml-4 text-slate-500">Include document properties and tags</span></div><div><span className="text-slate-500">☐</span> Generate Package Contents Report<br /><span className="ml-4 text-slate-500">Create a summary report (PDF) of included items</span></div></div></div></div>;
+function ExportPackageSummary({ data }: { data?: DeploymentDocumentationData }) {
+  const itemCount = data?.documentRows?.filter((row) => row.name !== "No Data").length ?? 0;
+  return <div className="flex h-[calc(100%-22px)] flex-col text-[8.5px]"><Field label="Package Name *" value={data?.projectName ? `${data.projectName} - Documentation Package` : "No Data"} /><div className="mt-2"><div className="mb-1 text-[8px] text-slate-400">Description</div><div className="h-[58px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-slate-400">{data?.message || "Package export model is not approved yet; only scoped document metadata is shown."}</div></div><div className="mt-2 space-y-1.5">{[["▣", "Total Items", itemCount > 0 ? String(itemCount) : "No Data"], ["◈", "Total Size (Estimated)", "No Data"], ["▣", "Included Folders", "No Data"], ["☷", "Include File Types", itemCount > 0 ? Array.from(new Set(documentRowsFromData(data).map((row) => row.type))).join(", ") : "No Data"], ["▣", "Date Range", "No Data"], ["▣", "Export Format", "No Data"], ["▣", "Security", "No Data"]].map(([icon, label, value]) => <div className="flex justify-between border-b border-white/5 pb-0.5" key={label}><span className="text-slate-400"><span className="mr-2 text-blue-400">{icon}</span>{label}</span><b>{value}</b></div>)}<a className="block text-right text-blue-400">Configure Security</a></div><div className="mt-3 border-t border-cyan-300/10 pt-2"><div className="mb-1.5 text-[8.5px] font-semibold uppercase">Include Additional Content</div><div className="space-y-1.5 text-[8px]"><div><span className="text-slate-500">☐</span> Include Audit Trail<br /><span className="ml-4 text-slate-500">No approved audit trail source.</span></div><div><span className="text-[#05ff5e]">☑</span> Include Metadata<br /><span className="ml-4 text-slate-500">Uses `ecbs_os.documents` metadata only.</span></div><div><span className="text-slate-500">☐</span> Generate Package Contents Report<br /><span className="ml-4 text-slate-500">No approved report generation model.</span></div></div></div></div>;
 }
 
-function FolderDetailView() {
+function FolderDetailView({ data }: { data?: DeploymentDocumentationData }) {
+  const documentCount = data?.documentRows?.filter((row) => row.name !== "No Data").length ?? 0;
   return (
     <>
       <div className="mt-3 flex h-[104px] items-center justify-between">
         <div className="text-[9px]">
           <div className="mb-4 text-slate-400">← Back to Documentation</div>
-          <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded border border-yellow-400 text-[24px] text-yellow-400">▱</span><span><b className="text-[22px] text-slate-100">Engineering</b> <span className="ml-2 text-slate-400">✎</span><br /><span className="text-slate-400">4 folders • 18 documents</span></span></div>
+          <div className="flex items-center gap-3"><span className="grid size-10 place-items-center rounded border border-yellow-400 text-[24px] text-yellow-400">▱</span><span><b className="text-[22px] text-slate-100">No Data</b> <span className="ml-2 text-slate-400">✎</span><br /><span className="text-slate-400">No Data folders • {documentCount > 0 ? documentCount : "No Data"} documents</span></span></div>
         </div>
         <Button>Save & Exit</Button>
       </div>
       <div className="flex h-[42px] gap-10 border-b border-cyan-300/10 text-[10px]"><span className="border-b-2 border-[#05ff5e] px-5 pt-3 text-[#05ff5e]">Contents</span><span className="pt-3">Folder Details</span><span className="pt-3">Permissions</span><span className="pt-3">Activity Log</span></div>
       <section className="mt-2 grid min-h-0 flex-1 grid-cols-[0.52fr_1.58fr_0.58fr] gap-2">
         <ExportPanel title="Folder Tree" action={<span className="rounded border border-[#05ff5e]/30 px-2 py-1 text-[#05ff5e]">+</span>}>
-          <FolderDetailTree />
+          <FolderDetailTree data={data} />
         </ExportPanel>
-        <ExportPanel title="Documents In This Folder" titleSuffix="(18)" action={<div className="flex gap-2"><Button>⇧ Upload Files</Button><Button>▣ New Folder</Button><Button>•••</Button></div>}>
-          <FolderDocumentsTable />
+        <ExportPanel title="Documents In This Folder" titleSuffix={`(${documentCount > 0 ? documentCount : "No Data"})`} action={<div className="flex gap-2"><Button>⇧ Upload Files</Button><Button>▣ New Folder</Button><Button>•••</Button></div>}>
+          <FolderDocumentsTable data={data} />
         </ExportPanel>
         <div className="grid min-h-0 grid-rows-[178px_158px_1fr] gap-2 overflow-hidden">
-          <ExportPanel title="Folder Details"><FolderDetailsCard /></ExportPanel>
+          <ExportPanel title="Folder Details"><FolderDetailsCard data={data} /></ExportPanel>
           <ExportPanel title="Folder Actions"><FolderActionsCard /></ExportPanel>
-          <ExportPanel title="Folder Permissions" action={<span className="text-blue-400">View Details</span>}><FolderPermissionsCard /></ExportPanel>
+          <ExportPanel title="Folder Permissions" action={<span className="text-blue-400">View Details</span>}><FolderPermissionsCard data={data} /></ExportPanel>
         </div>
       </section>
     </>
   );
 }
 
-function FolderDetailTree() {
-  const rows = [["▾", "All Documents", "12", "text-[#05ff5e]", 0], ["▾", "Engineering", "18", "text-cyan-300", 0], ["›", "Electrical", "7", "text-blue-400", 1], ["›", "Mechanical", "5", "text-blue-400", 1], ["›", "Civil", "3", "text-blue-400", 1], ["›", "Control Systems", "3", "text-blue-400", 1], ["›", "Diagrams", "8", "text-yellow-400", 0], ["›", "Permits & Approvals", "6", "text-yellow-400", 0], ["›", "Photos", "10", "text-yellow-400", 0], ["›", "Test Reports", "7", "text-yellow-400", 0], ["›", "Safety", "5", "text-yellow-400", 0], ["›", "Installation Records", "4", "text-yellow-400", 0], ["›", "Commissioning", "3", "text-yellow-400", 0], ["›", "Other", "2", "text-purple-400", 0]] as const;
-  return <div className="space-y-1 text-[9.5px]">{rows.map(([arrow, name, count, color, indent]) => <div className={name === "Engineering" ? "flex justify-between rounded bg-[#063b27] px-2 py-1.5 text-slate-100" : "flex justify-between px-2 py-1 text-slate-300"} key={name} style={{ paddingLeft: 8 + Number(indent) * 18 }}><span>{arrow} <span className={color}>▣</span> {name}</span><span>{count}</span></div>)}</div>;
+function FolderDetailTree({ data }: { data?: DeploymentDocumentationData }) {
+  const rows = [["▾", "All Documents", String(data?.documentRows?.filter((row) => row.name !== "No Data").length || "No Data"), "text-[#05ff5e]", 0], ["›", "Folders", "No Data", "text-slate-400", 0]] as const;
+  return <div className="space-y-1 text-[9.5px]">{rows.map(([arrow, name, count, color, indent]) => <div className={name === "All Documents" ? "flex justify-between rounded bg-[#063b27] px-2 py-1.5 text-slate-100" : "flex justify-between px-2 py-1 text-slate-300"} key={name} style={{ paddingLeft: 8 + Number(indent) * 18 }}><span>{arrow} <span className={color}>▣</span> {name}</span><span>{count}</span></div>)}</div>;
 }
 
-function FolderDocumentsTable() {
-  const rows = [["Single Line Diagram.pdf", "PDF", "John Doe", "May 12, 2025 9:15 AM", "Uploaded", "1.2 MB", "red"], ["Panel Schedule.pdf", "PDF", "John Doe", "May 12, 2025 9:16 AM", "Uploaded", "856 KB", "red"], ["Equipment Specification.pdf", "PDF", "John Doe", "May 12, 2025 9:18 AM", "Uploaded", "2.4 MB", "red"], ["Wiring Diagram.pdf", "PDF", "John Doe", "May 12, 2025 9:20 AM", "Uploaded", "1.8 MB", "red"], ["Cable Schedule.pdf", "PDF", "John Doe", "May 12, 2025 9:21 AM", "Uploaded", "732 KB", "red"], ["Panel Layout.dwg", "DWG", "John Doe", "May 12, 2025 9:22 AM", "Uploaded", "3.6 MB", "blue"], ["Load Calculation.xlsx", "XLSX", "John Doe", "May 12, 2025 9:24 AM", "Pending Review", "512 KB", "green"], ["Grounding Detail.pdf", "PDF", "John Doe", "May 12, 2025 9:25 AM", "Uploaded", "1.1 MB", "red"], ["Lightning Protection.pdf", "PDF", "John Doe", "May 12, 2025 9:27 AM", "Uploaded", "674 KB", "red"], ["Motor Control Diagram.pdf", "PDF", "John Doe", "May 12, 2025 9:28 AM", "Uploaded", "1.3 MB", "red"]];
-  return <div className="flex h-[calc(100%-22px)] flex-col"><div className="mb-3 flex gap-2"><div className="flex-1 rounded border border-cyan-300/12 bg-[#03111c] px-3 py-2 text-[9.5px] text-slate-500">⌕ Search in this folder...</div><Button>All Types</Button><Button>All Statuses</Button><Button>▦</Button><Button>☷</Button></div><table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["☐", "Name ↕", "Type ↕", "Uploaded By ↕", "Date Uploaded", "Status ↕", "Size ↕", ""].map((h) => <th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}><td className="py-[5px]">☐</td><td><span className={row[6] === "red" ? "text-red-400" : row[6] === "blue" ? "text-blue-400" : "text-green-400"}>▣</span> {row[0]}</td><td>{row[1]}</td><td>{row[2]}</td><td>{row[3]}</td><td className={row[4] === "Uploaded" ? "text-[#05ff5e]" : "text-yellow-400"}>⊙ {row[4]}</td><td>{row[5]}</td><td>⋮</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-3 text-[9px] text-slate-400"><span>Showing 1 to 10 of 18 documents</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> 2 ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-4 py-1 text-slate-200">10⌄</b></span></div></div>;
+function FolderDocumentsTable({ data }: { data?: DeploymentDocumentationData }) {
+  const rows = documentRowsFromData(data).slice(0, 10);
+  return <div className="flex h-[calc(100%-22px)] flex-col"><div className="mb-3 flex gap-2"><div className="flex-1 rounded border border-cyan-300/12 bg-[#03111c] px-3 py-2 text-[9.5px] text-slate-500">⌕ Search in this folder...</div><Button>All Types</Button><Button>All Statuses</Button><Button>▦</Button><Button>☷</Button></div><table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["☐", "Name ↕", "Type ↕", "Uploaded By ↕", "Date Uploaded", "Status ↕", "Size ↕", ""].map((h) => <th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={`${row.id}-${row.name}`}><td className="py-[5px]">☐</td><td><span className={documentIconColor(row.type)}>▣</span> {row.name}</td><td>{row.type}</td><td>{row.uploadedBy}</td><td>{row.uploadedAt}</td><td className={row.status === "No Data" ? "text-slate-400" : "text-[#05ff5e]"}>⊙ {row.status}</td><td>{row.size}</td><td>⋮</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-3 text-[9px] text-slate-400"><span>Showing {rows.length} document rows</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-4 py-1 text-slate-200">10⌄</b></span></div></div>;
 }
 
-function FolderDetailsCard() {
-  return <MetricList rows={[["Folder Name", "Engineering ✎"], ["Parent Folder", "—"], ["Created By", "John Doe"], ["Date Created", "May 12, 2025 8:50 AM"], ["Last Modified", "May 12, 2025 9:28 AM"], ["Total Documents", "18"], ["Total Size", "12.4 MB"]]} />;
+function FolderDetailsCard({ data }: { data?: DeploymentDocumentationData }) {
+  return <MetricList rows={(data?.folderRows ?? []).map((row) => [row.label, row.value])} />;
 }
 
 function FolderActionsCard() {
   return <div className="space-y-2 text-[9px]"><div>⇧ Upload Files</div><div>▣ New Folder</div><div>✎ Rename Folder</div><div>◇ Move Folder</div><div>⇩ Download Folder (ZIP)</div><div className="text-red-400">▢ Delete Folder</div></div>;
 }
 
-function FolderPermissionsCard() {
-  return <MetricList rows={[["Inherited From", "Root Folder"], ["Access Level", "Editor"], ["Visible To", "6 Roles, 12 Users"]]} />;
+function FolderPermissionsCard({ data }: { data?: DeploymentDocumentationData }) {
+  return <MetricList rows={(data?.permissionRows ?? []).map((row) => [row.label, row.value])} />;
 }
 
-function PermissionsAccessControl() {
+function PermissionsAccessControl({ data }: { data?: DeploymentDocumentationData }) {
+  const permissionRows = data?.permissionRows?.length ? data.permissionRows : [{ label: "Users", value: "No Data" }, { label: "Roles", value: "No Data" }, { label: "Access Levels", value: "No Data" }, { label: "Audit Trail", value: "No Data" }];
   return (
     <>
       <div className="mt-3 flex h-[62px] items-center justify-between">
@@ -746,14 +794,11 @@ function PermissionsAccessControl() {
       </div>
       <div className="flex h-[42px] gap-10 border-b border-cyan-300/10 text-[10px]"><span className="border-b-2 border-[#05ff5e] px-5 pt-3 text-[#05ff5e]">Overview</span><span className="pt-3">Folder Permissions</span><span className="pt-3">User Access</span><span className="pt-3">Roles & Permissions</span><span className="pt-3">Access Requests</span><span className="pt-3">Audit Log</span></div>
       <section className="mt-2 grid h-[100px] grid-cols-4 gap-3">
-        <PermissionKpi icon="♙" title="Total Users" value="24" detail="Have access" color="text-blue-400" />
-        <PermissionKpi icon="♙" title="Total Roles" value="6" detail="Defined roles" color="text-yellow-400" />
-        <PermissionKpi icon="▭" title="Restricted Folders" value="7" detail="With limited access" color="text-blue-400" />
-        <PermissionKpi icon="◇" title="Public Folders" value="3" detail="Everyone can access" color="text-[#05ff5e]" />
+        {permissionRows.slice(0, 4).map((row, index) => <PermissionKpi icon={index === 0 || index === 1 ? "♙" : index === 2 ? "▭" : "◇"} title={row.label} value={row.value} detail="No approved permissions model" color={index === 1 ? "text-yellow-400" : index === 3 ? "text-[#05ff5e]" : "text-blue-400"} key={row.label} />)}
       </section>
       <section className="mt-2 grid min-h-0 flex-1 grid-cols-[1.55fr_0.63fr] gap-2">
         <ExportPanel title="Folder Access Overview" subtitle="Summary of access levels across all folders.">
-          <FolderAccessOverview />
+          <FolderAccessOverview data={data} />
         </ExportPanel>
         <div className="grid min-h-0 grid-rows-[210px_176px_1fr] gap-2 overflow-hidden"><ExportPanel title="Access Level Definitions"><AccessLevelDefinitions /></ExportPanel><ExportPanel title="Quick Actions"><PermissionQuickActions /></ExportPanel><ExportPanel title="Recent Access Changes" action={<span className="text-blue-400">View All</span>}><RecentAccessChanges /></ExportPanel></div>
       </section>
@@ -765,18 +810,8 @@ function PermissionKpi({ color, detail, icon, title, value }: { color: string; d
   return <section className="h-full rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-4"><div className="flex items-start gap-3"><span className={`text-[24px] ${color}`}>{icon}</span><span><div className="text-[10px] text-slate-400">{title}</div><div className="text-[24px] leading-none text-slate-100">{value}</div><div className="mt-1 text-[9px] text-slate-400">{detail}</div></span></div></section>;
 }
 
-function FolderAccessOverview() {
-  const folders = [
-    ["▣", "Engineering", 12, 4, 2, 1, "6 Roles, 8 Users", "May 12, 2025\n9:15 AM", "text-blue-400"],
-    ["▣", "Diagrams", 14, 3, 1, 0, "5 Roles, 5 Users", "May 11, 2025\n4:32 PM", "text-blue-400"],
-    ["▣", "Permits & Approvals", 10, 6, 2, 0, "4 Roles, 6 Users", "May 10, 2025\n11:02 AM", "text-yellow-400"],
-    ["▣", "Photos", 18, 3, 0, 0, "All Users", "May 9, 2025\n2:18 PM", "text-yellow-400"],
-    ["▣", "Test Reports", 8, 5, 3, 2, "7 Roles, 9 Users", "May 8, 2025\n3:45 PM", "text-purple-400"],
-    ["▣", "Safety", 6, 4, 2, 1, "5 Roles, 7 Users", "May 7, 2025\n9:30 AM", "text-cyan-400"],
-    ["▣", "Installation Records", 9, 4, 1, 0, "4 Roles, 5 Users", "May 6, 2025\n10:10 AM", "text-yellow-400"],
-    ["▣", "Commissioning", 7, 3, 2, 0, "3 Roles, 4 Users", "May 5, 2025\n1:22 PM", "text-red-400"],
-    ["▣", "Other", 15, 2, 0, 0, "All Users", "May 4, 2025\n8:51 AM", "text-purple-400"],
-  ] as const;
+function FolderAccessOverview({ data }: { data?: DeploymentDocumentationData }) {
+  const folders = (data?.folderRows?.length ? data.folderRows : [{ label: "Folders", value: "No Data" }]).map((row) => ["▣", row.label, 0, 0, 0, 1, "No Data", row.value, "text-slate-400"] as const);
   return <div className="h-[calc(100%-22px)]"><div className="mb-2 flex gap-2"><div className="flex-1 rounded border border-cyan-300/12 bg-[#03111c] px-3 py-1.5 text-[8.5px] text-slate-500">⌕ Search folders...</div><Button>All Access Levels⌄</Button></div><table className="w-full text-left text-[8px]"><thead className="text-slate-500"><tr><th className="pb-1.5 font-medium">Folder Name</th><th className="pb-1.5 font-medium">Access Level Distribution</th><th className="pb-1.5 font-medium">Restricted To</th><th className="pb-1.5 font-medium">Last Modified</th><th /></tr></thead><tbody>{folders.map(([icon, folder, full, view, upload, none, restricted, modified, color]) => <tr className="border-t border-white/5" key={folder}><td className="py-[5px]"><span className={color}>{icon}</span> {folder}</td><td><div className="flex h-3 w-[330px] overflow-hidden rounded bg-slate-800 text-[7px] leading-3 text-slate-100"><span className="bg-[#22c55e] text-center" style={{ flex: full }}>{full}</span><span className="bg-[#147dff] text-center" style={{ flex: view }}>{view}</span><span className="bg-[#eab308] text-center text-slate-900" style={{ flex: upload }}>{upload}</span><span className="bg-[#ef4444] text-center" style={{ flex: Math.max(Number(none), 0.5) }}>{none}</span></div></td><td>{restricted}</td><td className="whitespace-pre-line leading-tight">{modified}</td><td>⋮</td></tr>)}</tbody></table><div className="mt-3 flex gap-7 text-[7.5px]"><span><b className="text-[#22c55e]">●</b> Full Access (View, Upload, Edit, Delete)</span><span><b className="text-[#147dff]">●</b> View Only</span><span><b className="text-[#eab308]">●</b> Upload Only</span><span><b className="text-[#ef4444]">●</b> No Access</span></div></div>;
 }
 
@@ -789,10 +824,10 @@ function PermissionQuickActions() {
 }
 
 function RecentAccessChanges() {
-  return <div className="space-y-3 text-[8.5px]">{[["SM", "Sarah Martinez was granted View Only access to Engineering folder", "May 12, 2025\n9:10 AM"], ["ER", "Ethan Rodriguez was granted Full Access to Test Reports folder", "May 12, 2025\n8:42 AM"], ["JS", "Jane Smith was removed from Commissioning folder", "May 11, 2025\n4:28 PM"]].map(([initials, body, time]) => <div className="grid grid-cols-[28px_1fr_56px] gap-2" key={body}><span className="grid size-7 place-items-center rounded-full bg-[#0b3158] text-[8px]">{initials}</span><span>{body}</span><span className="whitespace-pre-line text-right text-slate-500">{time}</span></div>)}</div>;
+  return <div className="space-y-3 text-[8.5px]"><div className="grid grid-cols-[28px_1fr_56px] gap-2"><span className="grid size-7 place-items-center rounded-full bg-[#0b3158] text-[8px]">ND</span><span>No approved document permission audit source exists.</span><span className="text-right text-slate-500">No Data</span></div></div>;
 }
 
-function ReviewApprovalQueue() {
+function ReviewApprovalQueue({ data }: { data?: DeploymentDocumentationData }) {
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
@@ -801,18 +836,18 @@ function ReviewApprovalQueue() {
           <Button>⚙ Review Settings</Button>
         </div>
         <div className="mt-3 grid h-[64px] grid-cols-4 gap-3">
-          <ReviewKpi title="Total Pending" value="8" icon="▤" color="text-yellow-400" />
-          <ReviewKpi title="Pending My Review" value="5" icon="♙" color="text-blue-400" />
-          <ReviewKpi title="Overdue" value="2" icon="◷" color="text-red-400" />
-          <ReviewKpi title="Reviewed Today" value="3" icon="✓" color="text-[#05ff5e]" />
+          <ReviewKpi title="Total Pending" value="No Data" icon="▤" color="text-yellow-400" />
+          <ReviewKpi title="Pending My Review" value="No Data" icon="♙" color="text-blue-400" />
+          <ReviewKpi title="Overdue" value="No Data" icon="◷" color="text-red-400" />
+          <ReviewKpi title="Reviewed Today" value="No Data" icon="✓" color="text-[#05ff5e]" />
         </div>
       </section>
       <section className="mt-2 grid h-[530px] min-h-0 grid-cols-[1.55fr_0.42fr] gap-2">
         <ExportPanel title="">
-          <ReviewQueueTable />
+          <ReviewQueueTable data={data} />
         </ExportPanel>
         <aside className="grid min-h-0 grid-rows-[1fr_150px] gap-2 overflow-hidden">
-          <ExportPanel title="Document Review"><DocumentReviewPanel /></ExportPanel>
+          <ExportPanel title="Document Review"><DocumentReviewPanel data={data} /></ExportPanel>
           <ExportPanel title="Your Actions"><ReviewActions /></ExportPanel>
         </aside>
       </section>
@@ -824,43 +859,36 @@ function ReviewKpi({ color, icon, title, value }: { color: string; icon: string;
   return <div className="flex items-center justify-between rounded border border-cyan-300/12 bg-[#03111c]/70 px-4"><span><div className="text-[9px] text-slate-400">{title}</div><div className="text-[22px] leading-none text-slate-100">{value}</div></span><span className={`text-[24px] ${color}`}>{icon}</span></div>;
 }
 
-function ReviewQueueTable() {
-  const rows = [
-    ["Installation Permit.pdf", "Permit", "John Doe", "May 12, 2025\n9:22 AM", "SM\nSarah Martinez\nEngineering Manager", "High", "Pending Review", "May 13, 2025", "red"],
-    ["Single Line Diagram.pdf", "Drawing", "John Doe", "May 12, 2025\n9:15 AM", "ER\nEthan Rodriguez\nSenior Engineer", "High", "Pending Review", "May 12, 2025\nEOD", "red"],
-    ["Panel Schedule.pdf", "Document", "John Doe", "May 12, 2025\n9:16 AM", "SM\nSarah Martinez\nEngineering Manager", "Medium", "Pending Review", "May 13, 2025", "red"],
-    ["Site Safety Plan.pdf", "Safety", "Jane Smith", "May 12, 2025\n9:20 AM", "RP\nRobert Perez\nSafety Manager", "High", "Pending Review", "May 13, 2025", "red"],
-    ["Load Calculation.xlsx", "Report", "John Doe", "May 12, 2025\n9:24 AM", "ER\nEthan Rodriguez\nSenior Engineer", "Medium", "Pending Review", "May 14, 2025", "green"],
-    ["Test & Verification Summary.pdf", "Test Report", "John Doe", "May 12, 2025\n9:50 AM", "SM\nSarah Martinez\nEngineering Manager", "Medium", "Pending Review", "May 14, 2025", "red"],
-    ["CT Installation Photo Log.pdf", "Photo Log", "John Doe", "May 12, 2025\n9:26 AM", "ER\nEthan Rodriguez\nSenior Engineer", "Low", "Pending Review", "May 15, 2025", "red"],
-    ["Equipment Specification.pdf", "Document", "John Doe", "May 12, 2025\n9:18 AM", "SM\nSarah Martinez\nEngineering Manager", "Low", "Overdue", "May 11, 2025", "red"],
-  ];
-  return <div className="flex h-full flex-col"><div className="mb-3 grid grid-cols-[1.1fr_0.45fr_0.55fr_0.55fr_0.55fr_32px_32px] gap-2"><div className="rounded border border-cyan-300/12 bg-[#03111c] px-3 py-2 text-[9px] text-slate-500">⌕ Search documents...</div><Button>All Types⌄</Button><Button>All Reviewers⌄</Button><Button>All Priorities⌄</Button><Button>All Statuses⌄</Button><Button>▦</Button><Button>☷</Button></div><table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["☐", "Document", "Type", "Uploaded By", "Uploaded On", "Reviewer", "Priority", "Status", "Due Date ↑", ""].map((h) => <th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}><td className="py-[9px]">☐</td><td><span className={row[8] === "green" ? "text-green-400" : "text-red-400"}>▣</span> {row[0]}</td><td>{row[1]}</td><td>{row[2]}</td><td className="whitespace-pre-line leading-tight">{row[3]}</td><td className="grid grid-cols-[24px_1fr] items-center gap-1 whitespace-pre-line leading-tight"><span className="grid size-6 place-items-center rounded-full bg-[#17344c] text-[8px]">{String(row[4]).split("\n")[0]}</span><span>{String(row[4]).split("\n").slice(1).join("\n")}</span></td><td><span className={row[5] === "High" ? "rounded border border-red-500/50 px-2 py-0.5 text-red-400" : row[5] === "Medium" ? "rounded border border-yellow-500/50 px-2 py-0.5 text-yellow-400" : "rounded border border-[#05ff5e]/40 px-2 py-0.5 text-[#05ff5e]"}>{row[5]}</span></td><td><span className={row[6] === "Overdue" ? "rounded border border-red-500/50 px-2 py-0.5 text-red-400" : "rounded border border-yellow-500/50 px-2 py-0.5 text-yellow-400"}>◷ {row[6]}</span></td><td className={String(row[7]).includes("EOD") || String(row[7]).includes("May 11") ? "whitespace-pre-line leading-tight text-red-400" : "whitespace-pre-line leading-tight"}>{row[7]}</td><td>⋮</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-2 text-[9px] text-slate-400"><span>0 selected <Button>✓ Approve</Button> <Button>✎ Request Changes</Button> <Button>Reject</Button> <Button>More Actions⌄</Button></span><span>Showing 1 to 8 of 8 documents</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-4 py-1 text-slate-200">25⌄</b></span></div></div>;
+function ReviewQueueTable({ data }: { data?: DeploymentDocumentationData }) {
+  const rows = data?.reviewRows?.length ? data.reviewRows : [emptyDocumentRow("No approved document review workflow model exists.")];
+  return <div className="flex h-full flex-col"><div className="mb-3 grid grid-cols-[1.1fr_0.45fr_0.55fr_0.55fr_0.55fr_32px_32px] gap-2"><div className="rounded border border-cyan-300/12 bg-[#03111c] px-3 py-2 text-[9px] text-slate-500">⌕ Search documents...</div><Button>All Types⌄</Button><Button>All Reviewers⌄</Button><Button>All Priorities⌄</Button><Button>All Statuses⌄</Button><Button>▦</Button><Button>☷</Button></div><table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["☐", "Document", "Type", "Uploaded By", "Uploaded On", "Reviewer", "Priority", "Status", "Due Date ↑", ""].map((h) => <th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={`${row.id}-${row.status}`}><td className="py-[9px]">☐</td><td><span className={documentIconColor(row.type)}>▣</span> {row.name}</td><td>{row.type}</td><td>{row.uploadedBy}</td><td className="whitespace-pre-line leading-tight">{row.uploadedAt}</td><td>No Data</td><td><span className="rounded border border-slate-500/50 px-2 py-0.5 text-slate-400">No Data</span></td><td><span className="rounded border border-slate-500/50 px-2 py-0.5 text-slate-400">◷ {row.status}</span></td><td className="whitespace-pre-line leading-tight">No Data</td><td>⋮</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-2 text-[9px] text-slate-400"><span>0 selected <Button>✓ Approve</Button> <Button>✎ Request Changes</Button> <Button>Reject</Button> <Button>More Actions⌄</Button></span><span>Showing {rows.length} review rows</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-4 py-1 text-slate-200">25⌄</b></span></div></div>;
 }
 
-function DocumentReviewPanel() {
-  const metadata = [["Type", "Permit"], ["Folder", "Engineering/Permits & Approvals"], ["Uploaded By", "John Doe"], ["Uploaded On", "May 12, 2025 9:22 AM"], ["Due Date", "May 13, 2025"], ["Review Cycle", "First Review"], ["Status", "Pending Review"], ["Priority", "High"]];
-  return <div className="h-[calc(100%-22px)] text-[8.5px]"><div className="mb-2 grid grid-cols-[28px_1fr] gap-2"><span className="grid size-8 place-items-center rounded border border-red-500/60 text-red-400">PDF</span><span><b>Installation Permit.pdf</b><br /><span className="text-slate-500">PDF Document • 712 KB</span></span></div><div className="grid h-[94px] place-items-center rounded bg-white p-2 text-center text-slate-900"><div className="h-full w-full border border-slate-300 p-2"><div className="mb-1 text-[7px] font-bold">INSTALLATION PERMIT</div><div className="space-y-1">{[1, 2, 3].map((i) => <div className="mx-auto h-2 w-[80%] border-b border-slate-300" key={i} />)}</div><div className="mt-1 text-right text-[8px] italic">APPROVED</div></div></div><div className="mt-2 flex gap-2"><Button>◎ Preview Full Document</Button><Button>⇩ Download</Button></div><h3 className="mt-2 mb-1.5 text-[11px] font-semibold uppercase">Metadata</h3><div className="space-y-0.5 text-[8px]">{metadata.map(([label, value]) => <div className="flex justify-between border-b border-white/5 pb-0.5" key={label}><span className="text-slate-400">{label}</span><b className={label === "Status" ? "text-yellow-400" : label === "Priority" ? "text-red-400" : "text-slate-200"}>{value}</b></div>)}</div></div>;
+function DocumentReviewPanel({ data }: { data?: DeploymentDocumentationData }) {
+  const row = data?.reviewRows?.[0] ?? emptyDocumentRow("No approved document review workflow model exists.");
+  const metadata = [["Type", row.type], ["Folder", row.folder], ["Uploaded By", row.uploadedBy], ["Uploaded On", row.uploadedAt], ["Due Date", "No Data"], ["Review Cycle", "No Data"], ["Status", row.status], ["Priority", "No Data"]];
+  return <div className="h-[calc(100%-22px)] text-[8.5px]"><div className="mb-2 grid grid-cols-[28px_1fr] gap-2"><span className="grid size-8 place-items-center rounded border border-red-500/60 text-red-400">{row.type}</span><span><b>{row.name}</b><br /><span className="text-slate-500">{row.type} Document • {row.size}</span></span></div><div className="grid h-[94px] place-items-center rounded bg-white p-2 text-center text-slate-900">No Data</div><div className="mt-2 flex gap-2"><Button>◎ Preview Full Document</Button><Button>⇩ Download</Button></div><h3 className="mt-2 mb-1.5 text-[11px] font-semibold uppercase">Metadata</h3><div className="space-y-0.5 text-[8px]">{metadata.map(([label, value]) => <div className="flex justify-between border-b border-white/5 pb-0.5" key={label}><span className="text-slate-400">{label}</span><b className={label === "Status" ? "text-yellow-400" : label === "Priority" ? "text-red-400" : "text-slate-200"}>{value}</b></div>)}</div></div>;
 }
 
 function ReviewActions() {
   return <div className="space-y-1 text-[9px]"><button className="w-full rounded bg-[#087a35] py-[5px] text-left pl-3 text-[#bbf7d0]">✓ Approve</button><button className="w-full rounded border border-yellow-500/70 py-[5px] text-left pl-3 text-yellow-400">✎ Request Changes</button><button className="w-full rounded border border-red-500/70 py-[5px] text-left pl-3 text-red-400">⊗ Reject</button><button className="w-full rounded border border-cyan-300/12 bg-[#03111c] py-[5px] text-left pl-3 text-slate-300">▣ Add Comment</button></div>;
 }
 
-function SearchResultsPage() {
+function SearchResultsPage({ data }: { data?: DeploymentDocumentationData }) {
+  const resultCount = data?.searchRows?.filter((row) => row.name !== "No Data").length ?? 0;
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
         <div className="flex items-center justify-between">
-          <div><h1 className="text-[15px] font-semibold uppercase"><span className="mr-2 text-[#05ff5e]">▤</span>Search Results</h1><p className="mt-1 text-[9px] text-slate-400">12 results found for &quot;installation permit&quot;</p></div>
+          <div><h1 className="text-[15px] font-semibold uppercase"><span className="mr-2 text-[#05ff5e]">▤</span>Search Results</h1><p className="mt-1 text-[9px] text-slate-400">{resultCount > 0 ? resultCount : "No Data"} results found for &quot;installation permit&quot;</p></div>
           <div className="flex gap-2"><Button>☆ Save Search</Button><Button>↗ Share Results</Button></div>
         </div>
         <div className="mt-3 flex h-[36px] items-center justify-between rounded border border-cyan-300/12 bg-[#03111c] px-3 text-[10px] text-slate-200"><span>⌕&nbsp;&nbsp;installation permit</span><span className="text-slate-400">×</span></div>
-        <div className="mt-3 flex items-center gap-2 text-[9px] text-slate-400"><span>Active Filters:</span>{["File Type: PDF", "Folder: Engineering", "Status: All", "Date Range: All Time"].map((filter) => <span className="rounded-full border border-cyan-300/12 bg-[#03111c] px-2 py-1 text-slate-300" key={filter}>{filter} ×</span>)}<span className="text-cyan-400">Clear All</span></div>
+        <div className="mt-3 flex items-center gap-2 text-[9px] text-slate-400"><span>Active Filters:</span>{["File Type: No Data", "Folder: No Data", "Status: All", "Date Range: No Data"].map((filter) => <span className="rounded-full border border-cyan-300/12 bg-[#03111c] px-2 py-1 text-slate-300" key={filter}>{filter} ×</span>)}<span className="text-cyan-400">Clear All</span></div>
       </section>
       <section className="mt-2 grid h-[548px] min-h-0 grid-cols-[1.6fr_0.43fr] gap-2">
         <ExportPanel title="">
-          <SearchResultsTable />
+          <SearchResultsTable data={data} />
         </ExportPanel>
         <ExportPanel title="Filters">
           <SearchFilters />
@@ -870,18 +898,10 @@ function SearchResultsPage() {
   );
 }
 
-function SearchResultsTable() {
-  const rows = [
-    ["PDF", "Installation Permit.pdf", "Installation permit for main electrical system.", "PDF", "Engineering /\nPermits & Approvals", "John Doe", "May 12, 2025\n9:22 AM", "Pending Review", "712 KB", "red"],
-    ["PDF", "Electrical Installation Permit.pdf", "City electrical installation permit.", "PDF", "Engineering /\nPermits & Approvals", "Jane Smith", "May 5, 2025\n2:14 PM", "Uploaded", "684 KB", "red"],
-    ["PDF", "Transformer Installation Permit.pdf", "Permit for transformer installation.", "PDF", "Engineering /\nPermits & Approvals", "John Doe", "Apr 28, 2025\n11:03 AM", "Uploaded", "856 KB", "red"],
-    ["XLS", "Installation Permit Checklist.xlsx", "Checklist for permit requirements.", "XLSX", "Engineering /\nPermits & Approvals", "Sarah Martinez", "Apr 22, 2025\n9:18 AM", "Uploaded", "124 KB", "green"],
-    ["PDF", "Fire Alarm Installation Permit.pdf", "Permit for fire alarm system installation.", "PDF", "Engineering /\nPermits & Approvals", "Ethan Rodriguez", "Apr 15, 2025\n4:35 PM", "Uploaded", "534 KB", "red"],
-    ["PDF", "Solar System Installation Permit.pdf", "Solar PV system installation permit.", "PDF", "Engineering /\nPermits & Approvals", "John Doe", "Mar 30, 2025\n10:45 AM", "Pending Review", "691 KB", "red"],
-    ["PDF", "Rooftop Installation Permit.pdf", "Rooftop equipment installation permit.", "PDF", "Engineering /\nPermits & Approvals", "Jane Smith", "Mar 18, 2025\n3:27 PM", "Uploaded", "478 KB", "red"],
-    ["DOCX", "Installation Permit Submission Letter.docx", "Cover letter for installation permit submission.", "DOCX", "Engineering /\nPermits & Approvals", "Sarah Martinez", "Mar 10, 2025\n11:11 AM", "Uploaded", "82 KB", "blue"],
-  ];
-  return <div className="flex h-full flex-col"><div className="mb-3 flex items-center justify-between text-[9px] text-slate-400"><span><b className="text-slate-200">12 Results</b><span className="ml-5">Sort by:</span><b className="ml-2 text-slate-200">Relevance</b><span className="ml-2">⌄</span></span><span className="flex gap-2"><button className="rounded border border-[#05ff5e]/60 bg-[#063b27] px-3 py-2 text-[#05ff5e]">▦</button><button className="rounded border border-cyan-300/12 bg-[#03111c] px-3 py-2 text-slate-500">☷</button></span></div><table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["Document", "Type", "Folder", "Uploaded By", "Uploaded On", "Status", "Size", ""].map((header) => <th className="border-b border-white/5 bg-[#092033] px-2 py-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row[1]}><td className="grid grid-cols-[24px_1fr] gap-2 px-2 py-[8px]"><span className={row[9] === "green" ? "grid size-6 place-items-center rounded border border-[#05ff5e]/50 text-[8px] text-[#05ff5e]" : row[9] === "blue" ? "grid size-6 place-items-center rounded border border-blue-500/60 text-[7px] text-blue-400" : "grid size-6 place-items-center rounded border border-red-500/60 text-[8px] text-red-400"}>{row[0]}</span><span><b className="font-semibold text-slate-100"><HighlightedTitle value={row[1]} /></b><br /><span className="text-[8px] text-slate-400">{row[2]}</span></span></td><td className="px-2">{row[3]}</td><td className="whitespace-pre-line px-2 leading-tight">{row[4]}</td><td className="px-2">{row[5]}</td><td className="whitespace-pre-line px-2 leading-tight">{row[6]}</td><td className={row[7] === "Pending Review" ? "px-2 text-yellow-400" : "px-2 text-[#05ff5e]"}>◎ {row[7]}</td><td className="px-2">{row[8]}</td><td className="px-2">⋮</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-3 text-[9px] text-slate-400"><span>Showing 1 to 12 of 12 results</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-4 py-1 text-slate-200">25⌄</b></span></div></div>;
+function SearchResultsTable({ data }: { data?: DeploymentDocumentationData }) {
+  const rows = data?.searchRows?.length ? data.searchRows : [emptyDocumentRow("No scoped ECBS document metadata matched the approved search term.")];
+  const resultCount = rows.filter((row) => row.name !== "No Data").length;
+  return <div className="flex h-full flex-col"><div className="mb-3 flex items-center justify-between text-[9px] text-slate-400"><span><b className="text-slate-200">{resultCount > 0 ? resultCount : "No Data"} Results</b><span className="ml-5">Sort by:</span><b className="ml-2 text-slate-200">Relevance</b><span className="ml-2">⌄</span></span><span className="flex gap-2"><button className="rounded border border-[#05ff5e]/60 bg-[#063b27] px-3 py-2 text-[#05ff5e]">▦</button><button className="rounded border border-cyan-300/12 bg-[#03111c] px-3 py-2 text-slate-500">☷</button></span></div><table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["Document", "Type", "Folder", "Uploaded By", "Uploaded On", "Status", "Size", ""].map((header) => <th className="border-b border-white/5 bg-[#092033] px-2 py-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={`${row.id}-${row.name}`}><td className="grid grid-cols-[24px_1fr] gap-2 px-2 py-[8px]"><span className={`grid size-6 place-items-center rounded border border-current text-[8px] ${documentIconColor(row.type)}`}>{row.type}</span><span><b className="font-semibold text-slate-100"><HighlightedTitle value={row.name} /></b><br /><span className="text-[8px] text-slate-400">{row.status}</span></span></td><td className="px-2">{row.type}</td><td className="whitespace-pre-line px-2 leading-tight">{row.folder}</td><td className="px-2">{row.uploadedBy}</td><td className="whitespace-pre-line px-2 leading-tight">{row.uploadedAt}</td><td className={row.status === "No Data" ? "px-2 text-slate-400" : "px-2 text-[#05ff5e]"}>◎ {row.status}</td><td className="px-2">{row.size}</td><td className="px-2">⋮</td></tr>)}</tbody></table><div className="mt-auto flex items-center justify-between pt-3 text-[9px] text-slate-400"><span>Showing {rows.length} search rows</span><span className="flex items-center gap-4">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> ›</span><span>Rows per page: <b className="rounded border border-cyan-300/12 px-4 py-1 text-slate-200">25⌄</b></span></div></div>;
 }
 
 function HighlightedTitle({ value }: { value: string }) {
@@ -896,7 +916,8 @@ function FilterGroup({ clear, items, search, title }: { clear?: boolean; items: 
   return <div className="mt-3"><div className="mb-1.5 flex justify-between text-[8.5px] font-semibold"><span>{title}</span>{clear ? <span className="font-normal text-cyan-400">Clear</span> : null}</div>{search ? <div className="mb-1.5 rounded border border-cyan-300/12 bg-[#03111c] px-2 py-1.5 text-slate-500">⌕ Search folders...</div> : null}<div className="space-y-1">{items.map(([label, checked, indent]) => <div className="flex items-center gap-2" style={{ paddingLeft: indent * 12 }} key={label}><span className={checked ? "grid size-3 place-items-center rounded-sm bg-[#05ff5e] text-[7px] text-[#042311]" : "size-3 rounded-sm border border-cyan-300/25"}>{checked ? "✓" : ""}</span><span className="text-slate-300">{label}</span></div>)}</div></div>;
 }
 
-function UploadWizard() {
+function UploadWizard({ data }: { data?: DeploymentDocumentationData }) {
+  const document = firstDocument(data);
   return (
     <>
       <div className="mt-3 flex h-[54px] items-center justify-between"><div><h1 className="text-[15px] font-semibold uppercase">Upload Document Wizard</h1><p className="mt-1 text-[9px] text-slate-400">Follow the steps below to upload and classify your document.</p></div><Button>Cancel Upload&nbsp;&nbsp;×</Button></div>
@@ -905,74 +926,71 @@ function UploadWizard() {
         <ExportPanel title="1. Select File">
           <p className="text-[9px] text-slate-400">Choose a file from your computer to upload.</p>
           <div className="mt-8 grid h-[262px] place-items-center rounded border border-dashed border-cyan-300/25 bg-[#03111c]/60 text-center text-[10px] text-slate-300"><div><div className="text-[46px] leading-none text-[#05ff5e]">⇧</div><div className="mt-5 text-[11px]">Drag and drop files here</div><div className="my-3 text-slate-500">or</div><Button>Browse Files</Button><div className="mt-5 text-[9px] text-slate-400">Supported formats: PDF, JPG, PNG, DOC, DOCX, XLS, XLSX, TXT<br />Maximum file size: 100 MB</div></div></div>
-          <div className="mt-5"><h3 className="mb-3 text-[11px] font-semibold uppercase">Selected File</h3><div className="flex h-[66px] items-center justify-between rounded border border-cyan-300/12 bg-[#03111c] px-4 text-[10px]"><span className="grid grid-cols-[34px_1fr] items-center gap-3"><span className="grid size-8 place-items-center rounded border border-red-500/60 text-[9px] text-red-400">PDF</span><span><b className="text-slate-100">Single Line Diagram.pdf</b><br /><span className="text-slate-400">1.2 MB</span></span></span><span className="text-[18px] text-[#05ff5e]">◎</span></div></div>
+          <div className="mt-5"><h3 className="mb-3 text-[11px] font-semibold uppercase">Selected File</h3><div className="flex h-[66px] items-center justify-between rounded border border-cyan-300/12 bg-[#03111c] px-4 text-[10px]"><span className="grid grid-cols-[34px_1fr] items-center gap-3"><span className="grid size-8 place-items-center rounded border border-red-500/60 text-[9px] text-red-400">{document.type}</span><span><b className="text-slate-100">{document.name}</b><br /><span className="text-slate-400">{document.size}</span></span></span><span className="text-[18px] text-[#05ff5e]">◎</span></div></div>
           <div className="mt-14 flex justify-end"><button className="rounded bg-[#087a35] px-7 py-3 text-[10px] font-semibold text-white shadow-[0_0_24px_rgba(5,255,94,.16)]">Next: Classify Document&nbsp;&nbsp;→</button></div>
         </ExportPanel>
         <ExportPanel title="Upload Summary">
           <p className="mb-8 text-[9px] text-slate-400">Review your selections as you progress</p>
-          <UploadSummaryRows />
+          <UploadSummaryRows document={document} />
         </ExportPanel>
       </section>
     </>
   );
 }
 
-function UploadSummaryRows() {
+function UploadSummaryRows({ document }: { document: DocumentDataRow }) {
   const rows = [
-    ["▣", "text-red-400", "File", "Single Line Diagram.pdf\n1.2 MB"],
-    ["▤", "text-blue-400", "Document Type", "Not selected yet"],
-    ["▭", "text-yellow-400", "Folder", "Not selected yet"],
+    ["▣", "text-red-400", "File", `${document.name}\n${document.size}`],
+    ["▤", "text-blue-400", "Document Type", document.type],
+    ["▭", "text-yellow-400", "Folder", document.folder],
     ["▧", "text-purple-400", "Metadata", "Not added yet"],
     ["◇", "text-cyan-400", "Tags", "Not added yet"],
-    ["◷", "text-[#05ff5e]", "Status", "Ready to upload"],
+    ["◷", "text-[#05ff5e]", "Status", "No upload command implemented"],
   ];
   return <div className="space-y-7 text-[10px]">{rows.map(([icon, color, title, detail]) => <div className="grid grid-cols-[32px_1fr] gap-3" key={title}><span className={`grid size-7 place-items-center rounded border border-current ${color}`}>{icon}</span><span><b className="text-slate-100">{title}</b><br /><span className="whitespace-pre-line text-[9px] leading-relaxed text-slate-400">{detail}</span></span></div>)}</div>;
 }
 
-function VersionHistory() {
+function VersionHistory({ data }: { data?: DeploymentDocumentationData }) {
+  const document = firstDocument(data);
   return (
     <>
       <div className="mt-2 flex h-[72px] items-center justify-between"><div><div className="text-[10px] text-slate-300">← Back to Document Viewer</div><h1 className="mt-4 text-[15px] font-semibold uppercase">Version History</h1><p className="mt-1 text-[9px] text-slate-400">View and manage all versions of this document.</p></div><Button>▣ Compare Versions</Button></div>
       <section className="mt-2 grid h-[604px] min-h-0 grid-cols-[1.55fr_0.64fr] gap-2">
         <div className="grid min-h-0 grid-rows-[72px_238px_1fr] gap-2 overflow-hidden">
-          <VersionDocumentHeader />
-          <VersionHistoryTable />
+          <VersionDocumentHeader document={document} />
+          <VersionHistoryTable data={data} />
           <CompareVersionsPanel />
         </div>
-        <VersionSidePanel />
+        <VersionSidePanel data={data} />
       </section>
     </>
   );
 }
 
-function VersionDocumentHeader() {
-  return <section className="flex items-center rounded-lg border border-cyan-300/12 bg-[#061521]/92 px-4"><span className="grid size-10 place-items-center rounded border border-red-500/60 text-[11px] text-red-400">PDF</span><div className="ml-4 text-[10px]"><div className="flex items-center gap-3"><b className="text-[15px] text-slate-100">Single Line Diagram.pdf</b><span className="rounded border border-[#05ff5e]/40 bg-[#063b27] px-2 py-0.5 text-[8px] text-[#05ff5e]">Version 1 (Current)</span></div><div className="mt-2 flex gap-6 text-slate-400"><span>Folder: <b className="text-slate-300">Engineering</b></span><span>Uploaded by: <b className="text-slate-300">John Doe</b></span><span>May 12, 2025 9:15 AM</span><span>1.2 MB</span></div></div></section>;
+function VersionDocumentHeader({ document }: { document: DocumentDataRow }) {
+  return <section className="flex items-center rounded-lg border border-cyan-300/12 bg-[#061521]/92 px-4"><span className="grid size-10 place-items-center rounded border border-red-500/60 text-[11px] text-red-400">{document.type}</span><div className="ml-4 text-[10px]"><div className="flex items-center gap-3"><b className="text-[15px] text-slate-100">{document.name}</b><span className="rounded border border-[#05ff5e]/40 bg-[#063b27] px-2 py-0.5 text-[8px] text-[#05ff5e]">{document.status}</span></div><div className="mt-2 flex gap-6 text-slate-400"><span>Folder: <b className="text-slate-300">{document.folder}</b></span><span>Uploaded by: <b className="text-slate-300">{document.uploadedBy}</b></span><span>{document.uploadedAt}</span><span>{document.size}</span></div></div></section>;
 }
 
-function VersionHistoryTable() {
-  const rows = [
-    ["1 (Current)", "Current", "John Doe", "May 12, 2025\n9:15 AM", "1.2 MB", "Original upload", true],
-    ["0.3", "Superseded", "John Doe", "May 12, 2025\n8:55 AM", "1.1 MB", "Updated panel IDs and\ncorrected notes.", false],
-    ["0.2", "Superseded", "Jane Smith", "May 12, 2025\n8:30 AM", "1.0 MB", "Added voltage ratings and\nequipment tags.", false],
-    ["0.1", "Superseded", "Jane Smith", "May 12, 2025\n8:10 AM", "980 KB", "Initial version", false],
-  ];
-  return <section className="rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><h2 className="mb-3 text-[11px] font-semibold uppercase">All Versions (4)</h2><table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["", "Version", "Status", "Uploaded By", "Upload Date", "Size", "Changes / Comments"].map((h) => <th className="border-b border-white/5 bg-[#092033] px-3 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className={row[6] ? "rounded border border-[#05ff5e]/70 bg-[#063b27]/38 text-slate-100" : "border-b border-white/5"} key={String(row[0])}><td className="px-3 py-2.5"><span className={row[6] ? "text-[#05ff5e]" : "text-slate-400"}>◎</span></td><td className={row[6] ? "px-3 py-2.5 text-[#05ff5e]" : "px-3 py-2.5"}>{row[0]}</td><td className={row[1] === "Current" ? "px-3 py-2.5 text-[#05ff5e]" : "px-3 py-2.5 text-yellow-400"}>◎ {row[1]}</td><td className="px-3 py-2.5">{row[2]}</td><td className="whitespace-pre-line px-3 py-2.5 leading-tight">{row[3]}</td><td className="px-3 py-2.5">{row[4]}</td><td className="whitespace-pre-line px-3 py-2.5 leading-tight">{row[5]}</td></tr>)}</tbody></table><div className="mt-3 text-[9px] text-slate-400">Showing 1 to 4 of 4 versions</div></section>;
+function VersionHistoryTable({ data }: { data?: DeploymentDocumentationData }) {
+  const rows = data?.versionRows?.length ? data.versionRows : [emptyDocumentRow("No approved document version history model exists.")];
+  return <section className="rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><h2 className="mb-3 text-[11px] font-semibold uppercase">All Versions ({rows[0]?.name === "No Data" ? "No Data" : rows.length})</h2><table className="w-full text-left text-[9px]"><thead className="text-slate-500"><tr>{["", "Version", "Status", "Uploaded By", "Upload Date", "Size", "Changes / Comments"].map((h) => <th className="border-b border-white/5 bg-[#092033] px-3 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={`${row.id}-${row.status}`}><td className="px-3 py-2.5"><span className="text-slate-400">◎</span></td><td className="px-3 py-2.5">No Data</td><td className="px-3 py-2.5 text-slate-400">◎ {row.status}</td><td className="px-3 py-2.5">{row.uploadedBy}</td><td className="whitespace-pre-line px-3 py-2.5 leading-tight">{row.uploadedAt}</td><td className="px-3 py-2.5">{row.size}</td><td className="whitespace-pre-line px-3 py-2.5 leading-tight">No approved version table exists.</td></tr>)}</tbody></table><div className="mt-3 text-[9px] text-slate-400">Showing {rows.length} version rows</div></section>;
 }
 
 function CompareVersionsPanel() {
-  return <section className="rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><h2 className="text-[11px] font-semibold uppercase">Compare Versions</h2><div className="mt-3 flex items-center gap-3 text-[9px]"><span className="text-slate-400">Select versions to compare</span><Button>1 (Current)&nbsp;&nbsp;⌄</Button><span>vs</span><Button>0.3&nbsp;&nbsp;⌄</Button><button className="rounded bg-[#087a35] px-5 py-2 text-[9px] font-semibold">Compare</button></div><div className="mt-3 rounded border border-cyan-300/12 bg-[#03111c] p-2"><div className="mb-2 flex items-center justify-between text-[9px]"><b>1 (Current)</b><span className="text-slate-400">⌕ &nbsp; ⊕ &nbsp; 100% &nbsp; ⛶</span></div><div className="grid h-[154px] grid-cols-2 gap-5"><VersionDiagram highlight="green" /><VersionDiagram highlight="red" /></div></div><div className="mt-2 flex justify-center gap-10 text-[8px] text-slate-400"><span className="text-[#05ff5e]">■ Added</span><span className="text-red-400">■ Removed</span><span className="text-yellow-400">■ Modified</span></div></section>;
+  return <section className="rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><h2 className="text-[11px] font-semibold uppercase">Compare Versions</h2><div className="mt-3 flex items-center gap-3 text-[9px]"><span className="text-slate-400">Select versions to compare</span><Button>No Data&nbsp;&nbsp;⌄</Button><span>vs</span><Button>No Data&nbsp;&nbsp;⌄</Button><button className="rounded bg-[#087a35] px-5 py-2 text-[9px] font-semibold">Compare</button></div><div className="mt-3 grid h-[198px] place-items-center rounded border border-dashed border-cyan-300/12 bg-[#03111c] p-2 text-[10px] text-slate-400">No approved document version comparison source exists.</div></section>;
 }
 
 function VersionDiagram({ highlight }: { highlight: "green" | "red" }) {
   return <div className="overflow-hidden rounded bg-white p-3 text-slate-900"><div className="mb-1 text-center text-[6px] font-bold">MAIN ELECTRICAL SINGLE LINE DIAGRAM</div><svg className="h-[122px] w-full" viewBox="0 0 320 145"><g fill="none" stroke="#111" strokeWidth="1.4"><path d="M160 8v34M40 52h240M74 52v62M122 52v62M170 52v62M218 52v62M266 52v62" /><rect x="62" y="104" width="26" height="18" /><rect x="110" y="104" width="26" height="18" /><rect x="158" y="104" width="26" height="18" /><rect x="206" y="104" width="26" height="18" /><rect x="254" y="104" width="26" height="18" /><circle cx="160" cy="52" r="5" /></g><rect x={highlight === "green" ? "62" : "206"} y="104" width="26" height="18" fill={highlight === "green" ? "rgba(34,197,94,.22)" : "rgba(239,68,68,.22)"} stroke={highlight === "green" ? "#22c55e" : "#ef4444"} /><text x="34" y="42" fontSize="6">480V MAIN</text><text x="144" y="24" fontSize="6">SERVICE</text></svg></div>;
 }
 
-function VersionSidePanel() {
-  return <aside className="min-h-0 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-4 text-[9px]"><VersionDetailRows /><VersionActions /><VersionNotes /><VersionTimeline /></aside>;
+function VersionSidePanel({ data }: { data?: DeploymentDocumentationData }) {
+  return <aside className="min-h-0 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-4 text-[9px]"><VersionDetailRows data={data} /><VersionActions /><VersionNotes /><VersionTimeline data={data} /></aside>;
 }
 
-function VersionDetailRows() {
-  const rows = [["Version", "1 (Current)"], ["Status", "Current"], ["Uploaded By", "John Doe"], ["Upload Date", "May 12, 2025 9:15 AM"], ["File Size", "1.2 MB"], ["Comments", "Original upload"]];
+function VersionDetailRows({ data }: { data?: DeploymentDocumentationData }) {
+  const row = data?.versionRows?.[0] ?? emptyDocumentRow("No approved document version history model exists.");
+  const rows = [["Version", "No Data"], ["Status", row.status], ["Uploaded By", row.uploadedBy], ["Upload Date", row.uploadedAt], ["File Size", row.size], ["Comments", "No approved version table exists."]];
   return <section><h2 className="mb-3 text-[11px] font-semibold uppercase">Version Details</h2><div className="space-y-2">{rows.map(([label, value]) => <div className="grid grid-cols-[92px_1fr] gap-2" key={label}><span className="text-slate-400">{label}</span><b className={label === "Status" ? "text-[#05ff5e]" : "text-slate-200"}>{label === "Status" ? "● " : ""}{value}</b></div>)}</div></section>;
 }
 
@@ -984,8 +1002,8 @@ function VersionNotes() {
   return <section className="mt-5 border-t border-white/10 pt-4"><h2 className="mb-3 text-[11px] font-semibold uppercase">Version Notes</h2><p className="text-slate-400">No notes added for this version.</p></section>;
 }
 
-function VersionTimeline() {
-  const items = [["1 (Current)", "Current", "May 12, 2025 9:15 AM", "Uploaded by John Doe\nOriginal upload"], ["0.3 (Superseded)", "", "May 12, 2025 8:55 AM", "Uploaded by John Doe\nUpdated panel IDs and corrected notes."], ["0.2 (Superseded)", "", "May 12, 2025 8:30 AM", "Uploaded by Jane Smith\nAdded voltage ratings and equipment tags."], ["0.1 (Superseded)", "", "May 12, 2025 8:10 AM", "Uploaded by Jane Smith\nInitial version"]];
+function VersionTimeline({ data }: { data?: DeploymentDocumentationData }) {
+  const items = (data?.versionRows?.length ? data.versionRows : [emptyDocumentRow("No approved document version history model exists.")]).map((row) => [row.name, "", row.uploadedAt, row.status] as const);
   return <section className="mt-5 border-t border-white/10 pt-4"><h2 className="mb-3 text-[11px] font-semibold uppercase">Version Timeline</h2><div className="space-y-3">{items.map(([title, badge, time, detail], index) => <div className="grid grid-cols-[18px_1fr]" key={title}><span className={index === 0 ? "text-[#05ff5e]" : "text-yellow-400"}>●</span><div><div className="flex justify-between gap-2"><b>{title}</b><span className="text-[8px] text-slate-400">{time}</span></div>{badge ? <span className="rounded border border-[#05ff5e]/40 bg-[#063b27] px-1.5 py-0.5 text-[7px] text-[#05ff5e]">{badge}</span> : null}<div className="mt-1 whitespace-pre-line text-[8px] leading-relaxed text-slate-400">{detail}</div></div></div>)}</div></section>;
 }
 

@@ -1,5 +1,15 @@
 import { DeploymentWorkflowScreen } from "@/components/ecbs/DeploymentWorkflowScreens";
+import { getDeploymentDocumentationDataFromApi } from "@/lib/ecbsApi";
 
-export default function DocumentationUploadWizardPage() {
-  return <DeploymentWorkflowScreen variant="uploadWizard" />;
+type PageProps = {
+  params: Promise<{ deploymentId: string }>;
+};
+
+export const dynamic = "force-dynamic";
+
+export default async function DocumentationUploadWizardPage({ params }: PageProps) {
+  const { deploymentId } = await params;
+  const documentationData = await getDeploymentDocumentationDataFromApi(deploymentId);
+
+  return <DeploymentWorkflowScreen deploymentId={deploymentId} documentationData={documentationData} variant="uploadWizard" />;
 }

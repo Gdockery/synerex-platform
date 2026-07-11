@@ -33,6 +33,7 @@ public static class DependencyInjection
         services.AddScoped<IClientManagementCommandService, EfClientManagementCommandService>();
         services.AddScoped<IClientManagementDataService, TrackingClientManagementDataService>();
         services.AddScoped<IDeploymentCompletionDataService, EfDeploymentCompletionDataService>();
+        services.AddScoped<IDeploymentDocumentationDataService, EfDeploymentDocumentationDataService>();
 
         return services;
     }

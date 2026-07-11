@@ -1,0 +1,58 @@
+{
+  "name": "Deployment Documentation Children",
+  "baseUrl": "http://localhost:3000",
+  "apiBaseUrl": "http://localhost:5090",
+  "apiGets": [
+    {
+      "path": "/api/v1/deployments/1/documentation",
+      "status": 200,
+      "expectJson": [
+        { "path": "state", "equals": "no-data" },
+        { "path": "documentRows.0.name", "equals": "No Data" }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "path": "/operations/deployments/1/documents/documentation-document-viewer-screen",
+      "status": 200,
+      "expectText": ["No Data"]
+    },
+    {
+      "path": "/operations/deployments/1/documents/documentation-export-package-builder-screen",
+      "status": 200,
+      "expectText": ["Export Package Builder", "No Data"]
+    },
+    {
+      "path": "/operations/deployments/1/documents/documentation-folder-detail-view-screen",
+      "status": 200,
+      "expectText": ["Documents In This Folder", "No Data"]
+    },
+    {
+      "path": "/operations/deployments/1/documents/documentation-permissions-access-control-screen",
+      "status": 200,
+      "expectText": ["Permissions / Access Control", "No Data"]
+    },
+    {
+      "path": "/operations/deployments/1/documents/documentation-review-approval-queue-screen",
+      "status": 200,
+      "expectText": ["Review / Approval Queue", "No Data"]
+    },
+    {
+      "path": "/operations/deployments/1/documents/documentation-search-results-page-screen",
+      "status": 200,
+      "expectText": ["Search Results", "No Data"]
+    },
+    {
+      "path": "/operations/deployments/1/documents/documentation-upload-wizard-screen",
+      "status": 200,
+      "expectText": ["Upload Document Wizard", "No Data"]
+    },
+    {
+      "path": "/operations/deployments/1/documents/documentation-version-history-screen",
+      "status": 200,
+      "expectText": ["Version History", "No Data"]
+    }
+  ]
+}
+

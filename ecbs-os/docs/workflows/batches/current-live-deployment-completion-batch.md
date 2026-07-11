@@ -12,14 +12,14 @@
 
 | Order | Screen | Route | Screenshot / HTML reference | Status |
 |---:|---|---|---|---|
-| 1 | Current Analysis | `/enterprise/current-analysis` | `ECBS-Current Analysis Screenshot.png` | Pending |
-| 2 | Live Data | `/data-analytics/live-data/live-data` | `ECBS-Live Data Screenshot.png` | Pending |
-| 3 | Customer Acceptance | `/operations/deployments/1/completion/completion-post-completion-dashboard-final-validation-checklist-final-validation-checklist-customer-acceptance-screen` | `ECBS_Deployment App - Completion - Post-completion dashboard - Final Validation Checklist - Final Validation Checklist - Customer Acceptance screen.png` | Pending |
-| 4 | Final Validation Checklist | `/operations/deployments/1/completion/completion-post-completion-dashboard-final-validation-checklist-screen` | `ECBS_Deployment App - Completion - Post-completion dashboard - Final Validation Checklist screen.png` | Pending |
-| 5 | Deployment Closure Confirmation | `/operations/deployments/1/completion/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-deployment-closure-confirmation-screen` | `ECBS_Deployment App - Completion - Post-completion dashboard - Final Validation Checklist screen - Sign Off Capture - Deployment Closure Confirmation screen.png` | Pending |
-| 6 | Sign-Off Capture | `/operations/deployments/1/completion/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` | `ECBS_Deployment App - Completion - Post-completion dashboard - Final Validation Checklist screen - Sign Off Capture screen.png` | Pending |
-| 7 | Post-Completion Dashboard | `/operations/deployments/1/completion/completion-post-completion-dashboard-screen` | `ECBS_Deployment App - Completion - Post-completion dashboard screen.png` | Pending |
-| 8 | Completion Screen | `/operations/deployments/1/completion/completion-screen` | `ECBS_Deployment App - Completion screen.png` | Pending |
+| 1 | Current Analysis | `/enterprise/current-analysis` | `ECBS-Current Analysis Screenshot.png` | Deployed / HTTP 200 |
+| 2 | Live Data | `/data-analytics/live-data/live-data` | `ECBS-Live Data Screenshot.png` | Deployed / HTTP 200 |
+| 3 | Customer Acceptance | `/operations/deployments/1/completion/completion-post-completion-dashboard-final-validation-checklist-final-validation-checklist-customer-acceptance-screen` | `ECBS_Deployment App - Completion - Post-completion dashboard - Final Validation Checklist - Final Validation Checklist - Customer Acceptance screen.png` | Deployed / HTTP 200 |
+| 4 | Final Validation Checklist | `/operations/deployments/1/completion/completion-post-completion-dashboard-final-validation-checklist-screen` | `ECBS_Deployment App - Completion - Post-completion dashboard - Final Validation Checklist screen.png` | Deployed / HTTP 200 |
+| 5 | Deployment Closure Confirmation | `/operations/deployments/1/completion/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-deployment-closure-confirmation-screen` | `ECBS_Deployment App - Completion - Post-completion dashboard - Final Validation Checklist screen - Sign Off Capture - Deployment Closure Confirmation screen.png` | Deployed / HTTP 200 |
+| 6 | Sign-Off Capture | `/operations/deployments/1/completion/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` | `ECBS_Deployment App - Completion - Post-completion dashboard - Final Validation Checklist screen - Sign Off Capture screen.png` | Deployed / HTTP 200 |
+| 7 | Post-Completion Dashboard | `/operations/deployments/1/completion/completion-post-completion-dashboard-screen` | `ECBS_Deployment App - Completion - Post-completion dashboard screen.png` | Deployed / HTTP 200 |
+| 8 | Completion Screen | `/operations/deployments/1/completion/completion-screen` | `ECBS_Deployment App - Completion screen.png` | Deployed / HTTP 200 |
 
 ## Constitution Gates
 
@@ -89,13 +89,31 @@ Required before deploy:
 - [ ] Dev deploy completed
 - [ ] Deployed verifier passed
 
+## Quirks Found During Execution
+
+Keep this section updated as the batch is wired, verified, and deployed so these same issues do not get rediscovered in later batches.
+
+| Quirk | Where it showed up | Rule for next time |
+|---|---|---|
+| `zsh` treats `[deploymentId]` in route paths as a glob. | `git add ecbs-os/frontend/src/app/operations/deployments/[deploymentId]/...` failed with `no matches found`. | Always quote Next.js dynamic route paths in shell commands. |
+| `DashboardKpiTone` does not accept every API tone string. | `AnalysisDataScreens.tsx` failed build when API DTO tone included `red`. | Normalize API KPI tones to the local dashboard union before passing them to `DashboardKpi` components. |
+| `AnalysisSummaryRow` only has `label` and `value`. | Deployment completion widgets initially assumed a `detail` field. | Check shared TypeScript row types before adding derived display text; use explicit source notes if detail is not modeled. |
+| Deployment route id `1` is not an existing ECBS deployment GUID. | `/api/v1/deployments/1/completion` correctly returns an explicit `No Data` payload. | Treat `deploymentId=1` as a route/render smoke test only; use a real GUID when validating real deployment data. |
+| The dev deploy wrapper requires DB env vars from the local shell. | `scripts/ecbs_dev_deploy.py` stopped until `ECBS_CONNECTION_STRING` and `TRACKING_DB_*` were provided. | If env vars are missing locally, read the current dev API process env and reuse it for the deploy command. |
+| Dev can have duplicate stale API processes before deploy. | Two matching `ECBS.Api` processes were observed before restart. | Use the deploy script restart step and verify a single process after deployment. |
+| Browser click output can be misleading for Next.js links. | A browser click focused a link while the reported URL did not immediately change. | Inspect rendered `href`s with browser CDP and use route HTTP checks as the source of truth when click metadata stalls. |
+| Browser refs go stale after a route transition. | A reused ref pointed to a different element after the page changed. | Always take a fresh `browser_snapshot` after a click or navigation before clicking the next element. |
+| Browser automation viewport may hide footer links. | `browser_click` could not scroll a footer link into view in the small browser viewport. | Use `browser_scroll` with `scrollIntoView: true` on the fresh ref, or fall back to route HTTP checks for already-known links. |
+| Accessibility snapshot and DOM link inspection can disagree. | Snapshot reported a footer item as a link, but `document.querySelectorAll('a')` did not find the same text after the click/focus state. | For route verification, combine snapshot evidence with explicit HTTP route checks; do not trust one browser-tool view alone. |
+| Raw route `200` is necessary but not sufficient. | All deployed routes returned HTML, but browser snapshot was still needed to confirm the No Data payload rendered. | Do both HTTP route/API checks and at least one browser snapshot/click check for interactive batches. |
+
 ## Checkpoint Summary
 
-- Screens completed:
-- Direct/Calculated fields wired:
-- Explicit `No Data` decisions:
-- Write actions implemented:
-- Verification results:
-- Dev URL(s):
-- Remaining questions:
+- Screens completed: 8 routes in this batch are wired and deployed.
+- Direct/Calculated fields wired: Current/Live KPIs and summaries from `tracking`; deployment status/project/site/document/equipment summaries from `ecbs_os` where a valid deployment exists.
+- Explicit `No Data` decisions: unsupported deployment checklist counts, signatures, identity verification, quality/readiness scores, generated reports, photos, handover contacts, raw chart trends, harmonic spectrum, and `deploymentId=1` missing-record state.
+- Write actions implemented: none; sign-off and customer acceptance submits remain blocked until the write command model is approved.
+- Verification results: `npm run lint`, frontend `npm run build`, backend `dotnet build`, dev deploy, 8 deployed frontend route `200` checks, and 3 API endpoint `200` checks passed.
+- Dev URL(s): `http://100.91.109.59:8080/enterprise/current-analysis`, `http://100.91.109.59:8080/data-analytics/live-data/live-data`, and the six `/operations/deployments/1/completion/...` routes listed above.
+- Remaining questions: Commissioning Summary Report route ambiguity; real deployment GUID needed for non-No-Data deployment completion validation; write model for sign-off/acceptance commands not yet approved.
 
