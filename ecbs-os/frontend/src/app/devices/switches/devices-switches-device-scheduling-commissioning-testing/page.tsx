@@ -1,5 +1,10 @@
 import { DeviceScreen } from "@/components/ecbs/DeviceHealthDetailScreen";
+import { getDevicesDataFromApi } from "@/lib/ecbsApi";
 
-export default function DevicesSwitchesCommissioningTestingPage() {
-  return <DeviceScreen variant="commissioning" />;
+export const dynamic = "force-dynamic";
+
+export default async function DevicesSwitchesCommissioningTestingPage() {
+  const data = await getDevicesDataFromApi();
+
+  return <DeviceScreen data={data} variant="commissioning" />;
 }

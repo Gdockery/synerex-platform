@@ -1,5 +1,10 @@
 import { DeviceScreen } from "@/components/ecbs/DeviceHealthDetailScreen";
+import { getDevicesDataFromApi } from "@/lib/ecbsApi";
 
-export default function DeviceSwitchesSchedulingPage() {
-  return <DeviceScreen variant="scheduling" />;
+export const dynamic = "force-dynamic";
+
+export default async function DeviceSwitchesSchedulingPage() {
+  const data = await getDevicesDataFromApi();
+
+  return <DeviceScreen data={data} variant="scheduling" />;
 }

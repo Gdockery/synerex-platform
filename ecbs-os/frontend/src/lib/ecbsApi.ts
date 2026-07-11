@@ -10,6 +10,7 @@ import type { ConfigureAlertRuleData } from "@/lib/configureAlertRuleData";
 import type { DeploymentCompletionData } from "@/lib/deploymentCompletionData";
 import type { DeploymentDocumentationData, DocumentDataRow } from "@/lib/deploymentDocumentationData";
 import type { DeploymentFieldWorkflowData, FieldEquipmentRow, FieldReadingRow } from "@/lib/deploymentFieldWorkflowData";
+import type { DevicesData } from "@/lib/devicesData";
 import type { SetNotificationsData } from "@/lib/setNotificationsData";
 import type { AlertsEventsData, CapacityIntelligenceData } from "@/lib/trackingDashboardData";
 
@@ -108,6 +109,22 @@ export async function getClientManagementDataFromApi(): Promise<ClientManagement
     return (await response.json()) as ClientManagementData;
   } catch {
     return noClientManagementData("No applicable Client Management data was found because ECBS.Api is not reachable.");
+  }
+}
+
+export async function getDevicesDataFromApi(): Promise<DevicesData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/devices`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noDevicesData(`No applicable Devices data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as DevicesData;
+  } catch {
+    return noDevicesData("No applicable Devices data was found because ECBS.Api is not reachable.");
   }
 }
 
@@ -672,6 +689,40 @@ function noCapacityRecoveryBreakdownData(message: string): CapacityRecoveryBreak
     ],
     timePeriodRows: [{ avgKva: "No Data", consistency: "No Data", maxKva: "No Data", timePeriod: "No Data" }],
     trend: [],
+    updatedAt: "No Data",
+  };
+}
+
+function noDevicesData(message: string): DevicesData {
+  return {
+    devices: [
+      {
+        firmware: "No Data",
+        healthScore: "No Data",
+        id: "No Data",
+        isMain: false,
+        kind: "No Data",
+        lastSeen: "No Data",
+        location: "No Data",
+        name: "No Data",
+        serialNumber: "No Data",
+        status: "No Data",
+      },
+    ],
+    message,
+    state: "no-data",
+    summaries: [
+      { kind: "Meter", offline: 0, online: 0, total: 0, warning: 0 },
+      { kind: "Switch", offline: 0, online: 0, total: 0, warning: 0 },
+      { kind: "Gateway", offline: 0, online: 0, total: 0, warning: 0 },
+    ],
+    telemetry: {
+      kilowattHours: "No Data",
+      kilovoltAmps: "No Data",
+      kilowatts: "No Data",
+      powerFactor: "No Data",
+      timestamp: "No Data",
+    },
     updatedAt: "No Data",
   };
 }

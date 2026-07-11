@@ -1,0 +1,65 @@
+{
+  "name": "Devices Inventory Scheduling",
+  "apiGets": [
+    {
+      "name": "devices shared payload",
+      "path": "/api/v1/devices",
+      "status": 200,
+      "expectJson": [
+        { "path": "state", "exists": true },
+        { "path": "devices.0.name", "exists": true }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "name": "device health detail",
+      "path": "/devices/device-health-detail-page",
+      "status": 200,
+      "expectText": ["Device Health Detail", "No Data"]
+    },
+    {
+      "name": "device scheduling",
+      "path": "/devices/switches/device-switches-device-scheduling",
+      "status": 200,
+      "expectText": ["Device Scheduling", "No Data"]
+    },
+    {
+      "name": "devices gateways",
+      "path": "/devices/gateways",
+      "status": 200,
+      "expectText": ["Gateways", "No Data"]
+    },
+    {
+      "name": "devices meters",
+      "path": "/devices/meters",
+      "status": 200,
+      "expectText": ["Meters", "No Data"]
+    },
+    {
+      "name": "devices repeaters",
+      "path": "/devices/repeaters",
+      "status": 200,
+      "expectText": ["Repeaters", "No Data"]
+    },
+    {
+      "name": "devices commissioning testing",
+      "path": "/devices/switches/devices-switches-device-scheduling-commissioning-testing",
+      "status": 200,
+      "expectText": ["Commissioning", "Testing", "No Data"]
+    },
+    {
+      "name": "devices commissioning next step",
+      "path": "/devices/switches/devices-switches-device-scheduling-commissioning-testing-next-step",
+      "status": 200,
+      "expectText": ["Next Steps", "No Data"]
+    },
+    {
+      "name": "devices job costing",
+      "path": "/devices/switches/devices-switches-job-costing",
+      "status": 200,
+      "expectText": ["Job Costing", "No Data"]
+    }
+  ]
+}
+

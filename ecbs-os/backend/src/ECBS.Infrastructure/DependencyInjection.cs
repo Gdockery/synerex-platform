@@ -35,6 +35,7 @@ public static class DependencyInjection
         services.AddScoped<IDeploymentCompletionDataService, EfDeploymentCompletionDataService>();
         services.AddScoped<IDeploymentDocumentationDataService, EfDeploymentDocumentationDataService>();
         services.AddScoped<IDeploymentFieldWorkflowDataService, EfDeploymentFieldWorkflowDataService>();
+        services.AddScoped<IDevicesDataService, EfDevicesDataService>();
 
         return services;
     }

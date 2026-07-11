@@ -1,5 +1,10 @@
 import { DeviceScreen } from "@/components/ecbs/DeviceHealthDetailScreen";
+import { getDevicesDataFromApi } from "@/lib/ecbsApi";
 
-export default function DevicesRepeatersPage() {
-  return <DeviceScreen variant="repeaters" />;
+export const dynamic = "force-dynamic";
+
+export default async function DevicesRepeatersPage() {
+  const data = await getDevicesDataFromApi();
+
+  return <DeviceScreen data={data} variant="repeaters" />;
 }
