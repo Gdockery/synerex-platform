@@ -13,22 +13,22 @@
 
 | Order | Screen | Route | Screenshot / HTML reference | Status |
 |---:|---|---|---|---|
-| 1 | Document Viewer | `/operations/deployments/1/documents/documentation-document-viewer-screen` | `ECBS_Deployment App - Documentation - Document Viewer screen.png` | Pending |
-| 2 | Export Package Builder | `/operations/deployments/1/documents/documentation-export-package-builder-screen` | `ECBS_Deployment App - Documentation - Export Package Builder screen.png` | Pending |
-| 3 | Folder Detail View | `/operations/deployments/1/documents/documentation-folder-detail-view-screen` | `ECBS_Deployment App - Documentation - Folder Detail View screen.png` | Pending |
-| 4 | Permissions / Access Control | `/operations/deployments/1/documents/documentation-permissions-access-control-screen` | `ECBS_Deployment App - Documentation - Permissions  Access Control screen.png` | Pending |
-| 5 | Review / Approval Queue | `/operations/deployments/1/documents/documentation-review-approval-queue-screen` | `ECBS_Deployment App - Documentation - Review  Approval Queue screen.png` | Pending |
-| 6 | Search Results Page | `/operations/deployments/1/documents/documentation-search-results-page-screen` | `ECBS_Deployment App - Documentation - Search Results Page screen.png` | Pending |
-| 7 | Upload Wizard | `/operations/deployments/1/documents/documentation-upload-wizard-screen` | `ECBS_Deployment App - Documentation - Upload Wizard screen.png` | Pending |
-| 8 | Version History | `/operations/deployments/1/documents/documentation-version-history-screen` | `ECBS_Deployment App - Documentation - Version History screen.png` | Pending |
+| 1 | Document Viewer | `/operations/deployments/1/documents/documentation-document-viewer-screen` | `ECBS_Deployment App - Documentation - Document Viewer screen.png` | Deployed / HTTP 200 |
+| 2 | Export Package Builder | `/operations/deployments/1/documents/documentation-export-package-builder-screen` | `ECBS_Deployment App - Documentation - Export Package Builder screen.png` | Deployed / HTTP 200 |
+| 3 | Folder Detail View | `/operations/deployments/1/documents/documentation-folder-detail-view-screen` | `ECBS_Deployment App - Documentation - Folder Detail View screen.png` | Deployed / HTTP 200 |
+| 4 | Permissions / Access Control | `/operations/deployments/1/documents/documentation-permissions-access-control-screen` | `ECBS_Deployment App - Documentation - Permissions  Access Control screen.png` | Deployed / HTTP 200 |
+| 5 | Review / Approval Queue | `/operations/deployments/1/documents/documentation-review-approval-queue-screen` | `ECBS_Deployment App - Documentation - Review  Approval Queue screen.png` | Deployed / HTTP 200 |
+| 6 | Search Results Page | `/operations/deployments/1/documents/documentation-search-results-page-screen` | `ECBS_Deployment App - Documentation - Search Results Page screen.png` | Deployed / HTTP 200 |
+| 7 | Upload Wizard | `/operations/deployments/1/documents/documentation-upload-wizard-screen` | `ECBS_Deployment App - Documentation - Upload Wizard screen.png` | Deployed / HTTP 200 |
+| 8 | Version History | `/operations/deployments/1/documents/documentation-version-history-screen` | `ECBS_Deployment App - Documentation - Version History screen.png` | Deployed / HTTP 200 |
 
 ## Constitution Gates
 
-- [ ] `SITE != PROJECT != DEPLOYMENT` checked.
-- [ ] Documentation is scoped to a deployment/project, not invented global data.
-- [ ] No UI invented beyond approved screenshots.
-- [ ] Existing TSX look and feel preserved.
-- [ ] Missing/unclear fields are stopped or marked `No Data / Question`.
+- [x] `SITE != PROJECT != DEPLOYMENT` checked.
+- [x] Documentation is scoped to a deployment/project, not invented global data.
+- [x] No UI invented beyond approved screenshots.
+- [x] Existing TSX look and feel preserved.
+- [x] Missing/unclear fields are stopped or marked `No Data / Question`.
 
 ## Field Classification
 
@@ -52,10 +52,10 @@ Classify reusable field families, not every duplicate label.
 
 ## API / Data Contract
 
-- Read endpoint(s): planned `GET /api/v1/deployments/{deploymentId}/documentation`
+- Read endpoint(s): `GET /api/v1/deployments/{deploymentId}/documentation`
 - Write command endpoint(s): none in this batch.
 - Existing shared endpoint reused: deployment identity/status pieces may reuse existing deployment completion data service patterns.
-- New DTOs: planned documentation payload using shared rows: `documentRows`, `metadataRows`, `folderRows`, `permissionRows`, `reviewRows`, `searchRows`, `versionRows`, `message/state`.
+- New DTOs: documentation payload using shared rows: `documentRows`, `metadataRows`, `folderRows`, `permissionRows`, `reviewRows`, `searchRows`, `versionRows`, `message/state`.
 - Existing DTOs extended: prefer not to extend `DeploymentCompletionData`; keep documentation contract separate.
 - `tracking` tables queried: none unless audit finds a legacy document source. Default source is `ecbs_os`.
 - `ecbs_os` tables queried/written: read `documents`, plus deployment/project/client/site context where available. No writes.
@@ -76,14 +76,14 @@ Visible upload, package, permission, review, restore-version, and download actio
 
 | Source screen | User action | Expected target route | Implemented as link/form/action? |
 |---|---|---|---|
-| Documentation parent | Document Viewer action | `/operations/deployments/1/documents/documentation-document-viewer-screen` | Pending audit |
-| Documentation parent | Export Package Builder action | `/operations/deployments/1/documents/documentation-export-package-builder-screen` | Pending audit |
-| Documentation parent | Folder Detail action | `/operations/deployments/1/documents/documentation-folder-detail-view-screen` | Pending audit |
-| Documentation parent | Permissions / Access Control action | `/operations/deployments/1/documents/documentation-permissions-access-control-screen` | Pending audit |
-| Documentation parent | Review Approval Queue action | `/operations/deployments/1/documents/documentation-review-approval-queue-screen` | Pending audit |
-| Documentation parent | Search Results action | `/operations/deployments/1/documents/documentation-search-results-page-screen` | Pending audit |
-| Documentation parent | Upload Wizard action | `/operations/deployments/1/documents/documentation-upload-wizard-screen` | Pending audit |
-| Document Viewer | Version History action | `/operations/deployments/1/documents/documentation-version-history-screen` | Pending audit |
+| Documentation parent | Document Viewer action | `/operations/deployments/1/documents/documentation-document-viewer-screen` | Route exists / HTTP 200 |
+| Documentation parent | Export Package Builder action | `/operations/deployments/1/documents/documentation-export-package-builder-screen` | Route exists / HTTP 200 |
+| Documentation parent | Folder Detail action | `/operations/deployments/1/documents/documentation-folder-detail-view-screen` | Route exists / HTTP 200 |
+| Documentation parent | Permissions / Access Control action | `/operations/deployments/1/documents/documentation-permissions-access-control-screen` | Route exists / HTTP 200 |
+| Documentation parent | Review Approval Queue action | `/operations/deployments/1/documents/documentation-review-approval-queue-screen` | Route exists / HTTP 200 |
+| Documentation parent | Search Results action | `/operations/deployments/1/documents/documentation-search-results-page-screen` | Route exists / HTTP 200 |
+| Documentation parent | Upload Wizard action | `/operations/deployments/1/documents/documentation-upload-wizard-screen` | Route exists / HTTP 200 |
+| Document Viewer | Version History action | `/operations/deployments/1/documents/documentation-version-history-screen` | Route exists / HTTP 200 |
 
 ## No Data / Question Queue
 
@@ -99,19 +99,19 @@ Visible upload, package, permission, review, restore-version, and download actio
 
 ## Verification Config
 
-- Verification config path: planned `verification/deployment-documentation-children.json`
+- Verification config path: `verification/deployment-documentation-children.json`
 - Mutating checks required? No
 - Browser click checks required? Yes, one documentation route plus one action-link/href smoke check.
 
 Required before deploy:
 
-- [ ] `dotnet build ECBS.sln`
-- [ ] `npm run lint`
-- [ ] `npm run build`
-- [ ] `python3 scripts/ecbs_batch_verify.py verification/deployment-documentation-children.json`
-- [ ] Browser click check for interactive flows, if applicable
-- [ ] Dev deploy completed
-- [ ] Deployed verifier passed
+- [x] `dotnet build backend/src/ECBS.Api/ECBS.Api.csproj`
+- [x] `npm run lint`
+- [x] `npm run build`
+- [x] `python3 scripts/ecbs_batch_verify.py verification/deployment-documentation-children.json --base-url http://100.91.109.59:8080 --api-base-url http://100.91.109.59:5090`
+- [x] Browser smoke check for Document Viewer route
+- [x] Dev deploy completed
+- [x] Deployed verifier passed
 
 ## Quirks To Carry Forward
 
@@ -122,14 +122,15 @@ Required before deploy:
 | Browser refs go stale after navigation. | Take a fresh snapshot after every click. |
 | Browser link checks can disagree with DOM/URL output. | Verify routes with HTTP checks plus targeted snapshots. |
 | Shared row types are narrow. | Check TypeScript DTOs before assuming row properties like `detail`. |
+| Browser navigate can attach a stale screenshot while the accessibility snapshot is current. | If screenshot and snapshot disagree, take a fresh `browser_snapshot` with screenshot before judging the UI. |
 
 ## Checkpoint Summary
 
-- Screens completed:
-- Direct/Calculated fields wired:
-- Explicit `No Data` decisions:
-- Write actions implemented:
-- Verification results:
-- Dev URL(s):
-- Remaining questions:
+- Screens completed: 8 documentation child routes are wired and deployed.
+- Direct/Calculated fields wired: deployment-scoped `ecbs_os.documents` rows, document counts, upload metadata, and search rows when scoped document metadata exists.
+- Explicit `No Data` decisions: folder model, document version history, review workflow, permissions/RBAC, export package model, file storage/upload command, package size/security, and document preview/download behavior when no approved source exists.
+- Write actions implemented: none. Upload, permission save, review/approval, export package, download, and restore-version actions remain read-only shells until their write models are approved.
+- Verification results: local `npm run lint`, local `npm run build`, local `dotnet build backend/src/ECBS.Api/ECBS.Api.csproj`, remote API build, remote frontend Docker build, dev deploy, deployed verifier, and browser smoke check passed.
+- Dev URL(s): `http://100.91.109.59:8080/operations/deployments/1/documents/documentation-document-viewer-screen` plus the seven sibling documentation child routes listed above.
+- Remaining questions: real deployment GUID with document rows needed for non-No-Data validation; parent Documentation screen sequence 47 is deferred; document folder/version/review/permissions/export/upload write models need decisions before functional actions.
 
