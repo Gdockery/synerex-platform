@@ -1,4 +1,6 @@
+import Link from "next/link";
 import type { ReactNode } from "react";
+import type { DeploymentCompletionData } from "@/lib/deploymentCompletionData";
 
 export type DeploymentWorkflowVariant =
   | "acceptance"
@@ -31,7 +33,7 @@ export type DeploymentWorkflowVariant =
 
 const steps = ["Site & Installation", "Equipment Inventory", "Pre-Installation Readings", "Installation Details", "Post-Installation Readings", "Testing & Verification", "Documentation", "Completion", "Customer Acceptance"];
 
-export function DeploymentWorkflowScreen({ variant }: { variant: DeploymentWorkflowVariant }) {
+export function DeploymentWorkflowScreen({ data, deploymentId = "1", variant }: { data?: DeploymentCompletionData; deploymentId?: string; variant: DeploymentWorkflowVariant }) {
   const title =
     variant === "commissioning" ? "Commissioning Summary Report" :
     variant === "acceptance" ? "Customer Acceptance" :
@@ -67,9 +69,9 @@ export function DeploymentWorkflowScreen({ variant }: { variant: DeploymentWorkf
   return (
     <div className="h-screen min-h-[682px] w-screen min-w-[1024px] overflow-hidden bg-[#020a12] text-slate-100">
       <div className="grid h-full grid-cols-[144px_1fr]">
-        <DeploymentSidebar variant={variant} />
+        <DeploymentSidebar data={data} variant={variant} />
         <main className="flex min-w-0 flex-col bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.08),transparent_30%),linear-gradient(180deg,#04111c,#020910)] px-4">
-          <Topbar variant={variant} />
+          <Topbar data={data} variant={variant} />
           {standardStepper ? <Stepper active={activeStepForVariant(variant)} actionLabel={variant === "acceptance" ? "Print Acceptance Form" : variant === "checklist" ? "Print Checklist" : variant === "closure" ? "Print Closure Certificate" : variant === "completionDashboard" ? "Export Dashboard" : variant === "completion" ? "Export Summary" : variant === "siteDetails" || variant === "equipmentInventory" || variant === "installationDetails" || variant === "photoDocs" || variant === "postReadings" || variant === "preReadings" || variant === "testingAddIssue" || variant === "testingVerification" || variant === "testingViewTrend" ? "Save & Exit" : "Export Report"} activeLabel={variant === "acceptance" || variant === "checklist" || variant === "documentation" || variant === "siteDetails" || variant === "equipmentInventory" || variant === "installationDetails" || variant === "photoDocs" || variant === "postReadings" || variant === "preReadings" || variant === "testingAddIssue" || variant === "testingVerification" || variant === "testingViewTrend" ? "In Progress" : variant === "closure" ? "Current Step" : "Current Stage"} completedLabel={variant === "photoDocs" || variant === "postReadings" || variant === "preReadings" || variant === "testingAddIssue" || variant === "testingVerification" || variant === "testingViewTrend" ? "In Progress" : variant === "documentation" || variant === "equipmentInventory" || variant === "installationDetails" ? "In Progress" : "Completed"} firstCompletedLabel={variant === "photoDocs" ? "In Progress" : undefined} futureLabel={variant === "siteDetails" || variant === "equipmentInventory" || variant === "installationDetails" || variant === "photoDocs" || variant === "postReadings" || variant === "preReadings" || variant === "testingAddIssue" || variant === "testingVerification" || variant === "testingViewTrend" ? "Pending" : ""} showActions={variant === "commissioning" || variant === "acceptance" || variant === "checklist" || variant === "closure" || variant === "completion" || variant === "completionDashboard" || variant === "siteDetails" || variant === "equipmentInventory" || variant === "installationDetails" || variant === "photoDocs" || variant === "postReadings" || variant === "preReadings" || variant === "testingVerification"} tall={variant === "completion" || variant === "documentation"} /> : null}
           {fullBleed || customHeader ? null : (
             <section className={variant === "commissioning" || variant === "checklist" || variant === "closure" ? "mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-2.5" : "mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"}>
@@ -80,16 +82,16 @@ export function DeploymentWorkflowScreen({ variant }: { variant: DeploymentWorkf
                 </div>
                 {variant === "commissioning" || variant === "acceptance" || variant === "completion" || variant === "completionDashboard" || variant === "signoff" || variant === "closure" ? null : <SummaryDots variant={variant} />}
               </div>
-              <DeploymentMeta variant={variant} />
+              <DeploymentMeta data={data} variant={variant} />
             </section>
           )}
           {variant === "commissioning" ? <CommissioningReport /> : null}
           {variant === "checklist" ? <FinalChecklist /> : null}
           {variant === "acceptance" ? <CustomerAcceptance /> : null}
-          {variant === "signoff" ? <SignOffCapture /> : null}
-          {variant === "closure" ? <ClosureConfirmation /> : null}
-          {variant === "completionDashboard" ? <CompletionDashboard /> : null}
-          {variant === "completion" ? <CompletionSummary /> : null}
+          {variant === "signoff" ? <SignOffCapture data={data} /> : null}
+          {variant === "closure" ? <ClosureConfirmation data={data} /> : null}
+          {variant === "completionDashboard" ? <CompletionDashboard data={data} /> : null}
+          {variant === "completion" ? <CompletionSummary data={data} deploymentId={deploymentId} /> : null}
           {variant === "documentViewer" ? <DocumentViewer /> : null}
           {variant === "exportPackage" ? <ExportPackageBuilder /> : null}
           {variant === "folderDetail" ? <FolderDetailView /> : null}
@@ -110,7 +112,7 @@ export function DeploymentWorkflowScreen({ variant }: { variant: DeploymentWorkf
           {variant === "testingVerification" ? <TestingVerificationMain /> : null}
           {variant === "testingViewDetails" ? <TestingVerificationViewDetails /> : null}
           {variant === "testingViewTrend" ? <TestingVerificationViewTrend /> : null}
-          {fullBleed ? null : <ActionFooter variant={variant} />}
+          {fullBleed ? null : <ActionFooter deploymentId={deploymentId} variant={variant} />}
         </main>
       </div>
     </div>
@@ -155,7 +157,7 @@ function descriptionForVariant(variant: DeploymentWorkflowVariant) {
   return "Review and confirm all items before closing the deployment.";
 }
 
-function DeploymentSidebar({ variant }: { variant: DeploymentWorkflowVariant }) {
+function DeploymentSidebar({ data, variant }: { data?: DeploymentCompletionData; variant: DeploymentWorkflowVariant }) {
   const acceptance = variant === "acceptance";
   const completed = variant === "checklist";
   const closed = variant === "closure";
@@ -168,14 +170,14 @@ function DeploymentSidebar({ variant }: { variant: DeploymentWorkflowVariant }) 
       <nav className="space-y-1.5 text-[10px]">
         {navItems.map(([icon, item]) => <div className={item === "Deployments" ? "flex items-center gap-2 rounded bg-[#063b27] px-2 py-2 text-[#05ff5e]" : "flex items-center gap-2 px-2 py-2 text-slate-300"} key={item}><DeploymentIcon className="size-3.5 shrink-0" name={icon} />{item}</div>)}
       </nav>
-      <div className="mt-5 border-t border-white/8 pt-3 text-[9px] leading-relaxed text-slate-400"><b className="uppercase">Deployment Summary</b><br />Deployment ID<br /><span className="text-slate-200">DEP-2025-0512-001</span><br /><br />Site<br /><span className="text-slate-200">Flex Tijuana</span><br /><br />Status<br /><span className={acceptance || inProgress ? "text-blue-400" : "text-[#05ff5e]"}>● {acceptance ? "Customer Acceptance" : inProgress ? "In Progress" : closed ? "Closed" : completed ? "Completed" : signoff ? "Sign-off Capture" : "Commissioned"}</span><br /><br />{closed ? "Customer" : "Technician"}<br /><span className="text-slate-200">{closed ? "Flex" : "John Doe"}</span><br /><br />Start Time<br /><span className="text-slate-200">May 12, 2025 8:45 AM</span><br />{inProgress ? "Last Sync" : closed ? "Closed On" : signoff ? "Commissioned On" : "Completion Time"}<br /><span className="text-slate-200">{inProgress ? "10:15 AM (Online)" : closed ? "May 12, 2025 10:25 AM" : "May 12, 2025 10:18 AM"}</span><br />{inProgress ? "" : closed ? "Total Duration" : "Duration"}<br /><span className="text-slate-200">{inProgress ? "" : closed ? "1h 40m" : signoff ? "1h 33m" : acceptance ? "1h 30m" : "1h 33m"}</span></div>
+      <div className="mt-5 border-t border-white/8 pt-3 text-[9px] leading-relaxed text-slate-400"><b className="uppercase">Deployment Summary</b><br />Deployment ID<br /><span className="text-slate-200">{data?.deploymentId ?? "No Data"}</span><br /><br />Site<br /><span className="text-slate-200">{data?.siteName ?? "No Data"}</span><br /><br />Status<br /><span className={acceptance || inProgress ? "text-blue-400" : "text-[#05ff5e]"}>● {data?.status ?? "No Data"}</span><br /><br />{closed ? "Customer" : "Technician"}<br /><span className="text-slate-200">{closed ? data?.clientName ?? "No Data" : "No Data"}</span><br /><br />Start Time<br /><span className="text-slate-200">No Data</span><br />{inProgress ? "Last Sync" : closed ? "Closed On" : signoff ? "Commissioned On" : "Completion Time"}<br /><span className="text-slate-200">{data?.updatedAt ?? "No Data"}</span><br />{inProgress ? "" : closed ? "Total Duration" : "Duration"}<br /><span className="text-slate-200">{inProgress ? "" : "No Data"}</span></div>
       <button className="mt-auto flex items-center justify-center gap-2 rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-[9px] text-slate-200"><DeploymentIcon className="size-3.5" name="sync" />Sync Now</button>
       <div className="mt-3 grid grid-cols-[18px_1fr] rounded border border-cyan-300/12 bg-[#061421] p-2 text-[9px] text-slate-300"><DeploymentIcon className="mt-0.5 size-4" name="support" /><span>Need Help?<br /><span className="text-slate-500">Contact Support</span></span></div>
     </aside>
   );
 }
 
-function Topbar({ variant }: { variant: DeploymentWorkflowVariant }) {
+function Topbar({ data, variant }: { data?: DeploymentCompletionData; variant: DeploymentWorkflowVariant }) {
   return (
     <header className="flex h-[50px] items-center justify-between border-b border-cyan-300/10">
       <div><div className="text-[13px] font-semibold">ECBS Deployment App</div><div className="mt-1 text-[9px] text-slate-400">Deployments › New Deployment › Field Data Entry › {variant === "documentViewer" ? "Documentation › Document Viewer" : variant === "exportPackage" ? "Documentation › Export Package Builder" : variant === "folderDetail" ? "Documentation › Folder Detail" : variant === "permissions" ? "Documentation › Permissions / Access Control" : variant === "reviewQueue" ? "Documentation › Review / Approval Queue" : variant === "searchResults" ? "Documentation › Search Results" : variant === "uploadWizard" ? "Documentation › Upload Wizard" : variant === "versionHistory" ? "Documentation › Document Viewer › Version History" : variant === "documentation" ? "Documentation" : variant === "equipmentAdd" ? "Equipment Inventory & Readings › Add Equipment" : variant === "equipmentInventory" ? "Equipment Inventory & Readings" : variant === "installationDetails" ? "Installation Details" : variant === "photoDocs" ? "Photo & Document System" : variant === "postReadings" ? "Post-Installation Readings" : variant === "preReadings" ? "Pre-Installation Readings" : variant === "siteDetails" ? "Site & Installation Details" :
@@ -183,7 +185,7 @@ function Topbar({ variant }: { variant: DeploymentWorkflowVariant }) {
     variant === "testingVerification" ? "Testing & Verification" :
     variant === "testingViewDetails" ? "View Details" :
     variant === "testingViewTrend" ? "View Trend" : variant === "closure" ? "Closure Confirmation" : variant === "signoff" ? "Sign-Off Capture" : variant === "completionDashboard" ? "Deployment Dashboard" : variant === "completion" ? "Completion" : variant === "acceptance" ? "Customer Acceptance" : variant === "commissioning" ? "Commissioning Summary Report" : "Final Validation Checklist"}</div></div>
-      <div className="flex items-center gap-3 text-[10px]"><Button><span className="inline-flex items-center gap-1.5"><DeploymentIcon className="size-3.5" name="site" />Flex Tijuana</span></Button><Button><span className="inline-flex items-center gap-1.5"><DeploymentIcon className="size-3.5" name="calendar" />May 12, 2025</span></Button><span className="text-[#05ff5e]">● Online</span><DeploymentIcon className="size-3.5 text-red-400" name="bell" /><DeploymentIcon className="size-3.5 text-slate-400" name="help" /><span className="grid size-8 place-items-center rounded-full bg-[#0b3158]">JD</span><span>John Doe<br /><span className="text-[#05ff5e]">Field Technician</span></span></div>
+      <div className="flex items-center gap-3 text-[10px]"><Button><span className="inline-flex items-center gap-1.5"><DeploymentIcon className="size-3.5" name="site" />{data?.siteName ?? "No Data"}</span></Button><Button><span className="inline-flex items-center gap-1.5"><DeploymentIcon className="size-3.5" name="calendar" />{data?.updatedAt ?? "No Data"}</span></Button><span className="text-[#05ff5e]">● {data?.status ?? "No Data"}</span><DeploymentIcon className="size-3.5 text-red-400" name="bell" /><DeploymentIcon className="size-3.5 text-slate-400" name="help" /><span className="grid size-8 place-items-center rounded-full bg-[#0b3158]">ND</span><span>No Data<br /><span className="text-[#05ff5e]">Field Technician</span></span></div>
     </header>
   );
 }
@@ -195,9 +197,9 @@ function Stepper({ actionLabel = "Export Report", active, activeLabel = "Current
   return <div className="relative border-b border-cyan-300/10"><div className={showActions ? `grid ${height} ${columns} items-center gap-1 pr-[260px] text-center text-[7px]` : `grid ${height} ${columns} items-center gap-1 text-center text-[7px]`}>{displaySteps.map((step, index) => <div className="relative" key={step}><div className={index === active ? "mx-auto grid size-6 place-items-center rounded-full bg-[#05ff5e] font-semibold text-[#02100a]" : index < active ? "mx-auto grid size-5 place-items-center rounded-full bg-slate-400 font-semibold text-[#02100a]" : "mx-auto grid size-5 place-items-center rounded-full bg-slate-600"}>{index + 1}</div><div className="mt-0.5 text-slate-300">{step}</div><div className={index < active ? "text-[#05ff5e]" : index === active ? "text-slate-300" : "text-slate-500"}>{index < active ? firstCompletedLabel && index === 0 ? firstCompletedLabel : completedLabel : index === active ? activeLabel : futureLabel}</div></div>)}</div>{showActions ? <div className={tall ? "absolute right-0 top-4 flex items-center gap-3 text-[8px]" : "absolute right-0 top-2 flex items-center gap-3 text-[8px]"}><span className="text-[#05ff5e]">● Auto-saved: 10:15:23 AM</span><Button>{actionLabel === "Export Report" ? "⇩ " : actionLabel === "Save & Exit" ? "" : "▣ "}{actionLabel}</Button></div> : null}</div>;
 }
 
-function DeploymentMeta({ variant }: { variant: DeploymentWorkflowVariant }) {
-  if (variant === "closure") return <div className="mt-2 grid grid-cols-[0.75fr_0.7fr_0.65fr_1.8fr_0.8fr_0.7fr] gap-4 border-t border-cyan-300/10 pt-2 text-[9px]"><Info label="Deployment ID" value="DEP-2025-0512-001" /><Info label="Site" value="Flex Tijuana" /><Info label="Customer" value="Flex" /><Info label="Address" value="Av. El Salto 1234, Tijuana, BC 22100, Mexico" /><Info label="Closed On" value="May 12, 2025 10:25 AM" /><Info label="Closed By" value="John Doe" /></div>;
-  return <div className="mt-2 grid grid-cols-[0.75fr_0.7fr_0.65fr_1.45fr_0.7fr_0.95fr_0.6fr] gap-4 border-t border-cyan-300/10 pt-2 text-[9px]"><Info label="Deployment ID" value="DEP-2025-0512-001" /><Info label="Site" value="Flex Tijuana" /><Info label="Customer" value="Flex" /><Info label="Address" value="Av. El Salto 1234, Tijuana, BC 22100, Mexico" /><Info label="Technician" value="John Doe" /><Info label="Commissioned On" value="May 12, 2025 10:18 AM" /><Info label="Duration" value="1h 33m" /></div>;
+function DeploymentMeta({ data, variant }: { data?: DeploymentCompletionData; variant: DeploymentWorkflowVariant }) {
+  if (variant === "closure") return <div className="mt-2 grid grid-cols-[0.75fr_0.7fr_0.65fr_1.8fr_0.8fr_0.7fr] gap-4 border-t border-cyan-300/10 pt-2 text-[9px]"><Info label="Deployment ID" value={data?.deploymentId ?? "No Data"} /><Info label="Site" value={data?.siteName ?? "No Data"} /><Info label="Customer" value={data?.clientName ?? "No Data"} /><Info label="Address" value="No Data" /><Info label="Closed On" value="No Data" /><Info label="Closed By" value="No Data" /></div>;
+  return <div className="mt-2 grid grid-cols-[0.75fr_0.7fr_0.65fr_1.45fr_0.7fr_0.95fr_0.6fr] gap-4 border-t border-cyan-300/10 pt-2 text-[9px]"><Info label="Deployment ID" value={data?.deploymentId ?? "No Data"} /><Info label="Site" value={data?.siteName ?? "No Data"} /><Info label="Customer" value={data?.clientName ?? "No Data"} /><Info label="Address" value="No Data" /><Info label="Technician" value="No Data" /><Info label="Commissioned On" value={data?.updatedAt ?? "No Data"} /><Info label="Duration" value="No Data" /></div>;
 }
 
 function TestingVerificationMain() {
@@ -470,7 +472,7 @@ function CustomerAcceptance() {
   );
 }
 
-function SignOffCapture() {
+function SignOffCapture({ data }: { data?: DeploymentCompletionData }) {
   return (
     <>
       <section className="mt-2 grid h-[190px] grid-cols-[0.9fr_1.05fr] gap-2">
@@ -482,14 +484,14 @@ function SignOffCapture() {
       </section>
       <section className="mt-2 grid h-[174px] grid-cols-[0.95fr_1fr] gap-2">
         <Panel title="Identity & Verification"><IdentityVerification /></Panel>
-        <Panel title="Deployment Summary Snapshot"><DeploymentSummarySnapshot /></Panel>
+        <Panel title="Deployment Summary Snapshot"><DeploymentSummarySnapshot data={data} /></Panel>
       </section>
       <section className="mt-2 grid h-[88px]"><Panel title="Signed Documents & Certificate"><SignoffDocs /></Panel></section>
     </>
   );
 }
 
-function ClosureConfirmation() {
+function ClosureConfirmation({ data }: { data?: DeploymentCompletionData }) {
   return (
     <>
       <section className="mt-2 rounded-lg border border-[#05ff5e]/30 bg-[#063b27]/45 p-2.5">
@@ -500,19 +502,19 @@ function ClosureConfirmation() {
         </div>
       </section>
       <section className="mt-2 grid h-[116px] grid-cols-4 gap-2">
-        {closureCards.map((card) => <ClosureMetricCard card={card} key={card.title} />)}
+        {closureCards(data).map((card) => <ClosureMetricCard card={card} key={card.title} />)}
       </section>
       <section className="mt-2 grid h-[162px] grid-cols-[1fr_1fr] gap-2">
         <Panel title="Closure Checklist"><ClosureChecklist /></Panel>
-        <Panel title="Final Deployment Metrics"><ClosureMetrics /></Panel>
+        <Panel title="Final Deployment Metrics"><ClosureMetrics data={data} /></Panel>
       </section>
       <section className="mt-2 grid h-[104px] grid-cols-1 gap-2"><Panel title="Closure Documents & Certificates"><ClosureDocs /></Panel></section>
-      <section className="mt-2 grid h-[90px] grid-cols-[0.7fr_1fr] gap-2"><Panel title="Handover Confirmation"><HandoverConfirmation /></Panel><Panel title="Notes"><div className="h-[48px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8px] text-slate-500">Enter notes (optional)...<button className="float-right mt-5 rounded bg-[#123047] px-3 py-1 text-[8px] text-slate-200">Save Note</button></div></Panel></section>
+      <section className="mt-2 grid h-[90px] grid-cols-[0.7fr_1fr] gap-2"><Panel title="Handover Confirmation"><HandoverConfirmation data={data} /></Panel><Panel title="Notes"><div className="h-[48px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8px] text-slate-500">No Data: closure notes are not modeled yet.<button className="float-right mt-5 rounded bg-[#123047] px-3 py-1 text-[8px] text-slate-200">Save Note</button></div></Panel></section>
     </>
   );
 }
 
-function CompletionDashboard() {
+function CompletionDashboard({ data }: { data?: DeploymentCompletionData }) {
   return (
     <>
       <div className="mt-2 flex h-[56px] items-center justify-between">
@@ -526,40 +528,40 @@ function CompletionDashboard() {
         </div>
       </div>
       <section className="grid h-[176px] grid-cols-[1.7fr_0.7fr_0.7fr_0.7fr_0.7fr] gap-2">
-        <Panel title="Deployment Completed Successfully"><CompletionHero /></Panel>
-        <CompletionTopCard color="green" icon="check" title="Overall Status" value="Completed 100%" detail="All steps completed" />
-        <CompletionTopCard color="blue" icon="database" title="Data Summary" value="512" detail="Total items captured" />
-        <CompletionTopCard color="purple" icon="file" title="Files & Documents" value="56" detail="Files & documents" />
-        <CompletionTopCard color="amber" icon="shield" title="Data Quality" value="98%" detail="Quality Score" />
+        <Panel title="Deployment Completed Successfully"><CompletionHero data={data} /></Panel>
+        <CompletionTopCard color="green" icon="check" title="Overall Status" value={data?.status ?? "No Data"} detail="Direct from ecbs_os deployment status" />
+        <CompletionTopCard color="blue" icon="database" title="Data Summary" value="No Data" detail="Checklist item capture is not modeled yet" />
+        <CompletionTopCard color="purple" icon="file" title="Files & Documents" value={data?.documentRows.find((row) => row.label === "Documents")?.value ?? "No Data"} detail="Documents from ecbs_os metadata" />
+        <CompletionTopCard color="amber" icon="shield" title="Data Quality" value="No Data" detail="No approved quality model unless returned by API" />
       </section>
       <section className="mt-2 grid h-[396px] grid-cols-[1.05fr_1.65fr] gap-2">
-        <Panel title="Completion Overview"><CompletionOverview /></Panel>
+        <Panel title="Completion Overview"><CompletionOverview data={data} /></Panel>
         <div className="grid min-h-0 grid-rows-[196px_1fr] gap-2">
           <div className="grid min-h-0 grid-cols-[0.9fr_0.75fr] gap-2">
-            <Panel title="Equipment Summary"><EquipmentSummary /></Panel>
-            <Panel title="Documents & Photos"><DocumentsPhotos /></Panel>
+            <Panel title="Equipment Summary"><EquipmentSummary data={data} /></Panel>
+            <Panel title="Documents & Photos"><DocumentsPhotos data={data} /></Panel>
           </div>
           <div className="grid min-h-0 grid-cols-[0.75fr_1.35fr] gap-2">
-            <Panel title="Activity Timeline"><ActivityTimeline /></Panel>
+            <Panel title="Activity Timeline"><ActivityTimeline data={data} /></Panel>
             <Panel title="Recent Captured Photos"><RecentCapturedPhotos /></Panel>
           </div>
         </div>
       </section>
-      <section className="mt-2 grid h-[86px] grid-cols-[0.7fr_1.6fr] gap-2"><Panel title="Notes"><p className="mb-1 text-[8px] text-slate-400">Add any final notes about this deployment.</p><div className="h-[42px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8px] text-slate-500">Enter notes (optional)...<button className="float-right mt-4 rounded bg-[#123047] px-3 py-1 text-[8px] text-slate-200">Save Note</button></div></Panel><Panel title="Quick Actions"><CompletionQuickActions /></Panel></section>
+      <section className="mt-2 grid h-[86px] grid-cols-[0.7fr_1.6fr] gap-2"><Panel title="Notes"><p className="mb-1 text-[8px] text-slate-400">Add any final notes about this deployment.</p><div className="h-[42px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8px] text-slate-500">No Data: completion notes are not modeled yet.<button className="float-right mt-4 rounded bg-[#123047] px-3 py-1 text-[8px] text-slate-200">Save Note</button></div></Panel><Panel title="Quick Actions"><CompletionQuickActions /></Panel></section>
     </>
   );
 }
 
-function CompletionSummary() {
+function CompletionSummary({ data, deploymentId }: { data?: DeploymentCompletionData; deploymentId: string }) {
   return (
     <>
       <section className="mt-2 grid h-[230px] grid-cols-[1.55fr_0.78fr] gap-2">
-        <BarePanel><CompletionSuccessHero /></BarePanel>
+        <BarePanel><CompletionSuccessHero data={data} /></BarePanel>
         <Panel title="Deliverables Generated"><CompletionDeliverables /></Panel>
       </section>
       <section className="mt-2 grid h-[190px] grid-cols-[1.55fr_0.78fr] gap-2">
-        <Panel title="Completion Summary"><CompletionMetricCards /></Panel>
-        <Panel title="What's Next?"><CompletionNextActions /></Panel>
+        <Panel title="Completion Summary"><CompletionMetricCards data={data} /></Panel>
+        <Panel title="What's Next?"><CompletionNextActions deploymentId={deploymentId} /></Panel>
       </section>
       <section className="mt-2 grid h-[230px] grid-cols-[1.55fr_0.78fr] gap-2">
         <Panel title="Step Completion Status"><CompletionStepStatus /></Panel>
@@ -1564,8 +1566,8 @@ function IdentityVerification() {
   return <div className="grid h-[calc(100%-22px)] grid-cols-[1fr_1.05fr] gap-3 text-[8px] text-slate-300"><div className="space-y-1">{[["Email Verification", "alex.martinez@flex.com", "Verified"], ["Phone Verification", "+52 664 123 4567", "Verified"], ["Verification Method", "Email OTP", "Verified"]].map(([label, value, status]) => <div className="flex justify-between border-b border-white/5 pb-1" key={label}><span><b>{label}</b><br /><span className="text-slate-500">{value}</span></span><span className="text-[#05ff5e]">{status} ●</span></div>)}<div className="rounded border border-[#05ff5e]/20 bg-[#05ff5e]/10 p-1.5 text-[#05ff5e]">✓ GPS location captured successfully.</div></div><div><div className="mb-1 font-semibold text-slate-200">Location & Time Capture</div><div className="grid grid-cols-2 gap-2"><Field label="Captured On" value="▣ May 12, 2025" /><Field label=" " value="◷ 10:18 AM" /></div><div className="mt-2 grid h-[78px] place-items-center rounded bg-[linear-gradient(135deg,#0d2840,#061521)] text-center text-blue-300"><span className="text-[28px] text-[#05ff5e]">●</span><br />Av. El Salto</div></div></div>;
 }
 
-function DeploymentSummarySnapshot() {
-  const rows = [["System Readiness Score", "100%", "Excellent"], ["Tests Passed", "46 / 46", "100%"], ["Total Equipment Commissioned", "56", "100%"], ["Alarms Cleared", "12", "100%"], ["Zero Open Issues", "✓", "Yes"], ["Overall Status", "✓", "Commissioned"]];
+function DeploymentSummarySnapshot({ data }: { data?: DeploymentCompletionData }) {
+  const rows = data?.closureCards?.length ? data.closureCards.map((row) => [row.label, row.value, "ecbs_os"]) : [["System Readiness Score", "No Data", "No approved readiness model"], ["Tests Passed", "No Data", "No approved test-result model"], ["Total Equipment Commissioned", "No Data", "No approved equipment-commissioning model"], ["Alarms Cleared", "No Data", "No approved alarm-clearance model"], ["Zero Open Issues", "No Data", "No approved issue model"], ["Overall Status", data?.status ?? "No Data", "Direct status"]];
   return <div className="flex h-[calc(100%-22px)] flex-col text-[8.5px] text-slate-300"><div className="space-y-1">{rows.map(([label, value, status]) => <div className="grid grid-cols-[1fr_70px_80px] border-b border-white/5 pb-0.5" key={label}><span className="text-slate-400">{label}</span><b>{value}</b><span className={status === "Commissioned" || status === "Yes" || status === "Excellent" ? "text-[#05ff5e]" : "text-slate-200"}>{status}</span></div>)}</div><div className="mt-auto grid grid-cols-3 gap-2">{[["Power Factor", "99.7%", "+31.2% vs Baseline"], ["THD Improvement", "86%", "↓ vs Baseline"], ["kVA Reduction", "18.6%", "↓ vs Baseline"]].map(([label, value, detail]) => <div className="rounded border border-cyan-300/12 bg-[#03111c] p-2 text-center" key={label}><div className="text-slate-400">{label}</div><div className="text-[17px] text-slate-100">{value}</div><div className="text-[7px] text-[#05ff5e]">{detail}</div></div>)}</div><div className="mt-2 rounded border border-[#05ff5e]/20 bg-[#05ff5e]/10 p-1.5 text-[#05ff5e]">✓ All results verified and approved in commissioning summary.</div></div>;
 }
 
@@ -1622,14 +1624,27 @@ function ChecklistActions() {
   return <div className="flex h-[calc(100%-22px)] flex-col text-[8.5px] text-slate-300"><div className="space-y-1.5">{[["⇩", "Download Checklist (PDF)", "Export checklist with status"], ["↗", "Share Checklist", "Share with team or stakeholders"], ["▣", "Request Manager Review", "Submit for review and approval"]].map(([icon, title, body]) => <div className="grid grid-cols-[24px_1fr] gap-2 border-b border-white/5 pb-1.5" key={title}><span className="grid size-5 place-items-center rounded border border-cyan-300/20 text-blue-400">{icon}</span><span><b>{title}</b><br /><span className="text-slate-500">{body}</span></span></div>)}</div><div className="mt-auto rounded border border-blue-400/30 bg-blue-500/10 px-2 py-1 text-[8px] text-blue-300">ⓘ Once all items are completed, you can close the deployment.</div></div>;
 }
 
-const closureCards = [
+function closureCards(data?: DeploymentCompletionData) {
+  if (data?.closureCards?.length) {
+    return data.closureCards.slice(0, 4).map((row, index) => ({
+      color: (["blue", "yellow", "purple", "cyan"] as const)[index] ?? "blue",
+      detail1: `Source|${row.value}`,
+      detail2: "Source|ecbs_os / No Data where unsupported",
+      icon: ["▤", "◇", "▣", "◴"][index] ?? "▤",
+      title: row.label,
+      value: row.value,
+      sub: "ecbs_os",
+    }));
+  }
+  return [
   { color: "blue", detail1: "Total Steps|8 / 8", detail2: "Checklist Items|78 / 78", icon: "▤", title: "Completion Summary", value: "100%", sub: "Completed" },
   { color: "yellow", detail1: "Tests Passed|46 / 46", detail2: "Zero Open Issues|✓ Yes", icon: "◇", title: "Tests & Verification", value: "100%", sub: "Passed" },
   { color: "purple", detail1: "Reports Generated|6", detail2: "Documents Uploaded|12", icon: "▣", title: "Documentation", value: "100%", sub: "Complete" },
   { color: "cyan", detail1: "Readiness Score|100%", detail2: "Overall Status|Commissioned", icon: "◴", title: "System Readiness", value: "100%", sub: "Excellent" },
-];
+  ];
+}
 
-function ClosureMetricCard({ card }: { card: typeof closureCards[number] }) {
+function ClosureMetricCard({ card }: { card: ReturnType<typeof closureCards>[number] }) {
   const color = card.color === "blue" ? "text-blue-400 border-blue-400/40" : card.color === "yellow" ? "text-yellow-300 border-yellow-300/40" : card.color === "purple" ? "text-purple-400 border-purple-400/40" : "text-cyan-400 border-cyan-400/40";
   const [l1, v1] = card.detail1.split("|");
   const [l2, v2] = card.detail2.split("|");
@@ -1641,8 +1656,8 @@ function ClosureChecklist() {
   return <table className="w-full text-left text-[7px]"><thead className="bg-white/5 text-slate-500"><tr><th className="px-2 py-0.5 font-medium">Item</th><th className="px-2 py-0.5 font-medium">Status</th></tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row}><td className="px-2 py-[1px] text-slate-300"><span className="mr-2 text-[#05ff5e]">●</span>{row}</td><td className="px-2 py-[1px] text-[#05ff5e]">Completed</td></tr>)}</tbody></table>;
 }
 
-function ClosureMetrics() {
-  const rows = [["Total Equipment Installed", "56"], ["Total Circuits Verified", "48"], ["Total Alarms Tested", "12"], ["Zero Open Issues", "✓ Yes"], ["System Readiness Score", "100%"], ["Power Factor Improvement", "99.7%"], ["THD Improvement", "86%"], ["kVA Reduction", "18.6%"], ["Overall Status", "✓ Commissioned"]];
+function ClosureMetrics({ data }: { data?: DeploymentCompletionData }) {
+  const rows = data?.closureCards?.length ? data.closureCards.map((row) => [row.label, row.value]) : [["Total Equipment Installed", "No Data"], ["Total Circuits Verified", "No Data"], ["Total Alarms Tested", "No Data"], ["Zero Open Issues", "No Data"], ["System Readiness Score", "No Data"], ["Power Factor Improvement", "No Data"], ["THD Improvement", "No Data"], ["kVA Reduction", "No Data"], ["Overall Status", data?.status ?? "No Data"]];
   return <div className="space-y-1 text-[7.8px]">{rows.map(([label, value]) => <div className="flex justify-between border-b border-white/5 pb-0.5" key={label}><span className="text-slate-400">{label}</span><b className={value.includes("✓") ? "text-[#05ff5e]" : "text-slate-200"}>{value}</b></div>)}</div>;
 }
 
@@ -1651,8 +1666,8 @@ function ClosureDocs() {
   return <div className="flex h-[calc(100%-22px)] flex-col"><p className="mb-1 text-[8px] text-slate-400">The following documents are finalized and archived.</p><div className="grid flex-1 grid-cols-5 gap-2">{docs.map(([color, name]) => <div className="grid grid-cols-[24px_1fr_14px] items-center gap-2 rounded border border-cyan-300/12 bg-[#03111c] p-1.5 text-[7.5px]" key={name}><span className={color === "red" ? "grid size-5 place-items-center rounded border border-red-400/50 text-red-400" : color === "yellow" ? "grid size-5 place-items-center rounded border border-yellow-300/50 text-yellow-300" : color === "cyan" ? "grid size-5 place-items-center rounded border border-cyan-400/50 text-cyan-400" : "grid size-5 place-items-center rounded border border-purple-400/50 text-purple-400"}>▤</span><span><b className="text-slate-100">{name}</b><br />PDF <span className="text-[#05ff5e]">Final</span></span><span className="text-blue-400">⇩</span></div>)}</div><div className="mt-1 rounded border border-blue-400/30 bg-blue-500/10 px-2 py-0.5 text-[7.5px] text-blue-300">ⓘ All documents are archived and locked. No further edits allowed. This deployment record is now closed.</div></div>;
 }
 
-function HandoverConfirmation() {
-  return <div className="grid h-[calc(100%-22px)] grid-cols-[1fr_86px] items-center gap-2 text-[7.5px] text-slate-300"><div><p className="mb-1 text-slate-400">This system is now officially handed over to the Operations team.</p><div className="grid grid-cols-2 gap-x-3 gap-y-0.5">{[["Operations Contact", "Miguel Hernandez"], ["Department", "Facilities Operations"], ["Email", "miguel.hernandez@flex.com"], ["Phone", "+52 664 987 6543"]].map(([l, v]) => <div key={l}><span className="text-slate-500">{l}</span><br /><b>{v}</b></div>)}</div></div><div className="text-center"><div className="mx-auto grid size-10 place-items-center rounded-full bg-[#063b27] text-[20px] text-[#05ff5e]">H</div><div className="text-[#05ff5e]">Handover Confirmed</div><div className="text-[6.5px] text-slate-400">May 12, 2025 10:25 AM</div></div></div>;
+function HandoverConfirmation({ data }: { data?: DeploymentCompletionData }) {
+  return <div className="grid h-[calc(100%-22px)] grid-cols-[1fr_86px] items-center gap-2 text-[7.5px] text-slate-300"><div><p className="mb-1 text-slate-400">This system is now officially handed over to the Operations team.</p><div className="grid grid-cols-2 gap-x-3 gap-y-0.5">{[["Operations Contact", "No Data"], ["Department", "No Data"], ["Email", "No Data"], ["Phone", "No Data"]].map(([l, v]) => <div key={l}><span className="text-slate-500">{l}</span><br /><b>{v}</b></div>)}</div></div><div className="text-center"><div className="mx-auto grid size-10 place-items-center rounded-full bg-[#063b27] text-[20px] text-[#05ff5e]">H</div><div className="text-[#05ff5e]">{data?.status ?? "No Data"}</div><div className="text-[6.5px] text-slate-400">{data?.updatedAt ?? "No Data"}</div></div></div>;
 }
 
 type DeploymentIconName = "bell" | "calendar" | "camera" | "check" | "checklist" | "dashboard" | "database" | "deployments" | "device" | "diagram" | "download" | "file" | "folder" | "help" | "home" | "installation" | "offline" | "plus" | "report" | "settings" | "shield" | "site" | "support" | "sync";
@@ -1685,8 +1700,8 @@ function DeploymentIcon({ className = "size-4", name }: { className?: string; na
   return <svg {...common}><path d="M4 11.2 12 4l8 7.2" /><path d="M6.5 10.5V20h11v-9.5" /><path d="M10 20v-5h4v5" /></svg>;
 }
 
-function CompletionHero() {
-  return <div className="grid h-[calc(100%-22px)] grid-cols-[94px_1fr] items-center gap-4"><div className="grid size-[74px] place-items-center rounded-full border-[7px] border-[#22c55e] text-4xl text-[#22c55e] shadow-[0_0_24px_rgba(34,197,94,.22)]">✓</div><div className="text-[8.5px] text-slate-300"><div className="text-[14px] font-semibold text-slate-100">Deployment Completed Successfully</div><p className="mt-0.5 text-slate-400">All steps have been completed and all data has been saved.</p><div className="mt-2 grid grid-cols-5 gap-3 border-t border-cyan-300/10 pt-1.5"><Info label="Deployment ID" value="DEP-2025-0512-001" /><Info label="Site" value="Flex Tijuana" /><Info label="Technician" value="John Doe" /><Info label="Completion Time" value="May 12, 2025 10:15 AM" /><Info label="Duration" value="1h 30m" /></div><div className="mt-2 text-[#05ff5e]">● Synced successfully <span className="ml-5 text-slate-400">May 12, 2025 10:15 AM</span></div></div></div>;
+function CompletionHero({ data }: { data?: DeploymentCompletionData }) {
+  return <div className="grid h-[calc(100%-22px)] grid-cols-[94px_1fr] items-center gap-4"><div className="grid size-[74px] place-items-center rounded-full border-[7px] border-[#22c55e] text-4xl text-[#22c55e] shadow-[0_0_24px_rgba(34,197,94,.22)]">✓</div><div className="text-[8.5px] text-slate-300"><div className="text-[14px] font-semibold text-slate-100">Deployment Completed Successfully</div><p className="mt-0.5 text-slate-400">{data?.message ?? "No Data"}</p><div className="mt-2 grid grid-cols-5 gap-3 border-t border-cyan-300/10 pt-1.5"><Info label="Deployment ID" value={data?.deploymentId ?? "No Data"} /><Info label="Site" value={data?.siteName ?? "No Data"} /><Info label="Technician" value="No Data" /><Info label="Completion Time" value={data?.updatedAt ?? "No Data"} /><Info label="Duration" value="No Data" /></div><div className="mt-2 text-[#05ff5e]">● {data?.state ?? "No Data"} <span className="ml-5 text-slate-400">{data?.updatedAt ?? "No Data"}</span></div></div></div>;
 }
 
 function CompletionTopCard({ color, detail, icon, title, value }: { color: "amber" | "blue" | "green" | "purple"; detail: string; icon: DeploymentIconName; title: string; value: string }) {
@@ -1694,26 +1709,27 @@ function CompletionTopCard({ color, detail, icon, title, value }: { color: "ambe
   return <Panel title={title}><div className="flex h-[calc(100%-22px)] flex-col"><div className="flex items-center gap-3"><span className={`grid size-9 place-items-center rounded border ${colorClass}`}><DeploymentIcon className="size-5" name={icon} /></span><span><b className="block whitespace-pre-line text-[18px] leading-none text-slate-100">{value.replace(" ", "\n")}</b></span></div><div className="mt-auto text-[9px] text-slate-400">{detail}</div><a className="mt-1 text-[9px] text-blue-400">View Details ›</a></div></Panel>;
 }
 
-function CompletionOverview() {
-  return <div className="grid h-[calc(100%-22px)] grid-cols-[150px_1fr] gap-4"><div className="grid place-items-center"><div className="grid size-[132px] place-items-center rounded-full p-[18px]" style={{ background: "conic-gradient(#22c55e 0 100%)" }}><div className="grid h-full w-full place-items-center rounded-full bg-[#061521] text-center text-[22px]">8 / 8<br /><span className="text-[9px] text-slate-400">Steps</span></div></div></div><div className="space-y-1.5 text-[8.5px]">{steps.slice(0, 8).map((step, index) => <div className="grid grid-cols-[24px_1fr_70px_16px] items-center border-b border-white/5 pb-1" key={step}><span className="grid size-4 place-items-center rounded-full bg-slate-600 text-[7px]">{index + 1}</span><b>{step}</b><span className="text-[#05ff5e]">Completed</span><span className="text-[#05ff5e]">●</span></div>)}<a className="block pt-2 text-[9px] text-blue-400">View Completion Summary ›</a></div></div>;
+function CompletionOverview({ data }: { data?: DeploymentCompletionData }) {
+  return <div className="grid h-[calc(100%-22px)] grid-cols-[150px_1fr] gap-4"><div className="grid place-items-center"><div className="grid size-[132px] place-items-center rounded-full p-[18px]" style={{ background: "conic-gradient(#22c55e 0 100%)" }}><div className="grid h-full w-full place-items-center rounded-full bg-[#061521] text-center text-[22px]">No Data<br /><span className="text-[9px] text-slate-400">Steps</span></div></div></div><div className="space-y-1.5 text-[8.5px]">{steps.slice(0, 8).map((step, index) => <div className="grid grid-cols-[24px_1fr_70px_16px] items-center border-b border-white/5 pb-1" key={step}><span className="grid size-4 place-items-center rounded-full bg-slate-600 text-[7px]">{index + 1}</span><b>{step}</b><span className="text-slate-400">No Data</span><span className="text-slate-400">●</span></div>)}<a className="block pt-2 text-[9px] text-blue-400">{data?.status ?? "No Data"}</a></div></div>;
 }
 
-function EquipmentSummary() {
-  return <div className="grid h-[calc(100%-22px)] grid-cols-[145px_1fr] items-center gap-4"><div className="grid size-[128px] place-items-center rounded-full p-[24px]" style={{ background: "conic-gradient(#22c55e 0 21%, #147dff 21% 53%, #a855f7 53% 67%, #f59e0b 67% 100%)" }}><div className="grid h-full w-full place-items-center rounded-full bg-[#061521] text-center text-[22px]">56<br /><span className="text-[9px] text-slate-400">Total Items</span></div></div><div className="space-y-2 text-[9px]">{[["Transformers", "12", "21%", "#22c55e"], ["Panels", "18", "32%", "#147dff"], ["Capacitor Banks", "8", "14%", "#a855f7"], ["Other Equipment", "18", "32%", "#f59e0b"]].map(([label, value, pct, color]) => <div className="grid grid-cols-[1fr_36px_36px] gap-2" key={label}><span><i className="mr-2 inline-block size-2 rounded-sm" style={{ backgroundColor: color }} />{label}</span><b>{value}</b><span className="text-slate-400">{pct}</span></div>)}<a className="block pt-3 text-blue-400">View Equipment Inventory ›</a></div></div>;
+function EquipmentSummary({ data }: { data?: DeploymentCompletionData }) {
+  const rows = data?.equipmentRows?.length ? data.equipmentRows : [{ label: "Equipment", value: "No Data" }];
+  return <div className="grid h-[calc(100%-22px)] grid-cols-[145px_1fr] items-center gap-4"><div className="grid size-[128px] place-items-center rounded-full p-[24px]" style={{ background: "conic-gradient(#22c55e 0 100%)" }}><div className="grid h-full w-full place-items-center rounded-full bg-[#061521] text-center text-[22px]">{rows[0]?.value ?? "No Data"}<br /><span className="text-[9px] text-slate-400">Total Items</span></div></div><div className="space-y-2 text-[9px]">{rows.map((row) => <div className="grid grid-cols-[1fr_36px_80px] gap-2" key={row.label}><span><i className="mr-2 inline-block size-2 rounded-sm bg-[#22c55e]" />{row.label}</span><b>{row.value}</b><span className="text-slate-400">ecbs_os</span></div>)}<a className="block pt-3 text-blue-400">View Equipment Inventory ›</a></div></div>;
 }
 
-function DocumentsPhotos() {
-  const rows: [DeploymentIconName, string, string, string][] = [["camera", "Photos", "48", "text-[#22c55e]"], ["file", "Documents", "12", "text-blue-400"], ["diagram", "Diagrams", "6", "text-amber-400"], ["report", "Reports", "5", "text-blue-400"], ["folder", "Other Files", "2", "text-blue-400"]];
-  return <div className="space-y-3 text-[9px]">{rows.map(([icon, label, value, color]) => <div className="flex justify-between border-b border-white/5 pb-2" key={label}><span className="flex items-center gap-2 text-slate-300"><DeploymentIcon className={`size-4 ${color}`} name={icon} />{label}</span><b>{value} <span className="ml-3 text-[#05ff5e]">●</span></b></div>)}<a className="text-blue-400">View All Files ›</a></div>;
+function DocumentsPhotos({ data }: { data?: DeploymentCompletionData }) {
+  const rows = data?.documentRows?.length ? data.documentRows : [{ label: "Documents", value: "No Data" }];
+  return <div className="space-y-3 text-[9px]">{rows.map((row) => <div className="flex justify-between border-b border-white/5 pb-2" key={row.label}><span className="flex items-center gap-2 text-slate-300"><DeploymentIcon className="size-4 text-blue-400" name="file" />{row.label}</span><b>{row.value} <span className="ml-3 text-[#05ff5e]">●</span><br /><span className="font-normal text-slate-500">ecbs_os</span></b></div>)}<a className="text-blue-400">View All Files ›</a></div>;
 }
 
-function ActivityTimeline() {
-  return <div className="space-y-2 text-[8.5px] text-slate-300">{[["Deployment started", "May 12, 2025 8:45 AM"], ["Data collection completed", "May 12, 2025 9:50 AM"], ["All data synced", "May 12, 2025 10:05 AM"], ["Deployment completed", "May 12, 2025 10:15 AM"]].map(([title, time]) => <div className="flex gap-2" key={title}><span className="text-[#05ff5e]">●</span><span><b>{title}</b><br /><span className="text-slate-500">{time}</span></span></div>)}<a className="text-blue-400">View Full Audit Log ›</a></div>;
+function ActivityTimeline({ data }: { data?: DeploymentCompletionData }) {
+  return <div className="space-y-2 text-[8.5px] text-slate-300">{[["Deployment status", data?.status ?? "No Data"], ["Last updated", data?.updatedAt ?? "No Data"], ["Audit trail", "No Data"], ["Completion event", "No Data"]].map(([title, time]) => <div className="flex gap-2" key={title}><span className="text-[#05ff5e]">●</span><span><b>{title}</b><br /><span className="text-slate-500">{time}</span></span></div>)}<a className="text-blue-400">View Full Audit Log ›</a></div>;
 }
 
 function RecentCapturedPhotos() {
   const labels = ["Panel Overview", "CT Installation", "Voltage Connections", "Existing Capacitors"];
-  return <div className="grid h-[calc(100%-22px)] grid-cols-4 gap-2">{labels.map((label, index) => <div className="text-[8px]" key={label}><div className={`h-[78px] rounded bg-gradient-to-br ${index === 0 ? "from-slate-300 via-slate-500 to-slate-900" : index === 1 ? "from-orange-700 via-orange-950 to-slate-900" : index === 2 ? "from-zinc-400 via-zinc-700 to-slate-900" : "from-yellow-800 via-slate-700 to-slate-950"} p-1 text-right text-[#05ff5e]`}>●</div><b>{label}</b><br /><span className="text-slate-500">{["10:02 AM", "10:03 AM", "10:04 AM", "10:06 AM"][index]}</span></div>)}</div>;
+  return <div className="grid h-[calc(100%-22px)] grid-cols-4 gap-2">{labels.map((label) => <div className="text-[8px]" key={label}><div className="grid h-[78px] place-items-center rounded border border-dashed border-cyan-300/20 bg-[#03111c] p-1 text-center text-slate-500">No Data</div><b>{label}</b><br /><span className="text-slate-500">No approved photo source</span></div>)}</div>;
 }
 
 function CompletionQuickActions() {
@@ -1721,8 +1737,8 @@ function CompletionQuickActions() {
   return <div className="grid h-[calc(100%-22px)] grid-cols-4 gap-2">{rows.map(([icon, title, detail, color]) => <div className="grid grid-cols-[28px_1fr] items-center gap-2 rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8px]" key={title}><span className={`grid size-6 place-items-center rounded border ${color}`}><DeploymentIcon className="size-4" name={icon} /></span><span><b>{title}</b><br /><span className="text-slate-500">{detail}</span></span></div>)}</div>;
 }
 
-function CompletionSuccessHero() {
-  return <div className="grid h-full grid-cols-[126px_1fr] items-center gap-5"><div className="grid size-[92px] place-items-center rounded-full border-[8px] border-[#22c55e] text-[50px] text-[#22c55e] shadow-[0_0_32px_rgba(34,197,94,.22)]">✓</div><div className="text-[10px] text-slate-300"><div className="text-[22px] font-semibold text-slate-100">Deployment Completed Successfully!</div><p className="mt-2 text-slate-400">All steps have been completed and your data has been saved.</p><div className="mt-5 grid grid-cols-5 gap-4 border-t border-cyan-300/10 pt-3"><Info label="Deployment ID" value="DEP-2025-0512-001" /><Info label="Site" value="Flex Tijuana" /><Info label="Technician" value="John Doe" /><Info label="Completion Time" value="May 12, 2025 10:15 AM" /><Info label="Duration" value="1h 30m" /></div><div className="mt-5 text-[#05ff5e]">● Synced successfully <span className="ml-6 text-slate-400">›</span><span className="ml-5 text-slate-400">May 12, 2025 10:15 AM</span></div></div></div>;
+function CompletionSuccessHero({ data }: { data?: DeploymentCompletionData }) {
+  return <div className="grid h-full grid-cols-[126px_1fr] items-center gap-5"><div className="grid size-[92px] place-items-center rounded-full border-[8px] border-[#22c55e] text-[50px] text-[#22c55e] shadow-[0_0_32px_rgba(34,197,94,.22)]">✓</div><div className="text-[10px] text-slate-300"><div className="text-[22px] font-semibold text-slate-100">Deployment Completed Successfully!</div><p className="mt-2 text-slate-400">{data?.message ?? "No Data"}</p><div className="mt-5 grid grid-cols-5 gap-4 border-t border-cyan-300/10 pt-3"><Info label="Deployment ID" value={data?.deploymentId ?? "No Data"} /><Info label="Site" value={data?.siteName ?? "No Data"} /><Info label="Technician" value="No Data" /><Info label="Completion Time" value={data?.updatedAt ?? "No Data"} /><Info label="Duration" value="No Data" /></div><div className="mt-5 text-[#05ff5e]">● {data?.state ?? "No Data"} <span className="ml-6 text-slate-400">›</span><span className="ml-5 text-slate-400">{data?.updatedAt ?? "No Data"}</span></div></div></div>;
 }
 
 function CompletionDeliverables() {
@@ -1730,8 +1746,10 @@ function CompletionDeliverables() {
   return <div className="h-[calc(100%-22px)] text-[8.5px]"><p className="mb-2 text-slate-400">Your deployment deliverables are ready.</p><div className="space-y-1">{rows.map(([icon, name, type, status, color]) => <div className="grid grid-cols-[20px_1fr_38px_42px_58px] items-center gap-2 border-b border-white/5 py-1.5" key={name}><span className={color}>{icon}</span><b>{name}</b><span>{type}</span><span className="text-[#05ff5e]">{status}</span><span className="text-blue-400">⇩ Download</span></div>)}</div></div>;
 }
 
-function CompletionMetricCards() {
-  const metrics = [["▤", "Total Steps", "8", "Completed", "text-[#05ff5e]"], ["▣", "Forms & Check-lists", "24", "Completed", "text-blue-400"], ["⌘", "Equipment", "56", "Recorded", "text-yellow-400"], ["▰", "Readings", "312", "Captured", "text-fuchsia-400"], ["▣", "Photos", "48", "Uploaded", "text-cyan-400"], ["▢", "Documents", "12", "Uploaded", "text-sky-400"]];
+function CompletionMetricCards({ data }: { data?: DeploymentCompletionData }) {
+  const documents = data?.documentRows.find((row) => row.label === "Documents")?.value ?? "No Data";
+  const equipment = data?.equipmentRows[0]?.value ?? "No Data";
+  const metrics = [["▤", "Total Steps", "No Data", "No approved checklist model", "text-[#05ff5e]"], ["▣", "Forms & Check-lists", "No Data", "No approved checklist model", "text-blue-400"], ["⌘", "Equipment", equipment, "From ecbs_os where available", "text-yellow-400"], ["▰", "Readings", "No Data", "No approved readings model", "text-fuchsia-400"], ["▣", "Photos", "No Data", "No approved photo model", "text-cyan-400"], ["▢", "Documents", documents, "From ecbs_os where available", "text-sky-400"]];
   return <div className="h-[calc(100%-22px)]"><p className="mb-2 text-[8.5px] text-slate-400">Overview of everything completed in this deployment.</p><div className="grid h-[80px] grid-cols-6 gap-2">{metrics.map(([icon, label, value, detail, color]) => <div className="rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8px]" key={label}><div className={color}>{icon} <span className="ml-1 text-slate-300">{label}</span></div><div className="mt-2 whitespace-nowrap text-[20px] leading-none text-slate-100">{value}</div><div className="mt-1 text-slate-400">{detail}</div></div>)}</div></div>;
 }
 
@@ -1739,8 +1757,9 @@ function CompletionStepStatus() {
   return <div className="h-[calc(100%-22px)]"><p className="mb-3 text-[9px] text-slate-400">All required steps have been completed.</p><div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[9px]">{steps.slice(0, 8).map((step, index) => <div className="grid grid-cols-[22px_1fr_70px_18px] items-center rounded border border-cyan-300/8 bg-[#03111c]/50 px-2 py-2" key={step}><span className="grid size-5 place-items-center rounded-full bg-slate-500 text-[8px] font-semibold text-[#02100a]">{index + 1}</span><b>{step}</b><span className="text-[#05ff5e]">Completed</span><span className="text-[#05ff5e]">✓</span></div>)}</div></div>;
 }
 
-function CompletionNextActions() {
-  return <div className="space-y-1.5 text-[8px]"><p className="text-slate-400">Choose your next action.</p>{[["▣", "View Deployment Dashboard", "Go to deployment overview"], ["+", "Create Another Deployment", "Start a new deployment"], ["⌂", "Return to Dashboard", "Go to main dashboard"]].map(([icon, title, detail]) => <div className="grid grid-cols-[26px_1fr_12px] items-center rounded border border-cyan-300/12 bg-[#03111c] p-1.5" key={title}><span className="grid size-5 place-items-center rounded border border-slate-500/50 text-slate-300">{icon}</span><span><b>{title}</b><br /><span className="text-slate-500">{detail}</span></span><span className="text-slate-500">›</span></div>)}</div>;
+function CompletionNextActions({ deploymentId }: { deploymentId: string }) {
+  const rows = [["▣", "View Deployment Dashboard", "Go to deployment overview", `/operations/deployments/${deploymentId}/completion/completion-post-completion-dashboard-screen`], ["+", "Create Another Deployment", "Start a new deployment", "/operations/deployments"], ["⌂", "Return to Dashboard", "Go to main dashboard", "/enterprise"]];
+  return <div className="space-y-1.5 text-[8px]"><p className="text-slate-400">Choose your next action.</p>{rows.map(([icon, title, detail, href]) => <Link className="grid grid-cols-[26px_1fr_12px] items-center rounded border border-cyan-300/12 bg-[#03111c] p-1.5" href={href} key={title}><span className="grid size-5 place-items-center rounded border border-slate-500/50 text-slate-300">{icon}</span><span><b>{title}</b><br /><span className="text-slate-500">{detail}</span></span><span className="text-slate-500">›</span></Link>)}</div>;
 }
 
 function CompletionNotes() {
@@ -1752,12 +1771,15 @@ function SummaryDots({ variant }: { variant: DeploymentWorkflowVariant }) {
   return <div className="flex gap-5 text-center text-[9px]">{values.map(([value, label]) => <div key={label}><div className="whitespace-nowrap text-[16px] leading-none text-[#05ff5e]">{value}</div><div className="text-slate-400">{label}</div></div>)}</div>;
 }
 
-function ActionFooter({ variant }: { variant: DeploymentWorkflowVariant }) {
+function ActionFooter({ deploymentId, variant }: { deploymentId: string; variant: DeploymentWorkflowVariant }) {
   const docVariant = variant === "documentation" || variant === "exportPackage" || variant === "folderDetail" || variant === "permissions" || variant === "reviewQueue" || variant === "searchResults" || variant === "uploadWizard" || variant === "versionHistory" || variant === "photoDocs";
   const back = variant === "signoff" ? "← Back to Commissioning Summary" : variant === "completion" ? "← Back to Documentation" : variant === "permissions" ? "⇩ Export Access Report" : variant === "versionHistory" ? "← Back to Document Viewer" : variant === "documentation" ? "← Back" : variant === "equipmentAdd" ? "Cancel" : variant === "equipmentInventory" ? "← Back" : variant === "installationDetails" ? "← Back" : variant === "postReadings" ? "← Back" : variant === "preReadings" ? "← Back" : variant === "siteDetails" ? "← Back" : variant === "testingViewDetails" ? "← Back" : variant === "testingViewTrend" ? "← Back" : variant === "testingVerification" ? "← Back" : variant === "testingAddIssue" ? "← Back" : docVariant ? "← Back to Documentation" : "← Back to Completion";
   const next = variant === "closure" ? "Confirm & Close Deployment" : variant === "signoff" ? "Submit Final Sign-off" : variant === "completion" ? "Finish & Close" : variant === "completionDashboard" ? "Finish & Close" : variant === "acceptance" ? "Submit Acceptance ✓" : variant === "commissioning" ? "Proceed to Customer Acceptance →" : variant === "exportPackage" ? "Next: Package Details" : variant === "folderDetail" ? "Next: Complete" : variant === "permissions" ? "Save Changes" : variant === "uploadWizard" ? "Upload" : variant === "versionHistory" ? "Close" : variant === "documentation" ? "Next: Complete →" : variant === "equipmentAdd" ? "Save & Add to Inventory" : variant === "equipmentInventory" ? "Next: Pre-Installation Readings →" : variant === "installationDetails" ? "Next: Post-Installation Readings →" : variant === "photoDocs" ? "Next: Testing & Verification →" : variant === "testingViewDetails" ? "Next: Documentation →" : variant === "testingViewTrend" ? "Next: Documentation →" : variant === "testingVerification" ? "Next: Documentation →" : variant === "testingAddIssue" ? "Next: Documentation →" : variant === "preReadings" ? "Next: Installation Details →" : variant === "postReadings" ? "Next: Testing & Verification →" : variant === "siteDetails" ? "Next: Equipment Inventory →" : variant === "reviewQueue" || variant === "searchResults" ? "Next: Complete" : "All Items Complete  Close Deployment";
   if (variant === "photoDocs") return <footer className="mt-auto flex h-[54px] items-center justify-between border-t border-cyan-300/10"><span /><div className="flex gap-4"><button className="w-[118px] rounded border border-slate-700 bg-[#061421] py-2 text-[9px] text-slate-300">Save Draft</button><button className="w-[90px] rounded border border-slate-700 bg-[#061421] py-2 text-[9px] text-slate-300">← Back</button><button className="w-[226px] rounded bg-[#087a35] py-2 text-[10px] font-semibold">{next}</button></div></footer>;
-  return <footer className="mt-auto flex h-[54px] items-center justify-between border-t border-cyan-300/10"><Button>{back}</Button><div className="flex gap-2">{variant === "signoff" ? <Button>Cancel</Button> : null}{variant === "versionHistory" ? <Button>Restore Version</Button> : <Button>Save Draft</Button>}<button className="rounded bg-[#087a35] px-8 py-2 text-[10px] font-semibold">{next}{variant === "signoff" ? <><br /><span className="text-[8px] font-normal">Lock deployment & generate certificates</span></> : null}</button></div></footer>;
+  const base = `/operations/deployments/${deploymentId}/completion`;
+  const backHref = variant === "signoff" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen` : variant === "closure" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` : variant === "acceptance" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` : variant === "completionDashboard" ? `${base}/completion-screen` : `${base}/completion-screen`;
+  const nextHref = variant === "completion" ? `${base}/completion-post-completion-dashboard-screen` : variant === "completionDashboard" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen` : variant === "checklist" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` : variant === "signoff" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-deployment-closure-confirmation-screen` : variant === "closure" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-final-validation-checklist-customer-acceptance-screen` : variant === "acceptance" ? `${base}/completion-post-completion-dashboard-screen` : `${base}/completion-screen`;
+  return <footer className="mt-auto flex h-[54px] items-center justify-between border-t border-cyan-300/10"><Link className="rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-[9px] text-slate-300" href={backHref}>{back}</Link><div className="flex gap-2">{variant === "signoff" ? <Button>Cancel</Button> : null}{variant === "versionHistory" ? <Button>Restore Version</Button> : <Button>Save Draft</Button>}<Link className="rounded bg-[#087a35] px-8 py-2 text-[10px] font-semibold" href={nextHref}>{next}{variant === "signoff" ? <><br /><span className="text-[8px] font-normal">Lock deployment & generate certificates</span></> : null}</Link></div></footer>;
 }
 
 function Panel({ children, title }: { children: ReactNode; title: string }) {

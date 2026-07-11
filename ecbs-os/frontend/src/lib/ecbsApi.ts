@@ -1,15 +1,65 @@
 import "server-only";
 
 import type { AlarmDetailData } from "@/lib/alarmDetailData";
+import type { CurrentAnalysisData, LiveDataScreenData } from "@/lib/analysisData";
 import type { CapacityHealthDiagnosticsData } from "@/lib/capacityHealthDiagnosticsData";
 import type { CapacityRecoveryBreakdownData } from "@/lib/capacityRecoveryBreakdownData";
 import type { CapacityUtilizationTrendData } from "@/lib/capacityUtilizationTrendData";
 import type { ClientManagementData } from "@/lib/clientManagementData";
 import type { ConfigureAlertRuleData } from "@/lib/configureAlertRuleData";
+import type { DeploymentCompletionData } from "@/lib/deploymentCompletionData";
 import type { SetNotificationsData } from "@/lib/setNotificationsData";
 import type { AlertsEventsData, CapacityIntelligenceData } from "@/lib/trackingDashboardData";
 
 const apiBaseUrl = process.env.ECBS_API_BASE_URL ?? "http://localhost:5090";
+
+export async function getCurrentAnalysisDataFromApi(): Promise<CurrentAnalysisData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/engineering/current-analysis`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noCurrentAnalysisData(`No applicable Current Analysis data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as CurrentAnalysisData;
+  } catch {
+    return noCurrentAnalysisData("No applicable Current Analysis data was found because ECBS.Api is not reachable.");
+  }
+}
+
+export async function getLiveDataFromApi(): Promise<LiveDataScreenData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/telemetry`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noLiveData(`No applicable Live Data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as LiveDataScreenData;
+  } catch {
+    return noLiveData("No applicable Live Data was found because ECBS.Api is not reachable.");
+  }
+}
+
+export async function getDeploymentCompletionDataFromApi(deploymentId: string): Promise<DeploymentCompletionData> {
+  try {
+    const response = await fetch(`${apiBaseUrl}/api/v1/deployments/${deploymentId}/completion`, {
+      cache: "no-store",
+    });
+
+    if (!response.ok) {
+      return noDeploymentCompletionData(`No applicable Deployment Completion data was returned by ECBS.Api (${response.status}).`);
+    }
+
+    return (await response.json()) as DeploymentCompletionData;
+  } catch {
+    return noDeploymentCompletionData("No applicable Deployment Completion data was found because ECBS.Api is not reachable.");
+  }
+}
 
 export async function getClientManagementDataFromApi(): Promise<ClientManagementData> {
   try {
@@ -239,6 +289,80 @@ function noClientManagementData(message: string): ClientManagementData {
       website: "No Data",
     },
     state: "no-data",
+    updatedAt: "No Data",
+  };
+}
+
+function noCurrentAnalysisData(message: string): CurrentAnalysisData {
+  return {
+    assetRows: [{ cells: ["No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data"] }],
+    insights: [message],
+    kpis: [
+      { detail: "No Data", icon: "A", label: "Total Current", tone: "green", value: "No Data" },
+      { detail: "No Data", icon: "P", label: "Productive Current (kW)", tone: "green", value: "No Data" },
+      { detail: "No Data", icon: "R", label: "Reactive Current (kVAR)", tone: "yellow", value: "No Data" },
+      { detail: "No Data", icon: "H", label: "Harmonic Current (THD)", tone: "yellow", value: "No Data" },
+      { detail: "No Data", icon: "I", label: "Imbalance Current", tone: "yellow", value: "No Data" },
+      { detail: "No Data", icon: "N", label: "Neutral Current", tone: "blue", value: "No Data" },
+    ],
+    message,
+    siteName: "No Data",
+    state: "no-data",
+    updatedAt: "No Data",
+  };
+}
+
+function noLiveData(message: string): LiveDataScreenData {
+  return {
+    alarmRows: [{ cells: ["No Data", message] }],
+    clientName: "No Data",
+    deviceRows: [{ cells: ["No Data", "No Data", "No Data", "No Data", "No Data", "No Data"] }],
+    kpis: [
+      { detail: "No Data", icon: "S", label: "System Status", tone: "green", value: "No Data" },
+      { detail: "No Data", icon: "kW", label: "Total kW", tone: "blue", value: "No Data" },
+      { detail: "No Data", icon: "kVA", label: "Total kVA", tone: "cyan", value: "No Data" },
+      { detail: "No Data", icon: "PF", label: "Power Factor", tone: "yellow", value: "No Data" },
+      { detail: "No Data", icon: "THD", label: "THD (V)", tone: "yellow", value: "No Data" },
+      { detail: "No Data", icon: "Hz", label: "Frequency", tone: "blue", value: "No Data" },
+      { detail: "No Data", icon: "L", label: "System Load", tone: "green", value: "No Data" },
+    ],
+    message,
+    phaseRows: [{ cells: ["No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data"] }],
+    projectName: "No Data",
+    siteName: "No Data",
+    state: "no-data",
+    systemRows: [{ label: "Source", value: "No Data" }],
+    updatedAt: "No Data",
+  };
+}
+
+function noDeploymentCompletionData(message: string): DeploymentCompletionData {
+  return {
+    clientName: "No Data",
+    closureCards: [
+      { label: "Workflow Progress", value: "No Data" },
+      { label: "Tests Passed", value: "No Data" },
+      { label: "Documentation", value: "No Data" },
+      { label: "Readiness", value: "No Data" },
+    ],
+    deploymentId: "No Data",
+    documentRows: [
+      { label: "Documents", value: "No Data" },
+      { label: "Generated Reports", value: "No Data" },
+      { label: "Certificates", value: "No Data" },
+    ],
+    equipmentRows: [{ label: "Equipment", value: "No Data" }],
+    identityRows: [
+      { label: "Technician", value: "No Data" },
+      { label: "Customer Signer", value: "No Data" },
+      { label: "Identity Verification", value: "No Data" },
+      { label: "Handover Contact", value: "No Data" },
+    ],
+    message,
+    projectName: "No Data",
+    siteName: "No Data",
+    state: "no-data",
+    status: "No Data",
     updatedAt: "No Data",
   };
 }

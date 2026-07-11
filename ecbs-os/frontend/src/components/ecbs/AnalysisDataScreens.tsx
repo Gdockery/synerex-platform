@@ -1,9 +1,10 @@
 import { DashboardPanel, type DashboardKpi } from "./DashboardCards";
 import { EcbsAppShell } from "./EcbsAppShell";
+import type { CurrentAnalysisData, LiveDataScreenData } from "@/lib/analysisData";
 
 export type AnalysisDataVariant = "current" | "live";
 
-const currentKpis: DashboardKpi[] = [
+const emptyCurrentKpis: DashboardKpi[] = [
   { icon: "A", label: "Total Current", value: "1,125 A", detail: "Avg | +8.7% vs prior 7 days", tone: "green" },
   { icon: "P", label: "Productive Current (kW)", value: "812 A", detail: "72% of total", tone: "green" },
   { icon: "R", label: "Reactive Current (kVAR)", value: "198 A", detail: "18% of total", tone: "yellow" },
@@ -12,7 +13,7 @@ const currentKpis: DashboardKpi[] = [
   { icon: "N", label: "Neutral Current", value: "52 A", detail: "4.6% of phase avg.", tone: "blue" },
 ];
 
-const liveKpis: DashboardKpi[] = [
+const emptyLiveKpis: DashboardKpi[] = [
   { icon: "S", label: "System Status", value: "Online", detail: "All systems normal", tone: "green" },
   { icon: "kW", label: "Total kW", value: "1,063 kW", detail: "+12.4% vs yesterday", tone: "blue" },
   { icon: "kVA", label: "Total kVA", value: "1,250 kVA", detail: "+14.8% vs yesterday", tone: "cyan" },
@@ -22,46 +23,56 @@ const liveKpis: DashboardKpi[] = [
   { icon: "L", label: "System Load", value: "85%", detail: "Of capacity", tone: "green" },
 ];
 
-export function AnalysisDataScreen({ variant }: { variant: AnalysisDataVariant }) {
+export function AnalysisDataScreen({ currentData, liveData, variant }: { currentData?: CurrentAnalysisData; liveData?: LiveDataScreenData; variant: AnalysisDataVariant }) {
   const isLive = variant === "live";
+  const currentKpis: DashboardKpi[] = currentData?.kpis.map(toDashboardKpi) ?? emptyCurrentKpis.map((kpi) => ({ ...kpi, detail: "No Data", value: "No Data" }));
+  const liveKpis: DashboardKpi[] = liveData?.kpis.map(toDashboardKpi) ?? emptyLiveKpis.map((kpi) => ({ ...kpi, detail: "No Data", value: "No Data" }));
   const kpis = isLive ? liveKpis : currentKpis;
+  const updatedAt = isLive ? liveData?.updatedAt ?? "No Data" : currentData?.updatedAt ?? "No Data";
 
   return (
     <EcbsAppShell activeHref={isLive ? "/data-analytics/live-data/live-data" : "/enterprise/current-analysis"}>
       <div className={isLive ? "flex h-full min-h-[682px] flex-col overflow-hidden px-3 py-2" : "flex h-full min-h-[682px] flex-col overflow-hidden bg-white px-3 py-2 text-slate-900"}>
         <Header
-          breadcrumbs={isLive ? ["Clients", "Flex Ltd.", "Projects", "Flex Tijuana Manufacturing", "Live Data"] : ["Current Analysis"]}
+          breadcrumbs={isLive ? ["Clients", liveData?.clientName ?? "No Data", "Projects", liveData?.projectName ?? "No Data", "Live Data"] : ["Current Analysis"]}
           isLive={isLive}
+          siteName={isLive ? liveData?.siteName ?? "No Data" : currentData?.siteName ?? "No Data"}
           subtitle={isLive ? "Real-time monitoring of your electrical system performance." : "Comprehensive analysis of current components and their impact on your electrical system."}
           title={isLive ? "Live Data" : "Current Analysis"}
+          updatedAt={updatedAt}
         />
 
         <section className={isLive ? "mt-2 grid h-[88px] grid-cols-7 gap-2" : "mt-2 grid h-[104px] grid-cols-6 gap-2"}>
           {kpis.map((kpi) => isLive ? <LiveKpiCard key={kpi.label} kpi={kpi} /> : <CurrentKpiCard key={kpi.label} kpi={kpi} />)}
         </section>
 
-        {isLive ? <LiveDataBody /> : <CurrentAnalysisBody />}
+        {isLive ? <LiveDataBody data={liveData} /> : <CurrentAnalysisBody data={currentData} />}
 
         <footer className={isLive ? "mt-auto flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500" : "mt-auto flex h-[26px] items-center justify-between border-t border-slate-200 text-[9px] text-slate-500"}>
           <span>Privacy Policy | Terms of Service | Support</span>
-          <span>Data updated: May 18, 2025 10:15 AM <span className="ml-4 text-[#05ff5e]">Live</span></span>
+          <span>Data updated: {updatedAt} <span className="ml-4 text-[#05ff5e]">{isLive ? "Live" : "Online"}</span></span>
         </footer>
       </div>
     </EcbsAppShell>
   );
 }
 
-function Header({ breadcrumbs, isLive, subtitle, title }: { breadcrumbs: string[]; isLive: boolean; subtitle: string; title: string }) {
+function toDashboardKpi(kpi: { detail: string; icon?: string; label: string; tone?: string; value: string }): DashboardKpi {
+  const tone = kpi.tone === "blue" || kpi.tone === "cyan" || kpi.tone === "green" || kpi.tone === "yellow" ? kpi.tone : kpi.tone ? "yellow" : undefined;
+  return { detail: kpi.detail, icon: kpi.icon ?? kpi.label.slice(0, 2), label: kpi.label, tone, value: kpi.value };
+}
+
+function Header({ breadcrumbs, isLive, siteName, subtitle, title, updatedAt }: { breadcrumbs: string[]; isLive: boolean; siteName: string; subtitle: string; title: string; updatedAt: string }) {
   return (
     <header className={isLive ? "border-b border-cyan-300/10 pb-2" : "border-b border-slate-200 pb-2"}>
       <div className="flex h-[32px] items-center justify-between">
         <div className={isLive ? "text-[12px] font-semibold uppercase tracking-wide text-slate-100" : "text-[12px] font-semibold uppercase tracking-wide text-slate-900"}>XECO Energy Intelligence Portal</div>
         <div className="flex items-center gap-3 text-[9px] text-slate-300">
-          {isLive ? <Button>Client Flex Ltd.</Button> : <LightButton>⌂ Flex Tijuana</LightButton>}
-          {isLive ? <Button>May 18, 2025 10:15 AM CDT</Button> : <LightButton>▣ May 12 - May 18, 2025</LightButton>}
+          {isLive ? <Button>Client {breadcrumbs[1] ?? "No Data"}</Button> : <LightButton>⌂ {siteName}</LightButton>}
+          {isLive ? <Button>{updatedAt}</Button> : <LightButton>▣ Latest Rollup</LightButton>}
           <span className="text-[#05ff5e]">● {isLive ? "Live" : "Online"}</span>
-          <span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">{isLive ? "JS" : "GD"}</span>
-          <span className={isLive ? "" : "text-slate-900"}>{isLive ? "John Smith" : "Greg Dockery"}<br /><span className="text-slate-500">{isLive ? "OEM Admin" : "Administrator"}</span></span>
+          <span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">ND</span>
+          <span className={isLive ? "" : "text-slate-900"}>No Data<br /><span className="text-slate-500">User</span></span>
         </div>
       </div>
       <div className="mt-2 flex items-end justify-between">
@@ -76,47 +87,51 @@ function Header({ breadcrumbs, isLive, subtitle, title }: { breadcrumbs: string[
   );
 }
 
-function CurrentAnalysisBody() {
+function CurrentAnalysisBody({ data }: { data?: CurrentAnalysisData }) {
+  const rows = data?.assetRows.map((row) => row.cells) ?? [["No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data"]];
+  const insights = data?.insights?.length ? data.insights : ["No Data: approved narrative insight source is not defined for Current Analysis."];
   return (
     <>
       <section className="mt-2 grid h-[200px] grid-cols-2 gap-2">
-        <LightPanel title="Current Components Over Time"><StackedCurrentChart /></LightPanel>
-        <LightPanel title="Phase Current Balance"><LineChart colors={["#05aa55", "#147dff", "#ef4444", "#94a3b8"]} /></LightPanel>
+        <LightPanel title="Current Components Over Time"><NoDataChart label="No approved telemetry trend contract" /></LightPanel>
+        <LightPanel title="Phase Current Balance"><NoDataChart label="No approved phase trend contract" /></LightPanel>
       </section>
       <section className="mt-2 grid h-[190px] grid-cols-[0.9fr_0.85fr_1fr] gap-2">
-        <LightPanel title="Current Component Breakdown"><Donut /></LightPanel>
-        <LightPanel title="Current Harmonic Distortion (THD)"><Bars /></LightPanel>
-        <LightPanel title="Neutral Current Trend"><LineChart colors={["#147dff"]} /></LightPanel>
+        <LightPanel title="Current Component Breakdown"><Donut data={data} /></LightPanel>
+        <LightPanel title="Current Harmonic Distortion (THD)"><NoDataChart label="No approved harmonic spectrum source" /></LightPanel>
+        <LightPanel title="Neutral Current Trend"><NoDataChart label="No approved neutral-current trend source" /></LightPanel>
       </section>
       <section className="mt-2 grid h-[205px] grid-cols-[1.45fr_0.7fr] gap-2">
         <LightPanel title="Current Analysis By Asset">
-          <LightTable headers={["Asset", "Total", "Productive", "Reactive", "Harmonic", "Imbalance", "Neutral", "CBI", "Status"]} rows={[["Main Transformer", "1,125", "812", "198", "79", "36", "52", "96", "Healthy"], ["Main Switchgear", "1,125", "812", "198", "79", "36", "52", "96", "Healthy"], ["Feeder C", "324", "234", "57", "23", "10", "15", "94", "Healthy"], ["Feeder A", "286", "206", "52", "20", "8", "13", "95", "Healthy"], ["Feeder B", "254", "183", "46", "18", "7", "11", "94", "Healthy"]]} />
+          <LightTable headers={["Asset", "Total", "Productive", "Reactive", "Harmonic", "Imbalance", "Neutral", "CBI", "Status"]} rows={rows} />
         </LightPanel>
         <LightPanel title="Key Insights">
-          <ul className="space-y-3 text-[10px] text-slate-700">{["Non-productive current reduced 24.3% compared to prior 7 days.", "Harmonic current (THD) is within IEEE 519 limits.", "Phase current balance is excellent. Maximum deviation is 2.8%.", "Neutral current is within acceptable range.", "Excellent current balance contributing to 96 CBI rating."].map((item) => <li key={item}><span className="text-[#05aa55]">●</span> {item}</li>)}</ul>
+          <ul className="space-y-3 text-[10px] text-slate-700">{insights.map((item) => <li key={item}><span className="text-[#05aa55]">●</span> {item}</li>)}</ul>
         </LightPanel>
       </section>
     </>
   );
 }
 
-function LiveDataBody() {
+function LiveDataBody({ data }: { data?: LiveDataScreenData }) {
+  const phaseRows = data?.phaseRows.map((row) => row.cells) ?? [["No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data"]];
+  const deviceRows = data?.deviceRows.map((row) => row.cells) ?? [["No Data", "No Data", "No Data", "No Data", "No Data", "No Data"]];
   return (
     <>
       <section className="mt-2 grid h-[180px] grid-cols-3 gap-2">
-        <DashboardPanel action="24 Hours ˅" title="Real-Time Power Trend" variant="enterprise"><DarkLine /></DashboardPanel>
-        <DashboardPanel action="24 Hours ˅" title="Power Factor Trend" variant="enterprise"><DarkLine /></DashboardPanel>
-        <DashboardPanel action="24 Hours ˅" title="Voltage Trend (L-L)" variant="enterprise"><DarkLine /></DashboardPanel>
+        <DashboardPanel action="24 Hours ˅" title="Real-Time Power Trend" variant="enterprise"><DarkNoData label="No approved raw telemetry trend" /></DashboardPanel>
+        <DashboardPanel action="24 Hours ˅" title="Power Factor Trend" variant="enterprise"><DarkNoData label="No approved PF trend contract" /></DashboardPanel>
+        <DashboardPanel action="24 Hours ˅" title="Voltage Trend (L-L)" variant="enterprise"><DarkNoData label="No approved voltage telemetry source" /></DashboardPanel>
       </section>
       <section className="mt-2 grid h-[190px] grid-cols-[1fr_0.6fr_0.85fr] gap-2">
-        <DashboardPanel title="Phase Summary (Instantaneous)" variant="enterprise"><DarkTable headers={["Phase", "Voltage", "Current", "kW", "kVA", "PF", "THD"]} rows={[["L1", "13,180", "512", "354", "368", "0.96", "3.9%"], ["L2", "13,210", "498", "342", "356", "0.96", "4.2%"], ["L3", "13,190", "507", "367", "379", "0.97", "4.1%"], ["Total", "-", "1,517", "1,063", "1,250", "0.98", "4.1%"], ["Average", "13,193", "506", "354", "417", "0.98", "4.1%"]]} /></DashboardPanel>
-        <DashboardPanel title="Demand Summary (15-min Rolling)" variant="enterprise"><Gauge /></DashboardPanel>
-        <DashboardPanel title="Harmonic Summary (Voltage)" variant="enterprise"><DarkBars /></DashboardPanel>
+        <DashboardPanel title="Phase Summary (Instantaneous)" variant="enterprise"><DarkTable headers={["Phase", "Voltage", "Current", "kW", "kVA", "PF", "THD"]} rows={phaseRows} /></DashboardPanel>
+        <DashboardPanel title="Demand Summary (15-min Rolling)" variant="enterprise"><Gauge data={data} /></DashboardPanel>
+        <DashboardPanel title="Harmonic Summary (Voltage)" variant="enterprise"><DarkNoData label="No approved harmonic-order source" /></DashboardPanel>
       </section>
       <section className="mt-2 grid h-[210px] grid-cols-[1.3fr_0.7fr_1fr] gap-2">
-        <DashboardPanel title="Device Status" variant="enterprise"><DarkTable headers={["Device", "Type", "Location", "Status", "Last Update", "Signal"]} rows={[["Gateway-01", "Gateway", "Main Electrical Room", "Online", "10:15:12 AM", "▮▮▮"], ["Meter-01", "Power Meter", "Main Switchboard", "Online", "10:15:10 AM", "▮▮▮"], ["Meter-02", "Power Meter", "Sub Panel A", "Online", "10:15:11 AM", "▮▮▮"], ["XAPF-01", "Active Power Filter", "Main Switchboard", "Online", "10:15:09 AM", "▮▮▮"], ["Switch-01", "Smart Switch", "Feeder Panel 1", "Online", "10:15:13 AM", "▮▮▮"], ["Repeater-01", "Repeater", "Electrical Room", "Online", "10:15:08 AM", "▮▮▮"]]} /></DashboardPanel>
-        <DashboardPanel title="Alarms & Events (3 Active)" variant="enterprise"><LiveAlarms /></DashboardPanel>
-        <DashboardPanel title="Real-Time System Diagram" variant="enterprise"><SystemDiagram /></DashboardPanel>
+        <DashboardPanel title="Device Status" variant="enterprise"><DarkTable headers={["Device", "Type", "Location", "Status", "Last Update", "Signal"]} rows={deviceRows} /></DashboardPanel>
+        <DashboardPanel title="Alarms & Events" variant="enterprise"><LiveAlarms rows={data?.alarmRows.map((row) => row.cells)} /></DashboardPanel>
+        <DashboardPanel title="Real-Time System Diagram" variant="enterprise"><SystemDiagram rows={data?.systemRows} /></DashboardPanel>
       </section>
     </>
   );
@@ -230,8 +245,13 @@ function StackedCurrentChart() {
   return <svg className="h-[150px] w-full" viewBox="0 0 500 155" preserveAspectRatio="none">{[35, 70, 105, 140].map((y) => <line key={y} x1="0" x2="500" y1={y} y2={y} stroke="#e2e8f0" strokeOpacity=".8" />)}<path d="M0 122 C30 92 50 88 75 116 C105 145 120 54 150 68 C190 84 178 145 220 112 C250 92 260 44 295 70 C330 96 320 140 360 116 C390 92 395 54 430 70 C460 90 465 130 500 94 L500 155 L0 155Z" fill="#05aa55" opacity=".9" /><path d="M0 90 C50 70 75 84 100 94 C135 104 150 58 180 64 C230 70 240 100 280 84 C320 68 345 78 380 92 C420 108 440 64 500 78 L500 122 L0 122Z" fill="#f59e0b" opacity=".82" /><path d="M0 62 C75 46 110 66 150 54 C210 42 245 60 300 50 C360 40 405 58 500 48 L500 90 L0 90Z" fill="#ef4444" opacity=".55" /></svg>;
 }
 
-function Donut() {
-  return <div className="grid grid-cols-[120px_1fr] items-center gap-4"><div className="grid size-[110px] place-items-center rounded-full p-6" style={{ background: "conic-gradient(#05aa55 0 72%, #f59e0b 72% 90%, #fb923c 90% 97%, #ef4444 97% 100%)" }}><div className="grid h-full w-full place-items-center rounded-full bg-white text-center text-[12px] font-semibold">1,125 A<br /><span className="text-[8px] text-slate-500">Total Current</span></div></div><ul className="space-y-2 text-[9px] text-slate-700"><li>Productive Current 812 A (72%)</li><li>Reactive Current 198 A (18%)</li><li>Harmonic Current 79 A (7%)</li><li>Imbalance Current 36 A (3%)</li></ul></div>;
+function Donut({ data }: { data?: CurrentAnalysisData }) {
+  const total = data?.kpis.find((kpi) => kpi.label === "Total Current")?.value ?? "No Data";
+  const rows = ["Productive Current (kW)", "Reactive Current (kVAR)", "Harmonic Current (THD)", "Imbalance Current"].map((label) => {
+    const kpi = data?.kpis.find((item) => item.label === label);
+    return `${label.replace(" (kW)", "").replace(" (kVAR)", "").replace(" (THD)", "")} ${kpi?.value ?? "No Data"} (${kpi?.detail ?? "No Data"})`;
+  });
+  return <div className="grid grid-cols-[120px_1fr] items-center gap-4"><div className="grid size-[110px] place-items-center rounded-full p-6" style={{ background: "conic-gradient(#05aa55 0 72%, #f59e0b 72% 90%, #fb923c 90% 97%, #ef4444 97% 100%)" }}><div className="grid h-full w-full place-items-center rounded-full bg-white text-center text-[12px] font-semibold">{total}<br /><span className="text-[8px] text-slate-500">Total Current</span></div></div><ul className="space-y-2 text-[9px] text-slate-700">{rows.map((row) => <li key={row}>{row}</li>)}</ul></div>;
 }
 
 function Bars() {
@@ -259,7 +279,9 @@ function DarkLine() {
   );
 }
 
-function Gauge() {
+function Gauge({ data }: { data?: LiveDataScreenData }) {
+  const kw = data?.kpis.find((kpi) => kpi.label === "Total kW")?.value ?? "No Data";
+  const load = data?.kpis.find((kpi) => kpi.label === "System Load")?.value ?? "No Data";
   return (
     <div className="flex h-full flex-col">
       <svg className="min-h-0 flex-1 w-full" viewBox="0 0 260 150" aria-hidden="true">
@@ -270,11 +292,11 @@ function Gauge() {
         <path d="M130 118 84 55" stroke="#e2e8f0" strokeLinecap="round" strokeWidth="3" />
         <circle cx="130" cy="118" r="5" fill="#e2e8f0" />
         {["0", "750", "1,500", "2,250", "3,000"].map((label, index) => <text fill="#94a3b8" fontSize="9" key={label} textAnchor="middle" x={[42, 72, 130, 188, 218][index]} y={[124, 54, 24, 54, 124][index]}>{label}</text>)}
-        <text fill="#f8fafc" fontSize="28" fontWeight="700" textAnchor="middle" x="130" y="92">1,063 kW</text>
-        <text fill="#94a3b8" fontSize="10" textAnchor="middle" x="130" y="108">35% of 3,000 kW</text>
+        <text fill="#f8fafc" fontSize="28" fontWeight="700" textAnchor="middle" x="130" y="92">{kw}</text>
+        <text fill="#94a3b8" fontSize="10" textAnchor="middle" x="130" y="108">{load} of capacity</text>
         <text fill="#94a3b8" fontSize="9" textAnchor="middle" x="130" y="122">Contract Demand</text>
       </svg>
-      <div className="flex justify-between border-t border-cyan-300/10 pt-1 text-[8px] text-slate-500"><span>Predicted Demand (Today)</span><span className="text-[#147dff]">1,185 kW</span></div>
+      <div className="flex justify-between border-t border-cyan-300/10 pt-1 text-[8px] text-slate-500"><span>Predicted Demand (Today)</span><span className="text-[#147dff]">No Data</span></div>
     </div>
   );
 }
@@ -283,29 +305,34 @@ function DarkBars() {
   return <div className="flex h-full flex-col"><div className="ml-auto mb-1 rounded border border-cyan-300/10 px-2 py-1 text-[8px] text-slate-300">IEEE 519 Limits ˅</div><div className="relative flex min-h-0 flex-1 items-end gap-7 border-b border-slate-700 pl-2"><div className="absolute left-0 right-0 top-[42%] border-t border-dashed border-yellow-500" />{[88, 50, 35, 24, 13, 9, 7, 6, 5, 4].map((h, i) => <div className="w-4 rounded-t bg-[#22c55e]" style={{ height: `${h}px` }} key={i} />)}</div><div className="mt-1 flex justify-between text-[8px] text-slate-400"><span>THD</span><span>3</span><span>5</span><span>7</span><span>11</span><span>13</span><span>17</span><span>19</span><span>23</span><span>25</span></div></div>;
 }
 
-function SystemDiagram() {
-  return <div className="flex h-full flex-col items-center justify-center text-center text-[8px] text-slate-300"><div className="font-semibold">UTILITY<br /><span className="text-slate-400">13.2 kV</span></div><div className="h-7 border-l border-[#05ff5e]" /><div className="text-blue-300">⚙<br /><span className="text-slate-200">MAIN TRANSFORMER</span><br />1500 kVA</div><div className="h-7 border-l border-[#05ff5e]" /><div className="text-blue-300">▧<br /><span className="text-slate-200">MAIN SWITCHBOARD</span><br />1200 A</div><div className="h-6 border-l border-[#05ff5e]" /><div className="w-[94%] border-t-2 border-[#05ff5e]" /><div className="grid w-full grid-cols-6 gap-2 text-blue-300">{["XAPF-01\\nActive", "METER-01\\n1,063 kW", "PANEL A\\n425 kW", "PANEL B\\n312 kW", "PANEL C\\n326 kW", "METER-02\\nSub Panel"].map((item) => <span className="-mt-1 whitespace-pre-line" key={item}>⊕<br />{item}</span>)}</div><a className="mt-auto self-start text-[10px] font-semibold text-[#147dff]">View Full One-Line →</a></div>;
+function SystemDiagram({ rows }: { rows?: { label: string; value: string }[] }) {
+  const values = rows?.length ? rows : [{ label: "Utility Voltage", value: "No Data" }, { label: "Main Transformer", value: "No Data" }, { label: "Panel Loads", value: "No Data" }];
+  return <div className="flex h-full flex-col items-center justify-center text-center text-[8px] text-slate-300"><div className="font-semibold">UTILITY<br /><span className="text-slate-400">{values[0]?.value ?? "No Data"}</span></div><div className="h-7 border-l border-[#05ff5e]" /><div className="text-blue-300">⚙<br /><span className="text-slate-200">MAIN TRANSFORMER</span><br />{values[1]?.value ?? "No Data"}</div><div className="h-7 border-l border-[#05ff5e]" /><div className="text-blue-300">▧<br /><span className="text-slate-200">MAIN SWITCHBOARD</span><br />No Data</div><div className="h-6 border-l border-[#05ff5e]" /><div className="w-[94%] border-t-2 border-[#05ff5e]" /><div className="grid w-full grid-cols-6 gap-2 text-blue-300">{["XAPF-01\\nNo Data", "METER-01\\nNo Data", "PANEL A\\nNo Data", "PANEL B\\nNo Data", "PANEL C\\nNo Data", "METER-02\\nNo Data"].map((item) => <span className="-mt-1 whitespace-pre-line" key={item}>⊕<br />{item}</span>)}</div><a className="mt-auto self-start text-[10px] font-semibold text-[#147dff]">View Full One-Line →</a></div>;
 }
 
-function LiveAlarms() {
-  const alarms = [
-    { color: "text-red-400", icon: "◇", time: "10:14 AM", title: "High THD Voltage", body: "THD (V) 4.1% exceeds threshold 4.0%" },
-    { color: "text-yellow-300", icon: "△", time: "10:13 AM", title: "High Current Warning", body: "L1 Current 512A exceeds threshold 500A" },
-    { color: "text-blue-400", icon: "ⓘ", time: "10:12 AM", title: "Maintenance Reminder", body: "XAPF-01 filter maintenance due in 12 days" },
-  ];
+function LiveAlarms({ rows }: { rows?: string[][] }) {
+  const alarms = rows?.length ? rows : [["No Data", "No approved live alarm event source is defined for this screen payload."]];
 
   return (
     <div className="flex h-full flex-col">
       <ul className="space-y-3 text-[8.5px] text-slate-300">
-        {alarms.map((alarm) => (
-          <li className="grid grid-cols-[24px_1fr_42px] gap-2" key={alarm.title}>
-            <span className={`grid size-6 place-items-center rounded-full bg-white/5 ${alarm.color}`}>{alarm.icon}</span>
-            <span><b className={alarm.color}>{alarm.title}</b><br />{alarm.body}</span>
-            <span className="text-right text-[7.5px] text-slate-500">{alarm.time}</span>
+        {alarms.map(([title, body]) => (
+          <li className="grid grid-cols-[24px_1fr_42px] gap-2" key={`${title}-${body}`}>
+            <span className="grid size-6 place-items-center rounded-full bg-white/5 text-blue-400">ⓘ</span>
+            <span><b className="text-blue-400">{title}</b><br />{body}</span>
+            <span className="text-right text-[7.5px] text-slate-500">No Data</span>
           </li>
         ))}
       </ul>
       <a className="mt-auto text-[10px] font-semibold text-[#147dff]">View All Alarms →</a>
     </div>
   );
+}
+
+function NoDataChart({ label }: { label: string }) {
+  return <div className="grid h-[150px] place-items-center rounded border border-dashed border-slate-300 text-center text-[10px] text-slate-500">No Data<br /><span>{label}</span></div>;
+}
+
+function DarkNoData({ label }: { label: string }) {
+  return <div className="grid h-full place-items-center rounded border border-dashed border-cyan-300/10 text-center text-[10px] text-slate-500">No Data<br /><span>{label}</span></div>;
 }

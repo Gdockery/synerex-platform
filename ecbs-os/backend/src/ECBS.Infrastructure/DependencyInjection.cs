@@ -28,9 +28,11 @@ public static class DependencyInjection
             provider.GetRequiredService<EcbsDbContext>());
 
         services.AddScoped<IAlarmEventsDataService, TrackingAlarmEventsDataService>();
+        services.AddScoped<IAnalysisDataService, TrackingAnalysisDataService>();
         services.AddScoped<ICapacityIntelligenceDataService, TrackingCapacityIntelligenceDataService>();
         services.AddScoped<IClientManagementCommandService, EfClientManagementCommandService>();
         services.AddScoped<IClientManagementDataService, TrackingClientManagementDataService>();
+        services.AddScoped<IDeploymentCompletionDataService, EfDeploymentCompletionDataService>();
 
         return services;
     }
