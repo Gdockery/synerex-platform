@@ -1,0 +1,65 @@
+{
+  "name": "Devices Detail Job Costing",
+  "apiGets": [
+    {
+      "name": "devices shared payload",
+      "path": "/api/v1/devices",
+      "status": 200,
+      "expectJson": [
+        { "path": "state", "exists": true },
+        { "path": "devices.0.name", "exists": true }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "name": "job costing payments invoices",
+      "path": "/devices/switches/devices-switches-job-costing-payments-invoices",
+      "status": 200,
+      "expectText": ["Payments", "Invoices", "No Data"]
+    },
+    {
+      "name": "job costing production time",
+      "path": "/devices/switches/devices-switches-job-costing-production-time",
+      "status": 200,
+      "expectText": ["Production Time", "No Data"]
+    },
+    {
+      "name": "job costing reports",
+      "path": "/devices/switches/devices-switches-job-costing-reports",
+      "status": 200,
+      "expectText": ["Job Costing Reports", "No Data"]
+    },
+    {
+      "name": "devices switches",
+      "path": "/devices/switches/devices-switches2",
+      "status": 200,
+      "expectText": ["Switches", "No Data"]
+    },
+    {
+      "name": "gateway detail",
+      "path": "/devices/gateways/detail",
+      "status": 200,
+      "expectText": ["Gateway Detail", "No Data"]
+    },
+    {
+      "name": "meter detail",
+      "path": "/devices/meters/detail",
+      "status": 200,
+      "expectText": ["Meter Detail", "No Data"]
+    },
+    {
+      "name": "repeater detail",
+      "path": "/devices/repeaters/detail",
+      "status": 200,
+      "expectText": ["Repeater Detail", "No approved repeater model"]
+    },
+    {
+      "name": "switch detail",
+      "path": "/devices/switches/switch-detail-page",
+      "status": 200,
+      "expectText": ["Switch Detail", "No Data"]
+    }
+  ]
+}
+

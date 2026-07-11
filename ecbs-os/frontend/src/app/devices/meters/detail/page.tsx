@@ -1,5 +1,10 @@
 import { DeviceScreen } from "@/components/ecbs/DeviceHealthDetailScreen";
+import { getDevicesDataFromApi } from "@/lib/ecbsApi";
 
-export default function MeterDetailPage() {
-  return <DeviceScreen variant="meterDetail" />;
+export const dynamic = "force-dynamic";
+
+export default async function MeterDetailPage() {
+  const data = await getDevicesDataFromApi();
+
+  return <DeviceScreen data={data} variant="meterDetail" />;
 }

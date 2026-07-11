@@ -29,11 +29,11 @@ export function DeviceScreen({ data, variant }: { data?: DevicesData; variant: D
   if (variant === "commissioning") return <DeviceCommissioningScreen data={data} />;
   if (variant === "commissioningNext") return <CommissioningNextStepsScreen data={data} />;
   if (variant === "jobCosting" || variant === "jobInvoices" || variant === "jobProductionTime" || variant === "jobReports") return <JobCostingScreen data={data} variant={variant} />;
-  if (variant === "gatewayDetail") return <GatewayDetailScreen />;
-  if (variant === "meterDetail") return <MeterDetailScreen />;
-  if (variant === "repeaterDetail") return <RepeaterDetailScreen />;
-  if (variant === "switchDetail") return <SwitchDetailScreen />;
-  if (variant === "switchesList") return <SwitchesInventoryScreen />;
+  if (variant === "gatewayDetail") return <GatewayDetailScreen data={data} />;
+  if (variant === "meterDetail") return <MeterDetailScreen data={data} />;
+  if (variant === "repeaterDetail") return <RepeaterDetailScreen data={data} />;
+  if (variant === "switchDetail") return <SwitchDetailScreen data={data} />;
+  if (variant === "switchesList") return <SwitchesInventoryScreen data={data} />;
 
   const summaryKind = variant === "meters" ? "Meter" : variant === "gateways" ? "Gateway" : "Repeater";
   const summary = summaryForKind(data, summaryKind);
@@ -82,7 +82,11 @@ export function DeviceScreen({ data, variant }: { data?: DevicesData; variant: D
   );
 }
 
-function SwitchesInventoryScreen() {
+function SwitchesInventoryScreen({ data }: { data?: DevicesData }) {
+  const summary = summaryForKind(data, "Switch");
+  const onlinePct = percentage(summary.online, summary.total);
+  const warningPct = percentage(summary.warning, summary.total);
+  const offlinePct = percentage(summary.offline, summary.total);
   return (
     <EcbsAppShell activeHref="/devices/switches">
       <PortalFrame active="Switches">
@@ -92,52 +96,25 @@ function SwitchesInventoryScreen() {
         </div>
         <div className="flex h-[34px] gap-9 border-b border-cyan-300/10 text-[10px]"><span className="border-b-2 border-[#05ff5e] text-[#05ff5e]">▣ Device Control</span><span>▣ Device Scheduling</span><span>⚙ Commissioning & Testing</span><span>▧ Production Time</span><span>♙ Job Costing</span><span>Logs</span></div>
         <section className="mt-2 grid h-[92px] grid-cols-6 gap-2">
-          <Kpi title="Total Switches" value="24" detail="View All Switches ->" tone="cyan" icon="gear" />
-          <Kpi title="Online" value="21" detail="87.5%" tone="green" icon="shield" />
-          <Kpi title="Warning" value="2" detail="8.3%" tone="yellow" icon="warning" />
-          <Kpi title="Offline" value="1" detail="4.2%" tone="red" icon="warning" />
-          <Kpi title="Health Score (Avg)" value="90" detail="Excellent" tone="purple" icon="wave" />
-          <Kpi title="Firmware Up To Date" value="96%" detail="23 of 24" tone="cyan" icon="gear" />
+          <Kpi title="Total Switches" value={summary.total > 0 ? String(summary.total) : "No Data"} detail="View All Switches ->" tone="cyan" icon="gear" />
+          <Kpi title="Online" value={summary.total > 0 ? String(summary.online) : "No Data"} detail={onlinePct} tone="green" icon="shield" />
+          <Kpi title="Warning" value={summary.total > 0 ? String(summary.warning) : "No Data"} detail={warningPct} tone="yellow" icon="warning" />
+          <Kpi title="Offline" value={summary.total > 0 ? String(summary.offline) : "No Data"} detail={offlinePct} tone="red" icon="warning" />
+          <Kpi title="Health Score (Avg)" value="No Data" detail="No approved health model" tone="purple" icon="wave" />
+          <Kpi title="Firmware Up To Date" value="No Data" detail="No approved firmware model" tone="cyan" icon="gear" />
         </section>
         <section className="mt-2 grid min-h-0 flex-1 grid-cols-[1.45fr_0.62fr] gap-2">
-          <DashboardPanel title="Switches at Flex Tijuana (24)" variant="enterprise"><SwitchesInventoryTable /></DashboardPanel>
+          <DashboardPanel title={`Switches at Flex Tijuana (${summary.total > 0 ? summary.total : "No Data"})`} variant="enterprise"><DeviceListTable data={data} variant="switchesList" model="ECBS Switch" /></DashboardPanel>
           <div className="space-y-2 overflow-hidden">
-            <DashboardPanel title="Switch Status" variant="enterprise"><DonutSummary total="24" rows={[["Online", "21 (87.5%)"], ["Warning", "2 (8.3%)"], ["Offline", "1 (4.2%)"]]} /></DashboardPanel>
-            <DashboardPanel title="Switch Health Distribution" variant="enterprise"><DonutSummary total="24" rows={[["Excellent (90-100)", "14 (58.3%)"], ["Good (70-89)", "7 (29.2%)"], ["Fair (50-69)", "2 (8.3%)"], ["Poor (<50)", "1 (4.2%)"]]} /></DashboardPanel>
-            <DashboardPanel title="Firmware Status" variant="enterprise"><DonutSummary total="24" rows={[["Up To Date", "23 (95.8%)"], ["Update Available", "1 (4.2%)"], ["Unknown", "0 (0%)"]]} /></DashboardPanel>
-            <DashboardPanel action="View All ->" title="Recent Switch Alerts" variant="enterprise"><SwitchAlerts /></DashboardPanel>
+            <DashboardPanel title="Switch Status" variant="enterprise"><DonutSummary total={summary.total > 0 ? String(summary.total) : "No Data"} rows={statusRows(summary, "Switch")} /></DashboardPanel>
+            <DashboardPanel title="Switch Health Distribution" variant="enterprise"><DonutSummary total={summary.total > 0 ? String(summary.total) : "No Data"} rows={noDataRows("No approved health model")} /></DashboardPanel>
+            <DashboardPanel title="Firmware Status" variant="enterprise"><DonutSummary total={summary.total > 0 ? String(summary.total) : "No Data"} rows={noDataRows("No approved firmware model")} /></DashboardPanel>
+            <DashboardPanel action="View All ->" title="Recent Switch Alerts" variant="enterprise"><MetricList rows={noDataRows("No approved device alert source")} /></DashboardPanel>
           </div>
         </section>
       </PortalFrame>
     </EcbsAppShell>
   );
-}
-
-function SwitchesInventoryTable() {
-  const rows: Array<[string, string, string, string, string, string, boolean]> = [
-    ["SW-MAIN-01", "Air Circuit Breaker", "Main Switchgear MSB", "Online", "96", "Auto (Always On)", true],
-    ["SW-MAIN-02", "Molded Case Switch", "Substation A", "Online", "94", "Auto (Always On)", true],
-    ["SW-FEEDER-01", "Molded Case Switch", "Feeder A", "Online", "92", "Auto (Time Schedule)", true],
-    ["SW-FEEDER-02", "Molded Case Switch", "Feeder B", "Online", "90", "Auto (Utility Based)", true],
-    ["SW-PANEL-D1", "Disconnect Switch", "Panel D1", "Online", "91", "Monitor (Always On)", false],
-    ["SW-PANEL-A1", "Disconnect Switch", "Panel A1", "Warning", "72", "Monitor (Always On)", false],
-    ["SW-PANEL-A2", "Disconnect Switch", "Panel A2", "Online", "93", "Monitor (Always On)", false],
-    ["SW-PANEL-B1", "Molded Case Switch", "Panel B1", "Online", "89", "Monitor (Always On)", false],
-    ["SW-TRANS-01", "Transfer Switch", "Main Transformer", "Online", "95", "Auto (Always On)", false],
-    ["SW-TRANS-02", "Transfer Switch", "Backup Transformer", "Offline", "0", "Monitor (Always Off)", false],
-    ["SW-ATS-01", "Automatic Transfer Switch", "Generator ATS", "Online", "94", "Auto (Time Schedule)", false],
-    ["SW-UPS-01", "Static Switch", "UPS System", "Online", "93", "Auto (Always On)", false],
-  ];
-  return <div className="text-[9px]"><div className="mb-3 flex justify-end gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Group by: Type⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-3">☷</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-3">▦</button></div><table className="w-full text-left"><thead className="text-slate-500"><tr>{["", "Switch Name", "Type", "Location / Asset", "Status", "Health Score", "Current Mode", "Actions"].map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map(([name, type, location, status, health, mode, checked], index) => <tr className="border-t border-white/5" key={`${String(name)}-${index}`}><td className="py-[6px]"><span className={checked ? "grid size-4 place-items-center rounded bg-[#22c55e] text-[#02100a]" : "grid size-4 rounded border border-slate-600"}>{checked ? "✓" : ""}</span></td><td className="py-[6px]"><span className={status === "Offline" ? "mr-2 inline-grid size-4 place-items-center rounded border border-red-400 text-red-400" : "mr-2 inline-grid size-4 place-items-center rounded border border-[#05ff5e] text-[#05ff5e]"}>▣</span><span className="text-cyan-300">{name}</span>{index === 0 ? <span className="ml-2 text-yellow-300">★</span> : null}</td><td>{type}</td><td>{location}</td><td className={status === "Online" ? "text-[#05ff5e]" : status === "Warning" ? "text-yellow-300" : "text-red-400"}>● {status}</td><td><span className="inline-flex items-center gap-3"><span>{health}</span><span className="inline-block h-1.5 w-14 rounded bg-slate-800"><span className={status === "Warning" ? "block h-1.5 rounded bg-yellow-400" : status === "Offline" ? "block h-1.5 rounded bg-slate-700" : "block h-1.5 rounded bg-[#22c55e]"} style={{ width: `${health}%` }} /></span></span></td><td><span className={mode.startsWith("Auto") ? "rounded border border-[#05ff5e]/40 bg-[#063b27] px-2 py-1 text-[8px] text-[#05ff5e]" : "rounded border border-slate-500/40 bg-slate-900 px-2 py-1 text-[8px] text-slate-300"}>{mode}</span></td><td className="text-slate-300">↻ &nbsp; ▣ &nbsp; ⓘ &nbsp; ⋮</td></tr>)}</tbody></table><div className="mt-5 flex justify-between text-[9px] text-slate-400"><span>Showing 1 to 12 of 24 switches</span><span>‹ &nbsp; <b className="rounded border border-[#05ff5e] px-3 py-2 text-[#05ff5e]">1</b> &nbsp; 2 &nbsp; ›</span></div></div>;
-}
-
-function SwitchAlerts() {
-  const rows = [
-    ["△", "text-yellow-300", "SW-PANEL-A1 (Panel A1)", "High Temperature Detected", "5 min ago"],
-    ["×", "text-red-400", "SW-TRANS-02 (Backup Transformer)", "Switch Offline", "2 hrs ago"],
-    ["✓", "text-[#05ff5e]", "SW-MAIN-01 (Main Switchgear MSB)", "Maintenance Test Completed", "15 hrs ago"],
-  ];
-  return <div className="space-y-2 text-[9px]">{rows.map(([icon, color, title, detail, time]) => <div className="grid grid-cols-[18px_1fr_auto] items-start gap-2 border-b border-white/5 pb-1.5" key={title}><span className={`grid size-4 place-items-center rounded-full border border-current ${color}`}>{icon}</span><span><b className="block text-slate-200">{title}</b><span className="text-[8px] text-slate-500">{detail}</span></span><b className="text-[8px] text-slate-300">{time}</b></div>)}</div>;
 }
 
 function PortalFrame({ active, children }: { active: string; children: ReactNode }) {
@@ -190,11 +167,8 @@ function CostCenterTable() {
   return <table className="w-full text-left text-[8.5px]"><thead className="text-slate-500"><tr>{headers.map((header) => <th className="pb-1.5 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}>{row.map((cell, index) => <td className={row[0] === "TOTAL" ? "py-[3.5px] font-semibold text-slate-100" : index === 0 ? "py-[3.5px] text-slate-300" : "py-[3.5px] text-slate-300"} key={`${row[0]}-${index}`}>{cell}</td>)}</tr>)}</tbody></table>;
 }
 
-function TrendChart() {
-  return <div className="h-full"><svg className="h-[118px] w-full" viewBox="0 0 420 120"><g stroke="rgba(148,163,184,.18)" strokeWidth="1">{[20, 45, 70, 95].map((y) => <line key={y} x1="0" x2="420" y1={y} y2={y} />)}</g><polyline fill="none" points="0,82 38,58 76,63 114,72 152,52 190,47 228,24 266,36 304,50 342,38 380,50 420,41" stroke="#22c55e" strokeWidth="2" /><polyline fill="none" points="0,70 38,46 76,48 114,55 152,38 190,36 228,22 266,34 304,41 342,28 380,42 420,35" stroke="#147dff" strokeWidth="2" /><polyline fill="none" points="0,78 38,54 76,57 114,62 152,46 190,44 228,31 266,42 304,47 342,35 380,46 420,40" stroke="#f59e0b" strokeWidth="2" /></svg><div className="flex justify-between text-[8px] text-slate-400"><span>May 1</span><span>May 3</span><span>May 5</span><span>May 7</span><span>May 9</span><span>May 11</span></div></div>;
-}
-
-function GatewayDetailScreen() {
+function GatewayDetailScreen({ data }: { data?: DevicesData }) {
+  const device = selectedDevice(data, "Gateway");
   return (
     <EcbsAppShell activeHref="/devices/gateways">
       <div className="flex h-full min-h-0 flex-col px-3 py-2">
@@ -203,15 +177,15 @@ function GatewayDetailScreen() {
           <div className="flex items-center gap-3 text-[9px]"><button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1 text-left"><span className="block text-[7px] text-slate-500">Client</span>Flex Ltd.</button><button className="rounded border border-slate-700 bg-[#061421] px-4 py-2">▣ May 18, 2025 10:15 AM CDT⌄</button><span className="text-[#05ff5e]">● Live</span><span className="text-red-400">♢</span><span className="text-slate-400">?</span><span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span><span>John Smith<br /><span className="text-slate-400">OEM Admin</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[70px] items-center justify-between">
-          <div><div className="text-[10px] text-slate-400">Home › Devices › Gateways › GWF-00125</div><h1 className="mt-1 text-xl font-light">Gateway Detail <span className="rounded-full bg-[#063b27] px-2 py-0.5 text-[9px] text-[#05ff5e]">Online</span></h1><p className="mt-1 text-[9px] text-slate-400">Gateway ID: GWF-00125 &nbsp; | &nbsp; Model: XECO Gateway Pro 2.0 &nbsp; | &nbsp; Firmware: v2.3.8 &nbsp; | &nbsp; Last Seen: May 18, 2025 10:14:58 AM CDT</p></div>
+          <div><div className="text-[10px] text-slate-400">Home › Devices › Gateways › {device.name}</div><h1 className="mt-1 text-xl font-light">Gateway Detail <span className="rounded-full bg-[#063b27] px-2 py-0.5 text-[9px] text-[#05ff5e]">{device.status}</span></h1><p className="mt-1 text-[9px] text-slate-400">Gateway ID: {device.name} &nbsp; | &nbsp; Model: No Data &nbsp; | &nbsp; Firmware: {device.firmware} &nbsp; | &nbsp; Last Seen: {device.lastSeen}</p></div>
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Gateways</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">↻ Restart Gateway</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Update Firmware</button><button className="rounded bg-[#1463ff] px-4 py-2">⚙ Configure</button></div>
         </div>
-        <section className="grid h-[84px] grid-cols-6 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3 text-[9px]"><Info label="Site" value="Flex Tijuana Manufacturing" /><Info label="Location" value="Main Electrical Room" /><Info label="IP Address" value="10.20.15.25" /><Info label="MAC Address" value="00:1A:2B:3C:4D:5E" /><Info label="Uptime" value="23d 14h 42m 18s" /><Info label="Data Transmission" value="Good  ▂▅▇" /></section>
+        <section className="grid h-[84px] grid-cols-6 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3 text-[9px]"><Info label="Site" value="No Data" /><Info label="Location" value={device.location} /><Info label="IP Address" value="No Data" /><Info label="MAC Address" value="No Data" /><Info label="Uptime" value="No Data" /><Info label="Data Transmission" value="No Data" /></section>
         <div className="flex h-[44px] items-end gap-9 border-b border-cyan-300/10 text-[10px]"><span className="border-b-2 border-[#05ff5e] pb-2 text-[#05ff5e]">Overview</span><span>Meters (12)</span><span>Connectivity</span><span>Performance</span><span>Data & Storage</span><span>Events</span><span>Alerts</span><span>Configuration</span><span>Log Files</span></div>
         <section className="mt-2 grid h-[502px] min-h-0 grid-cols-[0.78fr_0.92fr_1.45fr_0.92fr] gap-2">
           <div className="grid min-h-0 grid-rows-[1fr_174px] gap-2 overflow-hidden">
-            <DashboardPanel title="Gateway Status" variant="enterprise"><MetricList rows={[["Overall Status", "Online"], ["Power", "Normal"], ["Internet Connection", "Connected"], ["Data Collection", "Active"], ["Time Sync", "Synchronized"], ["Temperature", "42 °C / 107.6 °F"], ["CPU Usage", "18%"], ["Memory Usage", "42%"], ["Disk Usage", "31% (28 GB / 90 GB)"]]} /></DashboardPanel>
-            <DashboardPanel title="Connected Meters" variant="enterprise"><DonutSummary total="12" rows={[["Online", "12 (100%)"], ["Offline", "0 (0%)"], ["Warning", "0 (0%)"], ["Unknown", "0 (0%)"]]} /><div className="mt-1 text-[9px] text-[#29b6f6]">View All Meters →</div></DashboardPanel>
+            <DashboardPanel title="Gateway Status" variant="enterprise"><MetricList rows={[["Overall Status", device.status], ["Power", "No Data"], ["Internet Connection", "No Data"], ["Data Collection", "No Data"], ["Time Sync", "No Data"], ["Temperature", "No Data"], ["CPU Usage", "No Data"], ["Memory Usage", "No Data"], ["Disk Usage", "No Data"]]} /></DashboardPanel>
+            <DashboardPanel title="Connected Meters" variant="enterprise"><DonutSummary total="No Data" rows={noDataRows("No approved gateway-to-meter mapping exists.")} /><div className="mt-1 text-[9px] text-[#29b6f6]">View All Meters →</div></DashboardPanel>
           </div>
           <div className="grid min-h-0 grid-rows-[1fr_174px] gap-2 overflow-hidden">
             <DashboardPanel title="Connectivity" variant="enterprise"><GatewayConnectivity /></DashboardPanel>
@@ -222,7 +196,7 @@ function GatewayDetailScreen() {
             <DashboardPanel title="Performance (Last 7 Days)" variant="enterprise"><GatewayPerformance /></DashboardPanel>
           </div>
           <div className="grid min-h-0 grid-rows-[1fr_174px] gap-2 overflow-hidden">
-            <DashboardPanel action="Edit" title="Gateway Information" variant="enterprise"><MetricList rows={[["Model", "XECO Gateway Pro 2.0"], ["Serial Number", "XGW2-00125-5E4D3CB1A00"], ["Hardware Revision", "Rev B"], ["Firmware Version", "v2.3.8 (Latest)"], ["Bootloader Version", "v1.1.5"], ["Time Zone", "America/Mexico_City (PDT)"], ["Time Server", "time.xecoenergy.com"], ["Installed On", "Apr 24, 2025 8:30 AM"], ["Installed By", "XECO Engineering Team"], ["Notes", "Main gateway for Flex Tijuana site"]]} /></DashboardPanel>
+            <DashboardPanel action="Edit" title="Gateway Information" variant="enterprise"><MetricList rows={[["Model", "No Data"], ["Serial Number", device.serialNumber], ["Hardware Revision", "No Data"], ["Firmware Version", device.firmware], ["Bootloader Version", "No Data"], ["Time Zone", "No Data"], ["Time Server", "No Data"], ["Installed On", "No Data"], ["Installed By", "No Data"], ["Notes", "No Data"]]} /></DashboardPanel>
             <DashboardPanel title="Actions" variant="enterprise"><MetricList rows={[["Restart Gateway", ""], ["Update Firmware", ""], ["Backup Configuration", ""], ["Export Gateway Diagnostics", ""], ["Remove Gateway", ""]]} /></DashboardPanel>
           </div>
         </section>
@@ -233,23 +207,25 @@ function GatewayDetailScreen() {
 }
 
 function GatewayConnectivity() {
-  return <div className="space-y-4 text-[9px]"><div><div className="mb-2 text-slate-400">Primary Connection</div><div className="rounded border border-cyan-300/12 bg-[#061421] p-3"><b className="text-[#05ff5e]">▰ Ethernet (LAN)</b><br /><span className="text-[#05ff5e]">1000 Mbps Full Duplex</span><div className="mt-3 grid grid-cols-2 gap-y-2"><span>IP Address</span><b>10.20.15.25</b><span>Gateway</span><b>10.20.15.1</b><span>DNS</span><b>10.20.10.53</b></div></div></div><div><div className="mb-2 text-slate-400">Secondary Connection (Failover)</div><div className="rounded border border-cyan-300/12 bg-[#061421] p-3"><b>▰ Cellular LTE</b><br /><span className="text-[#05ff5e]">Signal: -67 dBm (Good)</span><div className="mt-3 grid grid-cols-2"><span>IP</span><b>100.64.12.18</b></div></div></div></div>;
+  return <div className="space-y-4 text-[9px]"><div><div className="mb-2 text-slate-400">Primary Connection</div><div className="rounded border border-cyan-300/12 bg-[#061421] p-3"><b>No Data</b><br /><span>No approved network configuration source exists.</span><div className="mt-3 grid grid-cols-2 gap-y-2"><span>IP Address</span><b>No Data</b><span>Gateway</span><b>No Data</b><span>DNS</span><b>No Data</b></div></div></div><div><div className="mb-2 text-slate-400">Secondary Connection (Failover)</div><div className="rounded border border-cyan-300/12 bg-[#061421] p-3"><b>No Data</b><br /><span>Signal: No Data</span><div className="mt-3 grid grid-cols-2"><span>IP</span><b>No Data</b></div></div></div></div>;
 }
 
 function GatewayEvents() {
-  const rows = [["●", "Gateway Online", "May 18, 2025 9:52 AM"], ["●", "Configuration Updated", "May 17, 2025 11:43 PM"], ["●", "Firmware Check Completed", "May 17, 2025 11:43 PM"], ["●", "High Temperature Warning", "May 17, 2025 2:15 PM"], ["●", "Gateway Online", "May 16, 2025 10:02 AM"]];
+  const rows = [["●", "No Data", "No approved device event source"]];
   return <div className="space-y-2 text-[9px]">{rows.map(([dot, event, time], index) => <div className="grid grid-cols-[16px_1fr_auto] border-b border-white/5 pb-1.5" key={`${event}-${time}`}><span className={index === 2 ? "text-blue-400" : index === 3 ? "text-yellow-400" : "text-[#05ff5e]"}>{dot}</span><span>{event}</span><b className="text-slate-400">{time}</b></div>)}</div>;
 }
 
 function GatewayDataFlow() {
-  return <div className="h-full"><div className="mb-1 flex justify-end gap-2 text-[8px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-1">Last 24 Hours⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-2">⛶</button></div><TrendChart /><div className="grid grid-cols-4 gap-3 text-[9px]"><Info label="Total Data In" value="12.45 GB" /><Info label="Total Data Out" value="3.21 GB" /><Info label="Avg In Rate" value="531 MB/hr" /><Info label="Avg Out Rate" value="134 MB/hr" /></div></div>;
+  return <div className="h-full"><div className="mb-1 flex justify-end gap-2 text-[8px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-1">Last 24 Hours⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-2">⛶</button></div><NoDataChartBlock label="No approved gateway data-flow source exists." /><div className="grid grid-cols-4 gap-3 text-[9px]"><Info label="Total Data In" value="No Data" /><Info label="Total Data Out" value="No Data" /><Info label="Avg In Rate" value="No Data" /><Info label="Avg Out Rate" value="No Data" /></div></div>;
 }
 
 function GatewayPerformance() {
-  return <div className="h-full"><div className="grid grid-cols-5 gap-2 text-[9px]"><Info label="CPU Usage (Avg.)" value="18%" /><Info label="Memory Usage (Avg.)" value="42%" /><Info label="Temperature (Avg.)" value="42 °C" /><Info label="Data Collection Success" value="99.8%" /><Info label="Packet Loss (Avg.)" value="0.12%" /></div><div className="mt-2"><HealthChart /></div></div>;
+  return <div className="h-full"><div className="grid grid-cols-5 gap-2 text-[9px]"><Info label="CPU Usage (Avg.)" value="No Data" /><Info label="Memory Usage (Avg.)" value="No Data" /><Info label="Temperature (Avg.)" value="No Data" /><Info label="Data Collection Success" value="No Data" /><Info label="Packet Loss (Avg.)" value="No Data" /></div><div className="mt-2"><NoDataChartBlock label="No approved gateway performance source exists." /></div></div>;
 }
 
-function MeterDetailScreen() {
+function MeterDetailScreen({ data }: { data?: DevicesData }) {
+  const device = selectedDevice(data, "Meter");
+  const telemetry = data?.telemetry ?? emptyTelemetry();
   return (
     <EcbsAppShell activeHref="/devices/meters">
       <div className="flex h-full min-h-0 flex-col px-3 py-2">
@@ -258,21 +234,21 @@ function MeterDetailScreen() {
           <div className="flex items-center gap-3 text-[9px]"><button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1 text-left"><span className="block text-[7px] text-slate-500">Client</span>Flex Ltd.</button><button className="rounded border border-slate-700 bg-[#061421] px-4 py-2">▣ May 18, 2025 10:15 AM CDT⌄</button><span className="text-[#05ff5e]">● Live</span><span className="text-red-400">♢</span><span className="text-slate-400">?</span><span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span><span>John Smith<br /><span className="text-slate-400">OEM Admin</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[70px] items-center justify-between">
-          <div><div className="text-[10px] text-slate-400">Home › Devices › Meters › MTR-000125</div><h1 className="mt-1 text-xl font-light">Meter Detail <span className="rounded-full bg-[#063b27] px-2 py-0.5 text-[9px] text-[#05ff5e]">Online</span></h1><p className="mt-1 text-[9px] text-slate-400">Meter ID: MTR-000125 &nbsp; | &nbsp; Model: Dent Instruments PS3HD &nbsp; | &nbsp; Serial Number: PS3HD-542881 &nbsp; | &nbsp; Firmware: v3.14 &nbsp; | &nbsp; Last Seen: May 18, 2025 10:14:58 AM CDT</p></div>
+          <div><div className="text-[10px] text-slate-400">Home › Devices › Meters › {device.name}</div><h1 className="mt-1 text-xl font-light">Meter Detail <span className="rounded-full bg-[#063b27] px-2 py-0.5 text-[9px] text-[#05ff5e]">{device.status}</span></h1><p className="mt-1 text-[9px] text-slate-400">Meter ID: {device.name} &nbsp; | &nbsp; Model: No Data &nbsp; | &nbsp; Serial Number: {device.serialNumber} &nbsp; | &nbsp; Firmware: {device.firmware} &nbsp; | &nbsp; Last Seen: {device.lastSeen}</p></div>
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Meters</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Data⌄</button><button className="rounded bg-[#1463ff] px-4 py-2">⚙ Configure Meter</button></div>
         </div>
-        <section className="grid h-[84px] grid-cols-5 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3 text-[9px]"><Info label="Site" value="Flex Tijuana Manufacturing" /><Info label="Location" value="Main Electrical Room" /><Info label="Electrical Network" value="TXFR-01 / Main Incoming" /><Info label="Gateway" value="GWF-00125  Online" /><Info label="Meter Type" value="Revenue (4-Quadrant) ⓘ" /></section>
+        <section className="grid h-[84px] grid-cols-5 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3 text-[9px]"><Info label="Site" value="No Data" /><Info label="Location" value={device.location} /><Info label="Electrical Network" value="No Data" /><Info label="Gateway" value="No Data" /><Info label="Meter Type" value={device.kind} /></section>
         <div className="flex h-[44px] items-end gap-9 border-b border-cyan-300/10 text-[10px]"><span className="bg-[#082039] px-5 py-2 text-slate-100">Overview</span><span>Real-Time</span><span>Historical Data</span><span>Power Quality</span><span>Energy</span><span>Events</span><span>Alarms</span><span>Configuration</span><span>Log Files</span></div>
         <section className="mt-2 grid h-[598px] min-h-0 grid-cols-[0.88fr_1fr_0.72fr_0.86fr] grid-rows-[226px_180px_176px] gap-2 overflow-hidden">
           <DashboardPanel action="Edit" className="min-h-0" title="Meter Status" variant="enterprise"><MeterStatusList /></DashboardPanel>
-          <DashboardPanel className="min-h-0" title="Real-Time Electrical Values" variant="enterprise"><MeterRealTimeValues /></DashboardPanel>
-          <DashboardPanel className="min-h-0" title="Power Factor" variant="enterprise"><MeterPowerFactor /></DashboardPanel>
-          <DashboardPanel className="min-h-0" title="Energy Summary (Today)" variant="enterprise"><MeterEnergySummary /></DashboardPanel>
+          <DashboardPanel className="min-h-0" title="Real-Time Electrical Values" variant="enterprise"><MeterRealTimeValues telemetry={telemetry} /></DashboardPanel>
+          <DashboardPanel className="min-h-0" title="Power Factor" variant="enterprise"><MeterPowerFactor value={telemetry.powerFactor} /></DashboardPanel>
+          <DashboardPanel className="min-h-0" title="Energy Summary (Today)" variant="enterprise"><MeterEnergySummary telemetry={telemetry} /></DashboardPanel>
           <DashboardPanel className="col-span-2 min-h-0" title="Load Trend (Last 24 Hours)" variant="enterprise"><MeterLoadTrend /></DashboardPanel>
           <DashboardPanel className="min-h-0" title="Harmonic Distortion (THD)" variant="enterprise"><MeterThd /></DashboardPanel>
           <DashboardPanel className="min-h-0" title="Demand (3-Hour Rolling)" variant="enterprise"><MeterDemand /></DashboardPanel>
           <DashboardPanel action="View All Events ->" className="col-span-2 min-h-0" title="Recent Events" variant="enterprise"><MeterEvents /></DashboardPanel>
-          <DashboardPanel action="Edit" className="min-h-0" title="Meter Information" variant="enterprise"><MeterInformation /></DashboardPanel>
+          <DashboardPanel action="Edit" className="min-h-0" title="Meter Information" variant="enterprise"><MeterInformation device={device} /></DashboardPanel>
           <DashboardPanel className="min-h-0" title="Actions" variant="enterprise"><MeterActions /></DashboardPanel>
         </section>
         <footer className="mt-2 flex h-[30px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM CDT &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
@@ -281,12 +257,12 @@ function MeterDetailScreen() {
   );
 }
 
-function MeterRealTimeValues() {
-  return <div className="text-[8.5px]"><div className="mb-1 text-slate-400">10:15:00 AM CDT</div><MeterMiniTable headers={["Parameter", "L1", "L2", "L3", "Total"]} rows={[["Voltage (V)", "480.1", "479.5", "480.3", "—"], ["Current (A)", "512.3", "498.7", "505.2", "—"], ["kW", "238.6", "231.7", "242.9", "713.2"], ["kVA", "289.1", "283.6", "291.4", "864.1"], ["kVAR", "164.2", "163.5", "164.0", "491.7"], ["Power Factor", "0.83", "0.82", "0.83", "0.83"], ["Frequency (Hz)", "60.02", "60.01", "60.01", "60.01"]]} /><div className="mt-1 text-[9px] text-[#29b6f6]">View Real-Time →</div></div>;
+function MeterRealTimeValues({ telemetry }: { telemetry: DevicesData["telemetry"] }) {
+  return <div className="text-[8.5px]"><div className="mb-1 text-slate-400">{telemetry.timestamp}</div><MeterMiniTable headers={["Parameter", "L1", "L2", "L3", "Total"]} rows={[["Voltage (V)", "No Data", "No Data", "No Data", "No Data"], ["Current (A)", "No Data", "No Data", "No Data", "No Data"], ["kW", "No Data", "No Data", "No Data", telemetry.kilowatts], ["kVA", "No Data", "No Data", "No Data", telemetry.kilovoltAmps], ["kVAR", "No Data", "No Data", "No Data", "No Data"], ["Power Factor", "No Data", "No Data", "No Data", telemetry.powerFactor], ["Frequency (Hz)", "No Data", "No Data", "No Data", "No Data"]]} /><div className="mt-1 text-[9px] text-[#29b6f6]">View Real-Time →</div></div>;
 }
 
 function MeterStatusList() {
-  const rows = [["Overall Status", "Online"], ["Power", "Normal"], ["Communication", "Connected"], ["Data Collection", "Active"], ["Time Sync", "Synchronized"], ["Battery", "Good"], ["Temperature", "41 °C / 105.8 °F"], ["CT Ratio", "800 / 5"], ["VT Ratio", "480 / 480"], ["Nominal Voltage", "480Y/277 VAC, 3Ø 4W"], ["Nominal Frequency", "60 Hz"]];
+  const rows = [["Overall Status", "No Data"], ["Power", "No Data"], ["Communication", "No Data"], ["Data Collection", "No Data"], ["Time Sync", "No Data"], ["Battery", "No Data"], ["Temperature", "No Data"], ["CT Ratio", "No Data"], ["VT Ratio", "No Data"], ["Nominal Voltage", "No Data"], ["Nominal Frequency", "No Data"]];
   return <div className="space-y-[3px] text-[8.5px]">{rows.map(([label, value], index) => <div className="flex justify-between border-b border-white/5 pb-[2px]" key={label}><span className="text-slate-300">{index < 6 ? "◎ " : ""}{label}</span><b className={index < 6 ? "text-[#05ff5e]" : "text-slate-200"}>{value}</b></div>)}</div>;
 }
 
@@ -294,12 +270,12 @@ function MeterMiniTable({ headers, rows }: { headers: string[]; rows: string[][]
   return <table className="w-full text-left text-[8.5px]"><thead className="text-slate-500"><tr>{headers.map((header) => <th className="pb-1.5 font-normal" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}>{row.map((cell, index) => <td className={index === 0 ? "py-[4px] text-slate-300" : "py-[4px] text-slate-200"} key={`${row[0]}-${index}`}>{cell}</td>)}</tr>)}</tbody></table>;
 }
 
-function MeterPowerFactor() {
-  return <div className="grid h-full place-items-center text-center"><div className="relative h-[120px] w-[190px]"><div className="absolute left-0 right-0 top-5 mx-auto h-[95px] w-[170px] rounded-t-full border-[14px] border-b-0 border-[#22c55e]" style={{ borderLeftColor: "#ff3b30", borderTopColor: "#ffb000" }} /><div className="absolute bottom-1 left-0 right-0 text-3xl text-slate-100">0.83</div><div className="absolute bottom-[-14px] left-0 right-0 text-[10px] text-slate-300">Lagging</div></div><div className="text-[9px] text-slate-300">Target PF: 0.95 (Lagging)</div><div className="text-[9px] text-yellow-300">Below target by 0.12</div></div>;
+function MeterPowerFactor({ value }: { value: string }) {
+  return <div className="grid h-full place-items-center text-center"><div className="relative h-[120px] w-[190px]"><div className="absolute left-0 right-0 top-5 mx-auto h-[95px] w-[170px] rounded-t-full border-[14px] border-b-0 border-[#22c55e]" style={{ borderLeftColor: "#334155", borderTopColor: "#334155" }} /><div className="absolute bottom-1 left-0 right-0 text-3xl text-slate-100">{value}</div><div className="absolute bottom-[-14px] left-0 right-0 text-[10px] text-slate-300">No Data</div></div><div className="text-[9px] text-slate-300">Target PF: No Data</div><div className="text-[9px] text-yellow-300">No approved target/compliance model</div></div>;
 }
 
-function MeterEnergySummary() {
-  return <div className="space-y-2 text-[8.5px]"><CompactMeterRows rows={[["Active Energy (kWh)", "5,128.6"], ["Reactive Energy (kVARh)", "3,482.7"], ["Apparent Energy (kVAh)", "6,192.3"], ["Import (kWh)", "5,128.6"], ["Export (kWh)", "0.0"]]} /><div><div className="mb-1 text-[9px] font-semibold">Energy Summary (MTD)</div><CompactMeterRows rows={[["Active Energy (kWh)", "182,450.4"], ["Import (kWh)", "182,450.4"], ["Export (kWh)", "0.0"]]} /></div><div className="text-[#29b6f6]">View Energy Details →</div></div>;
+function MeterEnergySummary({ telemetry }: { telemetry: DevicesData["telemetry"] }) {
+  return <div className="space-y-2 text-[8.5px]"><CompactMeterRows rows={[["Active Energy (kWh)", telemetry.kilowattHours], ["Reactive Energy (kVARh)", "No Data"], ["Apparent Energy (kVAh)", "No Data"], ["Import (kWh)", "No Data"], ["Export (kWh)", "No Data"]]} /><div><div className="mb-1 text-[9px] font-semibold">Energy Summary (MTD)</div><CompactMeterRows rows={[["Active Energy (kWh)", "No Data"], ["Import (kWh)", "No Data"], ["Export (kWh)", "No Data"]]} /></div><div className="text-[#29b6f6]">View Energy Details →</div></div>;
 }
 
 function CompactMeterRows({ rows }: { rows: [string, string][] }) {
@@ -307,31 +283,32 @@ function CompactMeterRows({ rows }: { rows: [string, string][] }) {
 }
 
 function MeterLoadTrend() {
-  return <div className="h-full"><div className="mb-1 flex items-center justify-between text-[8px] text-slate-400"><span className="text-[#29b6f6]">━ kW &nbsp; <b className="text-yellow-300">━ kVA</b> &nbsp; <b className="text-[#22c55e]">━ kVAR</b> &nbsp; <b className="text-purple-400">━ PF</b></span><span>24 Hours⌄</span></div><svg className="h-[126px] w-full" viewBox="0 0 360 126"><g stroke="rgba(148,163,184,.18)" strokeWidth="1">{[20, 46, 72, 98].map((y) => <line key={y} x1="22" x2="350" y1={y} y2={y} />)}</g><polyline fill="none" points="22,80 54,69 86,70 118,78 150,52 182,74 214,82 246,88 278,86 310,87 350,74" stroke="#147dff" strokeWidth="2" /><polyline fill="none" points="22,68 54,56 86,58 118,64 150,46 182,60 214,64 246,70 278,70 310,72 350,58" stroke="#f59e0b" strokeWidth="2" /><polyline fill="none" points="22,96 54,88 86,92 118,98 150,82 182,90 214,98 246,103 278,102 310,104 350,94" stroke="#22c55e" strokeWidth="2" /><polyline fill="none" points="22,39 54,38 86,39 118,40 150,37 182,39 214,41 246,42 278,40 310,42 350,39" stroke="#a855f7" strokeWidth="2" /></svg><div className="grid grid-cols-4 gap-2 text-[8px]"><Info label="kW" value="1,290" /><Info label="kVA" value="1,536" /><Info label="kVAR" value="712" /><Info label="PF" value="0.83" /></div><div className="mt-1 text-[9px] text-[#29b6f6]">View Historical Data →</div></div>;
+  return <div className="h-full"><div className="mb-1 flex items-center justify-between text-[8px] text-slate-400"><span className="text-[#29b6f6]">━ kW &nbsp; <b className="text-yellow-300">━ kVA</b> &nbsp; <b className="text-[#22c55e]">━ kVAR</b> &nbsp; <b className="text-purple-400">━ PF</b></span><span>24 Hours⌄</span></div><NoDataChartBlock label="No approved meter load trend source exists." /><div className="grid grid-cols-4 gap-2 text-[8px]"><Info label="kW" value="No Data" /><Info label="kVA" value="No Data" /><Info label="kVAR" value="No Data" /><Info label="PF" value="No Data" /></div><div className="mt-1 text-[9px] text-[#29b6f6]">View Historical Data →</div></div>;
 }
 
 function MeterThd() {
-  return <div className="space-y-2 text-[8.5px]"><div className="text-slate-400">10:15:00 AM CDT</div><MeterMiniTable headers={["Parameter", "L1 (%)", "L2 (%)", "L3 (%)", "N (%)"]} rows={[["Voltage THD", "2.4", "2.3", "2.2", "1.8"], ["Current THD", "6.2", "6.1", "6.3", "3.9"], ["Current TDD", "5.8", "5.7", "5.9", "—"]]} /><div className="flex items-center justify-between border-t border-white/5 pt-1"><span>THD Compliance: IEEE 519 - 2014</span><b className="rounded bg-[#063b27] px-2 py-1 text-[8px] text-[#05ff5e]">Compliant</b></div><div className="text-[#29b6f6]">View Power Quality →</div></div>;
+  return <div className="space-y-2 text-[8.5px]"><div className="text-slate-400">No Data</div><MeterMiniTable headers={["Parameter", "L1 (%)", "L2 (%)", "L3 (%)", "N (%)"]} rows={[["Voltage THD", "No Data", "No Data", "No Data", "No Data"], ["Current THD", "No Data", "No Data", "No Data", "No Data"], ["Current TDD", "No Data", "No Data", "No Data", "No Data"]]} /><div className="flex items-center justify-between border-t border-white/5 pt-1"><span>THD Compliance: No Data</span><b className="rounded bg-slate-800 px-2 py-1 text-[8px] text-slate-300">No Data</b></div><div className="text-[#29b6f6]">View Power Quality →</div></div>;
 }
 
 function MeterDemand() {
-  return <div className="space-y-2 text-[8.5px]"><div className="text-slate-400">As of 10:00 AM CDT</div><CompactMeterRows rows={[["kW Demand", "842 kW"], ["kVA Demand", "1,021 kVA"], ["kVAR Demand", "495 kVAR"], ["Power Factor", "0.83"], ["Time of Max Demand", "May 18, 8:00 AM"]]} /><div className="pt-1 text-[#29b6f6]">View Demand Details →</div></div>;
+  return <div className="space-y-2 text-[8.5px]"><div className="text-slate-400">As of No Data</div><CompactMeterRows rows={[["kW Demand", "No Data"], ["kVA Demand", "No Data"], ["kVAR Demand", "No Data"], ["Power Factor", "No Data"], ["Time of Max Demand", "No Data"]]} /><div className="pt-1 text-[#29b6f6]">View Demand Details →</div></div>;
 }
 
 function MeterEvents() {
-  const rows = [["May 18, 2025 10:14 AM", "Data Collection Restored", "Info", "Data collection resumed"], ["May 18, 2025 9:52 AM", "Power Factor Low", "Warning", "PF dropped below 0.85"], ["May 18, 2025 9:20 AM", "Voltage Unbalance High", "Warning", "Voltage unbalance 1.8%"], ["May 18, 2025 8:00 AM", "High Demand", "Critical", "kW Demand 842 kW"]];
+  const rows = [["No Data", "No Data", "No Data", "No approved device event source"]];
   return <table className="w-full text-left text-[8.5px]"><thead className="text-slate-500"><tr>{["Time", "Event", "Severity", "Description"].map((header) => <th className="pb-2 font-normal" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map(([time, event, severity, description]) => <tr className="border-t border-white/5" key={event}><td className="py-2 text-slate-300">{time}</td><td>{event}</td><td className={severity === "Critical" ? "text-red-400" : severity === "Warning" ? "text-yellow-300" : "text-[#29b6f6]"}>● {severity}</td><td>{description}</td></tr>)}</tbody></table>;
 }
 
-function MeterInformation() {
-  return <div className="space-y-[3px] text-[8.5px]"><CompactMeterRows rows={[["Manufacturer", "Dent Instruments"], ["Model", "PS3HD"], ["Serial Number", "PS3HD-542881"], ["Firmware Version", "v3.14"], ["Hardware Revision", "Rev C"], ["Installed On", "Apr 20, 2025"], ["Installed By", "XECO Engineering Team"], ["Notes", "Revenue meter - Main incoming"]]} /></div>;
+function MeterInformation({ device }: { device: DeviceDataRow }) {
+  return <div className="space-y-[3px] text-[8.5px]"><CompactMeterRows rows={[["Manufacturer", "No Data"], ["Model", "No Data"], ["Serial Number", device.serialNumber], ["Firmware Version", device.firmware], ["Hardware Revision", "No Data"], ["Installed On", "No Data"], ["Installed By", "No Data"], ["Notes", "No Data"]]} /></div>;
 }
 
 function MeterActions() {
   return <div className="space-y-[7px] text-[8.5px]">{["ⓘ  Calibrate Meter", "◷  Sync Time", "↻  Reset Energy Values", "⊕  Test Communication", "⌫  Remove Meter"].map((action, index) => <div className={index === 4 ? "border-t border-white/5 pt-2 text-red-400" : "border-b border-white/5 pb-1.5"} key={action}>{action}</div>)}</div>;
 }
 
-function RepeaterDetailScreen() {
+function RepeaterDetailScreen({ data }: { data?: DevicesData }) {
+  const device = selectedDevice(data, "Repeater");
   return (
     <EcbsAppShell activeHref="/devices/repeaters">
       <div className="flex h-full min-h-0 flex-col px-3 py-2">
@@ -340,10 +317,10 @@ function RepeaterDetailScreen() {
           <div className="flex items-center gap-3 text-[9px]"><button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1 text-left"><span className="block text-[7px] text-slate-500">Client</span>Flex Ltd.</button><button className="rounded border border-slate-700 bg-[#061421] px-4 py-2">▣ May 11 - May 18, 2025<br /><span className="text-[7px] text-slate-400">(7 Days)</span></button><span className="text-[#05ff5e]">● Live</span><span className="text-red-400">♢</span><span className="text-slate-400">?</span><span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span><span>John Smith<br /><span className="text-slate-400">OEM Admin</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[70px] items-center justify-between">
-          <div><div className="text-[10px] text-slate-400">Home › Devices › Repeaters › RPT-00067</div><h1 className="mt-1 text-xl font-light">Repeater Detail <span className="rounded-full bg-[#063b27] px-2 py-0.5 text-[9px] text-[#05ff5e]">Online</span></h1><p className="mt-1 text-[9px] text-slate-400">Repeater ID: RPT-00067 &nbsp; | &nbsp; Model: XECO Repeater Pro 2.0 &nbsp; | &nbsp; Firmware: v2.3.8 &nbsp; | &nbsp; Last Seen: May 18, 2025 10:14:58 AM CDT</p></div>
+          <div><div className="text-[10px] text-slate-400">Home › Devices › Repeaters › {device.name}</div><h1 className="mt-1 text-xl font-light">Repeater Detail <span className="rounded-full bg-[#063b27] px-2 py-0.5 text-[9px] text-[#05ff5e]">{device.status}</span></h1><p className="mt-1 text-[9px] text-slate-400">Repeater ID: {device.name} &nbsp; | &nbsp; Model: No Data &nbsp; | &nbsp; Firmware: {device.firmware} &nbsp; | &nbsp; Last Seen: {device.lastSeen}</p></div>
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Repeaters</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">↻ Restart Repeater</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Update Firmware</button><button className="rounded bg-[#1463ff] px-4 py-2">⚙ Configure Repeater</button></div>
         </div>
-        <section className="grid h-[84px] grid-cols-7 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3 text-[9px]"><Info label="Site" value="Flex Tijuana Manufacturing" /><Info label="Location" value="Electrical Room 2" /><Info label="Parent Gateway" value="GWF-00125" /><Info label="IP Address" value="10.20.25.67" /><Info label="MAC Address" value="00:1A:2B:3C:4D:67" /><Info label="Uptime" value="23d 14h 42m 18s" /><Info label="Signal Strength" value="Excellent  ▂▅▇" /></section>
+        <section className="grid h-[84px] grid-cols-7 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3 text-[9px]"><Info label="Site" value="No Data" /><Info label="Location" value="No Data" /><Info label="Parent Gateway" value="No Data" /><Info label="IP Address" value="No Data" /><Info label="MAC Address" value="No Data" /><Info label="Uptime" value="No Data" /><Info label="Signal Strength" value="No approved repeater model" /></section>
         <div className="flex h-[44px] items-end gap-9 border-b border-cyan-300/10 text-[10px]"><span className="bg-[#082039] px-5 py-2 text-slate-100">Overview</span><span>Network & Connectivity</span><span>Connected Devices (15)</span><span>Performance</span><span>Events</span><span>Configuration</span><span>Log Files</span></div>
         <section className="mt-2 grid h-[598px] min-h-0 grid-cols-[0.9fr_0.72fr_1.08fr_0.64fr_0.74fr] grid-rows-[214px_164px_196px] gap-2 overflow-hidden">
           <DashboardPanel className="min-h-0" title="Repeater Status" variant="enterprise"><RepeaterStatusList /></DashboardPanel>
@@ -364,49 +341,51 @@ function RepeaterDetailScreen() {
 }
 
 function RepeaterStatusList() {
-  const rows = [["Overall Status", "Online"], ["Power", "Normal"], ["Internet Connection", "Connected"], ["Data Forwarding", "Active"], ["Time Sync", "Synchronized"], ["Temperature", "41 °C / 105.8 °F"], ["CPU Usage", "21%"], ["Memory Usage", "38%"], ["Signal Strength (to Gateway)", "Excellent"], ["Packet Loss", "0.2%"]];
+  const rows = [["Overall Status", "No Data"], ["Power", "No Data"], ["Internet Connection", "No Data"], ["Data Forwarding", "No Data"], ["Time Sync", "No Data"], ["Temperature", "No Data"], ["CPU Usage", "No Data"], ["Memory Usage", "No Data"], ["Signal Strength (to Gateway)", "No approved repeater model"], ["Packet Loss", "No Data"]];
   return <div className="space-y-[3px] text-[8.2px]">{rows.map(([label, value], index) => <div className="flex justify-between border-b border-white/5 pb-[2px]" key={label}><span className="text-slate-300">{index < 5 || index > 7 ? "◎ " : "◷ "}{label}</span><b className={index < 5 || index > 7 ? "text-[#05ff5e]" : "text-slate-200"}>{value}</b></div>)}</div>;
 }
 
 function RepeaterTopology() {
-  return <div className="grid h-full place-items-center text-center text-[8.5px]"><div className="relative h-[156px] w-[180px]"><div className="absolute left-[62px] top-0 rounded border border-slate-600 bg-[#061421] px-3 py-2">▣<br />GWF-00125<br /><span className="text-slate-500">Gateway</span></div><div className="absolute left-[76px] top-[48px] h-8 border-l border-[#05ff5e]" /><div className="absolute left-[56px] top-[74px] rounded border border-[#05ff5e] bg-[#063b27] px-4 py-2 text-[#05ff5e]">▣<br />RPT-00067<br /><span className="text-slate-300">Repeater</span></div><div className="absolute left-[30px] top-[124px] h-5 w-[122px] rounded-t border-x border-t border-[#05ff5e]/60 border-dashed" /><div className="absolute bottom-0 left-0 grid grid-cols-3 gap-2"><span className="rounded border border-slate-600 bg-[#061421] px-3 py-2">15<br />Meters</span><span className="rounded border border-slate-600 bg-[#061421] px-3 py-2">6<br />Switches</span><span className="rounded border border-slate-600 bg-[#061421] px-3 py-2">4<br />Devices</span></div></div><div className="mt-1 justify-self-start text-[#29b6f6]">View Network Map →</div></div>;
+  return <div className="grid h-full place-items-center text-center text-[8.5px]"><div className="rounded border border-dashed border-cyan-300/20 bg-[#061421] p-6 text-slate-400">No approved repeater topology source exists.</div><div className="mt-1 justify-self-start text-[#29b6f6]">View Network Map →</div></div>;
 }
 
 function RepeaterThroughput() {
-  return <div className="h-full"><div className="mb-1 flex justify-end gap-2 text-[8px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-1">Last 24 Hours⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-2">⛶</button></div><svg className="h-[116px] w-full" viewBox="0 0 420 116"><g stroke="rgba(148,163,184,.18)" strokeWidth="1">{[16, 42, 68, 94].map((y) => <line key={y} x1="24" x2="410" y1={y} y2={y} />)}</g><polyline fill="none" points="24,50 40,42 56,54 72,45 88,51 104,34 120,60 136,45 152,55 168,40 184,57 200,52 216,31 232,62 248,48 264,36 280,56 296,45 312,42 328,59 344,34 360,58 376,44 392,52 410,48" stroke="#147dff" strokeWidth="2" /><polyline fill="none" points="24,82 40,72 56,78 72,69 88,74 104,61 120,85 136,74 152,82 168,65 184,83 200,78 216,60 232,85 248,76 264,62 280,80 296,70 312,76 328,86 344,65 360,83 376,70 392,76 410,72" stroke="#22c55e" strokeWidth="2" /></svg><div className="grid grid-cols-4 gap-2 text-[8px]"><Info label="Avg Data In" value="2.48 Mbps" /><Info label="Avg Data Out" value="1.92 Mbps" /><Info label="Peak In" value="7.64 Mbps" /><Info label="Peak Out" value="5.13 Mbps" /></div></div>;
+  return <div className="h-full"><div className="mb-1 flex justify-end gap-2 text-[8px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-1">Last 24 Hours⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-2">⛶</button></div><NoDataChartBlock label="No approved repeater throughput source exists." /><div className="grid grid-cols-4 gap-2 text-[8px]"><Info label="Avg Data In" value="No Data" /><Info label="Avg Data Out" value="No Data" /><Info label="Peak In" value="No Data" /><Info label="Peak Out" value="No Data" /></div></div>;
 }
 
 function RepeaterInformation() {
-  return <div className="space-y-[4px] text-[8.5px]"><CompactMeterRows rows={[["Model", "XECO Repeater Pro 2.0"], ["Serial Number", "XR2P-00067-9F2A7811"], ["Firmware Version", "v2.3.8 (Latest)"], ["Hardware Revision", "Rev B"], ["Bootloader Version", "v1.1.5"], ["Frequency Band", "2.4 GHz / 5 GHz"], ["Installation Date", "Apr 24, 2025"], ["Installed By", "XECO Engineering Team"], ["Notes", "Repeater between Electrical Room 2 and Line 3 MCC"]]} /></div>;
+  return <div className="space-y-[4px] text-[8.5px]"><CompactMeterRows rows={[["Model", "No Data"], ["Serial Number", "No Data"], ["Firmware Version", "No Data"], ["Hardware Revision", "No Data"], ["Bootloader Version", "No Data"], ["Frequency Band", "No Data"], ["Installation Date", "No Data"], ["Installed By", "No Data"], ["Notes", "No approved repeater model"]]} /></div>;
 }
 
 function RepeaterConnectedSummary() {
-  return <div className="grid h-full grid-cols-[118px_1fr] items-center gap-3"><div className="grid size-24 place-items-center rounded-full" style={{ background: "conic-gradient(#22c55e 0 60%, #147dff 60% 84%, #f59e0b 84% 100%)" }}><span className="grid size-14 place-items-center rounded-full bg-[#061521] text-center text-xl">25<br /><b className="text-[8px] font-normal text-slate-400">Total</b></span></div><div className="space-y-3 text-[8.5px]"><div><b className="mr-2 text-[#22c55e]">●</b>Meters <span className="float-right">15 (60%)</span></div><div><b className="mr-2 text-[#147dff]">●</b>Switches <span className="float-right">6 (24%)</span></div><div><b className="mr-2 text-yellow-400">●</b>Other Devices <span className="float-right">4 (16%)</span></div><div className="pt-2 text-[#29b6f6]">View All Connected Devices →</div></div></div>;
+  return <div className="grid h-full grid-cols-[118px_1fr] items-center gap-3"><div className="grid size-24 place-items-center rounded-full bg-slate-800"><span className="grid size-14 place-items-center rounded-full bg-[#061521] text-center text-base">No Data<br /><b className="text-[8px] font-normal text-slate-400">Total</b></span></div><div className="space-y-3 text-[8.5px]"><div><b className="mr-2 text-[#22c55e]">●</b>Meters <span className="float-right">No Data</span></div><div><b className="mr-2 text-[#147dff]">●</b>Switches <span className="float-right">No Data</span></div><div><b className="mr-2 text-yellow-400">●</b>Other Devices <span className="float-right">No Data</span></div><div className="pt-2 text-[#29b6f6]">View All Connected Devices →</div></div></div>;
 }
 
 function RepeaterDetailEvents() {
-  const rows = [["●", "Repeater Online", "May 18, 2025 9:52 AM"], ["●", "Configuration Updated", "May 17, 2025 11:43 PM"], ["●", "Firmware Check Completed", "May 17, 2025 11:43 PM"], ["●", "High Temperature Warning Cleared", "May 16, 2025 2:15 PM"], ["●", "Data Forwarding Restored", "May 16, 2025 10:02 AM"], ["●", "Signal Strength Improved", "May 16, 2025 8:41 AM"]];
+  const rows = [["●", "No Data", "No approved device event source"]];
   return <div className="space-y-[6px] text-[8.5px]">{rows.map(([dot, event, time], index) => <div className="grid grid-cols-[16px_1fr_auto] border-b border-white/5 pb-[4px]" key={`${event}-${time}`}><span className={index === 2 ? "text-blue-400" : index === 3 || index === 5 ? "text-slate-500" : "text-[#05ff5e]"}>{dot}</span><span>{event}</span><b className="text-slate-400">{time}</b></div>)}</div>;
 }
 
 function RepeaterEnvironmental() {
-  return <div className="grid h-full gap-2 text-[8.5px]">{[["♨", "Temperature", "41 °C / 105.8 °F", "text-orange-400"], ["♢", "Humidity", "32 %", "text-[#29b6f6]"], ["⌘", "Ventilation", "Normal", "text-[#29b6f6]"]].map(([icon, label, value, color]) => <div className="grid grid-cols-[36px_1fr] items-center gap-2" key={label}><span className={`grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421] text-lg ${color}`}>{icon}</span><span><span className="text-slate-400">{label}</span><br /><b>{value}</b></span></div>)}</div>;
+  return <div className="grid h-full gap-2 text-[8.5px]">{[["♨", "Temperature", "No Data", "text-orange-400"], ["♢", "Humidity", "No Data", "text-[#29b6f6]"], ["⌘", "Ventilation", "No Data", "text-[#29b6f6]"]].map(([icon, label, value, color]) => <div className="grid grid-cols-[36px_1fr] items-center gap-2" key={label}><span className={`grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421] text-lg ${color}`}>{icon}</span><span><span className="text-slate-400">{label}</span><br /><b>{value}</b></span></div>)}</div>;
 }
 
 function RepeaterSignalQuality() {
-  return <div className="grid h-full place-items-center text-center"><div className="grid size-[112px] place-items-center rounded-full" style={{ background: "conic-gradient(#22c55e 0 72%, #063b27 72% 100%)" }}><span className="grid size-[74px] place-items-center rounded-full bg-[#061521] text-lg">-62 dBm<br /><b className="text-[8px] font-normal text-slate-400">Excellent</b></span></div><div className="grid w-full grid-cols-2 text-[8px] text-slate-400"><span>-100</span><span className="text-right">-30</span></div><div className="text-[9px]">Noise Floor: -95 dBm<br />SNR: 33 dB</div><div className="text-[9px] text-[#29b6f6]">View Signal History →</div></div>;
+  return <div className="grid h-full place-items-center text-center"><div className="grid size-[112px] place-items-center rounded-full bg-slate-800"><span className="grid size-[74px] place-items-center rounded-full bg-[#061521] text-sm">No Data<br /><b className="text-[8px] font-normal text-slate-400">Signal</b></span></div><div className="grid w-full grid-cols-2 text-[8px] text-slate-400"><span>No Data</span><span className="text-right">No Data</span></div><div className="text-[9px]">Noise Floor: No Data<br />SNR: No Data</div><div className="text-[9px] text-[#29b6f6]">View Signal History →</div></div>;
 }
 
 function RepeaterPerformance() {
-  const metrics = [["CPU Usage (Avg.)", "21%"], ["Memory Usage (Avg.)", "38%"], ["Uptime", "100%"], ["Packet Success Rate", "99.8%"], ["Avg Response Time", "28 ms"]];
-  return <div className="grid h-full grid-cols-[1.65fr_0.95fr] gap-4 text-[8.5px]"><div className="grid grid-cols-5 gap-3">{metrics.map(([label, value], index) => <div className="border-r border-white/8 pr-3" key={label}><Info label={label} value={value} /><svg className="mt-5 h-32 w-full" viewBox="0 0 110 54"><g stroke="rgba(148,163,184,.16)"><line x1="0" x2="110" y1="14" y2="14" /><line x1="0" x2="110" y1="42" y2="42" /></g><polyline fill="none" points={index === 2 ? "0,14 110,14" : index === 3 ? "0,12 16,14 32,13 48,15 64,12 80,13 96,12 110,14" : "0,34 16,28 32,36 48,32 64,37 80,31 96,34 110,30"} stroke="#147dff" strokeWidth="2" /></svg></div>)}</div><div><div className="mb-2 text-[10px] font-semibold">Data Forwarding</div><CompactMeterRows rows={[["Status", "Active"], ["Total Packets (24h)", "128,452"], ["Dropped Packets (24h)", "256 (0.2%)"], ["Forwarding Mode", "Normal"], ["Queue Length", "24"]]} /></div></div>;
+  const metrics = [["CPU Usage (Avg.)", "No Data"], ["Memory Usage (Avg.)", "No Data"], ["Uptime", "No Data"], ["Packet Success Rate", "No Data"], ["Avg Response Time", "No Data"]];
+  return <div className="grid h-full grid-cols-[1.65fr_0.95fr] gap-4 text-[8.5px]"><div className="grid grid-cols-5 gap-3">{metrics.map(([label, value]) => <div className="border-r border-white/8 pr-3" key={label}><Info label={label} value={value} /><div className="mt-5 h-32 rounded border border-dashed border-cyan-300/20" /></div>)}</div><div><div className="mb-2 text-[10px] font-semibold">Data Forwarding</div><CompactMeterRows rows={[["Status", "No Data"], ["Total Packets (24h)", "No Data"], ["Dropped Packets (24h)", "No Data"], ["Forwarding Mode", "No Data"], ["Queue Length", "No Data"]]} /></div></div>;
 }
 
 function RepeaterActions() {
   return <div className="space-y-[7px] text-[8.5px]">{["↻  Restart Repeater", "⇩  Update Firmware", "⇧  Backup Configuration", "⊕  Export Repeater Diagnostics", "⌫  Remove Repeater"].map((action, index) => <div className={index === 4 ? "border-t border-white/5 pt-2 text-red-400" : "border-b border-white/5 pb-1.5"} key={action}>{action}</div>)}</div>;
 }
 
-function SwitchDetailScreen() {
+function SwitchDetailScreen({ data }: { data?: DevicesData }) {
+  const device = selectedDevice(data, "Switch");
+  const telemetry = data?.telemetry ?? emptyTelemetry();
   return (
     <EcbsAppShell activeHref="/devices/switches">
       <div className="flex h-full min-h-0 flex-col px-3 py-2">
@@ -415,18 +394,18 @@ function SwitchDetailScreen() {
           <div className="flex items-center gap-3 text-[9px]"><button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1 text-left"><span className="block text-[7px] text-slate-500">Client</span>Flex Ltd.</button><button className="rounded border border-slate-700 bg-[#061421] px-4 py-2">▣ May 11 - May 18, 2025<br /><span className="text-[7px] text-slate-400">(7 Days)</span></button><span className="text-[#05ff5e]">● Live</span><span className="text-red-400">♢</span><span className="text-slate-400">?</span><span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span><span>John Smith<br /><span className="text-slate-400">OEM Admin</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[70px] items-center justify-between">
-          <div><div className="text-[10px] text-slate-400">Home › Devices › Switches › SW-00048</div><h1 className="mt-1 text-xl font-light">Switch Detail <span className="rounded-full bg-[#063b27] px-2 py-0.5 text-[9px] text-[#05ff5e]">Online</span></h1><p className="mt-1 text-[9px] text-slate-400">Switch ID: SW-00048 &nbsp; | &nbsp; Model: Schneider Electric MasterPact MTZ2-16H1 &nbsp; | &nbsp; Serial Number: 0619B210012 &nbsp; | &nbsp; Firmware: v2.7.1 &nbsp; | &nbsp; Last Seen: May 18, 2025 10:14:58 AM CDT</p></div>
+          <div><div className="text-[10px] text-slate-400">Home › Devices › Switches › {device.name}</div><h1 className="mt-1 text-xl font-light">Switch Detail <span className="rounded-full bg-[#063b27] px-2 py-0.5 text-[9px] text-[#05ff5e]">{device.status}</span></h1><p className="mt-1 text-[9px] text-slate-400">Switch ID: {device.name} &nbsp; | &nbsp; Model: No Data &nbsp; | &nbsp; Serial Number: {device.serialNumber} &nbsp; | &nbsp; Firmware: {device.firmware} &nbsp; | &nbsp; Last Seen: {device.lastSeen}</p></div>
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Switches</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Data⌄</button><button className="rounded bg-[#1463ff] px-4 py-2">⚙ Configure Switch</button></div>
         </div>
-        <section className="grid h-[84px] grid-cols-[1.15fr_1fr_1.1fr_1fr_0.9fr_0.72fr_0.72fr_0.78fr] rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3 text-[9px]"><Info label="Site" value="Flex Tijuana Manufacturing" /><Info label="Location" value="Main Electrical Room" /><Info label="Electrical Network" value="TXFR-01 / Main Incoming" /><Info label="Gateway" value="GWF-00125  Online" /><Info label="Switch Type" value="Air Circuit Breaker ⓘ" /><Info label="Status" value="Closed ●" /><Info label="Rated Current" value="1600 A" /><Info label="Rated Voltage" value="480Y/277 VAC" /></section>
+        <section className="grid h-[84px] grid-cols-[1.15fr_1fr_1.1fr_1fr_0.9fr_0.72fr_0.72fr_0.78fr] rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3 text-[9px]"><Info label="Site" value="No Data" /><Info label="Location" value={device.location} /><Info label="Electrical Network" value="No Data" /><Info label="Gateway" value="No Data" /><Info label="Switch Type" value={device.kind} /><Info label="Status" value={device.status} /><Info label="Rated Current" value="No Data" /><Info label="Rated Voltage" value="No Data" /></section>
         <div className="flex h-[44px] items-end gap-9 border-b border-cyan-300/10 text-[10px]"><span className="bg-[#082039] px-5 py-2 text-slate-100">Overview</span><span>Real-Time</span><span>Historical Data</span><span>Power Quality</span><span>Events</span><span>Trips & Alarms</span><span>Maintenance</span><span>Configuration</span><span>Log Files</span></div>
         <section className="mt-2 grid h-[610px] min-h-0 grid-cols-10 grid-rows-[258px_236px_84px] gap-2 overflow-hidden">
-          <DashboardPanel action="Edit" className="col-span-3 min-h-0" title="Switch Status" variant="enterprise"><SwitchStatusList /></DashboardPanel>
-          <DashboardPanel className="col-span-3 min-h-0" title="Real-Time Electrical Values" variant="enterprise"><SwitchRealTimeValues /></DashboardPanel>
-          <DashboardPanel className="col-span-4 min-h-0" title="Load Trend (Last 24 Hours)" variant="enterprise"><SwitchLoadTrend /></DashboardPanel>
+          <DashboardPanel action="Edit" className="col-span-3 min-h-0" title="Switch Status" variant="enterprise"><SwitchStatusList device={device} /></DashboardPanel>
+          <DashboardPanel className="col-span-3 min-h-0" title="Real-Time Electrical Values" variant="enterprise"><SwitchRealTimeValues telemetry={telemetry} /></DashboardPanel>
+          <DashboardPanel className="col-span-4 min-h-0" title="Load Trend (Last 24 Hours)" variant="enterprise"><SwitchLoadTrend telemetry={telemetry} /></DashboardPanel>
           <DashboardPanel className="col-span-3 min-h-0" title="Power Quality Snapshot" variant="enterprise"><SwitchPowerQuality /></DashboardPanel>
           <DashboardPanel className="col-span-3 min-h-0" title="Trips & Alarms (Last 7 Days)" variant="enterprise"><SwitchTripsAlarms /></DashboardPanel>
-          <DashboardPanel action="Edit" className="col-span-4 min-h-0" title="Switch Information" variant="enterprise"><SwitchInformation /></DashboardPanel>
+          <DashboardPanel action="Edit" className="col-span-4 min-h-0" title="Switch Information" variant="enterprise"><SwitchInformation device={device} /></DashboardPanel>
           <DashboardPanel className="col-span-6 min-h-0" title="Actions" variant="enterprise"><SwitchActionTiles /></DashboardPanel>
           <DashboardPanel className="col-span-4 min-h-0" title="Quick Links" variant="enterprise"><SwitchQuickLinks /></DashboardPanel>
         </section>
@@ -436,31 +415,31 @@ function SwitchDetailScreen() {
   );
 }
 
-function SwitchStatusList() {
-  const rows = [["Operational Status", "Closed"], ["Connectivity", "Connected"], ["Control Power", "Normal"], ["Spring Status", "Charged"], ["Trip Unit Status", "OK"], ["Arc Flash Protection", "Enabled"], ["Temperature", "43 °C / 109.4 °F"], ["Mechanical Operations", "1,284"]];
-  return <div className="h-full text-[8.4px]"><div className="space-y-[4px]">{rows.map(([label, value], index) => <div className="flex justify-between border-b border-white/5 pb-[2px]" key={label}><span className="text-slate-300">{index < 6 ? "◎ " : "♨ "}{label}</span><b className={index < 6 ? "text-[#05ff5e]" : "text-slate-200"}>{value}</b></div>)}</div><div className="mt-4 flex justify-between text-[8.5px]"><span className="text-slate-400">Last Operation</span><b>May 18, 2025 8:42 AM CDT</b></div></div>;
+function SwitchStatusList({ device }: { device: DeviceDataRow }) {
+  const rows = [["Operational Status", device.status], ["Connectivity", device.lastSeen === "No Data" ? "No Data" : "Connected"], ["Control Power", "No Data"], ["Spring Status", "No Data"], ["Trip Unit Status", "No Data"], ["Arc Flash Protection", "No Data"], ["Temperature", "No Data"], ["Mechanical Operations", "No Data"]];
+  return <div className="h-full text-[8.4px]"><div className="space-y-[4px]">{rows.map(([label, value], index) => <div className="flex justify-between border-b border-white/5 pb-[2px]" key={label}><span className="text-slate-300">{index < 6 ? "◎ " : "♨ "}{label}</span><b className={index < 2 && value !== "No Data" ? "text-[#05ff5e]" : "text-slate-200"}>{value}</b></div>)}</div><div className="mt-4 flex justify-between text-[8.5px]"><span className="text-slate-400">Last Operation</span><b>No Data</b></div></div>;
 }
 
-function SwitchRealTimeValues() {
-  return <div className="text-[8.5px]"><div className="mb-1 text-slate-400">10:15:00 AM CDT</div><MeterMiniTable headers={["Parameter", "L1", "L2", "L3", "Avg / Total"]} rows={[["Voltage (V L-L)", "481.2", "480.5", "480.8", "480.8"], ["Voltage (V L-N)", "277.6", "276.9", "277.2", "277.2"], ["Current (A)", "512", "498", "524", "511"], ["Power (kW)", "238.6", "231.4", "244.3", "714.3"], ["kVA", "291.5", "283.7", "297.2", "872.4"], ["kVAR", "165.2", "162.1", "168.7", "496.0"], ["Power Factor", "0.82", "0.82", "0.82", "0.82"], ["Frequency (Hz)", "60.02", "60.01", "60.01", "60.01"]]} /><div className="mt-1 text-[9px] text-[#29b6f6]">View Real-Time →</div></div>;
+function SwitchRealTimeValues({ telemetry }: { telemetry: DevicesData["telemetry"] }) {
+  return <div className="text-[8.5px]"><div className="mb-1 text-slate-400">{telemetry.timestamp}</div><MeterMiniTable headers={["Parameter", "L1", "L2", "L3", "Avg / Total"]} rows={[["Voltage (V L-L)", "No Data", "No Data", "No Data", "No Data"], ["Voltage (V L-N)", "No Data", "No Data", "No Data", "No Data"], ["Current (A)", "No Data", "No Data", "No Data", "No Data"], ["Power (kW)", "No Data", "No Data", "No Data", telemetry.kilowatts], ["kVA", "No Data", "No Data", "No Data", telemetry.kilovoltAmps], ["kVAR", "No Data", "No Data", "No Data", "No Data"], ["Power Factor", "No Data", "No Data", "No Data", telemetry.powerFactor], ["Frequency (Hz)", "No Data", "No Data", "No Data", "No Data"]]} /><div className="mt-1 text-[9px] text-[#29b6f6]">View Real-Time →</div></div>;
 }
 
-function SwitchLoadTrend() {
-  return <div className="h-full"><div className="mb-1 flex items-center justify-between text-[8px] text-slate-400"><span className="ml-auto">24 Hours⌄ &nbsp; ⛶</span></div><svg className="h-[148px] w-full" viewBox="0 0 560 148"><g stroke="rgba(148,163,184,.18)" strokeWidth="1">{[18, 48, 78, 108, 138].map((y) => <line key={y} x1="34" x2="548" y1={y} y2={y} />)}</g><g fill="#94a3b8" fontSize="9"><text x="0" y="22">2,000</text><text x="8" y="52">1,600</text><text x="8" y="82">1,200</text><text x="14" y="112">800</text><text x="14" y="142">400</text></g><polyline fill="none" points="34,44 68,72 102,62 136,66 170,58 204,43 238,38 272,48 306,44 340,36 374,52 408,58 442,60 476,72 510,80 548,68" stroke="#147dff" strokeWidth="2" /><polyline fill="none" points="34,78 68,96 102,86 136,88 170,80 204,64 238,62 272,70 306,66 340,54 374,74 408,82 442,88 476,96 510,102 548,92" stroke="#22c55e" strokeWidth="2" /><polyline fill="none" points="34,58 68,84 102,78 136,76 170,69 204,51 238,50 272,58 306,56 340,45 374,64 408,72 442,78 476,86 510,90 548,82" stroke="#f59e0b" strokeWidth="2" /></svg><div className="grid grid-cols-4 gap-3 text-[9px]"><Info label="Avg Current" value="511 A" /><Info label="Avg kW" value="714 kW" /><Info label="Peak Current" value="1,024 A" /><Info label="Peak kW" value="1,182 kW" /></div><div className="mt-1 text-[9px] text-[#29b6f6]">View Historical Data →</div></div>;
+function SwitchLoadTrend({ telemetry }: { telemetry: DevicesData["telemetry"] }) {
+  return <div className="h-full"><div className="mb-1 flex items-center justify-between text-[8px] text-slate-400"><span className="ml-auto">24 Hours⌄ &nbsp; ⛶</span></div><NoDataChartBlock label="No approved switch load trend source exists." /><div className="grid grid-cols-4 gap-3 text-[9px]"><Info label="Avg Current" value="No Data" /><Info label="Avg kW" value={telemetry.kilowatts} /><Info label="Peak Current" value="No Data" /><Info label="Peak kW" value="No Data" /></div><div className="mt-1 text-[9px] text-[#29b6f6]">View Historical Data →</div></div>;
 }
 
 function SwitchPowerQuality() {
-  const items = [["THD (V L-L)", "2.3%", "Good"], ["THD (I)", "6.1%", "Good"], ["Unbalance (V)", "0.7%", "Excellent"], ["Flicker (Pst)", "0.28", "Good"], ["Voltage Deviation", "-0.4%", "Normal"], ["Frequency Deviation", "0.01 Hz", "Normal"]];
+  const items = [["THD (V L-L)", "No Data", "No Data"], ["THD (I)", "No Data", "No Data"], ["Unbalance (V)", "No Data", "No Data"], ["Flicker (Pst)", "No Data", "No Data"], ["Voltage Deviation", "No Data", "No Data"], ["Frequency Deviation", "No Data", "No Data"]];
   return <div className="grid h-full grid-cols-4 gap-x-4 gap-y-5 text-[9px]">{items.map(([label, value, status], index) => <div className={index > 3 ? "col-span-2" : ""} key={label}><div className="text-slate-400">{label}</div><div className="mt-2 text-xl text-slate-100">{value}</div><div className={status === "Excellent" ? "text-[#05ff5e]" : "text-[#22c55e]"}>{status}</div></div>)}<div className="col-span-4 text-[#29b6f6]">View Power Quality →</div></div>;
 }
 
 function SwitchTripsAlarms() {
-  const rows = [["May 18, 2025 8:42 AM", "Trip", "Long Time Overcurrent", "High"], ["May 17, 2025 9:14 PM", "Warning", "High Temperature", "Medium"], ["May 17, 2025 4:36 PM", "Warning", "High Current Warning", "Medium"], ["May 16, 2025 6:22 PM", "Info", "Control Power Restored", "Info"], ["May 15, 2025 11:10 AM", "Info", "Switch Closed", "Info"]];
-  return <div className="text-[8.5px]"><div className="mb-4 grid grid-cols-4 text-center"><Info label="Total Trips" value="1" /><Info label="Active Alarms" value="0" /><Info label="Warnings" value="2" /><Info label="Info" value="5" /></div><table className="w-full text-left"><thead className="text-slate-500"><tr>{["Time", "Type", "Description", "Severity"].map((h) => <th className="pb-1.5 font-normal" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([time, type, description, severity]) => <tr className="border-t border-white/5" key={`${time}-${description}`}><td className="py-[5px]">{time}</td><td>{type}</td><td>{description}</td><td className={severity === "High" ? "text-red-400" : severity === "Medium" ? "text-yellow-300" : "text-[#29b6f6]"}>● {severity}</td></tr>)}</tbody></table><div className="mt-2 text-[#29b6f6]">View All Events →</div></div>;
+  const rows = [["No Data", "No Data", "No approved device event source", "No Data"]];
+  return <div className="text-[8.5px]"><div className="mb-4 grid grid-cols-4 text-center"><Info label="Total Trips" value="No Data" /><Info label="Active Alarms" value="No Data" /><Info label="Warnings" value="No Data" /><Info label="Info" value="No Data" /></div><table className="w-full text-left"><thead className="text-slate-500"><tr>{["Time", "Type", "Description", "Severity"].map((h) => <th className="pb-1.5 font-normal" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([time, type, description, severity]) => <tr className="border-t border-white/5" key={`${time}-${description}`}><td className="py-[5px]">{time}</td><td>{type}</td><td>{description}</td><td className={severity === "High" ? "text-red-400" : severity === "Medium" ? "text-yellow-300" : "text-[#29b6f6]"}>● {severity}</td></tr>)}</tbody></table><div className="mt-2 text-[#29b6f6]">View All Events →</div></div>;
 }
 
-function SwitchInformation() {
-  return <div className="grid grid-cols-2 gap-x-8 text-[8.7px]"><CompactMeterRows rows={[["Manufacturer", "Schneider Electric"], ["Model", "MasterPact MTZ2-16H1"], ["Serial Number", "0619B210012"], ["Firmware Version", "v2.7.1"], ["Trip Unit", "Micrologic X"]]} /><CompactMeterRows rows={[["Rated Current", "1600 A"], ["Rated Voltage", "480Y/277 VAC"], ["Interrupting Capacity", "65 kA @ 480 VAC"], ["Installation Date", "Apr 15, 2024"], ["Installed By", "XECO Engineering Team"], ["Notes", "Main incoming ACB for TXFR-01"]]} /></div>;
+function SwitchInformation({ device }: { device: DeviceDataRow }) {
+  return <div className="grid grid-cols-2 gap-x-8 text-[8.7px]"><CompactMeterRows rows={[["Manufacturer", "No Data"], ["Model", "No Data"], ["Serial Number", device.serialNumber], ["Firmware Version", device.firmware], ["Trip Unit", "No Data"]]} /><CompactMeterRows rows={[["Rated Current", "No Data"], ["Rated Voltage", "No Data"], ["Interrupting Capacity", "No Data"], ["Installation Date", "No Data"], ["Installed By", "No Data"], ["Notes", "No Data"]]} /></div>;
 }
 
 function SwitchActionTiles() {
@@ -822,18 +801,18 @@ function InvoicesScreen() {
         <JobCostingHeader leaf="Payments / Invoices" section="Payments / Invoices" />
         <JobCostingTabs active="Payments / Invoices" primaryAction="+ Create Invoice" secondaryAction="⇩ Export Invoices" />
         <section className="mt-2 grid h-[92px] grid-cols-6 gap-2">
-          <JobKpi icon="▤" label="Total Invoices" value="26" detail="This Period" tone="blue" />
-          <JobKpi icon="$" label="Total Invoiced" value="$84,752.36" detail="This Period" tone="green" />
-          <JobKpi icon="▧" label="Total Payments" value="$67,285.14" detail="This Period" tone="purple" />
-          <JobKpi icon="◷" label="Outstanding" value="$17,467.22" detail="This Period" tone="yellow" />
-          <JobKpi icon="▥" label="Past Due" value="$3,215.00" detail="This Period" tone="cyan" />
-          <JobKpi icon="%" label="Collection Rate" value="79.3%" detail="This Period" tone="gray" />
+          <JobKpi icon="▤" label="Total Invoices" value="No Data" detail="No approved invoice source" tone="blue" />
+          <JobKpi icon="$" label="Total Invoiced" value="No Data" detail="No approved invoice source" tone="green" />
+          <JobKpi icon="▧" label="Total Payments" value="No Data" detail="No approved payment source" tone="purple" />
+          <JobKpi icon="◷" label="Outstanding" value="No Data" detail="No approved payment source" tone="yellow" />
+          <JobKpi icon="▥" label="Past Due" value="No Data" detail="No approved invoice source" tone="cyan" />
+          <JobKpi icon="%" label="Collection Rate" value="No Data" detail="No approved collection model" tone="gray" />
         </section>
         <section className="mt-2 grid h-[34px] grid-cols-[1fr_116px_126px_126px_146px_82px] gap-2 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 text-left text-slate-400">⌕ &nbsp; Search invoices...</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 text-left">Status: All⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 text-left">Invoice Type: All⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 text-left">Cost Center: All⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 text-left">▣ May 1 - May 12, 2025⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-3">▽ Filters</button></section>
         <section className="mt-2 grid h-[620px] min-h-0 grid-cols-[1.48fr_0.62fr] gap-2">
-          <DashboardPanel title="Invoices (26)" variant="enterprise"><InvoiceList /></DashboardPanel>
+          <DashboardPanel title="Invoices (No Data)" variant="enterprise"><InvoiceList /></DashboardPanel>
           <div className="grid min-h-0 grid-rows-[250px_214px_1fr] gap-2 overflow-hidden">
-            <DashboardPanel title={<span className="flex items-center justify-between">Invoice Details <b className="rounded bg-[#063b27] px-2 py-1 text-[8px] text-[#05ff5e]">Paid</b></span>} variant="enterprise"><InvoiceDetails /></DashboardPanel>
+            <DashboardPanel title={<span className="flex items-center justify-between">Invoice Details <b className="rounded bg-slate-800 px-2 py-1 text-[8px] text-slate-300">No Data</b></span>} variant="enterprise"><InvoiceDetails /></DashboardPanel>
             <DashboardPanel title="Line Items" variant="enterprise"><InvoiceLineItems /></DashboardPanel>
             <DashboardPanel title="Payment History" variant="enterprise"><PaymentHistory /></DashboardPanel>
           </div>
@@ -846,18 +825,9 @@ function InvoicesScreen() {
 
 function InvoiceList() {
   const rows = [
-    ["INV-2025-0057", "May 12, 2025", "Production Line 1\nManufacturing", "JOB-1001", "May 1 - May 12, 2025", "$8,742.36", "Paid", "May 27, 2025"],
-    ["INV-2025-0056", "May 9, 2025", "Chiller Plant\nUtilities", "JOB-1002", "Apr 26 - May 9, 2025", "$1,634.22", "Paid", "May 24, 2025"],
-    ["INV-2025-0055", "May 9, 2025", "Packaging Line\nManufacturing", "JOB-1003", "Apr 26 - May 9, 2025", "$810.96", "Sent", "May 24, 2025"],
-    ["INV-2025-0054", "May 8, 2025", "Warehouse\nOperations", "JOB-1004", "Apr 26 - May 8, 2025", "$445.11", "Pending", "May 23, 2025"],
-    ["INV-2025-0053", "May 7, 2025", "Office Building\nAdministrative", "JOB-1005", "Apr 26 - May 7, 2025", "$245.54", "Paid", "May 22, 2025"],
-    ["INV-2025-0052", "May 6, 2025", "Maintenance Shop\nMaintenance", "JOB-1006", "Apr 26 - May 6, 2025", "$154.90", "Sent", "May 21, 2025"],
-    ["INV-2025-0051", "May 5, 2025", "Production Line 1\nManufacturing", "JOB-1001", "Apr 19 - Apr 25, 2025", "$8,215.47", "Paid", "May 20, 2025"],
-    ["INV-2025-0050", "May 5, 2025", "Chiller Plant\nUtilities", "JOB-1002", "Apr 19 - Apr 25, 2025", "$1,589.75", "Paid", "May 20, 2025"],
-    ["INV-2025-0049", "May 4, 2025", "Packaging Line\nManufacturing", "JOB-1003", "Apr 19 - Apr 25, 2025", "$798.40", "Pending", "May 19, 2025"],
-    ["INV-2025-0048", "May 2, 2025", "Warehouse\nOperations", "JOB-1004", "Apr 19 - Apr 24, 2025", "$438.92", "Overdue", "May 17, 2025"],
+    ["No Data", "No Data", "No approved payment/invoice source", "No Data", "No Data", "No Data", "No Data", "No Data"],
   ];
-  return <div className="h-full text-[9px]"><div className="mb-3 flex justify-end gap-2"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-1.5">Sort by: Invoice Date (Newest)⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-2">☷</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-2">▦</button></div><table className="w-full text-left"><thead className="text-slate-500"><tr>{["", "Invoice #", "Invoice Date", "Customer / Cost Center", "Job / Work Order", "Period", "Amount", "Status", "Due Date", "Actions"].map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}><td className="py-[7px]"><span className="inline-block size-3 rounded border border-slate-600" /></td>{row.map((cell, index) => <td className={index === 0 ? "py-[7px] text-cyan-300" : "py-[7px] text-slate-300"} key={`${row[0]}-${index}`}>{index === 2 ? cell.split("\n").map((part) => <span className={part === cell.split("\n")[1] ? "block text-[8px] text-slate-500" : "block"} key={part}>{part}</span>) : index === 6 ? <InvoiceStatus status={cell} /> : cell}</td>)}<td className="py-[7px] text-slate-300">⋮</td></tr>)}</tbody></table><div className="mt-4 flex items-center justify-between text-[9px] text-slate-400"><span>Showing 1 to 10 of 26 invoices</span><span>‹ &nbsp; <b className="rounded border border-[#05ff5e] px-3 py-2 text-[#05ff5e]">1</b> &nbsp; 2 &nbsp; 3 &nbsp; ›</span></div></div>;
+  return <div className="h-full text-[9px]"><div className="mb-3 flex justify-end gap-2"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-1.5">Sort by: Invoice Date (Newest)⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-2">☷</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-2">▦</button></div><table className="w-full text-left"><thead className="text-slate-500"><tr>{["", "Invoice #", "Invoice Date", "Customer / Cost Center", "Job / Work Order", "Period", "Amount", "Status", "Due Date", "Actions"].map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}><td className="py-[7px]"><span className="inline-block size-3 rounded border border-slate-600" /></td>{row.map((cell, index) => <td className={index === 0 ? "py-[7px] text-cyan-300" : "py-[7px] text-slate-300"} key={`${row[0]}-${index}`}>{index === 2 ? cell.split("\n").map((part) => <span className={part === cell.split("\n")[1] ? "block text-[8px] text-slate-500" : "block"} key={part}>{part}</span>) : index === 6 ? <InvoiceStatus status={cell} /> : cell}</td>)}<td className="py-[7px] text-slate-300">⋮</td></tr>)}</tbody></table><div className="mt-4 flex items-center justify-between text-[9px] text-slate-400"><span>Showing No Data invoices</span><span>‹ &nbsp; <b className="rounded border border-[#05ff5e] px-3 py-2 text-[#05ff5e]">1</b> &nbsp; ›</span></div></div>;
 }
 
 function InvoiceStatus({ status }: { status: string }) {
@@ -866,17 +836,17 @@ function InvoiceStatus({ status }: { status: string }) {
 }
 
 function InvoiceDetails() {
-  const fields = [["Customer / Cost Center", "Production Line 1\nManufacturing"], ["Invoice Type", "Energy Usage"], ["Job / Work Order", "JOB-1001"], ["Period", "May 1 - May 12, 2025"], ["Invoice Date", "May 12, 2025"], ["PO / Reference", "PO-77821"], ["Due Date", "May 27, 2025"], ["Payment Terms", "Net 15"]];
-  return <div className="text-[9px]"><div className="mb-4 flex items-start justify-between"><div><h3 className="text-[16px] font-light">INV-2025-0057</h3></div><div className="flex gap-3 text-[9px]"><span>▧ PDF</span><span>✉ Email</span><span>▣ Print</span><span>⋮</span></div></div><div className="grid grid-cols-2 gap-x-5 gap-y-3">{fields.map(([label, value]) => <div key={label}><div className="text-[8px] text-slate-500">{label}</div><div className="mt-1 whitespace-pre-line text-[#05ff5e]">{value}</div></div>)}</div></div>;
+  const fields = [["Customer / Cost Center", "No Data"], ["Invoice Type", "No Data"], ["Job / Work Order", "No Data"], ["Period", "No Data"], ["Invoice Date", "No Data"], ["PO / Reference", "No Data"], ["Due Date", "No Data"], ["Payment Terms", "No Data"]];
+  return <div className="text-[9px]"><div className="mb-4 flex items-start justify-between"><div><h3 className="text-[16px] font-light">No Data</h3></div><div className="flex gap-3 text-[9px]"><span>▧ PDF</span><span>✉ Email</span><span>▣ Print</span><span>⋮</span></div></div><div className="grid grid-cols-2 gap-x-5 gap-y-3">{fields.map(([label, value]) => <div key={label}><div className="text-[8px] text-slate-500">{label}</div><div className="mt-1 whitespace-pre-line text-[#05ff5e]">{value}</div></div>)}</div></div>;
 }
 
 function InvoiceLineItems() {
-  const rows = [["Energy Usage (kWh)", "54,689", "-", "$3,085.96"], ["Demand (kW)", "257", "412", "$3,296.34"], ["Power Factor Adjustment", "-", "-", "$210.50"], ["Other Charges", "-", "-", "$149.56"]];
-  return <div className="text-[8px]"><table className="w-full text-left"><thead className="text-slate-500"><tr>{["Description", "kWh", "kW (Peak)", "Amount (USD)"].map((header) => <th className="pb-1 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}>{row.map((cell, index) => <td className={index === 3 ? "py-1 text-right text-slate-200" : "py-1 text-slate-300"} key={`${row[0]}-${index}`}>{cell}</td>)}</tr>)}</tbody></table><div className="mt-1 space-y-0.5 border-t border-white/10 pt-1"><div className="flex justify-between"><span>Subtotal</span><b>$8,742.36</b></div><div className="flex justify-between"><span>Tax (0%)</span><b>$0.00</b></div><div className="flex justify-between text-[9px] uppercase"><span>Total</span><b className="text-[#05ff5e]">$8,742.36</b></div></div></div>;
+  const rows = [["No Data", "No Data", "No Data", "No approved invoice line-item source"]];
+  return <div className="text-[8px]"><table className="w-full text-left"><thead className="text-slate-500"><tr>{["Description", "kWh", "kW (Peak)", "Amount (USD)"].map((header) => <th className="pb-1 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}>{row.map((cell, index) => <td className={index === 3 ? "py-1 text-right text-slate-200" : "py-1 text-slate-300"} key={`${row[0]}-${index}`}>{cell}</td>)}</tr>)}</tbody></table><div className="mt-1 space-y-0.5 border-t border-white/10 pt-1"><div className="flex justify-between"><span>Subtotal</span><b>No Data</b></div><div className="flex justify-between"><span>Tax</span><b>No Data</b></div><div className="flex justify-between text-[9px] uppercase"><span>Total</span><b className="text-[#05ff5e]">No Data</b></div></div></div>;
 }
 
 function PaymentHistory() {
-  return <div className="text-[8.5px]"><table className="w-full text-left"><thead className="text-slate-500"><tr>{["Date", "Type", "Reference #", "Amount", "Status"].map((header) => <th className="pb-1.5 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{[["May 12, 2025", "ACH Payment", "ACH-55421", "$8,742.36", "Completed"], ["May 12, 2025", "Payment Applied", "-", "$8,742.36", "Applied"]].map((row) => <tr className="border-t border-white/5" key={row[1]}>{row.map((cell, index) => <td className={index === 4 ? "py-1.5 text-[#05ff5e]" : "py-1.5 text-slate-300"} key={`${row[1]}-${index}`}>{cell}</td>)}</tr>)}</tbody></table><button className="mt-2 w-full rounded border border-cyan-300/12 bg-[#061421] py-1.5">View Invoice History</button></div>;
+  return <div className="text-[8.5px]"><table className="w-full text-left"><thead className="text-slate-500"><tr>{["Date", "Type", "Reference #", "Amount", "Status"].map((header) => <th className="pb-1.5 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{[["No Data", "No Data", "No Data", "No Data", "No approved payment source"]].map((row) => <tr className="border-t border-white/5" key={row[1]}>{row.map((cell, index) => <td className={index === 4 ? "py-1.5 text-[#05ff5e]" : "py-1.5 text-slate-300"} key={`${row[1]}-${index}`}>{cell}</td>)}</tr>)}</tbody></table><button className="mt-2 w-full rounded border border-cyan-300/12 bg-[#061421] py-1.5">View Invoice History</button></div>;
 }
 
 function ProductionTimeScreen() {
@@ -886,7 +856,7 @@ function ProductionTimeScreen() {
         <JobCostingHeader leaf="Production Time" section="Production Time" />
         <JobCostingTabs active="Production Time" primaryAction="Save Changes" secondaryAction="" />
         <section className="mt-2 grid h-[126px] grid-cols-[1.3fr_0.78fr] gap-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
-          <div><h2 className="text-[12px] font-semibold uppercase">Production Time Configuration</h2><p className="mt-1 text-[9px] text-slate-400">Define where energy usage is considered Production Time for job costing and invoicing.</p><div className="mt-4 grid grid-cols-2 gap-4"><Field label="Select Site / Deployment" value="Flex Tijuana⌄" /><Field label="Time Zone" value="(GMT-07:00) Baja California⌄" /></div></div>
+          <div><h2 className="text-[12px] font-semibold uppercase">Production Time Configuration</h2><p className="mt-1 text-[9px] text-slate-400">Define where energy usage is considered Production Time for job costing and invoicing.</p><div className="mt-4 grid grid-cols-2 gap-4"><Field label="Select Site / Deployment" value="No Data⌄" /><Field label="Time Zone" value="No Data⌄" /></div></div>
           <div className="rounded border border-cyan-300/12 bg-[#061421] p-4 text-[9px] text-slate-400"><span className="mr-2 text-sky-400">ⓘ</span>Only energy usage during Production Time will be included in job costing and invoicing for Production-related jobs. Non-Production Time usage can be excluded or billed under a different rate if configured.</div>
         </section>
         <section className="mt-2 grid h-[400px] min-h-0 grid-cols-[0.62fr_1.12fr_0.8fr] gap-2">
@@ -906,31 +876,31 @@ function ProductionTimeScreen() {
 }
 
 function ProductionJobSelector() {
-  const jobs = [["JOB-1001", "Production Line 1", true], ["JOB-1002", "Chiller Plant", true], ["JOB-1003", "Packaging Line", true], ["JOB-1004", "Warehouse", false], ["JOB-1005", "Office Building", false], ["JOB-1006", "Maintenance Shop", false]] as const;
-  return <div className="text-[9px]"><p className="mb-3 text-slate-400">Choose one or more jobs to set production time.</p><div className="mb-3 grid grid-cols-[1fr_auto] gap-2"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left text-slate-400">⌕ &nbsp; Search jobs...</button><button className="px-2 text-[#29b6f6]">Select All</button></div><table className="w-full text-left"><thead className="text-slate-500"><tr><th className="pb-2"></th><th className="pb-2">Job ID</th><th className="pb-2">Job Name</th></tr></thead><tbody>{jobs.map(([id, name, checked]) => <tr className="border-t border-white/5" key={id}><td className="py-2"><span className={checked ? "grid size-4 place-items-center rounded bg-[#22c55e] text-[#02100a]" : "grid size-4 rounded border border-slate-600"}>{checked ? "✓" : ""}</span></td><td className="py-2">{id}</td><td className="py-2">{name}</td></tr>)}</tbody></table><p className="mt-4 text-[#05ff5e]">3 jobs selected</p></div>;
+  const jobs = [["No Data", "No approved production-time job source", false]] as const;
+  return <div className="text-[9px]"><p className="mb-3 text-slate-400">Choose one or more jobs to set production time.</p><div className="mb-3 grid grid-cols-[1fr_auto] gap-2"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left text-slate-400">⌕ &nbsp; Search jobs...</button><button className="px-2 text-[#29b6f6]">Select All</button></div><table className="w-full text-left"><thead className="text-slate-500"><tr><th className="pb-2"></th><th className="pb-2">Job ID</th><th className="pb-2">Job Name</th></tr></thead><tbody>{jobs.map(([id, name, checked]) => <tr className="border-t border-white/5" key={id}><td className="py-2"><span className={checked ? "grid size-4 place-items-center rounded bg-[#22c55e] text-[#02100a]" : "grid size-4 rounded border border-slate-600"}>{checked ? "✓" : ""}</span></td><td className="py-2">{id}</td><td className="py-2">{name}</td></tr>)}</tbody></table><p className="mt-4 text-[#05ff5e]">No Data jobs selected</p></div>;
 }
 
 function WeeklyProductionTime() {
   const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-  return <div className="text-[9px]"><p className="mb-3 text-slate-400">Choose how production time is defined.</p><div className="mb-4 flex gap-8 border-b border-cyan-300/10 text-[9px]"><span className="border-b-2 border-[#05ff5e] pb-2 text-[#05ff5e]">Weekly Schedule</span><span>Date Range</span><span>Shift Based</span><span>Custom Calendar</span></div><p className="mb-2 text-slate-400">Define weekly recurring production time.</p><table className="w-full text-left"><thead className="text-slate-500"><tr>{["Day of Week", "Production Start", "Production End", "Breaks (Optional)", "Actions"].map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{days.map((day, index) => <tr className="border-t border-white/5" key={day}><td className="py-1.5"><span className={index < 5 ? "mr-2 inline-grid size-4 place-items-center rounded bg-[#22c55e] text-[#02100a]" : "mr-2 inline-block size-4 rounded border border-slate-600 align-middle"}>{index < 5 ? "✓" : ""}</span>{day}</td><td><button className="rounded border border-cyan-300/12 bg-[#03111c] px-5 py-1">{index < 5 ? "06:00 AM  ◷" : "—"}</button></td><td><button className="rounded border border-cyan-300/12 bg-[#03111c] px-5 py-1">{index < 5 ? "06:00 PM  ◷" : "—"}</button></td><td><button className="rounded border border-cyan-300/12 bg-[#03111c] px-5 py-1">{index < 5 ? "12:00 PM – 01:00 PM" : "—"}</button></td><td className="text-slate-300">▧ &nbsp; <span className="text-red-400">▢</span></td></tr>)}</tbody></table><button className="mt-3 rounded border border-sky-400/25 bg-[#061421] px-4 py-2 text-[#29b6f6]">+ Add Break</button><p className="mt-3 text-[8px] text-slate-400">All times are in (GMT-07:00) Baja California</p></div>;
+  return <div className="text-[9px]"><p className="mb-3 text-slate-400">Choose how production time is defined.</p><div className="mb-4 flex gap-8 border-b border-cyan-300/10 text-[9px]"><span className="border-b-2 border-[#05ff5e] pb-2 text-[#05ff5e]">Weekly Schedule</span><span>Date Range</span><span>Shift Based</span><span>Custom Calendar</span></div><p className="mb-2 text-slate-400">Define weekly recurring production time.</p><table className="w-full text-left"><thead className="text-slate-500"><tr>{["Day of Week", "Production Start", "Production End", "Breaks (Optional)", "Actions"].map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{days.map((day) => <tr className="border-t border-white/5" key={day}><td className="py-1.5"><span className="mr-2 inline-block size-4 rounded border border-slate-600 align-middle" />{day}</td><td><button className="rounded border border-cyan-300/12 bg-[#03111c] px-5 py-1">No Data</button></td><td><button className="rounded border border-cyan-300/12 bg-[#03111c] px-5 py-1">No Data</button></td><td><button className="rounded border border-cyan-300/12 bg-[#03111c] px-5 py-1">No Data</button></td><td className="text-slate-300">▧ &nbsp; <span className="text-red-400">▢</span></td></tr>)}</tbody></table><button className="mt-3 rounded border border-sky-400/25 bg-[#061421] px-4 py-2 text-[#29b6f6]">+ Add Break</button><p className="mt-3 text-[8px] text-slate-400">No approved production-time schedule source exists.</p></div>;
 }
 
 function ProductionSummary() {
-  return <div className="space-y-2 text-[8.5px]"><p className="text-slate-400">Review production time settings.</p><div className="rounded border border-cyan-300/12 bg-[#061421] p-2.5"><b>Selected Jobs (3)</b><div className="mt-1.5 space-y-1">{["JOB-1001      Production Line 1", "JOB-1002      Chiller Plant", "JOB-1003      Packaging Line"].map((row) => <div className="text-slate-300" key={row}><span className="mr-2 text-[#05ff5e]">●</span>{row}</div>)}</div></div><div className="rounded border border-cyan-300/12 bg-[#061421] p-2.5"><b>Weekly Production Schedule</b><div className="mt-1.5 space-y-0.5 text-slate-300">{["Mon  06:00 AM – 06:00 PM (Break: 12:00 PM – 01:00 PM)", "Tue  06:00 AM – 06:00 PM (Break: 12:00 PM – 01:00 PM)", "Wed  06:00 AM – 06:00 PM (Break: 12:00 PM – 01:00 PM)", "Thu  06:00 AM – 06:00 PM (Break: 12:00 PM – 01:00 PM)", "Fri  06:00 AM – 06:00 PM (Break: 12:00 PM – 01:00 PM)", "Sat  Not Set", "Sun  Not Set"].map((row) => <div key={row}>{row}</div>)}</div></div><div className="space-y-0.5"><b>What happens outside production time?</b><div><span className="text-[#05ff5e]">◉</span> Exclude from job costing & invoicing</div><div><span className="text-slate-500">○</span> Bill at different rate (Non-Production Rate)</div><div><span className="text-slate-500">○</span> Include at same rate</div></div></div>;
+  return <div className="space-y-2 text-[8.5px]"><p className="text-slate-400">Review production time settings.</p><div className="rounded border border-cyan-300/12 bg-[#061421] p-2.5"><b>Selected Jobs (No Data)</b><div className="mt-1.5 space-y-1"><div className="text-slate-300"><span className="mr-2 text-[#05ff5e]">●</span>No approved production-time job source</div></div></div><div className="rounded border border-cyan-300/12 bg-[#061421] p-2.5"><b>Weekly Production Schedule</b><div className="mt-1.5 space-y-0.5 text-slate-300"><div>No Data</div></div></div><div className="space-y-0.5"><b>What happens outside production time?</b><div><span className="text-slate-500">○</span> No Data</div></div></div>;
 }
 
 function ProductionExceptions() {
-  const rows = [["May 26, 2025", "Holiday", "Memorial Day", "All Selected Jobs"], ["Jul 04, 2025", "Holiday", "Independence Day", "All Selected Jobs"], ["Dec 25, 2025", "Holiday", "Christmas Day", "All Selected Jobs"], ["Dec 31, 2025", "Downtime", "Year End Maintenance", "JOB-1001, JOB-1002"]];
+  const rows = [["No Data", "No Data", "No approved production-time exception source", "No Data"]];
   return <div className="text-[9px]"><div className="mb-3 flex items-center justify-between"><p className="text-slate-400">Add dates when production time does not apply.</p><button className="rounded border border-sky-400/25 bg-[#061421] px-3 py-1.5 text-[#29b6f6]">+ Add Exception</button></div><table className="w-full text-left"><thead className="text-slate-500"><tr>{["Date", "Type", "Description", "Applies To", "Actions"].map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}>{row.map((cell) => <td className="py-2" key={`${row[0]}-${cell}`}>{cell}</td>)}<td className="py-2 text-red-400">▢</td></tr>)}</tbody></table></div>;
 }
 
 function ProductionCalendar() {
-  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "27", "28", "29", "30", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14", "15", "16", "17", "18", "19", "20", "21", "22", "23", "24", "25", "26", "27", "28", "29", "30", "31"];
-  return <div className="text-[9px]"><div className="mb-2 flex justify-between"><span>May 2025</span><span className="text-[#29b6f6]">‹ &nbsp; ›</span></div><div className="grid grid-cols-7 gap-1 text-center">{days.map((day, index) => <div className={index < 7 ? "py-1 text-slate-400" : index >= 11 && index <= 40 && !["10", "11", "17", "18", "24", "25", "26"].includes(day) ? "rounded bg-[#063b27] py-1 text-[#05ff5e]" : day === "26" ? "rounded bg-slate-700 py-1 text-slate-300" : "rounded bg-[#03111c] py-1 text-slate-400"} key={`${day}-${index}`}>{day}</div>)}</div><div className="mt-3 flex gap-5 text-[8px] text-slate-400"><span><b className="text-[#05ff5e]">■</b> Production Time</span><span><b>□</b> Non-Production Time</span><span><b className="text-slate-500">▧</b> Exception</span></div></div>;
+  const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "No", "Data", "No", "Data", "No", "Data", "No", "Data", "No", "Data", "No", "Data", "No", "Data"];
+  return <div className="text-[9px]"><div className="mb-2 flex justify-between"><span>No Data</span><span className="text-[#29b6f6]">‹ &nbsp; ›</span></div><div className="grid grid-cols-7 gap-1 text-center">{days.map((day, index) => <div className={index < 7 ? "py-1 text-slate-400" : "rounded bg-[#03111c] py-1 text-slate-400"} key={`${day}-${index}`}>{day}</div>)}</div><div className="mt-3 flex gap-5 text-[8px] text-slate-400"><span><b className="text-[#05ff5e]">■</b> Production Time: No Data</span><span><b>□</b> Non-Production Time: No Data</span></div></div>;
 }
 
 function ProductionApplySettings() {
-  return <div className="space-y-3 text-[9px]"><p className="text-slate-400">Apply production time settings to selected jobs.</p><button className="w-full rounded bg-[#087a35] py-3 text-[10px]">Apply to 3 Jobs</button><button className="w-full rounded border border-cyan-300/12 bg-[#061421] py-2.5">Cancel</button><div className="rounded border border-cyan-300/12 bg-[#061421] p-3 text-slate-400"><span className="mr-2 text-sky-400">ⓘ</span>Changes will affect job costing and future invoices. Historical data will not be changed.</div></div>;
+  return <div className="space-y-3 text-[9px]"><p className="text-slate-400">Apply production time settings to selected jobs.</p><button className="w-full rounded bg-[#087a35] py-3 text-[10px]">Apply to No Data Jobs</button><button className="w-full rounded border border-cyan-300/12 bg-[#061421] py-2.5">Cancel</button><div className="rounded border border-cyan-300/12 bg-[#061421] p-3 text-slate-400"><span className="mr-2 text-sky-400">ⓘ</span>No approved production-time write model exists.</div></div>;
 }
 
 function JobReportsScreen() {
@@ -961,12 +931,12 @@ function JobReportsScreen() {
         <JobReportTabs />
         <JobReportFilters />
         <section className="mt-3 grid h-[92px] shrink-0 grid-cols-6 gap-3">
-          <JobReportKpi icon="ϟ" label="Total Energy (kWh)" value="87,652" detail="vs Apr 19 – Apr 30, 2025" delta="▲ 5.2%" tone="blue" />
-          <JobReportKpi icon="$" label="Total Cost (USD)" value="$8,742.36" detail="vs Apr 19 – Apr 30, 2025" delta="▼ 2.7%" tone="green" />
-          <JobReportKpi icon="▧" label="Peak Demand (kW)" value="412" detail="vs Apr 19 – Apr 30, 2025" delta="▼ 1.8%" tone="purple" />
-          <JobReportKpi icon="◴" label="Demand Cost (USD)" value="$3,296.34" detail="vs Apr 19 – Apr 30, 2025" delta="▼ 3.1%" tone="orange" />
-          <JobReportKpi icon="%" label="Power Factor (Avg)" value="0.94" detail="vs Apr 19 – Apr 30, 2025" delta="▲ 2.2%" tone="cyan" />
-          <JobReportKpi icon="●" label="Total Savings (USD)" value="$1,784.52" detail="vs Apr 19 – Apr 30, 2025" delta="▲ 8.6%" tone="green" />
+          <JobReportKpi icon="ϟ" label="Total Energy (kWh)" value="No Data" detail="No approved report source" delta="No Data" tone="blue" />
+          <JobReportKpi icon="$" label="Total Cost (USD)" value="No Data" detail="No approved cost source" delta="No Data" tone="green" />
+          <JobReportKpi icon="▧" label="Peak Demand (kW)" value="No Data" detail="No approved demand report source" delta="No Data" tone="purple" />
+          <JobReportKpi icon="◴" label="Demand Cost (USD)" value="No Data" detail="No approved cost source" delta="No Data" tone="orange" />
+          <JobReportKpi icon="%" label="Power Factor (Avg)" value="No Data" detail="No approved report source" delta="No Data" tone="cyan" />
+          <JobReportKpi icon="●" label="Total Savings (USD)" value="No Data" detail="No approved savings source" delta="No Data" tone="green" />
         </section>
         <section className="mt-3 grid h-[170px] shrink-0 grid-cols-[1.15fr_0.72fr_0.62fr] gap-3">
           <DashboardPanel title="Energy & Cost Overview" variant="enterprise"><JobReportTrendChart /></DashboardPanel>
@@ -996,7 +966,7 @@ function JobReportTabs() {
 }
 
 function JobReportFilters() {
-  const filters = [["Date Range", "May 1 – May 12, 2025"], ["Comparison", "Previous Period⌄"], ["Group By", "Cost Center⌄"], ["Site / Deployment", "Flex Tijuana⌄"], ["Switch / Circuit", "SW-MAIN-01 (Main Switchgear MSB)⌄"]];
+  const filters = [["Date Range", "No Data"], ["Comparison", "No Data⌄"], ["Group By", "No Data⌄"], ["Site / Deployment", "No Data⌄"], ["Switch / Circuit", "No Data⌄"]];
   return <section className="mt-3 grid h-[52px] shrink-0 grid-cols-[0.82fr_0.78fr_0.78fr_0.86fr_1.18fr_78px] gap-3 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-2 text-[9px]">{filters.map(([label, value]) => <div className="rounded border border-cyan-300/12 bg-[#03111c] px-3 py-1.5" key={label}><div className="text-[7.5px] text-slate-500">{label}</div><div className="mt-1 truncate text-slate-200">{value}</div></div>)}<button className="rounded border border-cyan-300/12 bg-[#03111c] text-slate-200">▽ Filters</button></section>;
 }
 
@@ -1017,43 +987,33 @@ function JobReportKpi({ delta, detail, icon, label, tone, value }: { delta: stri
 }
 
 function JobReportTrendChart() {
-  const days = ["May 1", "May 2", "May 3", "May 4", "May 5", "May 6", "May 7", "May 8", "May 9", "May 10", "May 11", "May 12"];
   return (
     <div className="h-full text-[8px]">
       <div className="mb-2 flex items-center gap-7 text-slate-400"><span className="text-[#05ff5e]">kWh</span><span><i className="mr-1 inline-block h-0.5 w-4 bg-[#22c55e]" />Energy (kWh)</span><span><i className="mr-1 inline-block h-0.5 w-4 bg-[#147dff]" />Total Cost (USD)</span><span><i className="mr-1 inline-block h-0.5 w-4 bg-[#f59e0b]" />Peak Demand (kW)</span><span className="ml-auto text-yellow-300">USD &nbsp;&nbsp; kW</span></div>
-      <div className="grid h-[120px] grid-cols-[34px_1fr_34px] gap-2">
-        <div className="flex flex-col justify-between text-right text-slate-500"><span>20K</span><span>15K</span><span>10K</span><span>5K</span><span>0</span></div>
-        <svg className="h-full w-full" viewBox="0 0 620 160" preserveAspectRatio="none" aria-hidden="true">
-          {[24, 56, 88, 120, 152].map((y) => <line key={y} x1="0" x2="620" y1={y} y2={y} stroke="rgba(148,163,184,.15)" />)}
-          {[26, 80, 134, 188, 242, 296, 350, 404, 458, 512, 566, 610].map((x, i) => <rect fill="#16a34a" key={x} width="16" x={x - 8} y={[72, 58, 64, 74, 84, 68, 58, 78, 70, 56, 90, 68][i]} height={152 - [72, 58, 64, 74, 84, 68, 58, 78, 70, 56, 90, 68][i]} />)}
-          <polyline fill="none" points="20,96 74,64 128,70 182,54 236,82 290,72 344,52 398,68 452,90 506,58 560,78 614,62" stroke="#147dff" strokeWidth="2.4" />
-          <polyline fill="none" points="20,102 74,72 128,78 182,64 236,94 290,82 344,72 398,88 452,86 506,44 560,76 614,86" stroke="#f59e0b" strokeWidth="2.4" />
-        </svg>
-        <div className="flex flex-col justify-between text-slate-500"><span>$1.5K</span><span>$1.0K</span><span>$500</span><span>0</span></div>
-      </div>
-      <div className="ml-9 mr-9 flex justify-between text-[7.5px] text-slate-400">{days.map((day) => <span key={day}>{day}</span>)}</div>
+      <NoDataChartBlock label="No approved job-costing report trend source exists." />
+      <div className="ml-9 mr-9 flex justify-between text-[7.5px] text-slate-400"><span>No Data</span></div>
     </div>
   );
 }
 
 function JobReportDonut() {
-  const rows = [["Production Line 1", "54,689", "62.4%", "#147dff"], ["Chiller Plant", "16,401", "18.7%", "#22c55e"], ["Packaging Line", "8,132", "9.3%", "#f59e0b"], ["Warehouse", "4,476", "5.1%", "#7c3aed"], ["Office Building", "2,444", "2.8%", "#06b6d4"], ["Other / Unallocated", "1,510", "1.7%", "#64748b"]];
-  return <div className="grid h-full grid-cols-[138px_1fr] items-center gap-5"><div className="grid size-32 place-items-center rounded-full" style={{ background: "conic-gradient(#147dff 0 62%, #22c55e 62% 81%, #f59e0b 81% 90%, #7c3aed 90% 95%, #06b6d4 95% 98%, #64748b 98% 100%)" }}><span className="grid size-[82px] place-items-center rounded-full bg-[#061521] text-center text-[18px]">87,652<br /><b className="text-[9px] font-normal text-slate-400">Total kWh</b></span></div><div className="space-y-2 text-[8px]">{rows.map(([name, value, pct, color]) => <div className="grid grid-cols-[1fr_42px_38px] gap-2" key={name}><span className="truncate"><i className="mr-2 inline-block size-2 rounded-sm" style={{ backgroundColor: color }} />{name}</span><span className="text-right text-slate-200">{value}</span><span className="text-right text-slate-300">{pct}</span></div>)}<div className="pt-2 text-[#05ff5e]">View Full Breakdown →</div></div></div>;
+  const rows = [["No Data", "No Data", "No Data", "#64748b"]];
+  return <div className="grid h-full grid-cols-[138px_1fr] items-center gap-5"><div className="grid size-32 place-items-center rounded-full bg-slate-800"><span className="grid size-[82px] place-items-center rounded-full bg-[#061521] text-center text-[16px]">No Data<br /><b className="text-[9px] font-normal text-slate-400">Total kWh</b></span></div><div className="space-y-2 text-[8px]">{rows.map(([name, value, pct, color]) => <div className="grid grid-cols-[1fr_42px_38px] gap-2" key={name}><span className="truncate"><i className="mr-2 inline-block size-2 rounded-sm" style={{ backgroundColor: color }} />{name}</span><span className="text-right text-slate-200">{value}</span><span className="text-right text-slate-300">{pct}</span></div>)}<div className="pt-2 text-[#05ff5e]">View Full Breakdown →</div></div></div>;
 }
 
 function JobReportSummary() {
-  const rows = [["Total Energy (kWh)", "87,652"], ["Total Cost (USD)", "$8,742.36"], ["Demand Cost (USD)", "$3,296.34"], ["Energy Cost (USD)", "$3,085.96"], ["Other Charges (USD)", "$2,360.06"], ["Power Factor (Avg)", "0.94"], ["Peak Demand (kW)", "412"], ["Savings vs Baseline (USD)", "$1,784.52"], ["Savings %", "16.9%"]];
+  const rows = [["Total Energy (kWh)", "No Data"], ["Total Cost (USD)", "No Data"], ["Demand Cost (USD)", "No Data"], ["Energy Cost (USD)", "No Data"], ["Other Charges (USD)", "No Data"], ["Power Factor (Avg)", "No Data"], ["Peak Demand (kW)", "No Data"], ["Savings vs Baseline (USD)", "No Data"], ["Savings %", "No Data"]];
   return <div className="space-y-1.5 text-[8.5px]">{rows.map(([label, value]) => <div className="flex justify-between border-b border-white/5 pb-1" key={label}><span className="text-slate-300">{label}</span><b className={label.includes("Savings") ? "text-[#05ff5e]" : "text-slate-100"}>{value}</b></div>)}</div>;
 }
 
 function JobReportCostTable() {
   const headers = ["Cost Center / Job", "kWh", "% of Total kWh", "kW (Peak)", "Demand Cost (USD)", "Energy Cost (USD)", "Other Charges (USD)", "Total Cost (USD)", "% of Total Cost", "Savings (USD)"];
-  const rows = [["Production Line 1 (JOB-1001)", "54,689", "62.4%", "257", "$2,045.13", "$1,854.24", "$1,552.26", "$5,451.63", "62.4%", "$1,102.34"], ["Chiller Plant (JOB-1002)", "16,401", "18.7%", "77", "$831.52", "$557.18", "$245.52", "$1,634.22", "18.7%", "$381.49"], ["Packaging Line (JOB-1003)", "8,132", "9.3%", "38", "$379.46", "$317.20", "$114.30", "$810.96", "9.3%", "$142.22"], ["Warehouse (JOB-1004)", "4,476", "5.1%", "22", "$210.68", "$162.11", "$72.32", "$445.11", "5.1%", "$96.78"], ["Office Building (JOB-1005)", "2,444", "2.8%", "12", "$106.39", "$89.45", "$49.70", "$245.54", "2.8%", "$37.91"], ["Other / Unallocated", "1,510", "1.7%", "6", "$54.16", "$37.78", "$62.96", "$154.90", "1.7%", "$23.78"], ["TOTAL", "87,652", "100%", "412", "$3,627.34", "$3,085.96", "$2,097.06", "$8,742.36", "100%", "$1,784.52"]];
+  const rows = [["No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No Data", "No approved job-costing report source"]];
   return <table className="w-full text-left text-[8px]"><thead className="text-slate-500"><tr>{headers.map((header) => <th className="pb-2 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}>{row.map((cell, index) => <td className={row[0] === "TOTAL" ? "py-[7px] font-semibold text-slate-100" : index === 0 ? "py-[7px] text-slate-300" : index === 9 ? "py-[7px] text-[#05ff5e]" : "py-[7px] text-slate-300"} key={`${row[0]}-${index}`}>{cell}</td>)}</tr>)}</tbody></table>;
 }
 
 function JobReportTopCosts() {
-  const rows = [["Production Line 1", "$5,451.63", "62.4%"], ["Chiller Plant", "$1,634.22", "18.7%"], ["Packaging Line", "$810.96", "9.3%"], ["Warehouse", "$445.11", "5.1%"], ["Office Building", "$245.54", "2.8%"]];
+  const rows = [["No Data", "No Data", "No approved cost source"]];
   return <div className="space-y-0.5 text-[7.5px]"><div className="grid grid-cols-[1fr_58px_58px] gap-2 text-slate-500"><span>Cost Center</span><span>Total Cost (USD)</span><span>% of Total Cost</span></div>{rows.map(([label, cost, pct]) => <div className="grid grid-cols-[1fr_58px_58px] gap-2 border-b border-white/5 pb-0.5" key={label}><span>{label}</span><b className="text-right text-slate-100">{cost}</b><span className="text-right text-slate-300">{pct}</span></div>)}<div className="pt-0.5 text-[#05ff5e]">View All Cost Centers →</div></div>;
 }
 
@@ -1142,6 +1102,37 @@ function telemetryRowsFromData(data: DevicesData | undefined): string[][] {
     ["Voltage (L-L Avg)", "No Data", "No Data", "No Data", "No approved voltage source", "No Data"],
     ["System Frequency", "No Data", "No Data", "No Data", "No approved frequency source", "No Data"],
   ];
+}
+
+function selectedDevice(data: DevicesData | undefined, kind: string): DeviceDataRow {
+  const row = kind === "Repeater" ? undefined : data?.devices.find((device) => device.kind === kind && device.name !== "No Data");
+
+  return row ?? {
+    firmware: "No Data",
+    healthScore: "No Data",
+    id: "no-data",
+    isMain: false,
+    kind,
+    lastSeen: "No Data",
+    location: "No Data",
+    name: "No Data",
+    serialNumber: "No Data",
+    status: kind === "Repeater" ? "No Data" : "No scoped ECBS device row",
+  };
+}
+
+function emptyTelemetry(): DevicesData["telemetry"] {
+  return {
+    kilovoltAmps: "No Data",
+    kilowattHours: "No Data",
+    kilowatts: "No Data",
+    powerFactor: "No Data",
+    timestamp: "No Data",
+  };
+}
+
+function NoDataChartBlock({ label }: { label: string }) {
+  return <div className="grid h-[120px] place-items-center rounded border border-dashed border-cyan-300/20 bg-[#03111c] text-center text-[9px] text-slate-400">{label}</div>;
 }
 
 function Info({ label, value }: { label: string; value: string }) {

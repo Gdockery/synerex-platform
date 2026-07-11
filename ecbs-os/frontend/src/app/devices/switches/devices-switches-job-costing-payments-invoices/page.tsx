@@ -1,5 +1,10 @@
 import { DeviceScreen } from "@/components/ecbs/DeviceHealthDetailScreen";
+import { getDevicesDataFromApi } from "@/lib/ecbsApi";
 
-export default function DevicesSwitchesJobCostingPaymentsInvoicesPage() {
-  return <DeviceScreen variant="jobInvoices" />;
+export const dynamic = "force-dynamic";
+
+export default async function DevicesSwitchesJobCostingPaymentsInvoicesPage() {
+  const data = await getDevicesDataFromApi();
+
+  return <DeviceScreen data={data} variant="jobInvoices" />;
 }
