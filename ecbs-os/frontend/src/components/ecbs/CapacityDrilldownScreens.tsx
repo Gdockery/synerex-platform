@@ -363,7 +363,7 @@ export function CapacityDrilldownScreen({ capacityData, healthData, recoveryData
   if (variant === "simulate") return <SimulateCapacityExpansionShell data={capacityData} />;
   if (variant === "opportunities") return <OptimizationOpportunitiesShell data={capacityData} />;
   if (variant === "networkDetail") return <ElectricalCapacityDetailShell data={capacityData} />;
-  if (variant === "financialImpact") return <AnnualBenefitFinancialImpactReferenceScreen />;
+  if (variant === "financialImpact") return <AnnualBenefitFinancialImpactReferenceScreen data={capacityData} />;
 
   const isRecovery = variant === "recovery";
   const isHealth = variant === "health";
@@ -406,37 +406,37 @@ export function CapacityDrilldownScreen({ capacityData, healthData, recoveryData
   );
 }
 
-function AnnualBenefitFinancialImpactReferenceScreen() {
+function AnnualBenefitFinancialImpactReferenceScreen({ data }: { data?: CapacityIntelligenceData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/capacity-intelligence">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[44px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="text-xl font-semibold leading-none">ANNUAL BENEFIT</h1><p className="mt-1 text-[10px] text-slate-300">Financial Impact</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[132px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-[#05ff5e]">●</span><span>?</span><span>⚙</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[132px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data ? `Tracking DB • ${data.updatedAt}` : "Tracking DB unavailable"}⌄</button><span className="text-[#05ff5e]">●</span><span>?</span><span>⚙</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[38px] items-center justify-between text-[9px]"><Breadcrumb items={["Capacity Intelligence", "Annual Benefit", "Financial Impact"]} /><div className="flex gap-3"><ToolbarButton>⇩ Export</ToolbarButton><ToolbarButton>Share</ToolbarButton><ToolbarButton>⇩ View Full Report⌄</ToolbarButton></div></div>
         <section className="grid h-[88px] grid-cols-5 gap-2">
-          <FinancialBenefitKpi icon="$" label="TOTAL ANNUAL BENEFIT" value="$184,200" detail="Total Estimated Annual Savings" tone="green" />
-          <FinancialBenefitKpi icon="▥" label="CAPACITY VALUE BENEFIT" value="$112,600" detail="61.1% of Total Benefit" tone="blue" />
-          <FinancialBenefitKpi icon="↯" label="DEMAND CHARGE SAVINGS" value="$45,800" detail="24.8% of Total Benefit" tone="purple" />
-          <FinancialBenefitKpi icon="⚙" label="ENERGY EFFICIENCY SAVINGS" value="$16,300" detail="8.9% of Total Benefit" tone="orange" />
-          <FinancialBenefitKpi icon="▣" label="OPERATIONAL COST AVOIDANCE" value="$9,500" detail="5.2% of Total Benefit" tone="cyan" />
+          <FinancialBenefitKpi icon="$" label="TOTAL ANNUAL BENEFIT" value={data?.annualBenefit ?? "No Data"} detail="Latest savings_intelligence row" tone="green" />
+          <FinancialBenefitKpi icon="▥" label="CAPACITY VALUE BENEFIT" value={formatCurrencyValue(data?.deferredCapitalValue ?? 0)} detail="Latest capacity_intelligence row" tone="blue" />
+          <FinancialBenefitKpi icon="↯" label="DEMAND CHARGE SAVINGS" value="No Data" detail="No approved demand-savings split" tone="purple" />
+          <FinancialBenefitKpi icon="⚙" label="ENERGY EFFICIENCY SAVINGS" value="No Data" detail="No approved efficiency split" tone="orange" />
+          <FinancialBenefitKpi icon="▣" label="OPERATIONAL COST AVOIDANCE" value="No Data" detail="No approved cost-avoidance source" tone="cyan" />
         </section>
         <section className="mt-2 grid h-[198px] grid-cols-[1.62fr_1.08fr] gap-2">
-          <DashboardPanel title="ANNUAL BENEFIT OVER TIME" variant="enterprise"><FinancialAnnualBenefitTrend /></DashboardPanel>
-          <DashboardPanel title="BENEFIT BREAKDOWN" variant="enterprise"><FinancialBenefitBreakdown /></DashboardPanel>
+          <DashboardPanel title="ANNUAL BENEFIT OVER TIME" variant="enterprise"><TrendNoData message="No Data - annual benefit trend buckets are not approved." /></DashboardPanel>
+          <DashboardPanel title="BENEFIT BREAKDOWN" variant="enterprise"><TrendNoData message="No Data - benefit category split is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[228px] grid-cols-[1.28fr_0.82fr_0.72fr] gap-2">
-          <DashboardPanel title="BENEFIT BY CATEGORY OVER TIME" variant="enterprise"><FinancialCategoryStackedBars /></DashboardPanel>
-          <DashboardPanel title="SAVINGS BY DRIVER" variant="enterprise"><FinancialSavingsDriverTable /></DashboardPanel>
+          <DashboardPanel title="BENEFIT BY CATEGORY OVER TIME" variant="enterprise"><TrendNoData message="No Data - category-over-time model is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS BY DRIVER" variant="enterprise"><TrendNoData message="No Data - savings driver model is not approved." /></DashboardPanel>
           <div className="grid min-h-0 grid-rows-[92px_1fr] gap-2">
-            <DashboardPanel title="FINANCIAL IMPACT SUMMARY" variant="enterprise"><FinancialImpactSummary /></DashboardPanel>
-            <DashboardPanel title="BENEFIT COMPARISON" variant="enterprise"><FinancialBenefitComparison /></DashboardPanel>
+            <DashboardPanel title="FINANCIAL IMPACT SUMMARY" variant="enterprise"><FinancialImpactSummary data={data} /></DashboardPanel>
+            <DashboardPanel title="BENEFIT COMPARISON" variant="enterprise"><TrendNoData message="No Data - benefit comparison model is not approved." /></DashboardPanel>
           </div>
         </section>
         <section className="mt-2 grid h-[188px] grid-cols-[1.38fr_0.9fr] gap-2">
-          <DashboardPanel title="DEMAND CHARGE REDUCTION IMPACT" variant="enterprise"><FinancialDemandReductionImpact /></DashboardPanel>
-          <DashboardPanel title="PROJECTED BENEFITS (NEXT 3 YEARS)" variant="enterprise"><FinancialProjectedBenefits /></DashboardPanel>
+          <DashboardPanel title="DEMAND CHARGE REDUCTION IMPACT" variant="enterprise"><TrendNoData message="No Data - demand charge reduction model is not approved." /></DashboardPanel>
+          <DashboardPanel title="PROJECTED BENEFITS (NEXT 3 YEARS)" variant="enterprise"><TrendNoData message="No Data - projected benefits model is not approved." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[28px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Annual benefits are calculated based on recovered capacity, reduced demand charges, improved efficiency, and operational cost avoidance.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span className="text-[#05ff5e]">Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -470,8 +470,16 @@ function FinancialSavingsDriverTable() {
   return <div className="h-full text-[8px]"><table className="w-full text-left"><thead className="text-slate-400"><tr><th className="pb-2 font-medium">Driver</th><th className="pb-2 text-right font-medium">Annual Savings</th><th className="pb-2 text-right font-medium">% of Total</th><th className="pb-2 text-right font-medium">Trend (12M)</th></tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}><td className="py-1.5">{row[0]}</td><td className="text-right">{row[1]}</td><td className="text-right">{row[2]}</td><td><TinyGreenSpark /></td></tr>)}</tbody></table><div className="mt-1 text-[#05ff5e]">View Driver Impact Details →</div></div>;
 }
 
-function FinancialImpactSummary() {
-  return <div className="space-y-0.5 text-[6.8px] leading-tight">{[["Annual Benefit","$184,200"],["Total CAPEX Deferred","$1,240,000"],["Average Annual ROI","14.9x"],["Payback Period","2.1 years"],["Net Present Value (5 Years)","$746,300"]].map(([label,value]) => <div className="flex justify-between border-b border-white/5 pb-[1px]" key={label}><span className="text-slate-400">{label}</span><b className={label === "Annual Benefit" ? "text-[#05ff5e]" : ""}>{value}</b></div>)}<div className="text-[#05ff5e]">View Financial Model →</div></div>;
+function FinancialImpactSummary({ data }: { data?: CapacityIntelligenceData }) {
+  const rows = [
+    ["Annual Benefit", data?.annualBenefit ?? "No Data"],
+    ["Total CAPEX Deferred", formatCurrencyValue(data?.deferredCapitalValue ?? 0)],
+    ["Average Annual ROI", "No Data"],
+    ["Payback Period", "No Data"],
+    ["Net Present Value (5 Years)", "No Data"],
+  ];
+
+  return <div className="space-y-0.5 text-[6.8px] leading-tight">{rows.map(([label,value]) => <div className="flex justify-between border-b border-white/5 pb-[1px]" key={label}><span className="text-slate-400">{label}</span><b className={label === "Annual Benefit" ? "text-[#05ff5e]" : ""}>{value}</b></div>)}<div className="text-[#05ff5e]">Financial model requires approved cost basis →</div></div>;
 }
 
 function FinancialBenefitComparison() {

@@ -1,5 +1,10 @@
 import { CapacityDrilldownScreen } from "@/components/ecbs/CapacityDrilldownScreens";
+import { getOchsnerCapacityIntelligenceData } from "@/lib/trackingDashboardData";
 
-export default function CapacityIntelligenceAnnualBenefitFinancialImpactScreenPage() {
-  return <CapacityDrilldownScreen variant="financialImpact" />;
+export const dynamic = "force-dynamic";
+
+export default async function CapacityIntelligenceAnnualBenefitFinancialImpactScreenPage() {
+  const data = await getOchsnerCapacityIntelligenceData();
+
+  return <CapacityDrilldownScreen capacityData={data} variant="financialImpact" />;
 }

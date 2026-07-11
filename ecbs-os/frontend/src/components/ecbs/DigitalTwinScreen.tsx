@@ -192,8 +192,8 @@ export function ElectricalNetworkScreen({ data, variant }: { data?: DigitalTwinD
   if (variant === "reactivePowerDetail") return <ReactivePowerDetailReferenceScreen data={payload} />;
   if (variant === "powerDetail") return <PowerDetailReferenceScreen data={payload} />;
   if (variant === "optimizationRecommendations") return <OptimizationRecommendationsReferenceScreen data={payload} />;
-  if (variant === "fullNetworkExpanded") return <FullNetworkExpandedReferenceScreen />;
-  if (variant === "oneLineScanner") return <OneLineDrawingScannerReferenceScreen />;
+  if (variant === "fullNetworkExpanded") return <FullNetworkExpandedReferenceScreen data={payload} />;
+  if (variant === "oneLineScanner") return <OneLineDrawingScannerReferenceScreen data={payload} />;
 
   const titles: Record<ElectricalNetworkVariant, string> = {
     alertsDetail: "Alerts Detail",
@@ -2230,34 +2230,34 @@ function hasApprovedElectricalModel(model: "losses" | "lossOptimization" | "powe
   return false;
 }
 
-function FullNetworkExpandedReferenceScreen() {
+function FullNetworkExpandedReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
         <header className="flex h-[44px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[12px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
-          <div className="flex items-center gap-4 text-[9px]"><button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Client<br /><b>Flex Ltd.</b>⌄</button><button className="w-[220px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 18, 2025 10:15 AM CDT⌄</button><span className="text-[#05ff5e]">● Live</span><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">JS</span><span>John Smith<br /><span className="text-slate-400">OEM Admin</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-4 text-[9px]"><button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Site<br /><b>{siteLabel(data)}</b>⌄</button><button className="w-[220px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.updatedAt}⌄</button><span className="text-[#05ff5e]">● Live</span><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">JS</span><span>John Smith<br /><span className="text-slate-400">OEM Admin</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[74px] items-center justify-between">
-          <div><div className="text-[10px] text-slate-400">Clients &nbsp; › &nbsp; Flex Ltd. &nbsp; › &nbsp; Projects &nbsp; › &nbsp; Flex Tijuana Manufacturing &nbsp; › &nbsp; <span className="text-slate-200">Full Network</span></div><h1 className="mt-1 text-2xl font-light">Full Network View</h1><p className="mt-1 text-[10px] text-slate-300">Complete electrical network and power flow visualization.</p></div>
+          <div><div className="text-[10px] text-slate-400">Enterprise &nbsp; › &nbsp; {data.projectName} &nbsp; › &nbsp; {siteLabel(data)} &nbsp; › &nbsp; <span className="text-slate-200">Full Network</span></div><h1 className="mt-1 text-2xl font-light">Full Network View</h1><p className="mt-1 text-[10px] text-slate-300">Complete electrical network and power flow visualization.</p></div>
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Site Dashboard</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Diagram</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">▣ Network Report</button><button className="rounded bg-[#147dff] px-5 py-2 text-white">⛶ Fullscreen</button></div>
         </div>
         <section className="grid h-[728px] min-h-0 grid-cols-[1.55fr_0.54fr] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[1fr_206px] gap-3 overflow-hidden">
             <div className="relative overflow-hidden rounded-lg border border-cyan-300/12 bg-[#03111d]"><FullNetworkOneLineCanvas /><FullNetworkLegend /><FullNetworkControls /></div>
             <div className="grid min-h-0 grid-cols-[0.92fr_0.88fr_1.05fr] gap-3 overflow-hidden">
-              <PeakBox title="TRANSFORMER DETAILS"><FullNetworkTransformerDetails /></PeakBox>
+              <PeakBox title="TRANSFORMER DETAILS"><FullNetworkTransformerDetails data={data} /></PeakBox>
               <PeakBox title="POWER FLOW SUMMARY (Live)"><FullNetworkPowerFlowSummary /></PeakBox>
               <PeakBox title="TOP 5 FEEDER LOAD (kW)"><FullNetworkFeederLoad /></PeakBox>
             </div>
           </div>
           <aside className="grid min-h-0 grid-rows-[190px_316px_1fr] gap-3 overflow-hidden">
-            <PeakBox title="NETWORK SUMMARY"><FullNetworkSummary /></PeakBox>
-            <PeakBox title="NETWORK HIERARCHY"><FullNetworkHierarchy /></PeakBox>
-            <PeakBox title="ALARMS & EVENTS (2 Active)"><FullNetworkEvents /></PeakBox>
+            <PeakBox title="NETWORK SUMMARY"><FullNetworkSummary data={data} /></PeakBox>
+            <PeakBox title="NETWORK HIERARCHY"><FullNetworkHierarchy data={data} /></PeakBox>
+            <PeakBox title="ALARMS & EVENTS"><NoDataPanel message="No Data - no approved network alarm/event source." /></PeakBox>
           </aside>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
@@ -2310,21 +2310,32 @@ function FullNetworkControls() {
   return <div className="absolute right-4 top-4 flex items-center gap-2 text-[10px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⚙ Display Options⌄</button><button className="grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421]">⌕</button><button className="grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421]">+</button><button className="grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421]">−</button><button className="grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421]">⛶</button></div>;
 }
 
-function FullNetworkSummary() {
-  return <div className="space-y-2 text-[8px]">{[["Total Connected Load","3.2 MW"],["Total Demand (Live)","1,063 kW"],["Total Apparent Power","1,250 kVA"],["Power Factor (Avg)","0.98 Lagging"],["Total Harmonic Distortion","4.1%"],["System Frequency","59.98 Hz"],["System Voltage (Avg.)","480.3 V"]].map(([label,value]) => <div className="flex justify-between border-b border-white/5 pb-1" key={label}><span className="text-slate-400">{label}</span><b>{value}</b></div>)}<div className="flex justify-between"><span>Capacity Utilization</span><b>85%</b></div><MeterBar value={85} /></div>;
+function FullNetworkSummary({ data }: { data: DigitalTwinData }) {
+  const utilization = utilizationPct(data);
+  const rows = [
+    ["Total Connected Load", formatMw(data.transformerKva)],
+    ["Total Demand (Live)", formatMw(data.currentLoadKva)],
+    ["Total Apparent Power", formatKva(data.currentLoadKva)],
+    ["Power Factor (Avg)", "No Data"],
+    ["Total Harmonic Distortion", "No Data"],
+    ["System Frequency", "No Data"],
+    ["System Voltage (Avg.)", "No Data"],
+  ];
+
+  return <div className="space-y-2 text-[8px]">{rows.map(([label,value]) => <div className="flex justify-between border-b border-white/5 pb-1" key={label}><span className="text-slate-400">{label}</span><b>{value}</b></div>)}<div className="flex justify-between"><span>Capacity Utilization</span><b>{utilization}%</b></div><MeterBar value={utilization} /></div>;
 }
 
-function FullNetworkHierarchy() {
-  const panels = ["Panel LP-1 (225A)", "Panel LP-2 (225A)", "Panel LP-3 (225A)", "Panel LP-4 (225A)", "Panel LP-5 (225A)", "Panel LP-6 (225A)"];
-  return <div className="flex h-full flex-col text-[8px]"><div className="space-y-1.5"><div>▾ Utility Source (13.2 kV)</div><div className="ml-4">▾ Main Transformer (1500 kVA)</div><div className="ml-8">▾ Main Switchboard (1200A)</div>{panels.map((panel) => <div className="ml-12" key={panel}>• {panel}</div>)}</div><div className="mt-auto border-t border-white/8 pt-3"><b>Active Devices (2)</b><div className="mt-2 space-y-2 text-[#05ff5e]"><div>● XAPF-200 (Active Power Filter)<br /><span className="text-slate-400">Status: Online · PF Improvement: +0.16 · THD: 4.1%</span></div><div>● Gateway-01 (Data Gateway)<br /><span className="text-slate-400">Status: Online · Signal: Strong</span></div></div></div></div>;
+function FullNetworkHierarchy({ data }: { data: DigitalTwinData }) {
+  const assets = data.assets.length ? data.assets.slice(0, 8) : [];
+  return <div className="flex h-full flex-col text-[8px]"><div className="space-y-1.5"><div>▾ {data.projectName || "Project"}</div><div className="ml-4">▾ {siteLabel(data)}</div>{assets.length ? assets.map((asset) => <div className="ml-8" key={asset.id}>• {asset.name} ({asset.type})</div>) : <div className="ml-8 text-slate-400">No asset hierarchy rows returned</div>}</div><div className="mt-auto border-t border-white/8 pt-3"><b>Active Devices</b><div className="mt-2 space-y-2 text-[#05ff5e]"><div>No Data<br /><span className="text-slate-400">No approved device-event source for this network panel.</span></div></div></div></div>;
 }
 
 function FullNetworkEvents() {
   return <div className="space-y-3 text-[8px]"><div className="grid grid-cols-[24px_1fr_auto] gap-2"><span className="grid size-6 place-items-center rounded-full bg-red-500/15 text-red-400">✧</span><span><b className="block text-red-300">High THD Alert</b><span className="text-slate-400">THD (4.1%) exceeds threshold (4.0%)</span></span><span className="text-slate-400">10:14 AM</span></div><div className="grid grid-cols-[24px_1fr_auto] gap-2"><span className="grid size-6 place-items-center rounded-full bg-yellow-500/15 text-yellow-300">△</span><span><b className="block text-yellow-300">Transformer Temperature Warning</b><span className="text-slate-400">Main Transformer temperature high 62 C</span></span><span className="text-slate-400">10:12 AM</span></div><div className="pt-1 text-[#05ff5e]">View All Alarms →</div></div>;
 }
 
-function FullNetworkTransformerDetails() {
-  return <div className="flex h-full flex-col text-[8px]">{[["Name","Main Transformer"],["Rating","1500 kVA"],["Primary Voltage","13.2 kV"],["Secondary Voltage","480Y/277V"],["Impedance","5.75%"],["Loading (Current)","68% (725 A)"],["Temperature","62 C"]].map(([label,value]) => <div className="flex justify-between border-b border-white/5 py-1" key={label}><span className="text-slate-400">{label}</span><b>{value}</b></div>)}<div className="mt-auto text-[#05ff5e]">View Transformer Analytics →</div></div>;
+function FullNetworkTransformerDetails({ data }: { data: DigitalTwinData }) {
+  return <div className="flex h-full flex-col text-[8px]">{[["Name",data.twinLabel || "Ochsner Digital Twin"],["Rating",formatKva(data.transformerKva)],["Primary Voltage","No Data"],["Secondary Voltage","No Data"],["Impedance","No Data"],["Loading (Current)",`${utilizationPct(data)}% (${formatKva(data.currentLoadKva)})`],["Temperature","No Data"]].map(([label,value]) => <div className="flex justify-between border-b border-white/5 py-1" key={label}><span className="text-slate-400">{label}</span><b>{value}</b></div>)}<div className="mt-auto text-[#05ff5e]">View Transformer Analytics →</div></div>;
 }
 
 function FullNetworkPowerFlowSummary() {
@@ -2337,25 +2348,25 @@ function FullNetworkFeederLoad() {
   return <div className="flex h-full flex-col text-[8px]"><table className="w-full text-left"><thead className="text-slate-400"><tr><th className="pb-2 font-medium">Feeder</th><th className="pb-2 text-right font-medium">Demand (kW)</th><th className="pb-2 text-right font-medium">% of Total</th></tr></thead><tbody>{rows.map((row) => <tr className="border-t border-white/5" key={row[0]}><td className="py-2">{row[0]}</td><td className="text-right">{row[1]}</td><td className="text-right">{row[2]}</td></tr>)}</tbody></table><div className="mt-auto text-[#05ff5e]">View All Feeders →</div></div>;
 }
 
-function OneLineDrawingScannerReferenceScreen() {
+function OneLineDrawingScannerReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
         <header className="flex h-[52px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[14px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
-          <div className="flex items-center gap-4 text-[10px]"><button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Client<br /><b>Flex Ltd.</b>⌄</button><button className="w-[220px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-[#05ff5e]">● Online</span><span className="text-red-400">●</span><span>?</span><span className="grid size-8 place-items-center rounded-full bg-[#17324a]">JS</span><span>John Smith<br /><span className="text-slate-400">OEM Admin</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-4 text-[10px]"><button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Site<br /><b>{siteLabel(data)}</b>⌄</button><button className="w-[220px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.updatedAt}⌄</button><span className="text-[#05ff5e]">● Online</span><span className="text-red-400">●</span><span>?</span><span className="grid size-8 place-items-center rounded-full bg-[#17324a]">JS</span><span>John Smith<br /><span className="text-slate-400">OEM Admin</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[96px] items-center justify-between">
-          <div><div className="text-[11px] text-slate-300">Clients &nbsp; › &nbsp; Flex Ltd. &nbsp; › &nbsp; Projects / Facilities &nbsp; › &nbsp; Create New Project &nbsp; › &nbsp; <span className="font-semibold text-slate-100">Scan One-Line Drawing</span></div><h1 className="mt-4 text-3xl font-light">Scan One-Line Drawing</h1><p className="mt-1 text-[12px] text-slate-300">Upload or scan your facility one-line drawing to map your electrical system and enable network analysis.</p></div>
+          <div><div className="text-[11px] text-slate-300">Enterprise &nbsp; › &nbsp; {data.projectName} &nbsp; › &nbsp; {siteLabel(data)} &nbsp; › &nbsp; <span className="font-semibold text-slate-100">Scan One-Line Drawing</span></div><h1 className="mt-4 text-3xl font-light">Scan One-Line Drawing</h1><p className="mt-1 text-[12px] text-slate-300">Upload or scan your facility one-line drawing to map your electrical system and enable network analysis.</p></div>
           <button className="rounded border border-cyan-300/12 bg-[#061421] px-5 py-3 text-[11px]">← Back to Project Setup</button>
         </div>
         <section className="grid h-[590px] min-h-0 grid-cols-[0.72fr_1fr] gap-3 overflow-hidden">
           <ScannerWhiteCard title="1. Upload or Scan One-Line Drawing"><ScannerUploadPanel /></ScannerWhiteCard>
-          <ScannerWhiteCard title="2. Extracted Preview"><ScannerPreviewPanel /></ScannerWhiteCard>
+          <ScannerWhiteCard title="2. Extracted Preview"><ScannerBlockedPanel /></ScannerWhiteCard>
         </section>
-        <div className="mt-3 flex h-[58px] items-center rounded-lg border border-[#05ff5e]/25 bg-[#063b27]/75 px-5 text-[12px] text-slate-100"><span className="mr-4 grid size-6 place-items-center rounded-full border border-[#05ff5e] text-[#05ff5e]">✓</span>One-line drawing uploaded and processed successfully. Review the extracted components and continue.</div>
+        <div className="mt-3 flex h-[58px] items-center rounded-lg border border-amber-300/25 bg-amber-500/10 px-5 text-[12px] text-amber-100"><span className="mr-4 grid size-6 place-items-center rounded-full border border-amber-300 text-amber-300">!</span>No Data - scanner upload, OCR extraction, and drawing write model are not approved for this pass.</div>
         <div className="mt-4 flex h-[42px] justify-end gap-4 text-[12px]"><button className="w-[128px] rounded border border-slate-600 bg-[#061421]">Cancel</button><button className="w-[150px] rounded border border-slate-600 bg-[#061421]">Skip for Now</button><button className="w-[190px] rounded bg-[#0a9f3e] text-white">Save & Continue →</button></div>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
@@ -2363,6 +2374,10 @@ function OneLineDrawingScannerReferenceScreen() {
 
 function ScannerWhiteCard({ children, title }: { children: ReactNode; title: string }) {
   return <article className="min-h-0 overflow-hidden rounded-lg border border-slate-300 bg-white p-4 text-slate-950 shadow-[0_18px_60px_rgba(0,0,0,.32)]"><h2 className="mb-4 text-[16px] font-semibold">{title}</h2>{children}</article>;
+}
+
+function ScannerBlockedPanel() {
+  return <div className="grid h-full place-items-center rounded-lg border border-dashed border-slate-300 bg-slate-50 px-8 text-center text-[14px] leading-relaxed text-slate-600"><div><div className="mb-3 text-2xl font-semibold text-slate-800">No Data</div><div>No approved upload storage, OCR extraction, detected-component table, or scanner write workflow exists yet.</div><div className="mt-4 text-[12px] text-slate-500">The visual shell is preserved; generated drawing data is intentionally blocked.</div></div></div>;
 }
 
 function ScannerUploadPanel() {

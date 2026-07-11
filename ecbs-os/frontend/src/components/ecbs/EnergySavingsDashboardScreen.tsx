@@ -1,34 +1,78 @@
 import type { ReactNode } from "react";
+import type { CapacityIntelligenceData } from "@/lib/trackingDashboardData";
 import { DashboardHeader, DashboardPanel } from "./DashboardCards";
 import { EcbsAppShell } from "./EcbsAppShell";
 
-const kpis = [
-  ["Lifetime Savings", "$1,862,744", "Since May 12, 2024", "green"],
-  ["Savings This Year", "$412,885", "2025 (YTD)", "blue"],
-  ["Savings This Month", "$37,922", "May 1 - May 18, 2025", "cyan"],
-  ["Savings Today", "$1,284", "As of 10:15 AM", "yellow"],
-  ["Capacity Recovered", "1.82 MVA", "Since installation", "cyan"],
-  ["Deferred Capital Value", "$910,000", "Avoided infrastructure", "purple"],
-];
+type EnergySavingsScreenProps = {
+  data?: CapacityIntelligenceData;
+};
 
-const baselineRows = [
-  ["Energy (kWh)", "1,486,000", "1,368,000", "7.9%"],
-  ["Peak Demand (kW)", "4,210", "3,670", "12.8%"],
-  ["kVA Demand (kVA)", "5,120", "4,320", "15.6%"],
-  ["Power Factor (avg)", "82%", "96%", "14%"],
-  ["Current Balance Index", "53", "96", "43 pts"],
-  ["Avoidable Cost ($)", "$2,400,000", "$1,538,680", "$861,320"],
-  ["Annual Utility Cost", "$2,420,000", "$1,538,680", "$891,320"],
-];
+function formatKva(value?: number) {
+  const raw = Number(value ?? 0);
+  if (!Number.isFinite(raw) || raw <= 0) return "No Data";
+  if (raw >= 1000) return `${(raw / 1000).toFixed(2)} MVA`;
+  return `${raw.toLocaleString("en-US", { maximumFractionDigits: 0 })} kVA`;
+}
 
-export function EnergySavingsDashboardScreen() {
+function formatCurrencyValue(value?: number) {
+  const raw = Number(value ?? 0);
+  if (!Number.isFinite(raw) || raw <= 0) return "No Data";
+  return raw.toLocaleString("en-US", { currency: "USD", maximumFractionDigits: 0, style: "currency" });
+}
+
+function formatPctValue(value?: number) {
+  const raw = Number(value ?? 0);
+  if (!Number.isFinite(raw) || raw <= 0) return "No Data";
+  return `${raw.toFixed(1)}%`;
+}
+
+function energyDateRange(data?: CapacityIntelligenceData) {
+  return data ? `Tracking DB • ${data.updatedAt}` : "Tracking DB unavailable";
+}
+
+function hasCapacityData(data?: CapacityIntelligenceData) {
+  return Boolean(data && data.state === "data");
+}
+
+function annualBenefitValue(data?: CapacityIntelligenceData) {
+  return data?.annualBenefit && data.annualBenefit !== "$0" ? data.annualBenefit : "No Data";
+}
+
+function energyKpis(data?: CapacityIntelligenceData) {
+  return [
+    ["Lifetime Savings", "No Data", "No approved lifetime rollup", "green"],
+    ["Savings This Year", annualBenefitValue(data), "Latest savings_intelligence row", "blue"],
+    ["Savings This Month", "No Data", "No approved monthly rollup", "cyan"],
+    ["Savings Today", "No Data", "No approved daily rollup", "yellow"],
+    ["Capacity Recovered", formatKva(data?.recoveredKva), "Latest capacity_intelligence row", "cyan"],
+    ["Deferred Capital Value", formatCurrencyValue(data?.deferredCapitalValue), "Latest capacity_intelligence row", "purple"],
+  ];
+}
+
+function energyBaselineRows(data?: CapacityIntelligenceData) {
+  return [
+    ["Energy (kWh)", "No Data", "No Data", "No baseline energy contract"],
+    ["Peak Demand (kW)", "No Data", "No Data", "No approved demand baseline"],
+    ["kVA Demand (kVA)", "No Data", formatKva(data?.loadKva), "Current direct only"],
+    ["Power Factor (avg)", "No Data", "No Data", "No PF baseline contract"],
+    ["Current Balance Index", "No Data", "No Data", "No baseline CBI contract"],
+    ["Avoidable Cost ($)", "No Data", formatCurrencyValue(data?.deferredCapitalValue), "Deferred value direct only"],
+    ["Annual Utility Cost", "No Data", "No Data", "No utility-cost source"],
+  ];
+}
+
+function NoDataBlock({ message = "No Data" }: { message?: string }) {
+  return <div className="grid h-full place-items-center px-4 text-center text-[9px] leading-snug text-slate-400">{message}</div>;
+}
+
+export function EnergySavingsDashboardScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
       <div className="flex h-screen min-h-0 flex-col overflow-hidden px-4 py-3">
-        <DashboardHeader dateRange="May 12 - May 18, 2025" subtitle="Real-Time Intelligence. Measurable Value. Continuous Improvement." title="Energy & Savings Dashboard™" />
+        <DashboardHeader dateRange={energyDateRange(data)} subtitle="Real-Time Intelligence. Measurable Value. Continuous Improvement." title="Energy & Savings Dashboard™" />
 
         <section className="mt-2 grid h-[86px] shrink-0 grid-cols-6 gap-3">
-          {kpis.map(([label, value, detail, tone]) => <SavingsKpi detail={detail} key={label} label={label} tone={tone} value={value} />)}
+          {energyKpis(data).map(([label, value, detail, tone]) => <SavingsKpi detail={detail} key={label} label={label} tone={tone} value={value} />)}
         </section>
 
         <section className="mt-3 grid h-[198px] shrink-0 grid-cols-[0.7fr_1.3fr] gap-3">
@@ -45,34 +89,34 @@ export function EnergySavingsDashboardScreen() {
             <div className="mt-3 text-[9px] text-slate-400">Every minute. Every hour. Every day. <span className="text-[#05ff5e]">Real measurable value.</span></div>
           </DashboardPanel>
           <DashboardPanel title="Cumulative Savings Since Activation" variant="enterprise">
-            <LineChart />
+            <NoDataBlock message="No Data - cumulative savings trend source is not approved." />
           </DashboardPanel>
         </section>
 
         <section className="mt-3 grid h-[205px] shrink-0 grid-cols-[1.15fr_1.15fr_0.95fr] gap-3">
           <DashboardPanel title="Baseline vs Current Performance" variant="enterprise">
-            <CompactTable headers={["Metric", "Baseline", "Current", "Improvement"]} rows={baselineRows} />
+            <CompactTable headers={["Metric", "Baseline", "Current", "Improvement"]} rows={energyBaselineRows(data)} />
           </DashboardPanel>
           <DashboardPanel title="Savings Waterfall" variant="enterprise">
-            <Waterfall />
+            <NoDataBlock message="No Data - savings waterfall requires an approved trend/split model." />
           </DashboardPanel>
           <DashboardPanel title="ROI & Payback" variant="enterprise">
             <div className="grid h-full grid-cols-2 gap-3 text-center">
-              <Gauge label="Return on Investment" value="143%" />
-              <Gauge label="Payback Period" value="2.1 yrs" />
+              <Gauge label="Return on Investment" value="No Data" />
+              <Gauge label="Payback Period" value="No Data" />
             </div>
           </DashboardPanel>
         </section>
 
         <section className="mt-3 grid h-[126px] shrink-0 grid-cols-[1.1fr_0.92fr_1.05fr_1.08fr] gap-3">
-          <DashboardPanel title="Current Balance Intelligence" variant="enterprise"><MiniGauges /></DashboardPanel>
-          <DashboardPanel title="Capacity Intelligence" variant="enterprise"><CapacityBlock /></DashboardPanel>
+          <DashboardPanel title="Current Balance Intelligence" variant="enterprise"><NoDataBlock message="No Data - current balance breakdown source is not approved for this Energy screen." /></DashboardPanel>
+          <DashboardPanel title="Capacity Intelligence" variant="enterprise"><CapacityBlock data={data} /></DashboardPanel>
           <DashboardPanel title="Utility Intelligence" variant="enterprise"><UtilityBlock /></DashboardPanel>
           <DashboardPanel title="Active Alerts" variant="enterprise"><AlertBlock /></DashboardPanel>
         </section>
 
         <section className="mt-3 grid h-[104px] shrink-0 grid-cols-[1.15fr_0.75fr_0.75fr_0.52fr] gap-3">
-          <DashboardPanel title="Savings Breakdown" variant="enterprise"><SavingsBreakdown /></DashboardPanel>
+          <DashboardPanel title="Savings Breakdown" variant="enterprise"><SavingsBreakdown data={data} /></DashboardPanel>
           <DashboardPanel title="Top Saving Opportunities" variant="enterprise"><OpportunityList /></DashboardPanel>
           <DashboardPanel title="System Health & Status" variant="enterprise"><HealthList /></DashboardPanel>
           <DashboardPanel title="Alerts" variant="enterprise"><AlertCounts /></DashboardPanel>
@@ -93,36 +137,36 @@ function EnergySavingsFooter() {
   );
 }
 
-export function EnergySavingsAlertsScreen() {
+export function EnergySavingsAlertsScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="text-xl font-semibold leading-none">ALERTS & EVENTS(TM)</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time Alerting. Faster Response. Greater Reliability.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-red-400">●</span><span>?</span><span>⚙</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}⌄</button><span className="text-red-400">●</span><span>?</span><span>⚙</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div><span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Alerts & Events</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">◎ Acknowledge All</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⚙ Configure Alerts</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button></div></div>
         <section className="grid h-[88px] grid-cols-6 gap-2">
-          <AlertStatusKpi icon="△" label="ACTIVE ALERTS" value="6" detail="Requires Attention" trend="▼ 2 vs Last 24 Hours" tone="red" />
-          <AlertStatusKpi icon="△" label="WARNING ALERTS" value="14" detail="Monitor & Review" trend="▼ 3 vs Last 24 Hours" tone="orange" />
-          <AlertStatusKpi icon="ⓘ" label="INFO ALERTS" value="24" detail="Informational" trend="▲ 5 vs Last 24 Hours" tone="blue" />
-          <AlertStatusKpi icon="✓" label="RESOLVED (24H)" value="18" detail="Auto / Manual Resolved" trend="▲ 6 vs Last 24 Hours" tone="purple" />
-          <AlertStatusKpi icon="⌁" label="ALERT RESPONSE (AVG)" value="8.3 min" detail="Target < 15 min" trend="▼ 2.7 min vs Last 7 Days" tone="cyan" />
-          <AlertStatusKpi icon="✓" label="ALERT COMPLIANCE" value="98.6%" detail="Within SLA" trend="▲ 1.4% vs Last 7 Days" tone="green" />
+          <AlertStatusKpi icon="△" label="ACTIVE ALERTS" value="No Data" detail="No approved alert source" trend="Blocked" tone="red" />
+          <AlertStatusKpi icon="△" label="WARNING ALERTS" value="No Data" detail="No approved alert source" trend="Blocked" tone="orange" />
+          <AlertStatusKpi icon="ⓘ" label="INFO ALERTS" value="No Data" detail="No approved alert source" trend="Blocked" tone="blue" />
+          <AlertStatusKpi icon="✓" label="RESOLVED (24H)" value="No Data" detail="No response source" trend="Blocked" tone="purple" />
+          <AlertStatusKpi icon="⌁" label="ALERT RESPONSE (AVG)" value="No Data" detail="No SLA source" trend="Blocked" tone="cyan" />
+          <AlertStatusKpi icon="✓" label="ALERT COMPLIANCE" value="No Data" detail="No compliance source" trend="Blocked" tone="green" />
         </section>
         <section className="mt-2 grid h-[184px] grid-cols-[0.9fr_1.06fr_1.18fr] gap-2">
-          <DashboardPanel title="ALERTS BY SEVERITY" variant="enterprise"><AlertsSeverityDonut /></DashboardPanel>
-          <DashboardPanel title="ALERT TREND (Last 7 Days)" variant="enterprise"><AlertsTrendChart /></DashboardPanel>
-          <DashboardPanel title="ALERT STATUS OVER TIME" variant="enterprise"><AlertStatusStacked /></DashboardPanel>
+          <DashboardPanel title="ALERTS BY SEVERITY" variant="enterprise"><NoDataBlock message="No Data - no approved alert severity source." /></DashboardPanel>
+          <DashboardPanel title="ALERT TREND (Last 7 Days)" variant="enterprise"><NoDataBlock message="No Data - no approved alert trend source." /></DashboardPanel>
+          <DashboardPanel title="ALERT STATUS OVER TIME" variant="enterprise"><NoDataBlock message="No Data - no approved alert status source." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[206px] grid-cols-[1.42fr_1fr] gap-2">
-          <DashboardPanel title="ACTIVE ALERTS (6)" variant="enterprise"><ActiveAlertsReferenceTable /></DashboardPanel>
-          <DashboardPanel title="ALERT PRIORITY MATRIX" variant="enterprise"><AlertPriorityMatrix /></DashboardPanel>
+          <DashboardPanel title="ACTIVE ALERTS" variant="enterprise"><NoDataBlock message="No Data - active alert rows require an approved alert/event model." /></DashboardPanel>
+          <DashboardPanel title="ALERT PRIORITY MATRIX" variant="enterprise"><NoDataBlock message="No Data - priority scoring has no approved source." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[224px] grid-cols-[1.05fr_0.86fr_0.74fr_0.74fr] gap-2">
-          <DashboardPanel title="ALERT RESPONSE PERFORMANCE (Last 7 Days)" variant="enterprise"><AlertResponsePerformance /></DashboardPanel>
-          <DashboardPanel title="ALERT CATEGORIES" variant="enterprise"><AlertCategoriesBars /></DashboardPanel>
-          <DashboardPanel title="ALERT NOTIFICATIONS (Last 7 Days)" variant="enterprise"><AlertNotificationsList /></DashboardPanel>
+          <DashboardPanel title="ALERT RESPONSE PERFORMANCE (Last 7 Days)" variant="enterprise"><NoDataBlock message="No Data - response performance requires an approved SLA source." /></DashboardPanel>
+          <DashboardPanel title="ALERT CATEGORIES" variant="enterprise"><NoDataBlock message="No Data - alert category source is not approved." /></DashboardPanel>
+          <DashboardPanel title="ALERT NOTIFICATIONS (Last 7 Days)" variant="enterprise"><NoDataBlock message="No Data - notification history source is not approved." /></DashboardPanel>
           <DashboardPanel title="QUICK ACTIONS" variant="enterprise"><AlertQuickActions /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[32px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Alerts are generated in real time based on system thresholds and predictive analytics.</div>
@@ -132,37 +176,37 @@ export function EnergySavingsAlertsScreen() {
   );
 }
 
-export function EnergySavingsBaselineComparisonScreen() {
+export function EnergySavingsBaselineComparisonScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="text-xl font-semibold leading-none">BASELINE COMPARISON</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time. Measurable Value. Continuous Improvement.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div><span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Baseline Comparison</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">More⌄</button></div></div>
         <section className="grid h-[88px] grid-cols-6 gap-2">
-          <BaselineKpi label="TOTAL ENERGY (kWh)" baseline="5,286,124" current="4,286,154" diff="-999,970" reduction="-18.9%" />
-          <BaselineKpi label="PEAK DEMAND (kW)" baseline="4,210" current="3,670" diff="-540" reduction="-12.8%" />
-          <BaselineKpi label="AVERAGE POWER FACTOR" baseline="0.68" current="0.98" diff="+0.30" reduction="+44.1%" />
-          <BaselineKpi label="TOTAL kVA" baseline="6,189,930" current="4,365,210" diff="-1,824,720" reduction="-29.5%" />
-          <BaselineKpi label="THD (AVG %)" baseline="16.2%" current="4.1%" diff="-12.1%" reduction="-74.7%" />
-          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">EST. ANNUAL SAVINGS</div><div className="mt-1 text-3xl leading-none text-[#05ff5e]">$489,320</div><div className="mt-1 text-[9px] text-slate-300">Since Activation (May 12, 2024)</div><div className="mt-1 text-[8px] text-[#05ff5e]">20.9% Reduction</div></article>
+          <BaselineKpi label="TOTAL ENERGY (kWh)" baseline="No Data" current="No Data" diff="No Data" reduction="No Data" />
+          <BaselineKpi label="PEAK DEMAND (kW)" baseline="No Data" current="No Data" diff="No Data" reduction="No Data" />
+          <BaselineKpi label="AVERAGE POWER FACTOR" baseline="No Data" current="No Data" diff="No Data" reduction="No Data" />
+          <BaselineKpi label="TOTAL kVA" baseline="No Data" current={formatKva(data?.loadKva)} diff="No Data" reduction="No Data" />
+          <BaselineKpi label="THD (AVG %)" baseline="No Data" current="No Data" diff="No Data" reduction="No Data" />
+          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">EST. ANNUAL SAVINGS</div><div className="mt-1 text-3xl leading-none text-[#05ff5e]">{annualBenefitValue(data)}</div><div className="mt-1 text-[9px] text-slate-300">Latest savings_intelligence row</div><div className="mt-1 text-[8px] text-[#05ff5e]">Direct Data</div></article>
         </section>
         <section className="mt-2 grid h-[214px] grid-cols-[1.18fr_1.04fr_1.02fr] gap-2">
-          <DashboardPanel title="BASELINE vs CURRENT - ENERGY (kWh)" variant="enterprise"><BaselineEnergyChart /></DashboardPanel>
-          <DashboardPanel title="LOAD PROFILE COMPARISON (Average Day)" variant="enterprise"><BaselineLoadProfile /></DashboardPanel>
-          <DashboardPanel title="BASELINE vs CURRENT SUMMARY" variant="enterprise"><BaselineSummaryTable /></DashboardPanel>
+          <DashboardPanel title="BASELINE vs CURRENT - ENERGY (kWh)" variant="enterprise"><NoDataBlock message="No Data - baseline energy contract is not approved." /></DashboardPanel>
+          <DashboardPanel title="LOAD PROFILE COMPARISON (Average Day)" variant="enterprise"><NoDataBlock message="No Data - baseline load profile source is not approved." /></DashboardPanel>
+          <DashboardPanel title="BASELINE vs CURRENT SUMMARY" variant="enterprise"><CompactTable headers={["Metric", "Baseline", "Current", "Improvement"]} rows={energyBaselineRows(data)} /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[190px] grid-cols-3 gap-2">
-          <DashboardPanel title="BASELINE vs CURRENT - DEMAND (kW)" variant="enterprise"><BaselineDemandChart /></DashboardPanel>
-          <DashboardPanel title="BASELINE vs CURRENT - POWER FACTOR" variant="enterprise"><BaselinePowerFactorChart /></DashboardPanel>
-          <DashboardPanel title="BASELINE vs CURRENT - THD (%)" variant="enterprise"><BaselineThdChart /></DashboardPanel>
+          <DashboardPanel title="BASELINE vs CURRENT - DEMAND (kW)" variant="enterprise"><NoDataBlock message="No Data - demand baseline model is not approved." /></DashboardPanel>
+          <DashboardPanel title="BASELINE vs CURRENT - POWER FACTOR" variant="enterprise"><NoDataBlock message="No Data - PF baseline model is not approved." /></DashboardPanel>
+          <DashboardPanel title="BASELINE vs CURRENT - THD (%)" variant="enterprise"><NoDataBlock message="No Data - THD baseline model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[160px] grid-cols-[1.03fr_0.96fr_1.03fr] gap-2">
-          <DashboardPanel title="BASELINE vs CURRENT BY SYSTEM" variant="enterprise"><BaselineSystemTable /></DashboardPanel>
-          <DashboardPanel title="SAVINGS IMPACT SUMMARY" variant="enterprise"><BaselineSavingsImpact /></DashboardPanel>
-          <DashboardPanel title="BASELINE INFORMATION" variant="enterprise"><BaselineInformation /></DashboardPanel>
+          <DashboardPanel title="BASELINE vs CURRENT BY SYSTEM" variant="enterprise"><NoDataBlock message="No Data - system-level baseline allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS IMPACT SUMMARY" variant="enterprise"><NoDataBlock message="No Data - savings impact requires an approved baseline model." /></DashboardPanel>
+          <DashboardPanel title="BASELINE INFORMATION" variant="enterprise"><NoDataBlock message="No Data - baseline source metadata is not approved." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Baseline comparison uses approved baseline and verified measurement methodology in accordance with ANSI C12.20 Class 0.5.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -171,37 +215,37 @@ export function EnergySavingsBaselineComparisonScreen() {
   );
 }
 
-export function EnergySavingsCapacityIntelligenceScreen() {
+export function EnergySavingsCapacityIntelligenceScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/capacity-intelligence">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="text-xl font-semibold leading-none">CAPACITY INTELLIGENCE(TM)</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time Capacity Optimization. Maximize Available Infrastructure. Reduce Risk.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div><span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Capacity Intelligence</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Configure</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts⌄</button></div></div>
         <section className="grid h-[88px] grid-cols-6 gap-2">
-          <CapacityIntelKpi icon="⌁" label="CAPACITY RECOVERED(TM)" value="1.82 MVA" detail="Since Activation" trend="▲ 2.03% vs Last 30 Days" tone="cyan" />
-          <CapacityIntelKpi icon="▱" label="AVAILABLE CAPACITY" value="1.24 MVA" detail="Currently Available" trend="▲ 1.11% vs Last 30 Days" tone="blue" />
-          <CapacityIntelKpi icon="○" label="SYSTEM LOADING" value="49.1%" detail="Average System Load" trend="▼ -3.7% vs Last 30 Days" tone="orange" />
-          <CapacityIntelKpi icon="▥" label="CAPACITY UTILIZATION" value="50.9%" detail="% of Rated Capacity" trend="▼ -3.7% vs Last 30 Days" tone="purple" />
-          <CapacityIntelKpi icon="▿" label="OVERLOAD RISK" value="Low" detail="All Systems Normal" trend="No Risk Detected" tone="green" />
-          <CapacityIntelKpi icon="▧" label="CAPACITY RESERVE" value="1.24 MVA" detail="Reserve Margin" trend="▲ 1.11% vs Last 30 Days" tone="yellow" />
+          <CapacityIntelKpi icon="⌁" label="CAPACITY RECOVERED(TM)" value={formatKva(data?.recoveredKva)} detail="Latest capacity_intelligence row" trend="Direct Data" tone="cyan" />
+          <CapacityIntelKpi icon="▱" label="AVAILABLE CAPACITY" value={formatKva(data?.availableKva)} detail="Currently Available" trend="Direct Data" tone="blue" />
+          <CapacityIntelKpi icon="○" label="SYSTEM LOADING" value={formatKva(data?.loadKva)} detail="Current utilized capacity" trend="Direct Data" tone="orange" />
+          <CapacityIntelKpi icon="▥" label="CAPACITY UTILIZATION" value={formatPctValue(data?.utilizationPct)} detail="% of rated capacity" trend="Direct Data" tone="purple" />
+          <CapacityIntelKpi icon="▿" label="OVERLOAD RISK" value={hasCapacityData(data) ? (data!.utilizationPct >= 90 ? "High" : data!.utilizationPct >= 75 ? "Warning" : "Low") : "No Data"} detail="Calculated from utilization" trend="Calculated" tone="green" />
+          <CapacityIntelKpi icon="▧" label="CAPACITY RESERVE" value={formatKva((data?.availableKva ?? 0) + (data?.recoveredKva ?? 0))} detail="Available + recovered" trend="Calculated" tone="yellow" />
         </section>
         <section className="mt-2 grid h-[210px] grid-cols-3 gap-2">
-          <DashboardPanel title="CAPACITY UTILIZATION OVER TIME ⓘ" variant="enterprise"><CapacityUtilizationTrend /></DashboardPanel>
-          <DashboardPanel title="AVAILABLE CAPACITY (MVA) ⓘ" variant="enterprise"><AvailableCapacityTrend /></DashboardPanel>
-          <DashboardPanel title="CAPACITY RECOVERY OVER TIME (CUMULATIVE) ⓘ" variant="enterprise"><CapacityRecoveryTrend /></DashboardPanel>
+          <DashboardPanel title="CAPACITY UTILIZATION OVER TIME ⓘ" variant="enterprise"><NoDataBlock message="No Data - Energy dashboard trend contract is not approved for this screen." /></DashboardPanel>
+          <DashboardPanel title="AVAILABLE CAPACITY (MVA) ⓘ" variant="enterprise"><CapacityBlock data={data} /></DashboardPanel>
+          <DashboardPanel title="CAPACITY RECOVERY OVER TIME (CUMULATIVE) ⓘ" variant="enterprise"><NoDataBlock message="No Data - cumulative recovery trend source is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[198px] grid-cols-[1.05fr_1fr_1fr] gap-2">
-          <DashboardPanel title="CAPACITY BY TRANSFORMER ⓘ" variant="enterprise"><CapacityTransformerTable /></DashboardPanel>
-          <DashboardPanel title="CAPACITY BY SYSTEM ⓘ" variant="enterprise"><CapacitySystemTable /></DashboardPanel>
-          <DashboardPanel title="CAPACITY UTILIZATION ZONES ⓘ" variant="enterprise"><CapacityZones /></DashboardPanel>
+          <DashboardPanel title="CAPACITY BY TRANSFORMER ⓘ" variant="enterprise"><CapacityBlock data={data} /></DashboardPanel>
+          <DashboardPanel title="CAPACITY BY SYSTEM ⓘ" variant="enterprise"><NoDataBlock message="No Data - system-level capacity allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="CAPACITY UTILIZATION ZONES ⓘ" variant="enterprise"><NoDataBlock message="No Data - utilization-zone model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[178px] grid-cols-3 gap-2">
-          <DashboardPanel title="CAPACITY FORECAST (Next 30 Days) ⓘ" variant="enterprise"><CapacityForecast /></DashboardPanel>
-          <DashboardPanel title="CAPACITY OPTIMIZATION OPPORTUNITIES ⓘ" variant="enterprise"><CapacityOpportunitiesTable /></DashboardPanel>
-          <DashboardPanel title="CAPACITY HEALTH INDICATORS ⓘ" variant="enterprise"><CapacityHealthIndicators /></DashboardPanel>
+          <DashboardPanel title="CAPACITY FORECAST (Next 30 Days) ⓘ" variant="enterprise"><NoDataBlock message="No Data - forecast model is not approved." /></DashboardPanel>
+          <DashboardPanel title="CAPACITY OPTIMIZATION OPPORTUNITIES ⓘ" variant="enterprise"><NoDataBlock message="No Data - opportunity model is not approved on this screen." /></DashboardPanel>
+          <DashboardPanel title="CAPACITY HEALTH INDICATORS ⓘ" variant="enterprise"><NoDataBlock message="No Data - health indicator model is not approved for Energy dashboard." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Capacity Intelligence uses advanced analytics and real-time data to optimize system capacity and extend infrastructure life.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -210,37 +254,37 @@ export function EnergySavingsCapacityIntelligenceScreen() {
   );
 }
 
-export function EnergySavingsCapacityRecoveredScreen() {
+export function EnergySavingsCapacityRecoveredScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/capacity-intelligence">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="text-xl font-semibold leading-none">CAPACITY RECOVERED™</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time. Measurable Value. Continuous Improvement.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>‹ &nbsp; <span className="text-[#147dff]">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Capacity Recovered</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">More</button></div></div>
         <section className="grid h-[88px] grid-cols-6 gap-2">
-          <CapacityIntelKpi icon="⌁" label="TOTAL CAPACITY RECOVERED™" value="1.82 MVA" detail="Since Installation" trend="▲ 920 kVA vs Baseline" tone="cyan" />
-          <CapacityIntelKpi icon="▥" label="AVAILABLE CAPACITY NOW" value="1.24 MVA" detail="% of Installed Capacity" trend="▲ 48.3% vs Baseline" tone="purple" />
-          <CapacityIntelKpi icon="⌁" label="SYSTEM LOADING REDUCTION" value="31.7%" detail="Average" trend="▼ 31.7% vs Baseline" tone="green" />
-          <CapacityIntelKpi icon="▤" label="MAX DEMAND REDUCTION" value="742 kW" detail="Peak Reduction" trend="May 15, 2:00 PM" tone="orange" />
-          <CapacityIntelKpi icon="▣" label="POWER FACTOR IMPROVEMENT" value="+29.8%" detail="Average Increase" trend="From 0.68 to 0.98" tone="cyan" />
-          <CapacityIntelKpi icon="▥" label="TRANSFORMER RELIEF" value="26.4%" detail="Average Loading Relief" trend="" tone="purple" />
+          <CapacityIntelKpi icon="⌁" label="TOTAL CAPACITY RECOVERED™" value={formatKva(data?.recoveredKva)} detail="Latest capacity_intelligence row" trend="Direct Data" tone="cyan" />
+          <CapacityIntelKpi icon="▥" label="AVAILABLE CAPACITY NOW" value={formatKva((data?.availableKva ?? 0) + (data?.recoveredKva ?? 0))} detail="Available + recovered" trend="Calculated" tone="purple" />
+          <CapacityIntelKpi icon="⌁" label="SYSTEM LOADING REDUCTION" value="No Data" detail="No approved baseline" trend="Blocked" tone="green" />
+          <CapacityIntelKpi icon="▤" label="MAX DEMAND REDUCTION" value="No Data" detail="No approved peak baseline" trend="Blocked" tone="orange" />
+          <CapacityIntelKpi icon="▣" label="POWER FACTOR IMPROVEMENT" value="No Data" detail="No approved PF baseline" trend="Blocked" tone="cyan" />
+          <CapacityIntelKpi icon="▥" label="TRANSFORMER RELIEF" value={formatPctValue(data?.recoveredPct)} detail="Recovered / installed" trend="Calculated" tone="purple" />
         </section>
         <section className="mt-2 grid h-[210px] grid-cols-[1.45fr_0.72fr_0.86fr] gap-2">
-          <DashboardPanel title="CAPACITY RECOVERED TREND (SINCE ACTIVATION)" variant="enterprise"><RecoveredTrend /></DashboardPanel>
-          <DashboardPanel title="CAPACITY RECOVERY BY SOURCE (THIS MONTH)" variant="enterprise"><RecoveredSourceDonut /></DashboardPanel>
-          <DashboardPanel title="CAPACITY RECOVERY SUMMARY" variant="enterprise"><RecoveredSummary /></DashboardPanel>
+          <DashboardPanel title="CAPACITY RECOVERED TREND (SINCE ACTIVATION)" variant="enterprise"><NoDataBlock message="No Data - cumulative recovery trend source is not approved." /></DashboardPanel>
+          <DashboardPanel title="CAPACITY RECOVERY BY SOURCE (THIS MONTH)" variant="enterprise"><NoDataBlock message="No Data - recovery source allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="CAPACITY RECOVERY SUMMARY" variant="enterprise"><CapacityBlock data={data} /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[198px] grid-cols-[1fr_1fr_1fr] gap-2">
-          <DashboardPanel title="CAPACITY RECOVERED BY TRANSFORMER" variant="enterprise"><RecoveredTransformerTable /></DashboardPanel>
-          <DashboardPanel title="CAPACITY RECOVERY BY SYSTEM" variant="enterprise"><RecoveredSystemTable /></DashboardPanel>
-          <DashboardPanel title="LOADING BEFORE vs AFTER ECBS" variant="enterprise"><RecoveredBeforeAfter /></DashboardPanel>
+          <DashboardPanel title="CAPACITY RECOVERED BY TRANSFORMER" variant="enterprise"><CapacityBlock data={data} /></DashboardPanel>
+          <DashboardPanel title="CAPACITY RECOVERY BY SYSTEM" variant="enterprise"><NoDataBlock message="No Data - system-level recovery allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="LOADING BEFORE vs AFTER ECBS" variant="enterprise"><NoDataBlock message="No Data - before/after baseline is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[178px] grid-cols-[1fr_1fr_1fr] gap-2">
-          <DashboardPanel title="CAPACITY RECOVERY INSIGHTS" variant="enterprise"><RecoveredInsights /></DashboardPanel>
-          <DashboardPanel title="CAPACITY VALUES (THIS MONTH)" variant="enterprise"><RecoveredValues /></DashboardPanel>
-          <DashboardPanel title="CAPACITY RECOVERY EVENTS" variant="enterprise"><RecoveredEvents /></DashboardPanel>
+          <DashboardPanel title="CAPACITY RECOVERY INSIGHTS" variant="enterprise"><NoDataBlock message={data?.keyInsight ?? "No Data - capacity insight source is unavailable."} /></DashboardPanel>
+          <DashboardPanel title="CAPACITY VALUES (THIS MONTH)" variant="enterprise"><NoDataBlock message="No Data - monthly capacity value rollup is not approved." /></DashboardPanel>
+          <DashboardPanel title="CAPACITY RECOVERY EVENTS" variant="enterprise"><NoDataBlock message="No Data - recovery event source is not approved." /></DashboardPanel>
         </section>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
       </div>
@@ -1743,30 +1787,45 @@ function MiniGauges() {
   return <div className="grid h-full grid-cols-4 gap-3 text-center text-[8px]">{[["Productive", "81%"], ["Harmonic", "8.7%"], ["Reactive", "12.4%"], ["Imbalance", "3.6%"]].map(([label, value]) => <div className="flex flex-col items-center justify-center" key={label}><div className="grid size-[58px] place-items-center rounded-full border-[6px] border-[#05ff5e] border-b-orange-500 bg-[#061421] text-base">{value}</div><span className="mt-1 text-slate-400">{label}</span><span className="text-[7px] text-[#05ff5e]">▲ 5.5%</span></div>)}</div>;
 }
 
-function CapacityBlock() {
-  return <div className="grid h-full grid-cols-[96px_1fr] gap-4 text-[8px]"><div className="grid size-24 place-items-center rounded-full border-[14px] border-[#05ff5e] border-r-slate-700 bg-[#061421] text-2xl">51%</div><div className="space-y-1.5">{[["Transformer Rating", "2,500 kVA"], ["Current Loading", "1,280 kVA"], ["Available Capacity", "1,220 kVA"], ["Recovered Capacity", "920 kVA"], ["Deferred Capital Value", "$910,000"]].map(([l, v]) => <div className="flex justify-between" key={l}><span className="text-slate-400">{l}</span><b className="text-[#05ff5e]">{v}</b></div>)}<div className="pt-1 text-[#05ff5e]">View Capacity Details →</div></div></div>;
+function CapacityBlock({ data }: EnergySavingsScreenProps) {
+  const rows = [
+    ["Installed Capacity", formatKva(data?.installedKva)],
+    ["Current Loading", formatKva(data?.loadKva)],
+    ["Available Capacity", formatKva(data?.availableKva)],
+    ["Recovered Capacity", formatKva(data?.recoveredKva)],
+    ["Deferred Capital Value", formatCurrencyValue(data?.deferredCapitalValue)],
+  ];
+
+  return <div className="grid h-full grid-cols-[96px_1fr] gap-4 text-[8px]"><div className="grid size-24 place-items-center rounded-full border-[14px] border-[#05ff5e] border-r-slate-700 bg-[#061421] text-2xl">{formatPctValue(data?.utilizationPct)}</div><div className="space-y-1.5">{rows.map(([l, v]) => <div className="flex justify-between" key={l}><span className="text-slate-400">{l}</span><b className="text-[#05ff5e]">{v}</b></div>)}<div className="pt-1 text-[#05ff5e]">View Capacity Details →</div></div></div>;
 }
 
 function UtilityBlock() {
-  return <div className="grid h-full grid-cols-3 gap-3 text-center text-[8px]">{[["This Month", "$93,400"], ["Forecast", "$98,100"], ["Annual", "$1.15M"]].map(([label, value]) => <div className="rounded border border-cyan-300/10 bg-[#061421] p-3" key={label}><div className="text-slate-400">{label}</div><div className="mt-1 text-lg text-slate-100">{value}</div><div className="mt-2 h-6 rounded bg-gradient-to-r from-[#147dff] via-[#05ff5e] to-[#147dff]" /></div>)}</div>;
+  return <NoDataBlock message="No Data - utility billing/forecast source is not approved." />;
 }
 
 function AlertBlock() {
-  return <div className="space-y-1 text-[8px]">{[["Critical", "2", "text-red-400"], ["Warning", "8", "text-yellow-300"], ["Info", "24", "text-cyan-300"], ["Total Active", "34", "text-slate-300"]].map(([l, v, c]) => <div className="flex justify-between border-b border-white/5 pb-1" key={l}><span className={c}>{l}</span><b>{v}</b></div>)}</div>;
+  return <NoDataBlock message="No Data - no approved alert source." />;
 }
 
-function SavingsBreakdown() {
-  return <div className="grid h-full grid-cols-4 gap-3 text-[8px]">{[["Demand Savings", "$278,000"], ["Energy Savings", "$142,000"], ["PF & Penalty", "$81,000"], ["Capacity Value", "$910,000"]].map(([l, v]) => <div className="rounded border border-cyan-300/10 bg-[#061421] p-3" key={l}><div className="text-slate-400">{l}</div><b className="text-[#05ff5e]">{v}</b><div className="mt-1 text-[7px] text-slate-500">Annualized</div></div>)}</div>;
+function SavingsBreakdown({ data }: EnergySavingsScreenProps) {
+  const rows = [
+    ["Annual Savings", annualBenefitValue(data), "Direct latest value"],
+    ["Demand Savings", "No Data", "No approved split"],
+    ["Energy Savings", "No Data", "No approved split"],
+    ["Capacity Value", formatCurrencyValue(data?.deferredCapitalValue), "Direct latest value"],
+  ];
+
+  return <div className="grid h-full grid-cols-4 gap-3 text-[8px]">{rows.map(([l, v, detail]) => <div className="rounded border border-cyan-300/10 bg-[#061421] p-3" key={l}><div className="text-slate-400">{l}</div><b className="text-[#05ff5e]">{v}</b><div className="mt-1 text-[7px] text-slate-500">{detail}</div></div>)}</div>;
 }
 
 function OpportunityList() {
-  return <div className="space-y-1.5 text-[8px]">{[["1", "Additional Harmonic Reduction", "$28,400 / yr"], ["2", "Optimize HVAC Schedule", "$18,600 / yr"], ["3", "Load Balancing", "$12,300 / yr"]].map(([n, l, v]) => <div className="flex justify-between border-b border-white/5 pb-1" key={n}><span><b className="text-[#05ff5e]">{n}</b> {l}</span><b className="text-[#05ff5e]">{v}</b></div>)}<div className="text-[#05ff5e]">View All Opportunities →</div></div>;
+  return <NoDataBlock message="No Data - savings opportunity model is not approved." />;
 }
 
 function HealthList() {
-  return <div className="space-y-1.5 text-[8px]">{[["Devices Online", "98.7%"], ["Data Reliability", "99.8%"], ["Gateways Online", "100%"], ["Data Latency", "1.2 sec"]].map(([l, v]) => <div className="flex justify-between border-b border-white/5 pb-1" key={l}><span>{l}</span><b className="text-[#05ff5e]">{v}</b></div>)}</div>;
+  return <NoDataBlock message="No Data - system health source is not approved for this screen." />;
 }
 
 function AlertCounts() {
-  return <div className="space-y-1.5 text-[8px]">{[["Critical", "2"], ["Warning", "8"], ["Info", "24"], ["Total Active", "34"]].map(([l, v]) => <div className="flex justify-between border-b border-white/5 pb-1" key={l}><span>{l}</span><b>{v}</b></div>)}</div>;
+  return <NoDataBlock message="No Data - alert count source is not approved." />;
 }

@@ -1,0 +1,53 @@
+{
+  "name": "Digital Twin And Energy Savings Core",
+  "routes": [
+    {
+      "name": "full network expanded",
+      "path": "/enterprise/digital-twin/full-network-page-expanded-electrical-network-view",
+      "status": 200,
+      "expectText": ["Full Network View", "No Data"]
+    },
+    {
+      "name": "one line drawing scanner",
+      "path": "/enterprise/digital-twin/one-line-drawing-scanner",
+      "status": 200,
+      "expectText": ["Scan One-Line Drawing", "No Data"]
+    },
+    {
+      "name": "annual benefit financial impact",
+      "path": "/enterprise/energy-dashboard/capacity-intelligence-annual-benefit-financial-impact-screen",
+      "status": 200,
+      "expectText": ["Annual Benefit", "No Data"]
+    },
+    {
+      "name": "energy savings dashboard",
+      "path": "/enterprise/energy-dashboard",
+      "status": 200,
+      "expectText": ["Savings Dashboard", "No Data"]
+    },
+    {
+      "name": "energy alerts",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-alerts-screen",
+      "status": 200,
+      "expectText": ["EVENTS", "No Data"]
+    },
+    {
+      "name": "baseline comparison",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-baseline-comparison-screen",
+      "status": 200,
+      "expectText": ["BASELINE COMPARISON", "No Data"]
+    },
+    {
+      "name": "capacity intelligence",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-capacity-intelligence-screen",
+      "status": 200,
+      "expectText": ["CAPACITY INTELLIGENCE", "No Data"]
+    },
+    {
+      "name": "capacity recovered",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-capacity-recovered-screen",
+      "status": 200,
+      "expectText": ["CAPACITY RECOVERED", "No Data"]
+    }
+  ]
+}
