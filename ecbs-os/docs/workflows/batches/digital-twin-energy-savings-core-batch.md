@@ -95,14 +95,15 @@ Required before deploy:
 | Energy dashboard currently has many static derived values. | Wire latest direct values only and mark unapproved derived panels No Data. |
 | These are enterprise routes, not deployment routes. | Do not use `deploymentId=1`. |
 | Manual frontend Docker run must match container port. | Next container listens on `3001`; map host `3001:3001`. |
+| Manual frontend Docker run must use the Synerex compose network. | Always run `ecbs-os-frontend` with `--network synerex-platform_default`; otherwise the frontend cannot resolve `mysql-tracking` and nginx/proxy access may return `502`. |
 
 ## Checkpoint Summary
 
-- Screens completed:
-- Direct/Calculated fields wired:
-- Explicit `No Data` decisions:
-- Write actions implemented:
-- Verification results:
-- Dev URL(s):
-- Remaining questions:
+- Screens completed: 8 routes, validation sequences 95-102.
+- Direct/Calculated fields wired: Digital Twin site/project/asset context; Energy capacity installed/used/available/recovered/utilization; annual savings; deferred capital value.
+- Explicit `No Data` decisions: scanner/OCR outputs, alert model, baseline contract, savings trends/splits, utility forecasting, ROI/payback/projection details, network event details.
+- Write actions implemented: none; all scan/export/share/configure/report controls remain shell UI only.
+- Verification results: local backend build passed; frontend lint/build passed with existing warnings; local verifier passed; dev direct `3001` verifier passed; dev proxied `8080` verifier passed.
+- Dev URL(s): `http://100.91.109.59:8080/enterprise/digital-twin/full-network-page-expanded-electrical-network-view`, `http://100.91.109.59:8080/enterprise/energy-dashboard`.
+- Remaining questions: approve scanner/OCR write model, Energy alert/event model, baseline energy contract, savings rollup/split model, and financial investment model before wiring those fields.
 

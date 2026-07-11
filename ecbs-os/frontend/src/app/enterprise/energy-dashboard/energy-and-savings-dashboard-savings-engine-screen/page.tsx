@@ -1,5 +1,10 @@
 import { EnergySavingsEngineOverviewScreen } from "@/components/ecbs/EnergySavingsDashboardScreen";
+import { getOchsnerCapacityIntelligenceData } from "@/lib/trackingDashboardData";
 
-export default function EnergyAndSavingsDashboardSavingsEnginePage() {
-  return <EnergySavingsEngineOverviewScreen />;
+export const dynamic = "force-dynamic";
+
+export default async function EnergyAndSavingsDashboardSavingsEnginePage() {
+  const data = await getOchsnerCapacityIntelligenceData();
+
+  return <EnergySavingsEngineOverviewScreen data={data} />;
 }

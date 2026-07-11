@@ -337,36 +337,36 @@ function RecoveredEvents() {
   return <div className="text-[7.2px]"><table className="w-full text-left"><thead className="text-slate-400"><tr>{["Date/Time","Event","Recovered (kVA)","Source"].map(h=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(r=><tr className="border-t border-white/5" key={r[0]}>{r.map((c,i)=><td className={i===2?"py-1 text-[#05ff5e]":"py-1"} key={`${r[0]}-${c}`}>{c}</td>)}</tr>)}</tbody></table><div className="mt-1 text-[#05ff5e]">View All Events →</div></div>;
 }
 
-export function EnergySavingsCumulativeSavingsScreen() {
+export function EnergySavingsCumulativeSavingsScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="text-xl font-semibold leading-none">CUMULATIVE SAVINGS SINCE ACTIVATION</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time. Measurable Value. Continuous Improvement.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[190px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12, 2024 - May 18, 2025⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[190px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>‹ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Cumulative Savings Since Activation</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">More</button></div></div>
         <section className="grid h-[88px] grid-cols-6 gap-2">
-          <CumulativeKpi icon="$" label="TOTAL CUMULATIVE SAVINGS" value="$1,862,744" detail="Since Activation (May 12, 2024)" trend="▲ 1.24% vs Last 30 Days" tone="green" />
-          <CumulativeKpi icon="▣" label="ENERGY SAVINGS (kWh)" value="4,286,154 kWh" detail="Since Activation" trend="▲ 1.18% vs Last 30 Days" tone="cyan" />
-          <CumulativeKpi icon="▤" label="DEMAND SAVINGS (kW)" value="742 kW" detail="Peak Reduction" trend="▲ 1.92% vs Last 30 Days" tone="orange" />
-          <CumulativeKpi icon="▥" label="PF IMPROVEMENT" value="+0.30" detail="Avg PF 0.68 → 0.98" trend="▲ 0.02 vs Last 30 Days" tone="purple" />
-          <CumulativeKpi icon="⌁" label="CAPACITY RECOVERED™" value="1.82 MVA" detail="Since Activation" trend="▲ 2.03% vs Last 30 Days" tone="cyan" />
-          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-1 text-2xl leading-none">$1,862,744</div><div className="mt-3 text-[9px] text-slate-300">Total Value Created</div></article>
+          <CumulativeKpi icon="$" label="TOTAL CUMULATIVE SAVINGS" value="No Data" detail="No approved lifetime rollup" trend="Blocked" tone="green" />
+          <CumulativeKpi icon="▣" label="ENERGY SAVINGS (kWh)" value="No Data" detail="No approved kWh rollup" trend="Blocked" tone="cyan" />
+          <CumulativeKpi icon="▤" label="DEMAND SAVINGS (kW)" value="No Data" detail="No approved demand baseline" trend="Blocked" tone="orange" />
+          <CumulativeKpi icon="▥" label="PF IMPROVEMENT" value="No Data" detail="No approved PF baseline" trend="Blocked" tone="purple" />
+          <CumulativeKpi icon="⌁" label="CAPACITY RECOVERED™" value={formatKva(data?.recoveredKva)} detail="Latest capacity_intelligence row" trend="Direct Data" tone="cyan" />
+          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-1 text-2xl leading-none">No Data</div><div className="mt-3 text-[9px] text-slate-300">No lifetime value rollup</div></article>
         </section>
         <section className="mt-2 grid h-[218px] grid-cols-[1.25fr_0.95fr] gap-2">
-          <DashboardPanel title="CUMULATIVE SAVINGS OVER TIME ⓘ" variant="enterprise"><CumulativeSavingsTrend /></DashboardPanel>
-          <DashboardPanel title="CUMULATIVE SAVINGS BREAKDOWN ⓘ" variant="enterprise"><CumulativeBreakdownTable /></DashboardPanel>
+          <DashboardPanel title="CUMULATIVE SAVINGS OVER TIME ⓘ" variant="enterprise"><NoDataBlock message="No Data - cumulative savings trend source is not approved." /></DashboardPanel>
+          <DashboardPanel title="CUMULATIVE SAVINGS BREAKDOWN ⓘ" variant="enterprise"><NoDataBlock message="No Data - savings category split is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[196px] grid-cols-[1fr_0.78fr_0.9fr] gap-2">
-          <DashboardPanel title="CUMULATIVE SAVINGS BY CATEGORY (Stacked) ⓘ" variant="enterprise"><CumulativeStackedBars /></DashboardPanel>
-          <DashboardPanel title="PERCENT CONTRIBUTION TO TOTAL SAVINGS ⓘ" variant="enterprise"><CumulativeContribution /></DashboardPanel>
-          <DashboardPanel title="CUMULATIVE SAVINGS SUMMARY ⓘ" variant="enterprise"><CumulativeSummaryTable /></DashboardPanel>
+          <DashboardPanel title="CUMULATIVE SAVINGS BY CATEGORY (Stacked) ⓘ" variant="enterprise"><NoDataBlock message="No Data - category-over-time model is not approved." /></DashboardPanel>
+          <DashboardPanel title="PERCENT CONTRIBUTION TO TOTAL SAVINGS ⓘ" variant="enterprise"><NoDataBlock message="No Data - contribution split is not approved." /></DashboardPanel>
+          <DashboardPanel title="CUMULATIVE SAVINGS SUMMARY ⓘ" variant="enterprise"><NoDataBlock message="No Data - cumulative summary requires an approved lifetime rollup." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[174px] grid-cols-[0.86fr_0.86fr_1fr] gap-2">
-          <DashboardPanel title="CUMULATIVE SAVINGS BY SITE ⓘ" variant="enterprise"><CumulativeSiteTable /></DashboardPanel>
-          <DashboardPanel title="MONTHLY CUMULATIVE SAVINGS ⓘ" variant="enterprise"><CumulativeMonthlyTable /></DashboardPanel>
-          <DashboardPanel title="VALUE MILESTONE ACHIEVEMENTS ⓘ" variant="enterprise"><CumulativeMilestones /></DashboardPanel>
+          <DashboardPanel title="CUMULATIVE SAVINGS BY SITE ⓘ" variant="enterprise"><NoDataBlock message="No Data - site savings allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="MONTHLY CUMULATIVE SAVINGS ⓘ" variant="enterprise"><NoDataBlock message="No Data - monthly savings rollup is not approved." /></DashboardPanel>
+          <DashboardPanel title="VALUE MILESTONE ACHIEVEMENTS ⓘ" variant="enterprise"><NoDataBlock message="No Data - milestone source is not approved." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Savings are calculated using an approved baseline and verified measurement methodology in accordance with ANSI C12.20 Class 0.5.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -424,37 +424,37 @@ function CumulativeTable({ headers, link, rows }: { headers: string[]; link: str
   return <div className="h-full text-[6.8px]"><table className="w-full text-left"><thead className="text-slate-400"><tr>{headers.map(h=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row,ri)=><tr className="border-t border-white/5" key={`${row[0]}-${ri}`}>{row.map((cell,i)=><td className={i===3 || (cell.startsWith?.("▲")) ? "py-0.5 text-[#05ff5e]" : "py-0.5"} key={`${row[0]}-${i}`}>{cell}</td>)}</tr>)}</tbody></table><div className="mt-1 text-[7px] text-[#05ff5e]">{link}</div></div>;
 }
 
-export function EnergySavingsRoiPaybackScreen() {
+export function EnergySavingsRoiPaybackScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="text-xl font-semibold leading-none">ROI & PAYBACK ANALYSIS</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time. Measurable Value. Continuous Improvement.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[190px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12, 2024 - May 18, 2025⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[190px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>‹ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">ROI & Payback Analysis</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Configure</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button></div></div>
         <section className="grid h-[112px] grid-cols-[1.05fr_1fr_1fr_1fr_1fr_1fr] gap-2">
-          <RoiGaugeCard />
-          <RoiTopMetric label="PAYBACK PERIOD" value="2.1" suffix="Years" detail="Target: 3.5 Years" trend="+1.4 Years Better" />
-          <RoiTopMetric label="TOTAL INVESTMENT" value="$1,280,000" suffix="Equipment + Installation" detail="Deployment + Integration" />
-          <RoiTopMetric label="TOTAL ANNUAL BENEFIT" value="$489,320" suffix="Energy + Demand + PF Savings" detail="Capacity + Avoided Costs" />
-          <RoiTopMetric label="NET ANNUAL BENEFIT" value="$446,870" suffix="After Operating Costs" detail="+20.9% of Investment" trend="" />
-          <RoiTopMetric label="IRR (INTERNAL RATE OF RETURN)" value="68.7%" suffix="Very Strong" detail="+6.2% vs Prior Year" />
+          <RoiGaugeCard value="No Data" />
+          <RoiTopMetric label="PAYBACK PERIOD" value="No Data" suffix="No approved investment basis" detail="Blocked" trend="No Data" />
+          <RoiTopMetric label="TOTAL INVESTMENT" value="No Data" suffix="No approved investment source" detail="Blocked" />
+          <RoiTopMetric label="TOTAL ANNUAL BENEFIT" value={annualBenefitValue(data)} suffix="Latest annual savings" detail="Direct Data" />
+          <RoiTopMetric label="NET ANNUAL BENEFIT" value="No Data" suffix="No operating cost source" detail="Blocked" trend="" />
+          <RoiTopMetric label="IRR (INTERNAL RATE OF RETURN)" value="No Data" suffix="No approved financial model" detail="Blocked" />
         </section>
         <section className="mt-2 grid h-[224px] grid-cols-[1.08fr_0.78fr_1fr] gap-2">
-          <DashboardPanel title="CASH FLOW OVER TIME" variant="enterprise"><RoiCashFlowChart /></DashboardPanel>
-          <DashboardPanel title="PAYBACK TIMELINE" variant="enterprise"><RoiPaybackTimeline /></DashboardPanel>
-          <DashboardPanel title="ROI OVER TIME" variant="enterprise"><RoiOverTimeChart /></DashboardPanel>
+          <DashboardPanel title="CASH FLOW OVER TIME" variant="enterprise"><NoDataBlock message="No Data - cash flow model is not approved." /></DashboardPanel>
+          <DashboardPanel title="PAYBACK TIMELINE" variant="enterprise"><NoDataBlock message="No Data - payback model is not approved." /></DashboardPanel>
+          <DashboardPanel title="ROI OVER TIME" variant="enterprise"><NoDataBlock message="No Data - ROI trend model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[186px] grid-cols-3 gap-2">
-          <DashboardPanel title="BENEFIT BREAKDOWN (Annualized)" variant="enterprise"><RoiBenefitBreakdown /></DashboardPanel>
-          <DashboardPanel title="COST BREAKDOWN (Total Investment)" variant="enterprise"><RoiCostBreakdown /></DashboardPanel>
-          <DashboardPanel title="KEY FINANCIAL METRICS" variant="enterprise"><RoiFinancialMetrics /></DashboardPanel>
+          <DashboardPanel title="BENEFIT BREAKDOWN (Annualized)" variant="enterprise"><NoDataBlock message="No Data - benefit split is not approved." /></DashboardPanel>
+          <DashboardPanel title="COST BREAKDOWN (Total Investment)" variant="enterprise"><NoDataBlock message="No Data - cost model is not approved." /></DashboardPanel>
+          <DashboardPanel title="KEY FINANCIAL METRICS" variant="enterprise"><NoDataBlock message="No Data - financial metrics model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[172px] grid-cols-[0.9fr_1fr_1fr] gap-2">
-          <DashboardPanel title="SAVINGS VS INVESTMENT COMPARISON" variant="enterprise"><RoiSavingsInvestment /></DashboardPanel>
-          <DashboardPanel title="SENSITIVITY ANALYSIS (Impact on Payback Period)" variant="enterprise"><RoiSensitivity /></DashboardPanel>
-          <DashboardPanel title="INVESTMENT MILESTONES" variant="enterprise"><RoiMilestones /></DashboardPanel>
+          <DashboardPanel title="SAVINGS VS INVESTMENT COMPARISON" variant="enterprise"><NoDataBlock message="No Data - investment comparison source is not approved." /></DashboardPanel>
+          <DashboardPanel title="SENSITIVITY ANALYSIS (Impact on Payback Period)" variant="enterprise"><NoDataBlock message="No Data - sensitivity model is not approved." /></DashboardPanel>
+          <DashboardPanel title="INVESTMENT MILESTONES" variant="enterprise"><NoDataBlock message="No Data - milestone model is not approved." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>ROI and Payback calculations are based on approved baseline and verified measurement methodology in accordance with ANSI C12.20 Class 0.5.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -463,8 +463,8 @@ export function EnergySavingsRoiPaybackScreen() {
   );
 }
 
-function RoiGaugeCard() {
-  return <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3 text-center"><div className="text-[8px] text-slate-300">RETURN ON INVESTMENT (ROI)</div><div className="relative mx-auto mt-1 h-[68px] w-[132px]"><svg viewBox="0 0 132 72"><path d="M20 62 A46 46 0 0 1 112 62" fill="none" stroke="#1f2937" strokeWidth="14" /><path d="M20 62 A46 46 0 0 1 42 22" fill="none" stroke="#ef4444" strokeWidth="14" /><path d="M42 22 A46 46 0 0 1 78 18" fill="none" stroke="#ff8a00" strokeWidth="14" /><path d="M78 18 A46 46 0 0 1 112 62" fill="none" stroke="#65a30d" strokeWidth="14" /><text fill="#e2e8f0" fontSize="24" textAnchor="middle" x="66" y="58">143%</text></svg></div><div className="flex justify-between text-[7px]"><span>0%</span><span>200%+</span></div><div className="text-[9px]">Excellent</div><div className="text-[8px] text-[#05ff5e]">+8.4% vs Prior Year</div></article>;
+function RoiGaugeCard({ value = "No Data" }: { value?: string }) {
+  return <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3 text-center"><div className="text-[8px] text-slate-300">RETURN ON INVESTMENT (ROI)</div><div className="relative mx-auto mt-1 h-[68px] w-[132px]"><svg viewBox="0 0 132 72"><path d="M20 62 A46 46 0 0 1 112 62" fill="none" stroke="#1f2937" strokeWidth="14" /><path d="M20 62 A46 46 0 0 1 42 22" fill="none" stroke="#ef4444" strokeWidth="14" /><path d="M42 22 A46 46 0 0 1 78 18" fill="none" stroke="#ff8a00" strokeWidth="14" /><path d="M78 18 A46 46 0 0 1 112 62" fill="none" stroke="#65a30d" strokeWidth="14" /><text fill="#e2e8f0" fontSize={value === "No Data" ? "16" : "24"} textAnchor="middle" x="66" y="58">{value}</text></svg></div><div className="flex justify-between text-[7px]"><span>0%</span><span>200%+</span></div><div className="text-[9px]">No approved model</div><div className="text-[8px] text-[#05ff5e]">No Data</div></article>;
 }
 
 function RoiTopMetric({ detail, label, suffix, trend, value }: { detail: string; label: string; suffix: string; trend?: string; value: string }) {
@@ -518,37 +518,37 @@ function RoiTable({ headers, link, rows }: { headers: string[]; link: string; ro
   return <div className="h-full text-[6.9px]"><table className="w-full text-left"><thead className="text-slate-400"><tr>{headers.map(h=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row,ri)=><tr className="border-t border-white/5" key={`${row[0]}-${ri}`}>{row.map((cell,i)=><td className={i===row.length-1 || cell.startsWith("▲") || cell==="Excellent" ? "py-0.5 text-[#05ff5e]" : "py-0.5"} key={`${row[0]}-${i}`}>{cell}</td>)}</tr>)}</tbody></table><div className="mt-1 text-[#05ff5e]">{link}</div></div>;
 }
 
-export function EnergySavingsRoiPaybackDetailsScreen() {
+export function EnergySavingsRoiPaybackDetailsScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="text-xl font-semibold leading-none">ROI & PAYBACK ANALYSIS - DETAILS</h1><p className="mt-1 text-[10px] text-slate-300">Deep dive into returns, cash flows, costs, and financial performance.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[190px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12, 2024 - May 18, 2025⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[190px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}⌄</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>‹ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-slate-400">ROI & Payback Analysis</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">ROI & Payback Analysis - Details</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Configure</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button></div></div>
         <section className="grid h-[88px] grid-cols-6 gap-2">
-          <RoiDetailKpi icon="$" label="RETURN ON INVESTMENT (ROI)" value="143%" detail="Excellent" trend="+8.4% vs Prior Year" tone="green" />
-          <RoiDetailKpi icon="▣" label="PAYBACK PERIOD" value="2.1 Years" detail="Target: 3.5 Years" trend="+1.4 Years Better" tone="cyan" />
-          <RoiDetailKpi icon="⌁" label="NET PRESENT VALUE (NPV)" value="$1,342,580" detail="10% Discount Rate" trend="Very Strong" tone="purple" />
-          <RoiDetailKpi icon="◴" label="INTERNAL RATE OF RETURN (IRR)" value="68.7%" detail="Very Strong" trend="+6.2% vs Prior Year" tone="orange" />
-          <RoiDetailKpi icon="▥" label="TOTAL INVESTMENT" value="$1,280,000" detail="CAPEX + Integration" trend="Deployed" tone="cyan" />
-          <RoiDetailKpi icon="◎" label="TOTAL ANNUAL BENEFIT" value="$489,320" detail="After Operating Costs" trend="20.9% of Investment" tone="yellow" />
+          <RoiDetailKpi icon="$" label="RETURN ON INVESTMENT (ROI)" value="No Data" detail="No approved investment model" trend="Blocked" tone="green" />
+          <RoiDetailKpi icon="▣" label="PAYBACK PERIOD" value="No Data" detail="No approved cost basis" trend="Blocked" tone="cyan" />
+          <RoiDetailKpi icon="⌁" label="NET PRESENT VALUE (NPV)" value="No Data" detail="No approved financial model" trend="Blocked" tone="purple" />
+          <RoiDetailKpi icon="◴" label="INTERNAL RATE OF RETURN (IRR)" value="No Data" detail="No approved financial model" trend="Blocked" tone="orange" />
+          <RoiDetailKpi icon="▥" label="TOTAL INVESTMENT" value="No Data" detail="No approved investment source" trend="Blocked" tone="cyan" />
+          <RoiDetailKpi icon="◎" label="TOTAL ANNUAL BENEFIT" value={annualBenefitValue(data)} detail="Latest annual savings" trend="Direct Data" tone="yellow" />
         </section>
         <section className="mt-2 grid h-[214px] grid-cols-[1.08fr_0.78fr_1fr] gap-2">
-          <DashboardPanel title="DETAILED CASH FLOW ANALYSIS" variant="enterprise"><RoiCashFlowChart /></DashboardPanel>
-          <DashboardPanel title="PAYBACK ANALYSIS DETAIL" variant="enterprise"><RoiPaybackAnalysisDetail /></DashboardPanel>
-          <DashboardPanel title="ROI OVER TIME (Cumulative)" variant="enterprise"><RoiOverTimeChart /></DashboardPanel>
+          <DashboardPanel title="DETAILED CASH FLOW ANALYSIS" variant="enterprise"><NoDataBlock message="No Data - cash flow model is not approved." /></DashboardPanel>
+          <DashboardPanel title="PAYBACK ANALYSIS DETAIL" variant="enterprise"><NoDataBlock message="No Data - payback model is not approved." /></DashboardPanel>
+          <DashboardPanel title="ROI OVER TIME (Cumulative)" variant="enterprise"><NoDataBlock message="No Data - ROI trend model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[178px] grid-cols-3 gap-2">
-          <DashboardPanel title="ANNUAL BENEFIT BREAKDOWN" variant="enterprise"><RoiBenefitBreakdown /></DashboardPanel>
-          <DashboardPanel title="INVESTMENT BREAKDOWN" variant="enterprise"><RoiCostBreakdown /></DashboardPanel>
-          <DashboardPanel title="COST OF DOING NOTHING (Avoided Costs)" variant="enterprise"><RoiAvoidedCosts /></DashboardPanel>
+          <DashboardPanel title="ANNUAL BENEFIT BREAKDOWN" variant="enterprise"><NoDataBlock message="No Data - benefit split is not approved." /></DashboardPanel>
+          <DashboardPanel title="INVESTMENT BREAKDOWN" variant="enterprise"><NoDataBlock message="No Data - investment breakdown is not approved." /></DashboardPanel>
+          <DashboardPanel title="COST OF DOING NOTHING (Avoided Costs)" variant="enterprise"><NoDataBlock message="No Data - avoided cost model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[180px] grid-cols-[1fr_0.86fr_0.94fr] gap-2">
-          <DashboardPanel title="SENSITIVITY ANALYSIS (Impact on Payback Period)" variant="enterprise"><RoiSensitivityDetail /></DashboardPanel>
-          <DashboardPanel title="CUMULATIVE VALUE CREATION" variant="enterprise"><RoiCumulativeValueCreation /></DashboardPanel>
-          <DashboardPanel title="KEY TAKEAWAYS" variant="enterprise"><RoiKeyTakeaways /></DashboardPanel>
+          <DashboardPanel title="SENSITIVITY ANALYSIS (Impact on Payback Period)" variant="enterprise"><NoDataBlock message="No Data - sensitivity model is not approved." /></DashboardPanel>
+          <DashboardPanel title="CUMULATIVE VALUE CREATION" variant="enterprise"><NoDataBlock message="No Data - cumulative value model is not approved." /></DashboardPanel>
+          <DashboardPanel title="KEY TAKEAWAYS" variant="enterprise"><NoDataBlock message="No Data - financial insight model is not approved." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>ROI and Payback calculations are based on an approved baseline and verified measurement methodology in accordance with ANSI C12.20 Class 0.5.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -587,37 +587,37 @@ function RoiKeyTakeaways() {
   return <div className="space-y-3 text-[8px]">{rows.map(row=><div className="grid grid-cols-[18px_1fr]" key={row}><span className="text-[#65a30d]">●</span><span>{row}</span></div>)}<div className="pt-1 text-[#05ff5e]">View Executive Summary →</div></div>;
 }
 
-export function EnergySavingsRealTimeValueDetailScreen() {
+export function EnergySavingsRealTimeValueDetailScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="text-xl font-semibold leading-none">REAL-TIME VALUE ENGINE™ &nbsp; &gt; &nbsp; VALUE CREATION DETAIL</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time. Measurable Value. Continuous Improvement.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[210px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 18, 2025 &nbsp; 10:15:43 AM<br/>Real-time</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[210px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}<br/>Tracking</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>⌂ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-slate-400">Real-Time Value Engine</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Value Creation Detail</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Configure</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button></div></div>
         <section className="grid h-[88px] grid-cols-6 gap-2">
-          <ValueKpi icon="⚡" label="CURRENT VALUE CREATION RATE" value="$3.72" unit="/ Minute" detail="$223 / Hour      $5,352 / Day" trend="Updated every minute" tone="green" />
-          <ValueKpi icon="▣" label="REAL-TIME ENERGY VALUE" value="$2.18" unit="/ Minute" detail="58.6% of Total Value" trend="$1.31 / Min vs Baseline" tone="cyan" />
-          <ValueKpi icon="⌁" label="REAL-TIME DEMAND VALUE" value="$1.02" unit="/ Minute" detail="27.4% of Total Value" trend="$0.61 / Min vs Baseline" tone="orange" />
-          <ValueKpi icon="☆" label="PF & PENALTY VALUE" value="$0.37" unit="/ Minute" detail="9.9% of Total Value" trend="$0.23 / Min vs Baseline" tone="purple" />
-          <ValueKpi icon="▥" label="CAPACITY VALUE" value="$0.15" unit="/ Minute" detail="4.0% of Total Value" trend="$0.08 / Min vs Baseline" tone="cyan" />
-          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-1 text-2xl leading-none">$1,862,744</div><div className="mt-3 text-[9px] text-slate-300">Total Real-Time Value Created</div></article>
+          <ValueKpi icon="⚡" label="CURRENT VALUE CREATION RATE" value="No Data" unit="" detail="No approved real-time value model" trend="Blocked" tone="green" />
+          <ValueKpi icon="▣" label="REAL-TIME ENERGY VALUE" value="No Data" unit="" detail="No approved split model" trend="Blocked" tone="cyan" />
+          <ValueKpi icon="⌁" label="REAL-TIME DEMAND VALUE" value="No Data" unit="" detail="No approved demand model" trend="Blocked" tone="orange" />
+          <ValueKpi icon="☆" label="PF & PENALTY VALUE" value="No Data" unit="" detail="No approved PF penalty model" trend="Blocked" tone="purple" />
+          <ValueKpi icon="▥" label="CAPACITY VALUE" value={formatCurrencyValue(data?.deferredCapitalValue)} unit="" detail="Latest deferred value" trend="Direct Data" tone="cyan" />
+          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-1 text-2xl leading-none">No Data</div><div className="mt-3 text-[9px] text-slate-300">No lifetime value rollup</div></article>
         </section>
         <section className="mt-2 grid h-[206px] grid-cols-[0.98fr_0.88fr_1fr] gap-2">
-          <DashboardPanel title="LIVE VALUE STREAM (Per Minute)" variant="enterprise"><ValueLiveStream /></DashboardPanel>
-          <DashboardPanel title="VALUE CREATION BREAKDOWN (Real-Time)" variant="enterprise"><ValueBreakdownDonut /></DashboardPanel>
-          <DashboardPanel title="VALUE CONTRIBUTION (Real-Time)" variant="enterprise"><ValueContributionArea /></DashboardPanel>
+          <DashboardPanel title="LIVE VALUE STREAM (Per Minute)" variant="enterprise"><NoDataBlock message="No Data - real-time value stream model is not approved." /></DashboardPanel>
+          <DashboardPanel title="VALUE CREATION BREAKDOWN (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - value split model is not approved." /></DashboardPanel>
+          <DashboardPanel title="VALUE CONTRIBUTION (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - contribution trend source is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[182px] grid-cols-3 gap-2">
-          <DashboardPanel title="VALUE CREATION BY DRIVER (Real-Time)" variant="enterprise"><ValueDriverTable /></DashboardPanel>
-          <DashboardPanel title="VALUE CREATION BY SOURCE (Real-Time)" variant="enterprise"><ValueSourceTable /></DashboardPanel>
-          <DashboardPanel title="VALUE CREATION BY SITE / AREA (Real-Time)" variant="enterprise"><ValueSiteTable /></DashboardPanel>
+          <DashboardPanel title="VALUE CREATION BY DRIVER (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - driver allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="VALUE CREATION BY SOURCE (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - source allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="VALUE CREATION BY SITE / AREA (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - site allocation is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[188px] grid-cols-[0.92fr_0.88fr_1.08fr] gap-2">
-          <DashboardPanel title="VALUE FLOW DIAGRAM (Real-Time)" variant="enterprise"><ValueFlowDiagram /></DashboardPanel>
-          <DashboardPanel title="INSTANT VALUE CALCULATOR (Real-Time)" variant="enterprise"><ValueCalculator /></DashboardPanel>
-          <DashboardPanel title="REAL-TIME VALUE EVENTS" variant="enterprise"><ValueEvents /></DashboardPanel>
+          <DashboardPanel title="VALUE FLOW DIAGRAM (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - value flow model is not approved." /></DashboardPanel>
+          <DashboardPanel title="INSTANT VALUE CALCULATOR (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - value calculator formula is not approved." /></DashboardPanel>
+          <DashboardPanel title="REAL-TIME VALUE EVENTS" variant="enterprise"><NoDataBlock message="No Data - value event source is not approved." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Real-Time Value is calculated using approved baseline and verified measurement methodology in accordance with ANSI C12.20 Class 0.5.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -678,37 +678,37 @@ function ValueTable({ headers, link, rows }: { headers: string[]; link: string; 
   return <div className="h-full text-[6.8px]"><table className="w-full text-left"><thead className="text-slate-400"><tr>{headers.map(h=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row,ri)=><tr className="border-t border-white/5" key={`${row[0]}-${ri}`}>{row.map((cell,i)=><td className={cell.startsWith("▲") || cell.startsWith("+") || cell==="Applied" ? "py-0.5 text-[#05ff5e]" : "py-0.5"} key={`${row[0]}-${i}`}>{cell}</td>)}</tr>)}</tbody></table><div className="mt-1 text-[7px] text-[#05ff5e]">{link}</div></div>;
 }
 
-export function EnergySavingsRealTimeValueEngineScreen() {
+export function EnergySavingsRealTimeValueEngineScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="text-xl font-semibold leading-none">REAL-TIME VALUE ENGINE™</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time. Measurable Value. Continuous Improvement.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button><span className="text-[8px]">May 18, 2025 10:15:43 AM<br/>Real-time</span><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}⌄</button><span className="text-[8px]">Tracking DB<br/>Read-only</span><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>⌂ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Real-Time Value Engine</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Configure</button></div></div>
         <section className="grid h-[104px] grid-cols-6 gap-2">
-          <ValueKpi icon="⚡" label="CURRENT VALUE CREATION RATE" value="$3.72" unit="/ Minute" detail="$223 / Hour      $5,352 / Day" trend="Updated every minute" tone="green" />
-          <ValueKpi icon="▣" label="REAL-TIME ENERGY VALUE" value="$2.18" unit="/ Minute" detail="58.6% of Total Value" trend="$1.31 / Min vs Baseline" tone="cyan" />
-          <ValueKpi icon="⌁" label="REAL-TIME DEMAND VALUE" value="$1.02" unit="/ Minute" detail="27.4% of Total Value" trend="$0.61 / Min vs Baseline" tone="orange" />
-          <ValueKpi icon="☆" label="PF & PENALTY VALUE" value="$0.37" unit="/ Minute" detail="9.9% of Total Value" trend="$0.23 / Min vs Baseline" tone="purple" />
-          <ValueKpi icon="▥" label="CAPACITY VALUE" value="$0.15" unit="/ Minute" detail="4.0% of Total Value" trend="$0.08 / Min vs Baseline" tone="cyan" />
-          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-3 text-2xl leading-none">$1,862,744</div><div className="mt-3 text-[9px] text-slate-300">Total Real-Time Value Created</div></article>
+          <ValueKpi icon="⚡" label="CURRENT VALUE CREATION RATE" value="No Data" unit="" detail="No approved real-time value model" trend="Blocked" tone="green" />
+          <ValueKpi icon="▣" label="REAL-TIME ENERGY VALUE" value="No Data" unit="" detail="No approved split model" trend="Blocked" tone="cyan" />
+          <ValueKpi icon="⌁" label="REAL-TIME DEMAND VALUE" value="No Data" unit="" detail="No approved demand model" trend="Blocked" tone="orange" />
+          <ValueKpi icon="☆" label="PF & PENALTY VALUE" value="No Data" unit="" detail="No approved PF penalty model" trend="Blocked" tone="purple" />
+          <ValueKpi icon="▥" label="CAPACITY VALUE" value={formatCurrencyValue(data?.deferredCapitalValue)} unit="" detail="Latest deferred value" trend="Direct Data" tone="cyan" />
+          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-3 text-2xl leading-none">No Data</div><div className="mt-3 text-[9px] text-slate-300">No lifetime value rollup</div></article>
         </section>
         <section className="mt-2 grid h-[206px] grid-cols-[0.96fr_0.86fr_1.1fr] gap-2">
-          <DashboardPanel title="VALUE CREATION RATE (Real-Time)" variant="enterprise"><ValueLiveStream /></DashboardPanel>
-          <DashboardPanel title="VALUE CREATION BREAKDOWN (Real-Time)" variant="enterprise"><ValueBreakdownDonut /></DashboardPanel>
-          <DashboardPanel title="VALUE CONTRIBUTION TREND (Real-Time)" variant="enterprise"><ValueContributionArea /></DashboardPanel>
+          <DashboardPanel title="VALUE CREATION RATE (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - real-time value model is not approved." /></DashboardPanel>
+          <DashboardPanel title="VALUE CREATION BREAKDOWN (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - value split model is not approved." /></DashboardPanel>
+          <DashboardPanel title="VALUE CONTRIBUTION TREND (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - contribution trend source is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[184px] grid-cols-[0.94fr_0.9fr_1.1fr] gap-2">
-          <DashboardPanel title="REAL-TIME VALUE BY SOURCE" variant="enterprise"><ValueSourceTable /></DashboardPanel>
-          <DashboardPanel title="REAL-TIME VALUE BY SITE / AREA" variant="enterprise"><ValueSiteTable /></DashboardPanel>
-          <DashboardPanel title="REAL-TIME SYSTEM IMPACT" variant="enterprise"><ValueSystemImpact /></DashboardPanel>
+          <DashboardPanel title="REAL-TIME VALUE BY SOURCE" variant="enterprise"><NoDataBlock message="No Data - source allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="REAL-TIME VALUE BY SITE / AREA" variant="enterprise"><NoDataBlock message="No Data - site allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="REAL-TIME SYSTEM IMPACT" variant="enterprise"><NoDataBlock message="No Data - system impact model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[180px] grid-cols-[0.78fr_1.08fr_0.78fr] gap-2">
-          <DashboardPanel title="VALUE ACCUMULATION (Today)" variant="enterprise"><ValueAccumulation /></DashboardPanel>
-          <DashboardPanel title="LIVE VALUE STREAM (Per Minute)" variant="enterprise"><ValueMinuteBars /></DashboardPanel>
-          <DashboardPanel title="REAL-TIME VALUE DRIVERS" variant="enterprise"><ValueDriversList /></DashboardPanel>
+          <DashboardPanel title="VALUE ACCUMULATION (Today)" variant="enterprise"><NoDataBlock message="No Data - daily value accumulation source is not approved." /></DashboardPanel>
+          <DashboardPanel title="LIVE VALUE STREAM (Per Minute)" variant="enterprise"><NoDataBlock message="No Data - minute stream source is not approved." /></DashboardPanel>
+          <DashboardPanel title="REAL-TIME VALUE DRIVERS" variant="enterprise"><NoDataBlock message="No Data - value driver model is not approved." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Real-Time Value is calculated using approved baseline and verified measurement methodology in accordance with ANSI C12.20 Class 0.5.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -737,33 +737,33 @@ function ValueDriversList() {
   return <div className="space-y-2 text-[8px]">{rows.map(([a,b,c])=><div className="grid grid-cols-[16px_1fr_62px_60px] items-center gap-2 border-b border-white/5 pb-1" key={a}><span className="text-[#65a30d]">●</span><span>{a}</span><span className={b==="Moderate"?"text-cyan-300":"text-[#05ff5e]"}>{b}</span><b>{c}</b></div>)}<div className="pt-1 text-[#05ff5e]">View Driver Analysis →</div></div>;
 }
 
-export function EnergySavingsEngineEnergySavingsDetailScreen() {
+export function EnergySavingsEngineEnergySavingsDetailScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="whitespace-nowrap text-lg font-semibold leading-none">SAVINGS ENGINE™ &nbsp; &gt; &nbsp; SAVINGS BREAKDOWN DETAIL &nbsp; &gt; &nbsp; <span className="text-[#05ff5e]">ENERGY SAVINGS DETAIL</span></h1><p className="mt-1 text-[10px] text-slate-300">Real-Time. Measurable Value. Continuous Improvement.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>⌂ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-slate-400">Savings Engine</span> &nbsp; › &nbsp; <span className="text-slate-400">Savings Breakdown Detail</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Energy Savings Detail</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">More</button></div></div>
         <section className="grid h-[86px] grid-cols-6 gap-2">
-          <SavingsDetailKpi icon="ϟ" label="ENERGY SAVINGS - THIS MONTH" value="$18,674" detail="49.2% of Total Savings" trend="↑ 10.8% vs Last Month" tone="green" />
-          <SavingsDetailKpi icon="▣" label="kWh SAVED - THIS MONTH" value="336,812 kWh" detail="↑ 11.2% vs Last Month" trend="" tone="cyan" />
-          <SavingsDetailKpi icon="◴" label="AVERAGE SAVINGS RATE" value="234.4 kWh / hr" detail="$26.93 / hr" trend="" tone="cyan" />
-          <SavingsDetailKpi icon="↗" label="PEAK HOURLY SAVINGS" value="412.6 kWh" detail="May 15, 2:00 PM" trend="" tone="purple" />
-          <SavingsDetailKpi icon="◎" label="CUMULATIVE kWh SAVED" value="4,286,154 kWh" detail="Since Activation (May 24, 2024)" trend="" tone="cyan" />
-          <SavingsDetailKpi icon="⌁" label="ENERGY SAVINGS RATE" value="$0.055 / kWh" detail="Blended Rate" trend="" tone="purple" />
+          <SavingsDetailKpi icon="ϟ" label="ENERGY SAVINGS - THIS MONTH" value="No Data" detail="No monthly split source" trend="Blocked" tone="green" />
+          <SavingsDetailKpi icon="▣" label="kWh SAVED - THIS MONTH" value="No Data" detail="No kWh rollup source" trend="" tone="cyan" />
+          <SavingsDetailKpi icon="◴" label="AVERAGE SAVINGS RATE" value="No Data" detail="No hourly model" trend="" tone="cyan" />
+          <SavingsDetailKpi icon="↗" label="PEAK HOURLY SAVINGS" value="No Data" detail="No peak savings model" trend="" tone="purple" />
+          <SavingsDetailKpi icon="◎" label="CUMULATIVE kWh SAVED" value="No Data" detail="No lifetime kWh rollup" trend="" tone="cyan" />
+          <SavingsDetailKpi icon="⌁" label="ENERGY SAVINGS RATE" value="No Data" detail="No approved rate source" trend="" tone="purple" />
         </section>
         <SavingsDetailTabs />
         <section className="mt-2 grid h-[270px] grid-cols-[1.02fr_1.02fr_0.86fr] gap-2">
-          <DashboardPanel title="kWh SAVINGS TREND - THIS MONTH" variant="enterprise"><KwhSavingsTrend /></DashboardPanel>
-          <DashboardPanel title="HOURLY SAVINGS PROFILE - THIS MONTH (Average kWh Saved)" variant="enterprise"><HourlySavingsProfile /></DashboardPanel>
-          <DashboardPanel title="SAVINGS BY DAY OF WEEK - THIS MONTH" variant="enterprise"><SavingsDayOfWeek /></DashboardPanel>
+          <DashboardPanel title="kWh SAVINGS TREND - THIS MONTH" variant="enterprise"><NoDataBlock message="No Data - kWh savings trend source is not approved." /></DashboardPanel>
+          <DashboardPanel title="HOURLY SAVINGS PROFILE - THIS MONTH (Average kWh Saved)" variant="enterprise"><NoDataBlock message="No Data - hourly savings source is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS BY DAY OF WEEK - THIS MONTH" variant="enterprise"><NoDataBlock message="No Data - day-of-week savings source is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[284px] grid-cols-[1fr_1fr_0.88fr] gap-2">
-          <DashboardPanel title="SAVINGS BY SYSTEM - THIS MONTH" variant="enterprise"><SavingsSystemTable /></DashboardPanel>
-          <DashboardPanel title="BASELINE vs CURRENT - ENERGY (kWh)" variant="enterprise"><SavingsBaselineComparison /></DashboardPanel>
-          <DashboardPanel title="ENERGY SAVINGS INSIGHTS" variant="enterprise"><SavingsInsights /></DashboardPanel>
+          <DashboardPanel title="SAVINGS BY SYSTEM - THIS MONTH" variant="enterprise"><NoDataBlock message="No Data - system savings allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="BASELINE vs CURRENT - ENERGY (kWh)" variant="enterprise"><NoDataBlock message="No Data - baseline energy contract is not approved." /></DashboardPanel>
+          <DashboardPanel title="ENERGY SAVINGS INSIGHTS" variant="enterprise"><NoDataBlock message="No Data - savings insight model is not approved." /></DashboardPanel>
         </section>
         <div className="mt-2 flex h-[30px] items-center rounded border border-cyan-300/10 bg-[#061421] px-3 text-[9px] text-slate-300"><span className="mr-2 grid size-5 place-items-center rounded-full bg-slate-500 text-[#020a12]">i</span>Savings are calculated using an approved baseline and verified measurement methodology in accordance with ANSI C12.20 Class 0.5.</div>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
@@ -820,37 +820,37 @@ function SavingsDetailTable({ headers, link, rows }: { headers: string[]; link: 
   return <div className="h-full text-[6.7px]"><table className="w-full text-left"><thead className="text-slate-400"><tr>{headers.map(h=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row,ri)=><tr className="border-t border-white/5" key={`${row[0]}-${ri}`}>{row.map((cell,i)=><td className={i>=3 || cell==="⌁" ? "py-0.5 text-[#05ff5e]" : "py-0.5"} key={`${row[0]}-${i}`}>{cell}</td>)}</tr>)}</tbody></table><div className="mt-2 text-[#05ff5e]">{link}</div></div>;
 }
 
-export function EnergySavingsEngineValueDriversDetailScreen() {
+export function EnergySavingsEngineValueDriversDetailScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="whitespace-nowrap text-lg font-semibold leading-none">SAVINGS ENGINE™ &nbsp; &gt; &nbsp; VALUE DRIVERS DETAIL</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time. Measurable Value. Continuous Improvement.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>⌂ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-slate-400">Savings Engine</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Value Drivers Detail</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">More</button></div></div>
         <section className="grid h-[76px] grid-cols-[1fr_1.05fr_1.05fr_1.05fr_1.05fr_0.8fr] gap-2">
-          <SavingsDriverKpi icon="$" label="TOTAL SAVINGS - THIS MONTH" value="$37,922" detail="↑ 12.1% vs Apr 1 - Apr 30" tone="green" />
-          <SavingsDriverKpi icon="▣" label="ENERGY SAVINGS" value="$18,674" detail="$18,674  (49.2%)" trend="↑ 10.8% vs Last Month" tone="cyan" />
-          <SavingsDriverKpi icon="⌘" label="DEMAND SAVINGS" value="$11,483" detail="(30.3%)" trend="↑ 13.5% vs Last Month" tone="orange" />
-          <SavingsDriverKpi icon="⌁" label="PF & PENALTY SAVINGS" value="$4,912" detail="(12.9%)" trend="↑ 9.4% vs Last Month" tone="purple" />
-          <SavingsDriverKpi icon="▣" label="CAPACITY VALUE" value="$2,853" detail="(7.5%)" trend="↑ 8.7% vs Last Month" tone="cyan" />
-          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-2"><div className="text-[7px] text-slate-400">SAVINGS RATE</div><div className="mt-1 text-lg leading-none">$1.284 / hr</div><div className="mt-1 text-[9px]">$0.021 / min</div><TinyDriverSpark /></article>
+          <SavingsDriverKpi icon="$" label="TOTAL SAVINGS - THIS MONTH" value="No Data" detail="No monthly rollup" tone="green" />
+          <SavingsDriverKpi icon="▣" label="ENERGY SAVINGS" value="No Data" detail="No approved split" trend="Blocked" tone="cyan" />
+          <SavingsDriverKpi icon="⌘" label="DEMAND SAVINGS" value="No Data" detail="No approved split" trend="Blocked" tone="orange" />
+          <SavingsDriverKpi icon="⌁" label="PF & PENALTY SAVINGS" value="No Data" detail="No approved split" trend="Blocked" tone="purple" />
+          <SavingsDriverKpi icon="▣" label="CAPACITY VALUE" value={formatCurrencyValue(data?.deferredCapitalValue)} detail="Latest deferred value" trend="Direct Data" tone="cyan" />
+          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-2"><div className="text-[7px] text-slate-400">SAVINGS RATE</div><div className="mt-1 text-lg leading-none">No Data</div><div className="mt-1 text-[9px]">No approved rate model</div><TinyDriverSpark /></article>
         </section>
         <SavingsDriverTabs />
         <section className="mt-2 grid h-[218px] grid-cols-[0.96fr_0.86fr_0.76fr] gap-2">
-          <DashboardPanel title="VALUE DRIVERS BREAKDOWN - THIS MONTH" variant="enterprise"><ValueDriversBreakdownTable /></DashboardPanel>
-          <DashboardPanel title="VALUE DRIVER TREND (LAST 30 DAYS)" variant="enterprise"><ValueDriverTrend /></DashboardPanel>
-          <DashboardPanel title="SAVINGS CONTRIBUTION (STACKED)" variant="enterprise"><SavingsContributionDonut /></DashboardPanel>
+          <DashboardPanel title="VALUE DRIVERS BREAKDOWN - THIS MONTH" variant="enterprise"><NoDataBlock message="No Data - value driver split is not approved." /></DashboardPanel>
+          <DashboardPanel title="VALUE DRIVER TREND (LAST 30 DAYS)" variant="enterprise"><NoDataBlock message="No Data - driver trend source is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS CONTRIBUTION (STACKED)" variant="enterprise"><NoDataBlock message="No Data - savings contribution model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[212px] grid-cols-[1.02fr_0.7fr_0.74fr] gap-2">
-          <DashboardPanel title="VALUE DRIVERS BY SYSTEM" variant="enterprise"><ValueDriversBySystemTable /></DashboardPanel>
-          <DashboardPanel title="SAVINGS PER UNIT" variant="enterprise"><SavingsPerUnitTable /></DashboardPanel>
-          <DashboardPanel title="TIME OF DAY IMPACT - THIS MONTH" variant="enterprise"><TimeOfDayImpactHeatmap /></DashboardPanel>
+          <DashboardPanel title="VALUE DRIVERS BY SYSTEM" variant="enterprise"><NoDataBlock message="No Data - system value driver allocation is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS PER UNIT" variant="enterprise"><NoDataBlock message="No Data - unit economics model is not approved." /></DashboardPanel>
+          <DashboardPanel title="TIME OF DAY IMPACT - THIS MONTH" variant="enterprise"><NoDataBlock message="No Data - time-of-day savings source is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[196px] grid-cols-[0.88fr_1.2fr] gap-2">
-          <DashboardPanel title="VALUE DRIVER INSIGHTS" variant="enterprise"><ValueDriverInsights /></DashboardPanel>
-          <DashboardPanel title="SAVINGS HISTORY" variant="enterprise"><SavingsHistoryTable /></DashboardPanel>
+          <DashboardPanel title="VALUE DRIVER INSIGHTS" variant="enterprise"><NoDataBlock message="No Data - driver insight model is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS HISTORY" variant="enterprise"><NoDataBlock message="No Data - savings history rollup is not approved." /></DashboardPanel>
         </section>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
       </div>
@@ -917,39 +917,39 @@ function SavingsDriverSmallTable({ headers, link, rows }: { headers: string[]; l
   return <div className="h-full text-[6.7px]"><table className="w-full text-left"><thead className="text-slate-400"><tr>{headers.map((h,i)=><th className="pb-1 font-medium" key={`${h}-${i}`}>{h}</th>)}</tr></thead><tbody>{rows.map((row,ri)=><tr className="border-t border-white/5" key={`${row[0]}-${ri}`}>{row.map((cell,i)=><td className={i===row.length-1 || cell.startsWith("↑") ? "py-0.5 text-[#05ff5e]" : "py-0.5"} key={`${row[0]}-${i}`}>{cell}</td>)}</tr>)}</tbody></table><div className="mt-1 text-[#05ff5e]">{link}</div></div>;
 }
 
-export function EnergySavingsEngineOverviewScreen() {
+export function EnergySavingsEngineOverviewScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/dashboard">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-3 py-2">
         <header className="flex h-[54px] items-center justify-between border-b border-cyan-300/10">
           <div><h1 className="whitespace-nowrap text-lg font-semibold leading-none">SAVINGS ENGINE™</h1><p className="mt-1 text-[10px] text-slate-300">Real-Time. Measurable Value. Continuous Improvement.</p></div>
-          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
+          <div className="flex items-center gap-3 text-[9px]"><button className="w-[130px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{data?.siteName ?? "Ochsner"}⌄</button><button className="w-[170px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {energyDateRange(data)}</button><span className="text-red-400">●</span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span>⌄</span></div>
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>⌂ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Savings Engine</span></div></div>
         <section className="grid h-[76px] grid-cols-6 gap-2">
-          <SavingsOverviewKpi icon="$" label="LIFETIME SAVINGS" value="$1,862,744" detail="Since May 12, 2024" trend="▲ 186.3% vs Baseline Cost" tone="green" />
-          <SavingsOverviewKpi icon="▣" label="SAVINGS THIS YEAR (YTD)" value="$412,885" detail="2025 YTD" trend="▲ 24.7% vs Prior Year" tone="cyan" />
-          <SavingsOverviewKpi icon="▰" label="SAVINGS THIS MONTH" value="$37,922" detail="May 1 - May 18, 2025" trend="▲ 12.1% vs Apr 1 - Apr 30" tone="cyan" />
-          <SavingsOverviewKpi icon="○" label="SAVINGS TODAY" value="$1,284" detail="May 18, 2025" trend="As of 10:15 AM" tone="orange" />
-          <SavingsOverviewKpi icon="⌁" label="CAPACITY RECOVERED™" value="1.82 MVA" detail="Since Installation" trend="▲ 920 kVA recovered" tone="cyan" />
-          <SavingsOverviewKpi icon="⌂" label="DEFERRED CAPITAL VALUE™" value="$910,000" detail="Avoided Infrastructure" trend="ROI Impact: $910K" tone="purple" />
+          <SavingsOverviewKpi icon="$" label="LIFETIME SAVINGS" value="No Data" detail="No approved lifetime rollup" trend="Blocked" tone="green" />
+          <SavingsOverviewKpi icon="▣" label="SAVINGS THIS YEAR (YTD)" value={annualBenefitValue(data)} detail="Latest annual savings" trend="Direct Data" tone="cyan" />
+          <SavingsOverviewKpi icon="▰" label="SAVINGS THIS MONTH" value="No Data" detail="No approved monthly rollup" trend="Blocked" tone="cyan" />
+          <SavingsOverviewKpi icon="○" label="SAVINGS TODAY" value="No Data" detail="No approved daily rollup" trend="Blocked" tone="orange" />
+          <SavingsOverviewKpi icon="⌁" label="CAPACITY RECOVERED™" value={formatKva(data?.recoveredKva)} detail="Latest capacity_intelligence row" trend="Direct Data" tone="cyan" />
+          <SavingsOverviewKpi icon="⌂" label="DEFERRED CAPITAL VALUE™" value={formatCurrencyValue(data?.deferredCapitalValue)} detail="Latest capacity_intelligence row" trend="Direct Data" tone="purple" />
         </section>
         <div className="mt-2 flex h-[28px] items-center justify-between border-b border-cyan-300/10 text-[8px]"><SavingsOverviewTabs /><div className="flex overflow-hidden rounded border border-cyan-300/12"><span className="px-3 py-1">Today</span><span className="bg-[#147dff] px-3 py-1 text-white">This Month</span><span className="px-3 py-1">This Year</span><span className="px-3 py-1">Lifetime</span></div></div>
         <section className="mt-2 grid h-[226px] grid-cols-[1fr_0.94fr_1.04fr] gap-2">
-          <DashboardPanel title="SAVINGS TREND - THIS MONTH" variant="enterprise"><SavingsOverviewTrend /></DashboardPanel>
-          <DashboardPanel title="SAVINGS BY CATEGORY - THIS MONTH" variant="enterprise"><SavingsCategoryDonut /></DashboardPanel>
-          <DashboardPanel title="SAVINGS CONTRIBUTION - TODAY" variant="enterprise"><SavingsContributionToday /></DashboardPanel>
+          <DashboardPanel title="SAVINGS TREND - THIS MONTH" variant="enterprise"><NoDataBlock message="No Data - monthly savings trend source is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS BY CATEGORY - THIS MONTH" variant="enterprise"><NoDataBlock message="No Data - savings category split is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS CONTRIBUTION - TODAY" variant="enterprise"><NoDataBlock message="No Data - daily contribution model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[216px] grid-cols-[1.05fr_0.72fr_0.88fr] gap-2">
-          <DashboardPanel title="SAVINGS BREAKDOWN - THIS MONTH" variant="enterprise"><SavingsBreakdownOverviewTable /></DashboardPanel>
-          <DashboardPanel title="SAVINGS DRIVERS - THIS MONTH" variant="enterprise"><SavingsDriversBars /></DashboardPanel>
-          <DashboardPanel title="SAVINGS vs BASELINE - THIS MONTH" variant="enterprise"><SavingsVsBaseline /></DashboardPanel>
+          <DashboardPanel title="SAVINGS BREAKDOWN - THIS MONTH" variant="enterprise"><NoDataBlock message="No Data - savings breakdown model is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS DRIVERS - THIS MONTH" variant="enterprise"><NoDataBlock message="No Data - savings driver model is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS vs BASELINE - THIS MONTH" variant="enterprise"><NoDataBlock message="No Data - baseline savings contract is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[194px] grid-cols-[0.8fr_0.62fr_0.64fr_0.7fr] gap-2">
-          <DashboardPanel title="SAVINGS FORECAST" variant="enterprise"><SavingsForecast /></DashboardPanel>
-          <DashboardPanel title="TOP SAVING OPPORTUNITIES" variant="enterprise"><TopSavingOpportunities /></DashboardPanel>
-          <DashboardPanel title="SAVINGS QUALITY & VERIFICATION" variant="enterprise"><SavingsQualityVerification /></DashboardPanel>
-          <DashboardPanel title="RECENT SAVINGS EVENTS" variant="enterprise"><RecentSavingsEvents /></DashboardPanel>
+          <DashboardPanel title="SAVINGS FORECAST" variant="enterprise"><NoDataBlock message="No Data - savings forecast model is not approved." /></DashboardPanel>
+          <DashboardPanel title="TOP SAVING OPPORTUNITIES" variant="enterprise"><NoDataBlock message="No Data - opportunity model is not approved." /></DashboardPanel>
+          <DashboardPanel title="SAVINGS QUALITY & VERIFICATION" variant="enterprise"><NoDataBlock message="No Data - verification model is not approved." /></DashboardPanel>
+          <DashboardPanel title="RECENT SAVINGS EVENTS" variant="enterprise"><NoDataBlock message="No Data - savings event source is not approved." /></DashboardPanel>
         </section>
         <footer className="absolute bottom-2 left-3 right-3 flex h-[26px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /><span><b className="text-[#05ff5e]">●</b> All Systems Operational</span></footer>
       </div>

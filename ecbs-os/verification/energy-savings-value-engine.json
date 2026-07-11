@@ -1,0 +1,53 @@
+{
+  "name": "Energy Savings Value Engine",
+  "routes": [
+    {
+      "name": "cumulative savings",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-cumulative-savings-screen",
+      "status": 200,
+      "expectText": ["CUMULATIVE SAVINGS", "No Data"]
+    },
+    {
+      "name": "roi payback",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-roi-payback",
+      "status": 200,
+      "expectText": ["ROI", "No Data"]
+    },
+    {
+      "name": "roi payback details",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-roi-payback-roi-payback-screen",
+      "status": 200,
+      "expectText": ["ROI", "No Data"]
+    },
+    {
+      "name": "real-time value detail",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-real-time-value-engine-real-time-value-engine-screen",
+      "status": 200,
+      "expectText": ["REAL-TIME VALUE", "No Data"]
+    },
+    {
+      "name": "real-time value overview",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-real-time-value-engine-screen",
+      "status": 200,
+      "expectText": ["REAL-TIME VALUE", "No Data"]
+    },
+    {
+      "name": "savings engine energy detail",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-savings-engine-savings-engine-savings-engine-savings-engine",
+      "status": 200,
+      "expectText": ["SAVINGS ENGINE", "No Data"]
+    },
+    {
+      "name": "savings engine value drivers",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-savings-engine-savings-engine-screen",
+      "status": 200,
+      "expectText": ["SAVINGS ENGINE", "No Data"]
+    },
+    {
+      "name": "savings engine overview",
+      "path": "/enterprise/energy-dashboard/energy-and-savings-dashboard-savings-engine-screen",
+      "status": 200,
+      "expectText": ["SAVINGS ENGINE", "No Data"]
+    }
+  ]
+}
