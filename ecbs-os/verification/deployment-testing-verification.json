@@ -1,0 +1,41 @@
+{
+  "name": "Deployment Testing Verification",
+  "apiGets": [
+    {
+      "name": "deployment field workflow reused payload",
+      "path": "/api/v1/deployments/1/field-workflow",
+      "status": 200,
+      "expectJson": [
+        { "path": "state", "equals": "no-data" },
+        { "path": "postReadingRows.0.source", "contains": "No scoped telemetry" }
+      ]
+    }
+  ],
+  "routes": [
+    {
+      "name": "testing verification main",
+      "path": "/operations/deployments/1/testing-verification",
+      "status": 200,
+      "expectText": ["Testing", "Verification", "No Data"]
+    },
+    {
+      "name": "testing add issue",
+      "path": "/operations/deployments/1/testing-verification?mode=add-issue",
+      "status": 200,
+      "expectText": ["Add Issue", "Manual input required", "No Data"]
+    },
+    {
+      "name": "testing view details",
+      "path": "/operations/deployments/1/testing-verification?mode=details",
+      "status": 200,
+      "expectText": ["Test Summary Details", "No Data"]
+    },
+    {
+      "name": "testing view trend",
+      "path": "/operations/deployments/1/testing-verification?mode=trend",
+      "status": 200,
+      "expectText": ["System Performance Trend", "No Data"]
+    }
+  ]
+}
+

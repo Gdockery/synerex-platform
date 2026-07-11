@@ -113,10 +113,10 @@ export function DeploymentWorkflowScreen({ data, deploymentId = "1", documentati
           {variant === "postReadings" ? <ReadingsScreen data={fieldData} kind="post" /> : null}
           {variant === "preReadings" ? <ReadingsScreen data={fieldData} kind="pre" /> : null}
           {variant === "siteDetails" ? <SiteInstallationDetails data={fieldData} /> : null}
-          {variant === "testingAddIssue" ? <TestingVerificationAddIssue /> : null}
-          {variant === "testingVerification" ? <TestingVerificationMain /> : null}
-          {variant === "testingViewDetails" ? <TestingVerificationViewDetails /> : null}
-          {variant === "testingViewTrend" ? <TestingVerificationViewTrend /> : null}
+          {variant === "testingAddIssue" ? <TestingVerificationAddIssue data={fieldData} /> : null}
+          {variant === "testingVerification" ? <TestingVerificationMain data={fieldData} deploymentId={deploymentId} /> : null}
+          {variant === "testingViewDetails" ? <TestingVerificationViewDetails data={fieldData} /> : null}
+          {variant === "testingViewTrend" ? <TestingVerificationViewTrend data={fieldData} /> : null}
           {fullBleed ? null : <ActionFooter deploymentId={deploymentId} variant={variant} />}
         </main>
       </div>
@@ -224,6 +224,29 @@ function readingRowsFromData(data: DeploymentFieldWorkflowData | undefined, kind
   return rows?.length ? rows : [emptyReadingRow(data?.message)];
 }
 
+function testingMetricRows(data?: DeploymentFieldWorkflowData) {
+  return readingRowsFromData(data, "post").map((row) => ({
+    change: row.delta === "No Data" ? "No Data" : row.delta,
+    label: row.label,
+    post: row.postValue,
+    pre: row.preValue,
+    source: row.source,
+    unit: row.unit,
+  }));
+}
+
+function testingStatusText(data?: DeploymentFieldWorkflowData) {
+  return data?.state === "data" ? data.status : "No Data";
+}
+
+function noDataTestRows() {
+  return [
+    ["Test Results", "No Data", "No Data", "No approved test-result schema exists.", "No Data", "No Data"],
+    ["Issue Records", "No Data", "No Data", "No approved issue/action schema exists.", "No Data", "No Data"],
+    ["Technician Assignment", "No Data", "No Data", "No approved technician assignment model exists.", "No Data", "No Data"],
+  ];
+}
+
 function DeploymentSidebar({ data, variant }: { data?: DeploymentShellData; variant: DeploymentWorkflowVariant }) {
   const acceptance = variant === "acceptance";
   const completed = variant === "checklist";
@@ -269,74 +292,75 @@ function DeploymentMeta({ data, variant }: { data?: DeploymentShellData; variant
   return <div className="mt-2 grid grid-cols-[0.75fr_0.7fr_0.65fr_1.45fr_0.7fr_0.95fr_0.6fr] gap-4 border-t border-cyan-300/10 pt-2 text-[9px]"><Info label="Deployment ID" value={data?.deploymentId ?? "No Data"} /><Info label="Site" value={data?.siteName ?? "No Data"} /><Info label="Customer" value={data?.clientName ?? "No Data"} /><Info label="Address" value="No Data" /><Info label="Technician" value="No Data" /><Info label="Commissioned On" value={data?.updatedAt ?? "No Data"} /><Info label="Duration" value="No Data" /></div>;
 }
 
-function TestingVerificationMain() {
+function TestingVerificationMain({ data, deploymentId }: { data?: DeploymentFieldWorkflowData; deploymentId: string }) {
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
         <div className="flex items-start justify-between gap-4">
           <div><h1 className="text-[15px] font-semibold uppercase">Testing & Verification</h1><p className="mt-1 text-[9px] text-slate-400">Verify system operation, performance, and safety after ECBS installation.</p></div>
-          <div className="grid min-w-[610px] grid-cols-3 gap-4 text-[9px]"><Field label="Testing Start" value="▣ May 12, 2025 10:20 AM" /><Field label="Technician" value="John Doe⌄" /><div><div className="text-slate-500">Overall Status</div><div className="mt-1 inline-flex rounded border border-[#05ff5e]/40 bg-[#063b27] px-3 py-1 text-[#05ff5e]">Passed</div></div></div>
+          <div className="grid min-w-[610px] grid-cols-3 gap-4 text-[9px]"><Field label="Testing Start" value={data?.updatedAt ?? "No Data"} /><Field label="Technician" value="No Data" /><div><div className="text-slate-500">Overall Status</div><div className="mt-1 inline-flex rounded border border-slate-600 bg-[#03111c] px-3 py-1 text-slate-300">{testingStatusText(data)}</div></div></div>
         </div>
       </section>
       <section className="mt-2 grid h-[236px] min-h-0 grid-cols-[0.95fr_1fr_0.98fr] gap-2">
         <ExportPanel title="Test Progress"><TestingProgressSummary /></ExportPanel>
-        <ExportPanel title="System Performance Summary" action={<span className="text-cyan-400">View Trend</span>}><TestingPerformanceSummary /></ExportPanel>
-        <ExportPanel title="Test Summary by Category" action={<span className="text-cyan-400">View Details</span>}><TestingCategorySummary /></ExportPanel>
+        <ExportPanel title="System Performance Summary" action={<Link className="text-cyan-400" href={`/operations/deployments/${deploymentId}/testing-verification?mode=trend`}>View Trend</Link>}><TestingPerformanceSummary data={data} /></ExportPanel>
+        <ExportPanel title="Test Summary by Category" action={<Link className="text-cyan-400" href={`/operations/deployments/${deploymentId}/testing-verification?mode=details`}>View Details</Link>}><TestingCategorySummary /></ExportPanel>
       </section>
       <section className="mt-2 grid h-[402px] min-h-0 grid-cols-[1.42fr_1fr] gap-2">
         <ExportPanel title="Testing Checklist"><TestingChecklistTable /></ExportPanel>
-        <div className="grid min-h-0 grid-rows-[1fr_136px] gap-2"><ExportPanel title="Issues & Actions" action={<span className="text-cyan-400">Add Issue</span>}><TestingIssuesActions /></ExportPanel><ExportPanel title="Test Notes"><TestingBaseNotes /></ExportPanel></div>
+        <div className="grid min-h-0 grid-rows-[1fr_136px] gap-2"><ExportPanel title="Issues & Actions" action={<Link className="text-cyan-400" href={`/operations/deployments/${deploymentId}/testing-verification?mode=add-issue`}>Add Issue</Link>}><TestingIssuesActions /></ExportPanel><ExportPanel title="Test Notes"><TestingBaseNotes data={data} /></ExportPanel></div>
       </section>
     </>
   );
 }
 
 function TestingProgressSummary() {
-  const stats = [["✓", "18", "Passed", "90%", "bg-[#22c55e] text-[#052112]"], ["!", "1", "Warning", "5%", "border border-amber-400 text-amber-400"], ["×", "1", "Failed", "5%", "bg-red-500 text-white"], ["", "0", "Not Tested", "0%", "border border-sky-400 text-sky-400"]];
-  return <div className="h-[calc(100%-22px)]"><div className="grid grid-cols-4 gap-4">{stats.map(([icon, value, label, pct, color]) => <div className="rounded border border-cyan-300/10 bg-[#061421] p-3" key={label}><div className={`grid size-5 place-items-center rounded-full text-[11px] ${color}`}>{icon}</div><div className="mt-3 text-[24px] leading-none text-white">{value}</div><div className="mt-1 text-[9px] text-slate-300">{label}</div><div className={(label === "Failed" ? "text-red-500" : label === "Warning" ? "text-amber-400" : label === "Not Tested" ? "text-sky-400" : "text-[#05ff5e]") + " text-[9px]"}>{pct}</div></div>)}</div><div className="mt-5 h-2 rounded-full bg-slate-800"><div className="h-full w-[90%] rounded-full bg-[#22c55e]" /></div><div className="mt-4 flex justify-between text-[9px] text-slate-400"><span>20 of 22 tests completed</span><span>90%</span></div></div>;
+  const stats = [["", "No Data", "Passed", "No Data", "border border-slate-600 text-slate-400"], ["", "No Data", "Warning", "No Data", "border border-slate-600 text-slate-400"], ["", "No Data", "Failed", "No Data", "border border-slate-600 text-slate-400"], ["", "No Data", "Not Tested", "No Data", "border border-slate-600 text-slate-400"]];
+  return <div className="h-[calc(100%-22px)]"><div className="grid grid-cols-4 gap-4">{stats.map(([icon, value, label, pct, color]) => <div className="rounded border border-cyan-300/10 bg-[#061421] p-3" key={label}><div className={`grid size-5 place-items-center rounded-full text-[11px] ${color}`}>{icon}</div><div className="mt-3 text-[24px] leading-none text-white">{value}</div><div className="mt-1 text-[9px] text-slate-300">{label}</div><div className="text-[9px] text-slate-400">{pct}</div></div>)}</div><div className="mt-5 h-2 rounded-full bg-slate-800"><div className="h-full w-0 rounded-full bg-[#22c55e]" /></div><div className="mt-4 flex justify-between text-[9px] text-slate-400"><span>No approved test-result schema exists</span><span>No Data</span></div></div>;
 }
 
-function TestingPerformanceSummary() {
-  const cards = [["Total kW", "279.7", "kW", "↓ 27.2%"], ["Power Factor (Avg)", "0.98", "", "↑ 22.5%"], ["THD V (Avg)", "2.8", "%", "↓ 12.5%"], ["THD I (Avg)", "6.2", "%", "↓ 27.3%"]];
-  return <div className="h-[calc(100%-22px)]"><div className="mb-3 flex items-end gap-3 text-[9px]"><span className="text-slate-400">Compare With</span><Field label="" value="Baseline (Pre-Installation)⌄" /></div><div className="grid grid-cols-4 gap-2">{cards.map(([label, value, unit, change]) => <div className="rounded border border-cyan-300/10 bg-[#061421] p-3" key={label}><div className="text-[8px] text-slate-400">{label}</div><div className="mt-3 text-[21px] leading-none text-white">{value}<span className="ml-1 text-[12px]">{unit}</span></div><div className="mt-3 text-[9px] text-[#05ff5e]">{change}</div></div>)}</div><div className="mt-4 text-[9px] text-slate-400"><span className="text-[#05ff5e]">◎</span> System performance is within expected parameters.</div></div>;
+function TestingPerformanceSummary({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const cards = testingMetricRows(data).slice(0, 4).map((row) => [row.label, row.post, row.unit, row.change]);
+  return <div className="h-[calc(100%-22px)]"><div className="mb-3 flex items-end gap-3 text-[9px]"><span className="text-slate-400">Compare With</span><Field label="" value="Baseline (Pre-Installation)⌄" /></div><div className="grid grid-cols-4 gap-2">{cards.map(([label, value, unit, change]) => <div className="rounded border border-cyan-300/10 bg-[#061421] p-3" key={label}><div className="text-[8px] text-slate-400">{label}</div><div className="mt-3 text-[21px] leading-none text-white">{value}<span className="ml-1 text-[12px]">{unit}</span></div><div className="mt-3 text-[9px] text-[#05ff5e]">{change}</div></div>)}</div><div className="mt-4 text-[9px] text-slate-400"><span className="text-slate-500">◎</span> Expected-parameter testing model: No Data.</div></div>;
 }
 
 function TestingCategorySummary() {
-  return <div className="grid h-[calc(100%-22px)] grid-cols-[150px_1fr] items-center gap-5"><div className="relative mx-auto size-[135px] rounded-full bg-[conic-gradient(#22c55e_0_90%,#f59e0b_90%_95%,#ef4444_95%_100%)]"><div className="absolute inset-7 grid place-items-center rounded-full bg-[#061521] text-center"><div><div className="text-[28px] font-semibold">22</div><div className="text-[9px] text-slate-400">Total Tests</div></div></div></div><div className="space-y-4 text-[9px]"><div className="flex justify-between"><span><span className="text-[#22c55e]">●</span> Passed (18)</span><span>90%</span></div><div className="flex justify-between"><span><span className="text-amber-400">●</span> Warning (1)</span><span>5%</span></div><div className="flex justify-between"><span><span className="text-red-500">●</span> Failed (1)</span><span>5%</span></div><div className="flex justify-between"><span><span className="text-sky-400">●</span> Not Tested (0)</span><span>0%</span></div></div></div>;
+  return <div className="grid h-[calc(100%-22px)] grid-cols-[150px_1fr] items-center gap-5"><div className="relative mx-auto size-[135px] rounded-full bg-[conic-gradient(#334155_0_100%)]"><div className="absolute inset-7 grid place-items-center rounded-full bg-[#061521] text-center"><div><div className="text-[22px] font-semibold">No Data</div><div className="text-[9px] text-slate-400">Total Tests</div></div></div></div><div className="space-y-4 text-[9px]"><div className="flex justify-between"><span><span className="text-slate-500">●</span> Passed (No Data)</span><span>No Data</span></div><div className="flex justify-between"><span><span className="text-slate-500">●</span> Warning (No Data)</span><span>No Data</span></div><div className="flex justify-between"><span><span className="text-slate-500">●</span> Failed (No Data)</span><span>No Data</span></div><div className="flex justify-between"><span><span className="text-slate-500">●</span> Not Tested (No Data)</span><span>No Data</span></div></div></div>;
 }
 
 function TestingChecklistTable() {
-  const rows = [["System Power Up", "Functional", "Passed", "Success", "May 12, 10:21 AM"], ["Communication Check", "Communication", "Passed", "All Devices Online", "May 12, 10:22 AM"], ["CT Polarity Verification", "Wiring", "Passed", "All Correct", "May 12, 10:25 AM"], ["Voltage Verification (L-L, L-N)", "Electrical", "Passed", "Within Tolerance", "May 12, 10:07 AM"], ["Current Verification", "Electrical", "Warning", "Phase B Slight High", "May 12, 10:28 AM"], ["Power Factor Verification", "Performance", "Passed", "0.98", "May 12, 10:29 AM"], ["Capacitor Bank Operation", "Functional", "Passed", "All Banks Operational", "May 12, 10:30 AM"], ["Load Balancing Check", "Performance", "Failed", "Imbalance Detected", "May 12, 10:31 AM"], ["Alarm & Event Check", "Functional", "Passed", "No Active Alarms", "May 12, 10:32 AM"], ["ECBS Control Response", "Functional", "Passed", "Response OK", "May 12, 10:33 AM"]];
-  return <div className="h-[calc(100%-22px)]"><table className="w-full text-left text-[8.5px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Test Item", "Category", "Status", "Statut", "Captured Time", "Actions"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row[0]}>{row.map((c, i) => <td className={i === 2 ? (c === "Failed" ? "px-2 py-[6.5px] text-red-400" : c === "Warning" ? "px-2 py-[6.5px] text-amber-400" : "px-2 py-[6.5px] text-[#05ff5e]") : "px-2 py-[6.5px] text-slate-200"} key={i}>{i === 2 ? (c === "Passed" ? "◎ Passed" : c === "Warning" ? "⚠ Warning" : "● Failed") : i === 5 ? "▣   ♬" : c}</td>)}</tr>)}</tbody></table><div className="mt-3 flex items-center justify-between text-[9px] text-slate-400"><span>Showing 1 to 10 of 22 tests</span><span className="space-x-5">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> 2 3 ›</span><span>Rows per page: <b className="rounded border border-cyan-300/10 px-2 py-1">10⌄</b></span></div></div>;
+  const rows = noDataTestRows();
+  return <div className="h-[calc(100%-22px)]"><table className="w-full text-left text-[8.5px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Test Item", "Category", "Status", "Statut", "Captured Time", "Actions"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row[0]}>{row.map((c, i) => <td className={i === 2 ? "px-2 py-[6.5px] text-slate-400" : "px-2 py-[6.5px] text-slate-200"} key={i}>{i === 5 ? "No Data" : c}</td>)}</tr>)}</tbody></table><div className="mt-3 flex items-center justify-between text-[9px] text-slate-400"><span>Showing No Data test rows</span><span className="space-x-5">‹ <b className="rounded border border-[#05ff5e] px-2 py-1 text-[#05ff5e]">1</b> ›</span><span>Rows per page: <b className="rounded border border-cyan-300/10 px-2 py-1">10⌄</b></span></div></div>;
 }
 
 function TestingIssuesActions() {
-  return <div className="space-y-3 text-[9px]"><TestingIssueCard tone="red" title="Load Balancing Check" body="Phase B current is 18% higher than Phase A and C. Action Required: Adjust load or check connections." /><TestingIssueCard tone="amber" title="Current Verification" body="Phase B current slightly above expected range. Monitor and re-check after 24 hours." /></div>;
+  return <div className="space-y-3 text-[9px]"><TestingIssueCard tone="amber" title="No Data" body="No approved issue/action schema exists." /></div>;
 }
 
 function TestingIssueCard({ tone, title, body }: { tone: "red" | "amber"; title: string; body: string }) {
-  return <div className="rounded border border-cyan-300/10 bg-[#061421] p-3"><div className={tone === "red" ? "mb-2 inline-flex rounded border border-red-500 px-2 py-0.5 text-red-400" : "mb-2 inline-flex rounded border border-amber-400 px-2 py-0.5 text-amber-400"}>{tone === "red" ? "Failed" : "Warning"}</div><div className="font-semibold">{title}</div><div className="mt-1 grid grid-cols-[1fr_86px_78px] gap-3 text-slate-400"><span>{body}</span><span>Assigned To<br /><b className="font-normal text-slate-200">John Doe</b></span><span>Due Date<br /><b className="font-normal text-slate-200">May 13, 2025</b></span></div></div>;
+  return <div className="rounded border border-cyan-300/10 bg-[#061421] p-3"><div className={tone === "red" ? "mb-2 inline-flex rounded border border-red-500 px-2 py-0.5 text-red-400" : "mb-2 inline-flex rounded border border-slate-500 px-2 py-0.5 text-slate-400"}>{title === "No Data" ? "No Data" : tone === "red" ? "Failed" : "No Data"}</div><div className="font-semibold">{title}</div><div className="mt-1 grid grid-cols-[1fr_86px_78px] gap-3 text-slate-400"><span>{body}</span><span>Assigned To<br /><b className="font-normal text-slate-200">No Data</b></span><span>Due Date<br /><b className="font-normal text-slate-200">No Data</b></span></div></div>;
 }
 
-function TestingBaseNotes() {
-  return <div><div className="h-[86px] rounded border border-cyan-300/10 bg-[#03111c] p-3 text-[9px] text-slate-300">All systems operational. Minor load imbalance on Phase B to be addressed.</div><div className="mt-2 text-[8px] text-slate-500">71 / 1000 characters</div></div>;
+function TestingBaseNotes({ data }: { data?: DeploymentFieldWorkflowData }) {
+  return <div><div className="h-[86px] rounded border border-cyan-300/10 bg-[#03111c] p-3 text-[9px] text-slate-300">{data?.message || "No approved testing notes source exists."}</div><div className="mt-2 text-[8px] text-slate-500">0 / 1000 characters</div></div>;
 }
 
-function TestingVerificationViewTrend() {
+function TestingVerificationViewTrend({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const metrics = testingMetricRows(data);
   return (
     <>
       <section className="mt-3 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
         <div className="flex items-start justify-between gap-5">
           <div><h1 className="text-[15px] font-semibold uppercase">System Performance Trend</h1><p className="mt-1 text-[9px] text-slate-400">Compare baseline (pre-installation) and post-installation performance over time.</p></div>
-          <div className="flex items-end gap-3 text-[9px]"><Field label="Compare With" value="Baseline (Pre-Installation)⌄" /><Field label="" value="May 12, 2025 12:00 AM" /><span className="pb-2 text-slate-500">→</span><Field label="" value="May 12, 2025 10:20 AM⌄" /><Button>⇩ Export</Button></div>
+          <div className="flex items-end gap-3 text-[9px]"><Field label="Compare With" value="Baseline (Pre-Installation)⌄" /><Field label="" value={data?.updatedAt ?? "No Data"} /><span className="pb-2 text-slate-500">→</span><Field label="" value={data?.updatedAt ?? "No Data"} /><Button>⇩ Export</Button></div>
         </div>
       </section>
       <section className="mt-2 grid h-[122px] grid-cols-6 gap-2">
-        {[ ["Total kW (Avg)", "279.7", "kW", "↓ 27.2%", "vs Baseline: 384.2 kW"], ["Power Factor (Avg)", "0.98", "", "↑ 22.5%", "vs Baseline: 0.80"], ["THD V (Avg)", "2.8", "%", "↓ 12.5%", "vs Baseline: 3.2 %"], ["THD I (Avg)", "6.2", "%", "↓ 27.3%", "vs Baseline: 8.4 %"], ["Voltage L-L (Avg)", "480.2", "V", "↑ 0.2%", "vs Baseline: 479.3 V"], ["Current (Avg)", "378", "A", "↓ 6.7%", "vs Baseline: 405 A"] ].map(([label, value, unit, change, sub]) => <TrendMetricCard key={label} label={label} value={value} unit={unit} change={change} sub={sub} />)}
+        {metrics.slice(0, 6).map((row) => <TrendMetricCard key={row.label} label={row.label} value={row.post} unit={row.unit} change={row.change} sub={`Baseline: ${row.pre} ${row.unit}`} />)}
       </section>
       <section className="mt-2 grid h-[290px] min-h-0 grid-cols-[1.35fr_1fr] gap-2">
         <ExportPanel title="Trend Over Time" action={<Button>Add Parameter⌄</Button>}><TrendOverTimePanel /></ExportPanel>
-        <ExportPanel title="Parameter Comparison"><ParameterComparisonPanel /></ExportPanel>
+        <ExportPanel title="Parameter Comparison"><ParameterComparisonPanel data={data} /></ExportPanel>
       </section>
       <section className="mt-2 grid h-[204px] min-h-0 grid-cols-[0.88fr_0.86fr_1.05fr] gap-2">
         <ExportPanel title="Load Profile (kW)"><LoadProfilePanel /></ExportPanel>
@@ -352,82 +376,82 @@ function TrendMetricCard({ label, value, unit, change, sub }: { label: string; v
 }
 
 function TrendOverTimePanel() {
-  return <div className="h-[calc(100%-22px)]"><div className="mb-1 flex gap-6 text-[8px]"><span className="text-[#22c55e]">━ Total kW (After)</span><span className="text-slate-400">-- Total kW (Baseline)</span><span className="text-[#38bdf8]">━ Power Factor (After)</span><span className="text-[#38bdf8]">-- Power Factor (Baseline)</span></div><div className="relative h-[176px] rounded border border-cyan-300/10 bg-[#03111c] pl-8 pr-8 pt-3"><div className="absolute left-2 top-2 text-[8px] text-slate-400">kW</div><div className="absolute right-2 top-2 text-[8px] text-[#38bdf8]">Power Factor</div><div className="absolute left-2 top-8 grid h-[118px] content-between text-[8px] text-slate-400"><span>600</span><span>500</span><span>400</span><span>300</span><span>200</span><span>100</span><span>0</span></div><div className="absolute right-2 top-8 grid h-[118px] content-between text-[8px] text-[#38bdf8]"><span>1.20</span><span>1.00</span><span>0.80</span><span>0.60</span><span>0.40</span><span>0.20</span><span>0.00</span></div><svg viewBox="0 0 590 138" className="h-[138px] w-full"><g stroke="#123147" strokeWidth="1">{[18,42,66,90,114].map((y) => <line key={y} x1="0" x2="590" y1={y} y2={y} />)}</g><polyline points="0,58 48,65 96,56 144,54 192,62 240,55 288,48 336,63 384,51 432,54 480,52 528,44 566,58 590,56" fill="none" stroke="#22c55e" strokeWidth="3"/><polyline points="0,34 48,37 96,33 144,29 192,28 240,27 288,25 336,40 384,27 432,28 480,24 528,31 566,26 590,26" fill="none" stroke="#38bdf8" strokeWidth="3"/><polyline points="0,92 48,88 96,85 144,82 192,78 240,75 288,71 336,68 384,64 432,61 480,58 528,55 566,53 590,51" fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 5"/><polyline points="0,78 48,76 96,72 144,69 192,66 240,62 288,59 336,57 384,53 432,50 480,47 528,43 566,41 590,39" fill="none" stroke="#38bdf8" strokeWidth="2" strokeDasharray="6 5"/></svg><div className="absolute bottom-1 left-9 right-9 flex justify-between text-[8px] text-slate-400"><span>12:00 AM</span><span>2:00 AM</span><span>4:00 AM</span><span>6:00 AM</span><span>8:00 AM</span><span>10:00 AM</span></div></div><div className="mt-2 flex gap-2 text-[8px]"><span className="rounded bg-[#061521] px-3 py-1">1H</span><span className="rounded bg-[#061521] px-3 py-1">6H</span><span className="rounded bg-[#061521] px-3 py-1">12H</span><span className="rounded bg-[#063b27] px-4 py-1 text-[#05ff5e]">24H</span><span className="rounded bg-[#061521] px-3 py-1">7D</span><span className="rounded bg-[#061521] px-3 py-1">30D</span><span className="rounded bg-[#061521] px-3 py-1">Custom</span></div></div>;
+  return <div className="h-[calc(100%-22px)]"><div className="mb-1 flex gap-6 text-[8px]"><span className="text-[#22c55e]">━ Telemetry After</span><span className="text-slate-400">-- Telemetry Baseline</span></div><div className="grid h-[176px] place-items-center rounded border border-cyan-300/10 bg-[#03111c] text-[11px] text-slate-400">No approved trend-series source exists.</div><div className="mt-2 flex gap-2 text-[8px]"><span className="rounded bg-[#063b27] px-4 py-1 text-[#05ff5e]">No Data</span></div></div>;
 }
 
-function ParameterComparisonPanel() {
-  const rows = [["Total kW", "384.2 kW", "279.7 kW", "-104.5 kW", "↓ 27.2%"], ["Power Factor", "0.80", "0.98", "+0.18", "↑ 22.5%"], ["THD V", "3.2 %", "2.8 %", "-0.4 %", "↓ 12.5%"], ["THD I", "8.4 %", "6.2 %", "-2.2 %", "↓ 27.3%"], ["Voltage L-L", "479.3 V", "480.2 V", "+0.9 V", "↑ 0.2%"], ["Current", "405 A", "378 A", "-27 A", "↓ 6.7%"]];
-  return <div className="h-[calc(100%-22px)]"><table className="w-full text-left text-[9px]"><thead className="text-slate-400"><tr>{["Parameter", "Baseline (Avg)", "After (Avg)", "Change", "Change %"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row[0]}>{row.map((c, i) => <td className={i === 4 ? "px-2 py-[7px] text-[#05ff5e]" : "px-2 py-[7px] text-slate-200"} key={i}>{c}</td>)}</tr>)}</tbody></table><div className="mt-3 text-[8px] text-slate-400"><span className="text-[#05ff5e]">◎</span> Positive change in Power Factor is good. Reductions in kW, THD, and Current are good.</div></div>;
+function ParameterComparisonPanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const rows = testingMetricRows(data).map((row) => [row.label, `${row.pre} ${row.unit}`, `${row.post} ${row.unit}`, `${row.change} ${row.unit}`, "No Data"]);
+  return <div className="h-[calc(100%-22px)]"><table className="w-full text-left text-[9px]"><thead className="text-slate-400"><tr>{["Parameter", "Baseline (Avg)", "After (Avg)", "Change", "Change %"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row[0]}>{row.map((c, i) => <td className={i === 4 ? "px-2 py-[7px] text-slate-400" : "px-2 py-[7px] text-slate-200"} key={i}>{c}</td>)}</tr>)}</tbody></table><div className="mt-3 text-[8px] text-slate-400"><span className="text-slate-500">◎</span> Change percentages require approved baseline rules.</div></div>;
 }
 
 function LoadProfilePanel() {
-  const bars = [72, 62, 78, 58, 70, 64, 76, 66, 68, 60, 72];
-  return <div className="h-[calc(100%-22px)]"><div className="mb-2 flex justify-center gap-5 text-[8px]"><span>■ Baseline (Pre-Installation)</span><span className="text-[#05ff5e]">■ After (Post-Installation)</span></div><div className="grid h-[130px] grid-cols-11 items-end gap-2 px-3">{bars.map((bar, i) => <div className="flex h-full items-end justify-center gap-1" key={i}><span className="w-3 bg-slate-500" style={{ height: `${bar}%` }} /><span className="w-3 bg-[#22c55e]" style={{ height: `${Math.max(25, bar - 22)}%` }} /></div>)}</div></div>;
+  return <div className="h-[calc(100%-22px)]"><div className="mb-2 flex justify-center gap-5 text-[8px]"><span>■ Baseline (Pre-Installation)</span><span className="text-[#05ff5e]">■ After (Post-Installation)</span></div><div className="grid h-[130px] place-items-center rounded border border-cyan-300/10 bg-[#03111c] text-[10px] text-slate-400">No approved load profile source exists.</div></div>;
 }
 
 function PowerFactorTrendPanel() {
-  return <div className="h-[calc(100%-22px)]"><div className="mb-2 flex justify-center gap-5 text-[8px]"><span>-- Baseline (Pre-Installation)</span><span className="text-[#38bdf8]">━ After (Post-Installation)</span></div><div className="h-[130px] rounded border border-cyan-300/10 bg-[#03111c]"><svg viewBox="0 0 350 130" className="h-full w-full"><polyline points="10,85 45,83 80,78 115,76 150,72 185,70 220,66 255,62 290,58 340,55" fill="none" stroke="#38bdf8" strokeWidth="3"/><polyline points="10,102 45,100 80,98 115,96 150,93 185,90 220,88 255,82 290,86 340,82" fill="none" stroke="#38bdf8" strokeWidth="2" strokeDasharray="6 5"/></svg></div></div>;
+  return <div className="h-[calc(100%-22px)]"><div className="mb-2 flex justify-center gap-5 text-[8px]"><span>-- Baseline (Pre-Installation)</span><span className="text-[#38bdf8]">━ After (Post-Installation)</span></div><div className="grid h-[130px] place-items-center rounded border border-cyan-300/10 bg-[#03111c] text-[10px] text-slate-400">No approved power factor trend source exists.</div></div>;
 }
 
 function EventAnnotationsPanel() {
-  const rows = [["11:45 PM", "Pre-installation baseline captured", "Baseline readings collected", "green"], ["8:15 AM", "Installation completed", "All equipment installed and verified", "purple"], ["10:05 AM", "Post-installation readings captured", "Post-installation snapshot taken", "blue"]];
-  return <div className="space-y-4 text-[9px]">{rows.map(([time, title, body, color]) => <div className="grid grid-cols-[26px_64px_1fr_78px] items-start gap-2" key={title}><span className={color === "green" ? "text-[#05ff5e]" : color === "purple" ? "text-violet-400" : "text-sky-400"}>●</span><span>{time}</span><div><div className="font-semibold">{title}</div><div className="mt-1 text-slate-400">{body}</div></div><span className="text-slate-400">By: John Doe</span></div>)}<div className="text-[8px] text-slate-500">Showing 1 to 3 of 3 annotations</div></div>;
+  const rows = [["No Data", "No Data", "No approved annotation/event table exists.", "green"]];
+  return <div className="space-y-4 text-[9px]">{rows.map(([time, title, body, color]) => <div className="grid grid-cols-[26px_64px_1fr_78px] items-start gap-2" key={title}><span className={color === "green" ? "text-[#05ff5e]" : color === "purple" ? "text-violet-400" : "text-sky-400"}>●</span><span>{time}</span><div><div className="font-semibold">{title}</div><div className="mt-1 text-slate-400">{body}</div></div><span className="text-slate-400">By: No Data</span></div>)}<div className="text-[8px] text-slate-500">Showing No Data annotations</div></div>;
 }
 
-function TestingVerificationViewDetails() {
+function TestingVerificationViewDetails({ data }: { data?: DeploymentFieldWorkflowData }) {
   return (
     <>
       <div className="mt-3 flex h-[72px] items-center justify-between">
         <div><div className="mb-3 text-[9px] text-slate-400">← Back to Testing & Verification</div><h1 className="text-[15px] font-semibold uppercase">Test Summary Details</h1><p className="mt-1 text-[9px] text-slate-400">Comprehensive view of test results and parameter performance.</p></div>
         <Button>⇩ Export PDF</Button>
       </div>
-      <section className="grid h-[70px] grid-cols-[1.05fr_0.72fr_0.72fr_0.72fr_0.72fr_0.72fr] gap-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3 text-[9px]"><Info label="Test Date & Time" value="May 12, 2025 10:20 AM" /><Info label="Technician" value="John Doe" /><Info label="Test Duration" value="45 min" /><div><div className="text-slate-500">Overall Status</div><div className="mt-1 inline-flex rounded border border-[#05ff5e]/40 bg-[#063b27] px-3 py-1 text-[#05ff5e]">Passed</div></div><Info label="Tests Completed" value="22 of 22" /><Info label="Compliance" value="100%" /></section>
+      <section className="grid h-[70px] grid-cols-[1.05fr_0.72fr_0.72fr_0.72fr_0.72fr_0.72fr] gap-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3 text-[9px]"><Info label="Test Date & Time" value={data?.updatedAt ?? "No Data"} /><Info label="Technician" value="No Data" /><Info label="Test Duration" value="No Data" /><div><div className="text-slate-500">Overall Status</div><div className="mt-1 inline-flex rounded border border-slate-600 bg-[#03111c] px-3 py-1 text-slate-300">{testingStatusText(data)}</div></div><Info label="Tests Completed" value="No Data" /><Info label="Compliance" value="No Data" /></section>
       <div className="mt-3 flex h-[30px] items-end gap-12 border-b border-cyan-300/10 text-[9px]"><span className="border-b border-[#05ff5e] pb-2 text-[#05ff5e]">Performance Summary</span><span>Detailed Readings</span><span>Trend Analysis</span><span>Event Log</span><span>Attachments</span></div>
       <section className="mt-2 grid h-[300px] min-h-0 grid-cols-[1.15fr_0.92fr_0.43fr] gap-2">
-        <ExportPanel title="Performance Overview"><PerformanceOverviewTable /></ExportPanel>
+        <ExportPanel title="Performance Overview"><PerformanceOverviewTable data={data} /></ExportPanel>
         <ExportPanel title="Before vs After Comparison"><BeforeAfterComparisonChart /></ExportPanel>
-        <ExportPanel title="Test Information"><TestInformationPanel /></ExportPanel>
+        <ExportPanel title="Test Information"><TestInformationPanel data={data} /></ExportPanel>
       </section>
       <section className="mt-2 grid h-[274px] min-h-0 grid-cols-[1.3fr_0.72fr_0.46fr] gap-2">
         <ExportPanel title="Detailed Parameter Trend"><ParameterTrendPanel /></ExportPanel>
-        <ExportPanel title="Statistical Summary" action={<span className="text-cyan-400">View Calculation Details</span>}><StatisticalSummaryPanel /></ExportPanel>
+        <ExportPanel title="Statistical Summary" action={<span className="text-cyan-400">View Calculation Details</span>}><StatisticalSummaryPanel data={data} /></ExportPanel>
         <div className="grid min-h-0 grid-rows-[138px_1fr] gap-2 overflow-hidden"><ExportPanel title="Quality Check"><DetailQualityCheck /></ExportPanel><ExportPanel title="Notes"><DetailNotesPanel /></ExportPanel></div>
       </section>
     </>
   );
 }
 
-function PerformanceOverviewTable() {
-  const rows = [["Total kW", "384.2 kW", "279.7 kW", "-104.5 kW", "-27.2%", "Improved"], ["Power Factor (Avg)", "0.80", "0.98", "+0.18", "+22.5%", "Improved"], ["THD V (Avg)", "3.2 %", "2.8 %", "-0.4 %", "-12.5%", "Improved"], ["THD I (Avg)", "8.4 %", "6.2 %", "-2.2 %", "-27.3%", "Improved"], ["Voltage L-L (Avg)", "479.3 V", "480.2 V", "+0.9 V", "+0.2%", "Improved"], ["Current (Avg)", "405 A", "378 A", "-27 A", "-6.7%", "Improved"], ["kVA (Avg)", "351.0 kVA", "288.1 kVA", "-62.9 kVA", "-17.9%", "Improved"], ["kVAR (Avg)", "212.0 kVAR", "57.5 kVAR", "-154.5 kVAR", "-72.9%", "Improved"], ["Frequency (Avg)", "60.01 Hz", "60.01 Hz", "0.00 Hz", "0.0%", "No Change"]];
-  return <div className="flex h-[calc(100%-22px)] flex-col"><table className="w-full text-left text-[8px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Parameter", "Baseline (Pre)", "After (Post)", "Change", "Change %", "Status"].map((h) => <th className="px-2 py-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row[0]}>{row.map((c, i) => <td className={i > 3 && c !== "No Change" ? "px-2 py-[4px] text-[#05ff5e]" : "px-2 py-[4px] text-slate-200"} key={i}>{i === 5 && c !== "No Change" ? `◎ ${c}` : i === 5 ? `○ ${c}` : c}</td>)}</tr>)}</tbody></table><div className="mt-auto flex gap-8 text-[8px] text-slate-400"><span className="text-[#05ff5e]">↓ Decrease is Good</span><span className="text-[#05ff5e]">↑ Increase is Good</span><span>− No Change</span></div></div>;
+function PerformanceOverviewTable({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const rows = testingMetricRows(data).map((row) => [row.label, `${row.pre} ${row.unit}`, `${row.post} ${row.unit}`, `${row.change} ${row.unit}`, "No Data", row.source]);
+  return <div className="flex h-[calc(100%-22px)] flex-col"><table className="w-full text-left text-[8px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Parameter", "Baseline (Pre)", "After (Post)", "Change", "Change %", "Status"].map((h) => <th className="px-2 py-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row) => <tr className="border-b border-white/5" key={row[0]}>{row.map((c, i) => <td className={i > 3 ? "px-2 py-[4px] text-slate-400" : "px-2 py-[4px] text-slate-200"} key={i}>{c}</td>)}</tr>)}</tbody></table><div className="mt-auto flex gap-8 text-[8px] text-slate-400"><span>Change %: No Data</span><span>Quality model: No Data</span></div></div>;
 }
 
 function BeforeAfterComparisonChart() {
-  const items = [["kW", 68, 48], ["PF", 12, 18], ["THD V", 8, 6], ["THD I", 10, 7], ["kVA", 82, 54], ["kVAR", 38, 8]];
-  return <div className="h-[calc(100%-22px)]"><div className="mb-3 flex justify-center gap-8 text-[8px]"><span>■ Baseline (Pre-Installation)</span><span className="text-[#05ff5e]">■ After (Post-Installation)</span></div><div className="grid h-[220px] grid-cols-6 items-end gap-5 border-b border-cyan-300/10 px-4 text-center text-[8px] text-slate-400">{items.map(([label, before, after]) => <div key={label as string}><div className="mx-auto flex h-[180px] items-end justify-center gap-2"><span className="w-4 bg-slate-500" style={{ height: `${before}%` }} /><span className="w-4 bg-[#22c55e]" style={{ height: `${after}%` }} /></div><div className="mt-2">{label}</div></div>)}</div></div>;
+  return <div className="h-[calc(100%-22px)]"><div className="mb-3 flex justify-center gap-8 text-[8px]"><span>■ Baseline (Pre-Installation)</span><span className="text-[#05ff5e]">■ After (Post-Installation)</span></div><div className="grid h-[220px] place-items-center border-b border-cyan-300/10 px-4 text-center text-[10px] text-slate-400">No approved chart series source exists.</div></div>;
 }
 
-function TestInformationPanel() {
-  return <MetricList rows={[["Test Started", "May 12, 2025 9:35 AM"], ["Test Completed", "May 12, 2025 10:20 AM"], ["Testing Duration", "45 min"], ["System Mode", "Normal Operation"], ["Load Condition", "Typical Operating Load"], ["Weather / Ambient", "24°C / Clear"], ["Meter / Device", "Main Meter - Utility"], ["Data Source", "● Live Data"]]} />;
+function TestInformationPanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const equipment = equipmentRowsFromData(data)[0] ?? emptyEquipmentRow();
+  return <MetricList rows={[["Test Started", data?.updatedAt ?? "No Data"], ["Test Completed", "No Data"], ["Testing Duration", "No Data"], ["System Mode", "No Data"], ["Load Condition", "No Data"], ["Weather / Ambient", "No Data"], ["Meter / Device", equipment.name], ["Data Source", data?.state === "data" ? "ecbs_os" : "No Data"]]} />;
 }
 
 function ParameterTrendPanel() {
-  return <div className="h-[calc(100%-22px)]"><div className="mb-2 grid grid-cols-[150px_150px_120px_1fr] gap-3 text-[8px]"><Field label="Parameter" value="Total kW⌄" /><Field label="Time Range" value="Last 24 Hours⌄" /><Field label="Interval" value="1 Hour⌄" /><div className="self-end text-right"><Button>Reset Zoom</Button></div></div><div className="relative h-[178px] rounded border border-cyan-300/10 bg-[#03111c]"><svg viewBox="0 0 520 170" className="h-full w-full"><polyline points="0,68 40,75 80,62 120,58 160,65 200,64 240,50 280,54 320,48 360,62 400,62 440,68 480,64 520,69" fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="6 5"/><polyline points="0,98 40,108 80,93 120,88 160,90 200,89 240,76 280,84 320,78 360,122 400,121 440,132 480,124 520,116" fill="none" stroke="#22c55e" strokeWidth="2"/></svg></div></div>;
+  return <div className="h-[calc(100%-22px)]"><div className="mb-2 grid grid-cols-[150px_150px_120px_1fr] gap-3 text-[8px]"><Field label="Parameter" value="No Data" /><Field label="Time Range" value="No Data" /><Field label="Interval" value="No Data" /><div className="self-end text-right"><Button>Reset Zoom</Button></div></div><div className="grid h-[178px] place-items-center rounded border border-cyan-300/10 bg-[#03111c] text-[10px] text-slate-400">No approved detailed trend-series source exists.</div></div>;
 }
 
-function StatisticalSummaryPanel() {
-  return <MetricList rows={[["Average (Baseline)", "384.2 kW"], ["Average (After)", "279.7 kW"], ["Maximum (Baseline)", "452.1 kW"], ["Maximum (After)", "322.6 kW"], ["Minimum (Baseline)", "321.8 kW"], ["Minimum (After)", "241.3 kW"], ["Standard Deviation (Baseline)", "31.6 kW"], ["Standard Deviation (After)", "20.4 kW"]]} />;
+function StatisticalSummaryPanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const first = testingMetricRows(data)[0];
+  return <MetricList rows={[["Average (Baseline)", first ? `${first.pre} ${first.unit}` : "No Data"], ["Average (After)", first ? `${first.post} ${first.unit}` : "No Data"], ["Maximum (Baseline)", "No Data"], ["Maximum (After)", "No Data"], ["Minimum (Baseline)", "No Data"], ["Minimum (After)", "No Data"], ["Standard Deviation (Baseline)", "No Data"], ["Standard Deviation (After)", "No Data"]]} />;
 }
 
 function DetailQualityCheck() {
-  return <div className="space-y-2 text-[9px]">{["All required parameters captured", "No missing readings", "Values within expected range", "Data consistency: Good", "Meter synchronization: OK"].map((item) => <div className="flex items-center gap-2" key={item}><span className="text-[#05ff5e]">◎</span>{item}</div>)}</div>;
+  return <div className="space-y-2 text-[9px]">{["Required parameters: No Data", "Missing readings: No Data", "Expected range model: No Data", "Data consistency: No Data", "Meter synchronization: No Data"].map((item) => <div className="flex items-center gap-2" key={item}><span className="text-slate-500">◎</span>{item}</div>)}</div>;
 }
 
 function DetailNotesPanel() {
-  return <div><div className="h-[76px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8.5px] leading-relaxed text-slate-400">All tests completed successfully. System performance improved across all monitored parameters. No issues detected.</div><div className="mt-2 text-[8px] text-slate-500">74 / 1000 characters</div></div>;
+  return <div><div className="h-[76px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8.5px] leading-relaxed text-slate-400">No approved testing notes source exists.</div><div className="mt-2 text-[8px] text-slate-500">0 / 1000 characters</div></div>;
 }
 
-function TestingVerificationAddIssue() {
+function TestingVerificationAddIssue({ data }: { data?: DeploymentFieldWorkflowData }) {
   return (
     <>
       <section className="mt-2 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><h1 className="text-[15px] font-semibold uppercase">Testing & Verification</h1><p className="mt-1 text-[9px] text-slate-400">Verify system operation, performance, and safety after installation.</p></section>
@@ -437,7 +461,7 @@ function TestingVerificationAddIssue() {
           <ExportPanel title="Testing Checklist"><TestingChecklistPanel /></ExportPanel>
         </div>
         <div className="grid min-h-0 grid-rows-[1fr] gap-2 overflow-hidden">
-          <ExportPanel title="Performance Verification"><TestingPerformancePanel /></ExportPanel>
+          <ExportPanel title="Performance Verification"><TestingPerformancePanel data={data} /></ExportPanel>
         </div>
         <div className="grid min-h-0 grid-rows-[182px_156px_1fr] gap-2 overflow-hidden">
           <ExportPanel title="Test Summary By Category" action={<span className="text-cyan-400">View Details</span>}><TestSummaryByCategory /></ExportPanel>
@@ -451,16 +475,17 @@ function TestingVerificationAddIssue() {
 }
 
 function TestingProgressPanel() {
-  return <div className="h-[calc(100%-22px)]"><div className="grid grid-cols-4 gap-2 text-[9px]">{[["✓", "18", "Passed", "#05ff5e"], ["!", "1", "Warning", "#f59e0b"], ["×", "1", "Failed", "#ef4444"], ["○", "2", "Not Tested", "#38bdf8"]].map(([icon, value, label, color]) => <div className="rounded border border-cyan-300/12 bg-[#03111c] p-3" key={label}><div style={{ color }}>{icon}</div><div className="mt-2 text-[22px] leading-none text-slate-100">{value}</div><div className="mt-2 text-slate-400">{label}</div><div style={{ color }} className="mt-1">{label === "Passed" ? "90%" : label === "Not Tested" ? "0%" : "5%"}</div></div>)}</div><div className="mt-4 h-2 rounded bg-slate-800"><div className="h-2 w-[90%] rounded bg-[#22c55e]" /></div><div className="mt-3 text-[8.5px] text-slate-400">20 of 22 tests completed</div></div>;
+  return <div className="h-[calc(100%-22px)]"><div className="grid grid-cols-4 gap-2 text-[9px]">{[["", "No Data", "Passed", "#64748b"], ["", "No Data", "Warning", "#64748b"], ["", "No Data", "Failed", "#64748b"], ["", "No Data", "Not Tested", "#64748b"]].map(([icon, value, label, color]) => <div className="rounded border border-cyan-300/12 bg-[#03111c] p-3" key={label}><div style={{ color }}>{icon}</div><div className="mt-2 text-[22px] leading-none text-slate-100">{value}</div><div className="mt-2 text-slate-400">{label}</div><div style={{ color }} className="mt-1">No Data</div></div>)}</div><div className="mt-4 h-2 rounded bg-slate-800"><div className="h-2 w-0 rounded bg-[#22c55e]" /></div><div className="mt-3 text-[8.5px] text-slate-400">No approved test-result schema exists</div></div>;
 }
 
 function TestingChecklistPanel() {
-  const rows = [["System Power Up", "Functional", "Passed"], ["Communication Check", "Communication", "Passed"], ["CT Polarity Verification", "Wiring", "Passed"], ["Voltage Verification (L-L, L-N)", "Electrical", "Passed"], ["Current Verification", "Electrical", "Passed"], ["Power Factor Verification", "Performance", "Passed"], ["Capacitor Bank Operation", "Functional", "Passed"], ["Load Balancing Check", "Performance", "Failed"], ["Alarm & Event Check", "Functional", "Warning"], ["ECBS Control Response", "Functional", "Passed"]];
-  return <div className="flex h-[calc(100%-22px)] flex-col"><table className="w-full text-left text-[8px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Test Item", "Category", "Status"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([item, cat, status]) => <tr className="border-b border-white/5" key={item}><td className="px-2 py-[5px] text-slate-200">{item}</td><td className="px-2">{cat}</td><td className={status === "Passed" ? "px-2 text-[#05ff5e]" : status === "Warning" ? "px-2 text-yellow-300" : "px-2 text-red-400"}>{status}</td></tr>)}</tbody></table><div className="mt-auto text-[8.5px] text-slate-400">Showing 1 to 10 of 22 tests</div></div>;
+  const rows = noDataTestRows().map(([item, category, status]) => [item, category, status]);
+  return <div className="flex h-[calc(100%-22px)] flex-col"><table className="w-full text-left text-[8px]"><thead className="bg-[#092033] text-slate-400"><tr>{["Test Item", "Category", "Status"].map((h) => <th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([item, cat, status]) => <tr className="border-b border-white/5" key={item}><td className="px-2 py-[5px] text-slate-200">{item}</td><td className="px-2">{cat}</td><td className="px-2 text-slate-400">{status}</td></tr>)}</tbody></table><div className="mt-auto text-[8.5px] text-slate-400">Showing No Data test rows</div></div>;
 }
 
-function TestingPerformancePanel() {
-  return <div className="space-y-3 text-[9px]"><TestingMetricRow label="Voltage Stability" value="98%" tone="green" /><TestingMetricRow label="Current Balance" value="Warning" tone="yellow" /><TestingMetricRow label="Power Factor" value="0.95" tone="green" /><TestingMetricRow label="Communication Quality" value="99%" tone="green" /><TestingMetricRow label="Control Response" value="Passed" tone="green" /><div className="mt-4 rounded border border-cyan-300/12 bg-[#03111c] p-3"><div className="text-slate-400">Selected Test</div><div className="mt-2 text-slate-100">Load Balancing Check</div><p className="mt-2 text-[8.5px] leading-relaxed text-slate-400">Phase B current remains approximately 18% higher than phases A and C. Adjustment required before completion.</p></div></div>;
+function TestingPerformancePanel({ data }: { data?: DeploymentFieldWorkflowData }) {
+  const metrics = testingMetricRows(data).slice(0, 3);
+  return <div className="space-y-3 text-[9px]">{metrics.map((row) => <TestingMetricRow key={row.label} label={row.label} value={`${row.post} ${row.unit}`} tone="green" />)}<TestingMetricRow label="Voltage Stability" value="No Data" tone="yellow" /><TestingMetricRow label="Current Balance" value="No Data" tone="yellow" /><div className="mt-4 rounded border border-cyan-300/12 bg-[#03111c] p-3"><div className="text-slate-400">Selected Test</div><div className="mt-2 text-slate-100">No Data</div><p className="mt-2 text-[8.5px] leading-relaxed text-slate-400">No approved testing issue/action schema exists.</p></div></div>;
 }
 
 function TestingMetricRow({ label, tone, value }: { label: string; tone: "green" | "yellow"; value: string }) {
@@ -468,7 +493,7 @@ function TestingMetricRow({ label, tone, value }: { label: string; tone: "green"
 }
 
 function TestSummaryByCategory() {
-  return <div className="grid h-[calc(100%-22px)] grid-cols-[116px_1fr] items-center gap-4"><div className="grid size-[108px] place-items-center rounded-full p-[14px]" style={{ background: "conic-gradient(#22c55e 0 90%, #f59e0b 90% 95%, #ef4444 95% 100%)" }}><div className="grid h-full w-full place-items-center rounded-full bg-[#061521] text-center text-[22px] leading-none">22<br /><span className="text-[8px] text-slate-400">Total Tests</span></div></div><div className="space-y-2 text-[8.5px]"><TestingLegend color="#22c55e" label="Passed (18)" value="90%" /><TestingLegend color="#f59e0b" label="Warning (1)" value="5%" /><TestingLegend color="#ef4444" label="Failed (1)" value="5%" /><TestingLegend color="#38bdf8" label="Not Tested (0)" value="0%" /></div></div>;
+  return <div className="grid h-[calc(100%-22px)] grid-cols-[116px_1fr] items-center gap-4"><div className="grid size-[108px] place-items-center rounded-full p-[14px]" style={{ background: "conic-gradient(#334155 0 100%)" }}><div className="grid h-full w-full place-items-center rounded-full bg-[#061521] text-center text-[16px] leading-none">No Data<br /><span className="text-[8px] text-slate-400">Total Tests</span></div></div><div className="space-y-2 text-[8.5px]"><TestingLegend color="#64748b" label="Passed (No Data)" value="No Data" /><TestingLegend color="#64748b" label="Warning (No Data)" value="No Data" /><TestingLegend color="#64748b" label="Failed (No Data)" value="No Data" /><TestingLegend color="#64748b" label="Not Tested (No Data)" value="No Data" /></div></div>;
 }
 
 function TestingLegend({ color, label, value }: { color: string; label: string; value: string }) {
@@ -476,19 +501,19 @@ function TestingLegend({ color, label, value }: { color: string; label: string; 
 }
 
 function TestingIssuesPanel() {
-  return <div className="space-y-2 text-[8.5px]"><TestingIssue severity="Failed" title="Load Balancing Check" /><TestingIssue severity="Warning" title="Alarm Verification" /></div>;
+  return <div className="space-y-2 text-[8.5px]"><TestingIssue severity="No Data" title="No approved issue/action schema exists." /></div>;
 }
 
 function TestingIssue({ severity, title }: { severity: string; title: string }) {
-  return <div className="rounded border border-cyan-300/12 bg-[#03111c] p-2"><span className={severity === "Failed" ? "rounded bg-red-500/20 px-2 py-0.5 text-red-300" : "rounded bg-yellow-500/20 px-2 py-0.5 text-yellow-300"}>{severity}</span><div className="mt-1 font-semibold text-slate-200">{title}</div><div className="mt-1 grid grid-cols-2 text-slate-400"><span>Assigned To<br /><b className="text-slate-300">John Doe</b></span><span>Due Date<br /><b className="text-slate-300">May 13, 2025</b></span></div></div>;
+  return <div className="rounded border border-cyan-300/12 bg-[#03111c] p-2"><span className="rounded bg-slate-500/20 px-2 py-0.5 text-slate-300">{severity}</span><div className="mt-1 font-semibold text-slate-200">{title}</div><div className="mt-1 grid grid-cols-2 text-slate-400"><span>Assigned To<br /><b className="text-slate-300">No Data</b></span><span>Due Date<br /><b className="text-slate-300">No Data</b></span></div></div>;
 }
 
 function TestingNotesPanel() {
-  return <div><div className="h-[72px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8.5px] text-slate-500">All systems operational. Minor load imbalance on Phase B to be addressed.</div><div className="mt-2 text-[8px] text-slate-500">71 / 1000 characters</div></div>;
+  return <div><div className="h-[72px] rounded border border-cyan-300/12 bg-[#03111c] p-2 text-[8.5px] text-slate-500">No Data</div><div className="mt-2 text-[8px] text-slate-500">0 / 1000 characters</div></div>;
 }
 
 function AddIssueModal() {
-  return <div className="fixed left-[390px] top-[144px] z-50 h-[730px] w-[654px] overflow-hidden rounded-lg border border-cyan-300/18 bg-[#061a2b] p-5 shadow-2xl shadow-black/70"><div className="mb-4 flex items-start justify-between"><div><h2 className="text-[17px] font-semibold uppercase">Add Issue</h2><p className="mt-2 text-[9px] text-slate-300">Record problems, risks, or deficiencies found during testing and verification.</p></div><button className="text-[24px] text-slate-400">×</button></div><div className="grid grid-cols-2 gap-x-5 gap-y-3 text-[9px]"><IssueField label="Issue Title *" value="Enter a brief title for the issue" /><IssueField label="Category *" value="Select a category⌄" /><IssueField label="Severity *" value="●  Failed (Critical)⌄" /><IssueField label="Status *" value="Open⌄" /><div className="col-span-2"><IssueArea label="Description *" value="Describe the issue in detail..." h="h-[74px]" count="0 / 2000 characters" /></div><IssueField label="Assigned To" value="Select a person⌄" /><IssueField label="Due Date" value="▣  Select due date" /><IssueField label="Related Test Item (Optional)" value="Select test item⌄" /><IssueField label="Phase / Circuit (Optional)" value="e.g., Phase B, Panel B - Phase A" /><div className="col-span-2"><IssueArea label="Recommended Action" value="Enter the recommended corrective action..." h="h-[58px]" count="0 / 2000 characters" /></div><div className="col-span-2"><div className="mb-1 text-slate-300">Attachments (Optional)</div><div className="rounded border border-dashed border-cyan-300/25 bg-[#03111c] py-3 text-center text-[9px] text-slate-400">◇ &nbsp; Drag & drop files here or <button className="ml-2 rounded border border-cyan-300/12 bg-[#061421] px-5 py-1.5 text-slate-200">Select Files</button></div><div className="mt-2 text-[8px] text-slate-400">Supported formats: PDF, PNG, JPG, DOC, XLS (Max 10MB per file)</div></div></div><div className="mt-5 flex justify-between"><Button>Cancel</Button><button className="rounded bg-[#087a35] px-6 py-2 text-[10px] font-semibold">Add Issue &nbsp; ⊕</button></div></div>;
+  return <div className="fixed left-[390px] top-[144px] z-50 h-[730px] w-[654px] overflow-hidden rounded-lg border border-cyan-300/18 bg-[#061a2b] p-5 shadow-2xl shadow-black/70"><div className="mb-4 flex items-start justify-between"><div><h2 className="text-[17px] font-semibold uppercase">Add Issue</h2><p className="mt-2 text-[9px] text-slate-300">Record problems, risks, or deficiencies found during testing and verification.</p></div><button className="text-[24px] text-slate-400">×</button></div><div className="grid grid-cols-2 gap-x-5 gap-y-3 text-[9px]"><IssueField label="Issue Title *" value="Manual input required" /><IssueField label="Category *" value="No Data" /><IssueField label="Severity *" value="No Data" /><IssueField label="Status *" value="No Data" /><div className="col-span-2"><IssueArea label="Description *" value="Manual input required" h="h-[74px]" count="0 / 2000 characters" /></div><IssueField label="Assigned To" value="No Data" /><IssueField label="Due Date" value="No Data" /><IssueField label="Related Test Item (Optional)" value="No Data" /><IssueField label="Phase / Circuit (Optional)" value="No Data" /><div className="col-span-2"><IssueArea label="Recommended Action" value="Manual input required" h="h-[58px]" count="0 / 2000 characters" /></div><div className="col-span-2"><div className="mb-1 text-slate-300">Attachments (Optional)</div><div className="rounded border border-dashed border-cyan-300/25 bg-[#03111c] py-3 text-center text-[9px] text-slate-400">◇ &nbsp; Drag & drop files here or <button className="ml-2 rounded border border-cyan-300/12 bg-[#061421] px-5 py-1.5 text-slate-200">Select Files</button></div><div className="mt-2 text-[8px] text-slate-400">No upload command implemented in this batch.</div></div></div><div className="mt-5 flex justify-between"><Button>Cancel</Button><button className="rounded bg-[#087a35] px-6 py-2 text-[10px] font-semibold">Add Issue &nbsp; ⊕</button></div></div>;
 }
 
 function IssueField({ label, value }: { label: string; value: string }) {
@@ -1805,8 +1830,14 @@ function ActionFooter({ deploymentId, variant }: { deploymentId: string; variant
   const next = variant === "closure" ? "Confirm & Close Deployment" : variant === "signoff" ? "Submit Final Sign-off" : variant === "completion" ? "Finish & Close" : variant === "completionDashboard" ? "Finish & Close" : variant === "acceptance" ? "Submit Acceptance ✓" : variant === "commissioning" ? "Proceed to Customer Acceptance →" : variant === "exportPackage" ? "Next: Package Details" : variant === "folderDetail" ? "Next: Complete" : variant === "permissions" ? "Save Changes" : variant === "uploadWizard" ? "Upload" : variant === "versionHistory" ? "Close" : variant === "documentation" ? "Next: Complete →" : variant === "equipmentAdd" ? "Save & Add to Inventory" : variant === "equipmentInventory" ? "Next: Pre-Installation Readings →" : variant === "installationDetails" ? "Next: Post-Installation Readings →" : variant === "photoDocs" ? "Next: Testing & Verification →" : variant === "testingViewDetails" ? "Next: Documentation →" : variant === "testingViewTrend" ? "Next: Documentation →" : variant === "testingVerification" ? "Next: Documentation →" : variant === "testingAddIssue" ? "Next: Documentation →" : variant === "preReadings" ? "Next: Installation Details →" : variant === "postReadings" ? "Next: Testing & Verification →" : variant === "siteDetails" ? "Next: Equipment Inventory →" : variant === "reviewQueue" || variant === "searchResults" ? "Next: Complete" : "All Items Complete  Close Deployment";
   if (variant === "photoDocs") return <footer className="mt-auto flex h-[54px] items-center justify-between border-t border-cyan-300/10"><span /><div className="flex gap-4"><button className="w-[118px] rounded border border-slate-700 bg-[#061421] py-2 text-[9px] text-slate-300">Save Draft</button><button className="w-[90px] rounded border border-slate-700 bg-[#061421] py-2 text-[9px] text-slate-300">← Back</button><button className="w-[226px] rounded bg-[#087a35] py-2 text-[10px] font-semibold">{next}</button></div></footer>;
   const base = `/operations/deployments/${deploymentId}/completion`;
-  const backHref = variant === "signoff" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen` : variant === "closure" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` : variant === "acceptance" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` : variant === "completionDashboard" ? `${base}/completion-screen` : `${base}/completion-screen`;
-  const nextHref = variant === "completion" ? `${base}/completion-post-completion-dashboard-screen` : variant === "completionDashboard" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen` : variant === "checklist" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` : variant === "signoff" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-deployment-closure-confirmation-screen` : variant === "closure" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-final-validation-checklist-customer-acceptance-screen` : variant === "acceptance" ? `${base}/completion-post-completion-dashboard-screen` : `${base}/completion-screen`;
+  const deploymentBase = `/operations/deployments/${deploymentId}`;
+  const testingVariant = variant === "testingAddIssue" || variant === "testingVerification" || variant === "testingViewDetails" || variant === "testingViewTrend";
+  const backHref = testingVariant
+    ? (variant === "testingVerification" ? `${deploymentBase}/post-installation-readings` : `${deploymentBase}/testing-verification`)
+    : variant === "signoff" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen` : variant === "closure" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` : variant === "acceptance" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` : variant === "completionDashboard" ? `${base}/completion-screen` : `${base}/completion-screen`;
+  const nextHref = testingVariant
+    ? `${deploymentBase}/documents/documentation-screen`
+    : variant === "completion" ? `${base}/completion-post-completion-dashboard-screen` : variant === "completionDashboard" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen` : variant === "checklist" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-screen` : variant === "signoff" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-screen-sign-off-capture-deployment-closure-confirmation-screen` : variant === "closure" ? `${base}/completion-post-completion-dashboard-final-validation-checklist-final-validation-checklist-customer-acceptance-screen` : variant === "acceptance" ? `${base}/completion-post-completion-dashboard-screen` : `${base}/completion-screen`;
   return <footer className="mt-auto flex h-[54px] items-center justify-between border-t border-cyan-300/10"><Link className="rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-[9px] text-slate-300" href={backHref}>{back}</Link><div className="flex gap-2">{variant === "signoff" ? <Button>Cancel</Button> : null}{variant === "versionHistory" ? <Button>Restore Version</Button> : <Button>Save Draft</Button>}<Link className="rounded bg-[#087a35] px-8 py-2 text-[10px] font-semibold" href={nextHref}>{next}{variant === "signoff" ? <><br /><span className="text-[8px] font-normal">Lock deployment & generate certificates</span></> : null}</Link></div></footer>;
 }
 
