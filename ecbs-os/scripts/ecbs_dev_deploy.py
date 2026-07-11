@@ -43,10 +43,15 @@ def main() -> int:
     parser.add_argument("--frontend-network", default=os.getenv("ECBS_FRONTEND_DOCKER_NETWORK", "synerex-platform_default"))
     parser.add_argument("--frontend-host-port", default=os.getenv("ECBS_FRONTEND_HOST_PORT", "3001"))
     parser.add_argument("--frontend-container-port", default=os.getenv("ECBS_FRONTEND_CONTAINER_PORT", "3001"))
+    parser.add_argument(
+        "--reuse-remote-api-env",
+        action="store_true",
+        help="Reuse DB env from the currently running remote ECBS.Api process instead of requiring local secrets.",
+    )
     args = parser.parse_args()
 
     required = []
-    if not args.frontend_only:
+    if not args.frontend_only and not args.reuse_remote_api_env:
         required = [
             "ECBS_CONNECTION_STRING",
             "TRACKING_DB_HOST",
@@ -110,20 +115,36 @@ def build_remote_command(args: argparse.Namespace) -> str:
             f"{frontend_command}"
         )
 
-    ecbs_connection = shell_env("ConnectionStrings__EcbsMySql", os.environ["ECBS_CONNECTION_STRING"])
-    tracking_env = " ".join(
-        [
-            shell_env("TRACKING_DB_HOST", os.environ["TRACKING_DB_HOST"]),
-            shell_env("TRACKING_DB_PORT", os.environ["TRACKING_DB_PORT"]),
-            shell_env("TRACKING_DB_NAME", os.environ["TRACKING_DB_NAME"]),
-            shell_env("TRACKING_DB_USER", os.environ["TRACKING_DB_USER"]),
-            shell_env("TRACKING_DB_PASSWORD", os.environ["TRACKING_DB_PASSWORD"]),
-        ]
-    )
+    remote_env_capture = ""
+    migration_env = ""
+    api_env = ""
+    if args.reuse_remote_api_env:
+        remote_env_capture = (
+            "api_pid=$(ps -eo pid,args | awk '/ECBS.Api|dotnet run --project backend\\/src\\/ECBS.Api/ && !/awk/ {print $1; exit}'); "
+            "if [ -z \"$api_pid\" ]; then echo 'No remote ECBS.Api process found for env reuse'; exit 2; fi; "
+            "api_env=$(tr '\\0' '\\n' < /proc/$api_pid/environ | "
+            "awk '/^(ConnectionStrings__EcbsMySql|TRACKING_DB_HOST|TRACKING_DB_PORT|TRACKING_DB_NAME|TRACKING_DB_USER|TRACKING_DB_PASSWORD)=/ {print}'); "
+        )
+        migration_env = "env $api_env "
+        api_env = "env $api_env "
+    else:
+        ecbs_connection = shell_env("ConnectionStrings__EcbsMySql", os.environ["ECBS_CONNECTION_STRING"])
+        tracking_env = " ".join(
+            [
+                shell_env("TRACKING_DB_HOST", os.environ["TRACKING_DB_HOST"]),
+                shell_env("TRACKING_DB_PORT", os.environ["TRACKING_DB_PORT"]),
+                shell_env("TRACKING_DB_NAME", os.environ["TRACKING_DB_NAME"]),
+                shell_env("TRACKING_DB_USER", os.environ["TRACKING_DB_USER"]),
+                shell_env("TRACKING_DB_PASSWORD", os.environ["TRACKING_DB_PASSWORD"]),
+            ]
+        )
+        migration_env = f"{ecbs_connection} "
+        api_env = f"{ecbs_connection} {tracking_env} "
+
     migration_command = ""
     if not args.skip_migrations:
         migration_command = (
-            f"{ecbs_connection} /home/xcorp/.dotnet/dotnet tool run dotnet-ef database update "
+            f"{migration_env}/home/xcorp/.dotnet/dotnet tool run dotnet-ef database update "
             "--project backend/src/ECBS.Infrastructure/ECBS.Infrastructure.csproj "
             "--startup-project backend/src/ECBS.Api/ECBS.Api.csproj;"
         )
@@ -133,12 +154,13 @@ def build_remote_command(args: argparse.Namespace) -> str:
         f"cd {remote_repo}; "
         f"git pull origin {branch}; "
         "cd ecbs-os; "
+        f"{remote_env_capture}"
         "/home/xcorp/.dotnet/dotnet build ECBS.sln; "
         f"{migration_command} "
         f"{frontend_command}"
         "pids=$(ps -eo pid,args | awk '/ECBS.Api|dotnet run --project backend\\/src\\/ECBS.Api/ && !/awk/ {print $1}'); "
         "if [ -n \"$pids\" ]; then kill $pids || true; sleep 2; fi; "
-        f"{ecbs_connection} {tracking_env} "
+        f"{api_env}"
         "nohup /home/xcorp/.dotnet/dotnet run --project backend/src/ECBS.Api/ECBS.Api.csproj --urls http://0.0.0.0:5090 "
         "> logs/ecbs-api.log 2>&1 & "
         "echo API_PID=$!; "
