@@ -13,22 +13,22 @@
 
 | Order | Screen | Route | Screenshot / HTML reference | Status |
 |---:|---|---|---|---|
-| 1 | Losses Detail - Download Action Plan | `/enterprise/digital-twin/electrical-network-losses-detail-view-losses-optimization-download-action-plan-screen` | `ECBS_Electrical Network - Losses Detail - View Losses Optimization - Download Action Plan screen.png` | Pending |
-| 2 | Losses Detail - View Losses Optimization | `/enterprise/digital-twin/electrical-network-losses-detail-view-losses-optimization-screen` | `ECBS_Electrical Network - Losses Detail - View Losses Optimization screen.png` | Pending |
-| 3 | Losses Detail | `/enterprise/digital-twin/electrical-network-losses-detail-screen` | `ECBS_Electrical Network - Losses Detail screen.png` | Pending |
-| 4 | Optimization Detail | `/enterprise/digital-twin/electrical-network-optimization-detail-screen` | `ECBS_Electrical Network - Optimization Detail screen.png` | Pending |
-| 5 | Power Detail - View All Low PF Events | `/enterprise/digital-twin/electrical-network-power-detail-view-all-low-pf-events-screen` | `ECBS_Electrical Network - Power Detail -  View All Low PF Events screen.png` | Pending |
-| 6 | Power Detail - View Reactive Power Detail | `/enterprise/digital-twin/electrical-network-power-detail-view-reactive-power-detail-screen` | `ECBS_Electrical Network - Power Detail - View Reactive Power Detail screen.png` | Pending |
-| 7 | Power Detail | `/enterprise/digital-twin/electrical-network-power-detail-screen` | `ECBS_Electrical Network - Power Detail Screen.png` | Pending |
-| 8 | Electrical Network Optimization Recommendations | `/enterprise/digital-twin/electrical-network-optimization-recommendations` | `ECBS-Electrical Network Optimization Recommendations Screenshot.png` | Pending |
+| 1 | Losses Detail - Download Action Plan | `/enterprise/digital-twin/electrical-network-losses-detail-view-losses-optimization-download-action-plan-screen` | `ECBS_Electrical Network - Losses Detail - View Losses Optimization - Download Action Plan screen.png` | Deployed / HTTP 200 |
+| 2 | Losses Detail - View Losses Optimization | `/enterprise/digital-twin/electrical-network-losses-detail-view-losses-optimization-screen` | `ECBS_Electrical Network - Losses Detail - View Losses Optimization screen.png` | Deployed / HTTP 200 |
+| 3 | Losses Detail | `/enterprise/digital-twin/electrical-network-losses-detail-screen` | `ECBS_Electrical Network - Losses Detail screen.png` | Deployed / HTTP 200 |
+| 4 | Optimization Detail | `/enterprise/digital-twin/electrical-network-optimization-detail-screen` | `ECBS_Electrical Network - Optimization Detail screen.png` | Deployed / HTTP 200 |
+| 5 | Power Detail - View All Low PF Events | `/enterprise/digital-twin/electrical-network-power-detail-view-all-low-pf-events-screen` | `ECBS_Electrical Network - Power Detail -  View All Low PF Events screen.png` | Deployed / HTTP 200 |
+| 6 | Power Detail - View Reactive Power Detail | `/enterprise/digital-twin/electrical-network-power-detail-view-reactive-power-detail-screen` | `ECBS_Electrical Network - Power Detail - View Reactive Power Detail screen.png` | Deployed / HTTP 200 |
+| 7 | Power Detail | `/enterprise/digital-twin/electrical-network-power-detail-screen` | `ECBS_Electrical Network - Power Detail Screen.png` | Deployed / HTTP 200 |
+| 8 | Electrical Network Optimization Recommendations | `/enterprise/digital-twin/electrical-network-optimization-recommendations` | `ECBS-Electrical Network Optimization Recommendations Screenshot.png` | Deployed / HTTP 200 |
 
 ## Constitution Gates
 
-- [ ] `SITE != PROJECT != DEPLOYMENT` checked.
-- [ ] Screens are scoped to the Ochsner site/project from the Digital Twin tracking adapter.
-- [ ] No UI invented beyond approved screenshots.
-- [ ] Existing TSX look and feel preserved.
-- [ ] Missing/unclear fields are stopped or marked `No Data / Question`.
+- [x] `SITE != PROJECT != DEPLOYMENT` checked.
+- [x] Screens are scoped to the Ochsner site/project from the Digital Twin tracking adapter.
+- [x] No UI invented beyond approved screenshots.
+- [x] Existing TSX look and feel preserved.
+- [x] Missing/unclear fields are stopped or marked `No Data / Question`.
 
 ## Field Classification
 
@@ -69,19 +69,19 @@ Visible export, configure alerts, save plan, recalculate, download PDF, and impl
 
 ## Verification Config
 
-- Verification config path: planned `verification/electrical-network-losses-power.json`
+- Verification config path: `verification/electrical-network-losses-power.json`
 - Mutating checks required? No
 - Browser click checks required? Yes, one losses route and one power route.
 
 Required before deploy:
 
-- [ ] `dotnet build backend/src/ECBS.Api/ECBS.Api.csproj`
-- [ ] `npm run lint`
-- [ ] `npm run build`
-- [ ] `python3 scripts/ecbs_batch_verify.py verification/electrical-network-losses-power.json`
-- [ ] Browser smoke check
-- [ ] Dev deploy completed
-- [ ] Deployed verifier passed
+- [x] `dotnet build backend/src/ECBS.Api/ECBS.Api.csproj`
+- [x] `npm run lint`
+- [x] `npm run build`
+- [x] `python3 scripts/ecbs_batch_verify.py verification/electrical-network-losses-power.json --base-url http://localhost:3000 --api-base-url http://localhost:5090`
+- [x] Browser smoke check
+- [x] Dev deploy completed
+- [x] `python3 scripts/ecbs_batch_verify.py verification/electrical-network-losses-power.json --base-url http://100.91.109.59:8080 --api-base-url http://100.91.109.59:5090`
 
 ## Quirks To Carry Forward
 
@@ -96,11 +96,11 @@ Required before deploy:
 
 ## Checkpoint Summary
 
-- Screens completed:
-- Direct/Calculated fields wired:
-- Explicit `No Data` decisions:
-- Write actions implemented:
-- Verification results:
-- Dev URL(s):
-- Remaining questions:
+- Screens completed: 8 Electrical Network losses, power, and optimization screens are wired and deployed.
+- Direct/Calculated fields wired: Ochsner site/project context, adapter date/updated context, current connected load where the label maps to capacity intelligence, and kVA utilization where transformer capacity is available.
+- Explicit `No Data` decisions: losses, loss energy, loss percentage, loss heat maps, loss optimization, savings/payback/implementation models, reactive power, apparent power, power factor distribution, low-PF events, feeder-level power-quality tables, recommendation tables, priority actions, forecasts, and report/action-plan payloads.
+- Write actions implemented: none. Export, configure alerts, save plan, recalculate, customize, and download controls remain shell controls until write/report models are approved.
+- Verification results: backend build, frontend lint, frontend build, local verifier, remote Docker rebuild/restart, deployed verifier, and browser smoke check passed.
+- Dev URL(s): `http://100.91.109.59:8080/enterprise/digital-twin/electrical-network-power-detail-screen` and the seven batch routes listed above.
+- Remaining questions: define losses model, loss optimization model, power-quality telemetry mapping, low-PF event source, recommendation engine, and write/report command models.
 
