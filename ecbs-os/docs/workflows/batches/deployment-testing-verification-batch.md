@@ -13,10 +13,10 @@
 
 | Order | Screen | Route | Screenshot / HTML reference | Status |
 |---:|---|---|---|---|
-| 1 | Testing & Verification - Add Issue | `/operations/deployments/1/testing-verification?mode=add-issue` | `ECBS_Deployment App - Testing & Verification - Add Issue screen.png` | Wired / local build passed |
-| 2 | Testing & Verification - View Details | `/operations/deployments/1/testing-verification?mode=details` | `ECBS_Deployment App - Testing & Verification - View Details screen.png` | Wired / local build passed |
-| 3 | Testing & Verification - View Trend | `/operations/deployments/1/testing-verification?mode=trend` | `ECBS_Deployment App - Testing & Verification - View Trend screen.png` | Wired / local build passed |
-| 4 | Testing & Verification | `/operations/deployments/1/testing-verification` | `ECBS_Deployment App - Testing & Verification screen.png` | Wired / local build passed |
+| 1 | Testing & Verification - Add Issue | `/operations/deployments/1/testing-verification?mode=add-issue` | `ECBS_Deployment App - Testing & Verification - Add Issue screen.png` | Deployed / HTTP 200 |
+| 2 | Testing & Verification - View Details | `/operations/deployments/1/testing-verification?mode=details` | `ECBS_Deployment App - Testing & Verification - View Details screen.png` | Deployed / HTTP 200 |
+| 3 | Testing & Verification - View Trend | `/operations/deployments/1/testing-verification?mode=trend` | `ECBS_Deployment App - Testing & Verification - View Trend screen.png` | Deployed / HTTP 200 |
+| 4 | Testing & Verification | `/operations/deployments/1/testing-verification` | `ECBS_Deployment App - Testing & Verification screen.png` | Deployed / HTTP 200 |
 
 ## Constitution Gates
 
@@ -71,10 +71,10 @@ Visible add issue, save draft, export, annotation, and corrective-action control
 
 | Source screen | User action | Expected target route | Implemented as link/form/action? |
 |---|---|---|---|
-| Testing & Verification | Add Issue | `/operations/deployments/1/testing-verification?mode=add-issue` | Query mode route exists / pending deployed check |
-| Testing & Verification | View Details | `/operations/deployments/1/testing-verification?mode=details` | Query mode route exists / pending deployed check |
-| Testing & Verification | View Trend | `/operations/deployments/1/testing-verification?mode=trend` | Query mode route exists / pending deployed check |
-| Testing & Verification | Next: Documentation | `/operations/deployments/1/documents/documentation-screen` | Footer link wired / pending deployed check |
+| Testing & Verification | Add Issue | `/operations/deployments/1/testing-verification?mode=add-issue` | Query mode route exists / HTTP 200 |
+| Testing & Verification | View Details | `/operations/deployments/1/testing-verification?mode=details` | Query mode route exists / HTTP 200 |
+| Testing & Verification | View Trend | `/operations/deployments/1/testing-verification?mode=trend` | Query mode route exists / HTTP 200 |
+| Testing & Verification | Next: Documentation | `/operations/deployments/1/documents/documentation-screen` | Footer link wired / HTTP 200 target from previous batch |
 
 ## No Data / Question Queue
 
@@ -98,10 +98,10 @@ Required before deploy:
 - [x] `dotnet build backend/src/ECBS.Api/ECBS.Api.csproj`
 - [x] `npm run lint`
 - [x] `npm run build`
-- [ ] `python3 scripts/ecbs_batch_verify.py verification/deployment-testing-verification.json`
-- [ ] Browser smoke check
-- [ ] Dev deploy completed
-- [ ] Deployed verifier passed
+- [x] `python3 scripts/ecbs_batch_verify.py verification/deployment-testing-verification.json --base-url http://100.91.109.59:8080 --api-base-url http://100.91.109.59:5090`
+- [x] Browser smoke check
+- [x] Dev deploy completed
+- [x] Deployed verifier passed
 
 ## Quirks To Carry Forward
 
@@ -113,14 +113,15 @@ Required before deploy:
 | Shared row types are narrow. | Check TypeScript DTOs before assuming fields. |
 | Query-mode routes share one Next.js page. | Verify every mode explicitly. |
 | Invalid sequence 59 is nearby. | Do not implement invalid screenshots from sequence order alone. |
+| Browser navigate can attach a stale screenshot. | Trust the URL/snapshot, then take a fresh screenshot before judging visuals. |
 
 ## Checkpoint Summary
 
-- Screens completed:
-- Direct/Calculated fields wired:
-- Explicit `No Data` decisions:
-- Write actions implemented:
-- Verification results:
-- Dev URL(s):
-- Remaining questions:
+- Screens completed: 4 Testing & Verification query-mode routes are wired and deployed.
+- Direct/Calculated fields wired: deployment shell identity/status via field workflow payload, and scoped telemetry `kW`, `kVA`, `kWh`, `power factor`, plus simple pre/post deltas when scoped rows exist.
+- Explicit `No Data` decisions: test-result/checklist schema, passed/warning/failed counts, issue/action records, technician/assignee/due dates, compliance/quality scoring, voltage/current/frequency/THD, detailed trend/chart series, annotations, exports, and add-issue command writes.
+- Write actions implemented: none. Add Issue, save draft, exports, and annotations remain shell controls until their write models are approved.
+- Verification results: local `dotnet build`, local `npm run lint`, local `npm run build`, remote backend build, remote frontend Docker build, dev deploy, deployed verifier, and browser smoke check passed.
+- Dev URL(s): `http://100.91.109.59:8080/operations/deployments/1/testing-verification?mode=trend` plus the main/add-issue/details routes listed above.
+- Remaining questions: real deployment GUID with telemetry/test rows needed for non-No-Data validation; test-result, issue/action, technician assignment, quality scoring, export, and annotation write models need decisions before functional testing workflow actions.
 
