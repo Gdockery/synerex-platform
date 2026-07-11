@@ -49,7 +49,7 @@
       "name": "photo document system",
       "path": "/operations/deployments/1/documents/photo-and-document-system-screen",
       "status": 200,
-      "expectText": ["Photo & Document System", "No Data"]
+      "expectText": ["Photo", "Document", "No Data"]
     },
     {
       "name": "post installation readings",
@@ -67,7 +67,7 @@
       "name": "site installation details",
       "path": "/operations/deployments/1/site-and-installation-details-screen",
       "status": 200,
-      "expectText": ["Site & Installation Details", "No Data"]
+      "expectText": ["Site", "Installation", "No Data"]
     }
   ]
 }

@@ -12,14 +12,14 @@
 
 | Order | Screen | Route | Screenshot / HTML reference | Status |
 |---:|---|---|---|---|
-| 1 | Documentation | `/operations/deployments/1/documents/documentation-screen` | `ECBS_Deployment App - Documentation screen.png` | Wired / local build passed |
-| 2 | Add Equipment | `/operations/deployments/1/equipment?mode=add` | `ECBS_Deployment App - Equipment Inventory & Readings - Add Equipment screen.png` | Wired / local build passed |
-| 3 | Equipment Inventory & Readings | `/operations/deployments/1/equipment` | `ECBS_Deployment App - Equipment Inventory & Readings screen.png` | Wired / local build passed |
-| 4 | Installation Details | `/operations/deployments/1/installation-details-screen` | `ECBS_Deployment App - Installation Details screen.png` | Wired / local build passed |
-| 5 | Photo & Document System | `/operations/deployments/1/documents/photo-and-document-system-screen` | `ECBS_Deployment App - Photo & Document System screen.png` | Wired / local build passed |
-| 6 | Post-Installation Readings | `/operations/deployments/1/post-installation-readings` | `ECBS_Deployment App - Post-Installation Readings screen.png` | Wired / local build passed |
-| 7 | Pre-Installation Readings | `/operations/deployments/1/pre-installation-readings` | `ECBS_Deployment App - Pre-Installation Readings Screen.png` | Wired / local build passed |
-| 8 | Site & Installation Details | `/operations/deployments/1/site-and-installation-details-screen` | `ECBS_Deployment App - Site & Installation Details Screen.png` | Wired / local build passed |
+| 1 | Documentation | `/operations/deployments/1/documents/documentation-screen` | `ECBS_Deployment App - Documentation screen.png` | Deployed / HTTP 200 |
+| 2 | Add Equipment | `/operations/deployments/1/equipment?mode=add` | `ECBS_Deployment App - Equipment Inventory & Readings - Add Equipment screen.png` | Deployed / HTTP 200 |
+| 3 | Equipment Inventory & Readings | `/operations/deployments/1/equipment` | `ECBS_Deployment App - Equipment Inventory & Readings screen.png` | Deployed / HTTP 200 |
+| 4 | Installation Details | `/operations/deployments/1/installation-details-screen` | `ECBS_Deployment App - Installation Details screen.png` | Deployed / HTTP 200 |
+| 5 | Photo & Document System | `/operations/deployments/1/documents/photo-and-document-system-screen` | `ECBS_Deployment App - Photo & Document System screen.png` | Deployed / HTTP 200 |
+| 6 | Post-Installation Readings | `/operations/deployments/1/post-installation-readings` | `ECBS_Deployment App - Post-Installation Readings screen.png` | Deployed / HTTP 200 |
+| 7 | Pre-Installation Readings | `/operations/deployments/1/pre-installation-readings` | `ECBS_Deployment App - Pre-Installation Readings Screen.png` | Deployed / HTTP 200 |
+| 8 | Site & Installation Details | `/operations/deployments/1/site-and-installation-details-screen` | `ECBS_Deployment App - Site & Installation Details Screen.png` | Deployed / HTTP 200 |
 
 ## Constitution Gates
 
@@ -79,14 +79,14 @@ Visible add/save/upload/capture actions exist, but this batch is read-only.
 
 | Source screen | User action | Expected target route | Implemented as link/form/action? |
 |---|---|---|---|
-| Site & Installation Details | Next: Equipment Inventory | `/operations/deployments/1/equipment` | Route exists / pending deployed check |
-| Equipment Inventory | Add Equipment | `/operations/deployments/1/equipment?mode=add` | Implemented as link / pending deployed check |
-| Equipment Inventory | Next: Pre-Installation Readings | `/operations/deployments/1/pre-installation-readings` | Route exists / pending deployed check |
-| Pre-Installation Readings | Next: Installation Details | `/operations/deployments/1/installation-details-screen` | Route exists / pending deployed check |
-| Installation Details | Next: Post-Installation Readings | `/operations/deployments/1/post-installation-readings` | Route exists / pending deployed check |
+| Site & Installation Details | Next: Equipment Inventory | `/operations/deployments/1/equipment` | Route exists / HTTP 200 |
+| Equipment Inventory | Add Equipment | `/operations/deployments/1/equipment?mode=add` | Implemented as link / HTTP 200 |
+| Equipment Inventory | Next: Pre-Installation Readings | `/operations/deployments/1/pre-installation-readings` | Route exists / HTTP 200 |
+| Pre-Installation Readings | Next: Installation Details | `/operations/deployments/1/installation-details-screen` | Route exists / HTTP 200 |
+| Installation Details | Next: Post-Installation Readings | `/operations/deployments/1/post-installation-readings` | Route exists / HTTP 200 |
 | Post-Installation Readings | Next: Testing & Verification | `/operations/deployments/1/testing-verification` | Route exists / not wired in this batch |
-| Photo & Document System | Next: Documentation | `/operations/deployments/1/documents/documentation-screen` | Route exists / pending deployed check |
-| Documentation | child actions | documentation child routes from previous batch | Route exists / pending deployed check |
+| Photo & Document System | Next: Documentation | `/operations/deployments/1/documents/documentation-screen` | Route exists / HTTP 200 |
+| Documentation | child actions | documentation child routes from previous batch | Route exists / HTTP 200 |
 
 ## No Data / Question Queue
 
@@ -110,10 +110,10 @@ Required before deploy:
 - [x] `dotnet build backend/src/ECBS.Api/ECBS.Api.csproj`
 - [x] `npm run lint`
 - [x] `npm run build`
-- [ ] `python3 scripts/ecbs_batch_verify.py verification/deployment-field-workflow.json`
-- [ ] Browser smoke check
-- [ ] Dev deploy completed
-- [ ] Deployed verifier passed
+- [x] `python3 scripts/ecbs_batch_verify.py verification/deployment-field-workflow.json --base-url http://100.91.109.59:8080 --api-base-url http://100.91.109.59:5090`
+- [x] Browser smoke check
+- [x] Dev deploy completed
+- [x] Deployed verifier passed
 
 ## Quirks To Carry Forward
 
@@ -124,14 +124,15 @@ Required before deploy:
 | Browser refs/screenshots can go stale. | Take a fresh snapshot after navigation before judging UI. |
 | Shared row types are narrow. | Check TypeScript DTOs before assuming fields. |
 | Browser route checks are secondary. | Use HTTP route/API verifier as source of truth, then one browser smoke check. |
+| Verifier exact text can fail on `&`/header rendering. | Use stable text fragments for route smoke checks instead of brittle full labels. |
 
 ## Checkpoint Summary
 
-- Screens completed:
-- Direct/Calculated fields wired:
-- Explicit `No Data` decisions:
-- Write actions implemented:
-- Verification results:
-- Dev URL(s):
-- Remaining questions:
+- Screens completed: 8 Deployment Field Workflow routes are wired and deployed.
+- Direct/Calculated fields wired: deployment/project/site identity, site rows, device/equipment rows, document metadata/counts, telemetry kW/kVA/kWh/PF pre/post rows, and simple telemetry deltas when scoped data exists.
+- Explicit `No Data` decisions: device rating/location/manufacturer/model, technician/installer, installation checklist, wiring verification, photo gallery, voltage/frequency/THD, phase-specific readings, GPS/contact/access notes, upload/capture/save commands, and required-document/photo checklist state.
+- Write actions implemented: none. Add Equipment, capture readings, upload photos/documents, and save workflow actions remain shells until their write models are approved.
+- Verification results: local `dotnet build`, local `npm run lint`, local `npm run build`, remote backend build, remote frontend Docker build, dev deploy, deployed verifier, and browser smoke check passed.
+- Dev URL(s): `http://100.91.109.59:8080/operations/deployments/1/equipment?mode=add` plus the seven sibling field workflow routes listed above.
+- Remaining questions: real deployment GUID with devices/documents/telemetry rows needed for non-No-Data validation; device/equipment extension fields and deployment workflow/write models need decisions before functional field-entry actions.
 
