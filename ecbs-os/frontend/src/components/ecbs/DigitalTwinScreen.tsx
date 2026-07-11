@@ -35,12 +35,11 @@ export type ElectricalNetworkVariant =
   | "lowPfEvents"
   | "reactivePowerDetail";
 
-export function DigitalTwinScreen({ data: _data }: { data: DigitalTwinData }) {
-  void _data;
-  return <DigitalTwinReferenceScreen />;
+export function DigitalTwinScreen({ data }: { data: DigitalTwinData }) {
+  return <DigitalTwinReferenceScreen data={data} />;
 }
 
-function DigitalTwinReferenceScreen() {
+function DigitalTwinReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin">
       <div className="flex h-full min-h-0 flex-col px-3 py-2">
@@ -50,8 +49,8 @@ function DigitalTwinReferenceScreen() {
             <div className="text-[10px] text-slate-400">Digital Twin</div>
           </div>
           <div className="flex items-center gap-3 text-[9px]">
-            <button className="w-[140px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">Flex Tijuana⌄</button>
-            <button className="w-[180px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button>
+            <button className="w-[140px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">{siteLabel(data)}⌄</button>
+            <button className="w-[180px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.dateRange || "No Data"}⌄</button>
             <span className="text-[#05ff5e]">● Live</span>
             <span className="text-slate-400">♧</span>
             <span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span>
@@ -60,7 +59,7 @@ function DigitalTwinReferenceScreen() {
           </div>
         </header>
         <div className="flex h-[64px] items-center justify-between">
-          <div><h1 className="text-lg font-light">Digital Twin - Electrical Network</h1><p className="mt-1 text-[10px] text-slate-400">Flex Tijuana &nbsp; · &nbsp; Last updated: 2 min ago</p></div>
+          <div><h1 className="text-lg font-light">Digital Twin - Electrical Network</h1><p className="mt-1 text-[10px] text-slate-400">{siteLabel(data)} &nbsp; · &nbsp; Last updated: {data.updatedAt || "No Data"}</p></div>
           <div className="flex items-center gap-5 text-[9px]">
             <span>View:</span><button className="w-[164px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left">Load Flow (kVA)⌄</button>
             <span>Overlay:</span><button className="w-[164px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left">Utilization⌄</button>
@@ -70,14 +69,14 @@ function DigitalTwinReferenceScreen() {
         </div>
         <section className="grid min-h-0 flex-1 grid-cols-[1fr_300px] gap-2">
           <div className="relative overflow-hidden rounded-lg border border-cyan-300/12 bg-[#03111d]">
-            <DigitalTwinReferenceCanvas />
+            <DigitalTwinReferenceCanvas data={data} />
             <DigitalTwinLegend />
             <DigitalTwinZoomControls />
           </div>
           <aside className="grid min-h-0 grid-rows-[268px_152px_1fr] gap-2 overflow-hidden">
-            <DashboardPanel title="Selected Asset" variant="enterprise"><DigitalTwinSelectedAsset /></DashboardPanel>
-            <DashboardPanel title="Asset Summary" variant="enterprise"><DigitalTwinAssetSummary /></DashboardPanel>
-            <DashboardPanel title="Capacity By Level" variant="enterprise"><DigitalTwinCapacityByLevel /></DashboardPanel>
+            <DashboardPanel title="Selected Asset" variant="enterprise"><DigitalTwinSelectedAsset data={data} /></DashboardPanel>
+            <DashboardPanel title="Asset Summary" variant="enterprise"><DigitalTwinAssetSummary data={data} /></DashboardPanel>
+            <DashboardPanel title="Capacity By Level" variant="enterprise"><DigitalTwinCapacityByLevel data={data} /></DashboardPanel>
           </aside>
         </section>
         <footer className="mt-2 flex h-[30px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
@@ -86,7 +85,13 @@ function DigitalTwinReferenceScreen() {
   );
 }
 
-function DigitalTwinReferenceCanvas() {
+function DigitalTwinReferenceCanvas({ data }: { data: DigitalTwinData }) {
+  const assets = data.assets.slice(0, 12);
+
+  if (assets.length === 0) {
+    return <NoDataPanel message="No Digital Twin assets were returned from tracking." />;
+  }
+
   return (
     <svg className="h-full w-full" viewBox="0 0 930 610" preserveAspectRatio="none" aria-hidden="true">
       <defs>
@@ -94,35 +99,37 @@ function DigitalTwinReferenceCanvas() {
         <filter id="greenGlow"><feGaussianBlur stdDeviation="2.2" result="blur" /><feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge></filter>
       </defs>
       <rect width="930" height="610" fill="url(#referenceGrid)" />
-      <DigitalTwinLine points="430,64 430,112 498,112" />
-      <DigitalTwinNode h={54} icon="⚙" sub="1500 kVA" title="MAIN TRANSFORMER" value="Load 1125 kVA (75%)" w={178} x={500} y={76} />
-      <DigitalTwinNode h={52} icon="▣" sub="Health" title="MAIN SWITCHGEAR" value="1125 kVA (75%)" w={178} x={500} y={168} />
-      <DigitalTwinLine points="589,130 589,168" />
-      <DigitalTwinLine points="589,220 589,254" />
       <line filter="url(#greenGlow)" stroke="#05ff5e" strokeWidth="3" x1="82" x2="838" y1="254" y2="254" />
-      <text fill="#05ff5e" fontSize="10" fontWeight="700" textAnchor="middle" x="460" y="245">MAIN SWITCHGEAR / 480V BUS</text>
-      <DigitalTwinNode h={50} sub="69 kV" title="UTILITY" value="" w={118} x={330} y={60} />
-      <DigitalTwinFeeder x={76} y={284} title="FEEDER A" load="296 kVA (80%)" status="Healthy" />
-      <DigitalTwinFeeder x={236} y={284} title="FEEDER B" load="264 kVA (68%)" status="Healthy" />
-      <DigitalTwinFeeder x={398} y={284} title="FEEDER C" load="324 kVA (78%)" status="Warning" warning />
-      <DigitalTwinFeeder x={586} y={284} title="FEEDER D" load="178 kVA (42%)" status="Healthy" />
-      <DigitalTwinFeeder x={752} y={284} title="FEEDER E" load="63 kVA (45%)" status="Healthy" />
-      <DigitalTwinPanel x={58} y={382} title="PANEL A1" load="128 kVA (64%)" />
-      <DigitalTwinPanel x={132} y={382} title="PANEL A2" load="158 kVA (65%)" />
-      <DigitalTwinPanel x={236} y={382} title="PANEL B1" load="112 kVA (56%)" />
-      <DigitalTwinPanel x={310} y={382} title="PANEL B2" load="142 kVA (59%)" />
-      <DigitalTwinPanel x={398} y={382} title="PANEL C1" load="178 kVA (80%)" warning />
-      <DigitalTwinPanel x={484} y={382} title="PANEL C2" load="146 kVA (70%)" />
-      <DigitalTwinPanel x={620} y={382} title="PANEL D1" load="88 kVA (57%)" />
-      <DigitalTwinPanel x={706} y={382} title="PANEL D2" load="89 kVA (63%)" />
-      <DigitalTwinPanel x={790} y={382} title="PANEL E1" load="85 kVA (45%)" />
-      {[[117,514,"Production\\nLine 1","98 kVA"],[190,514,"Production\\nLine 2","120 kVA"],[276,514,"HVAC\\nSystem","95 kVA"],[346,514,"Air\\nCompressor","110 kVA"],[432,514,"Production\\nLine 3","150 kVA"],[512,514,"Welding\\nArea","120 kVA"],[660,514,"Lighting\\nSystem","60 kVA"],[746,514,"Office\\nOutlets","55 kVA"],[834,514,"Other\\nLoads","60 kVA"]].map(([x, y, label, load]) => <DigitalTwinLoad key={`${x}-${label}`} label={String(label)} load={String(load)} x={Number(x)} y={Number(y)} />)}
+      <text fill="#05ff5e" fontSize="10" fontWeight="700" textAnchor="middle" x="460" y="245">{data.twinLabel || "Digital Twin Asset Graph"}</text>
+      {assets.map((asset, index) => {
+        const row = Math.floor(index / 4);
+        const col = index % 4;
+        const x = 92 + col * 202;
+        const y = 88 + row * 132;
+        const warning = asset.status.toLowerCase().includes("warning") || asset.status.toLowerCase().includes("critical");
+        return <DigitalTwinAssetNode asset={asset} key={asset.id} warning={warning} x={x} y={y} />;
+      })}
+      <text fill="#94a3b8" fontSize="9" x="32" y="582">Asset layout coordinates: No Data. Rendering approved asset rows from tracking.</text>
     </svg>
   );
 }
 
 function DigitalTwinLine({ points }: { points: string }) {
   return <polyline fill="none" points={points} stroke="#05ff5e" strokeWidth="2" />;
+}
+
+function DigitalTwinAssetNode({ asset, warning, x, y }: { asset: DigitalTwinAsset; warning: boolean; x: number; y: number }) {
+  return (
+    <g transform={`translate(${x} ${y})`}>
+      <line stroke={warning ? "#ffd740" : "#05ff5e"} strokeWidth="2" x1="58" x2="58" y1="-28" y2="0" />
+      <rect fill="#061521" height="76" rx="6" stroke={warning ? "#ffd740" : "#1e3a5f"} width="156" />
+      <text fill="#e2e8f0" fontSize="8" fontWeight="700" x="12" y="18">{asset.name}</text>
+      <text fill="#94a3b8" fontSize="7" x="12" y="34">{asset.type || "No Data"}</text>
+      <text fill="#e2e8f0" fontSize="8" x="12" y="50">{formatKva(asset.kvaRating)}</text>
+      <text fill="#94a3b8" fontSize="7" x="12" y="64">Status: {asset.status || "No Data"}</text>
+      <circle cx="140" cy="18" fill={warning ? "#ffd740" : "#05ff5e"} r="5" />
+    </g>
+  );
 }
 
 function DigitalTwinNode({ h, icon = "", sub, title, value, w, x, y }: { h: number; icon?: string; sub: string; title: string; value: string; w: number; x: number; y: number }) {
@@ -149,30 +156,34 @@ function DigitalTwinZoomControls() {
   return <div className="absolute bottom-3 right-4 flex items-end gap-4"><div className="rounded border border-cyan-300/12 bg-[#061521]/90 px-4 py-2 text-[9px] text-slate-400"><div className="mb-1 font-semibold text-slate-300">UTILIZATION SCALE (Load / Rating)</div><div className="h-2 w-64 rounded-full bg-gradient-to-r from-[#05ff5e] via-[#ffd740] to-[#ef4444]" /><div className="mt-1 flex justify-between"><span>0%</span><span>50%</span><span>80%</span><span>100%</span></div></div><div className="flex gap-2 text-[16px]"><button className="grid size-9 place-items-center rounded border border-cyan-300/12 bg-[#061421]">⌕</button><button className="grid size-9 place-items-center rounded border border-cyan-300/12 bg-[#061421]">⊕</button><button className="grid size-9 place-items-center rounded border border-cyan-300/12 bg-[#061421]">⛶</button></div></div>;
 }
 
-function DigitalTwinSelectedAsset() {
-  return <div className="space-y-2 text-[9px]"><div className="flex items-start gap-3"><div className="grid size-10 place-items-center rounded border border-slate-600 bg-[#061421] text-xl">⚙</div><div><div className="text-[13px] font-semibold">Main Transformer</div><div className="text-slate-400">1500 kVA</div></div><span className="ml-auto size-3 rounded-full bg-[#05ff5e]" /></div><div className="grid grid-cols-4 border-b border-[#05ff5e]/60 text-center text-[8px]"><span className="pb-1 text-[#05ff5e]">Overview</span><span>Measurements</span><span>Health</span><span>Events</span></div><DigitalTwinMetricLine label="Load" value="1,125 kVA (75%)" /><MeterBar value={75} /><DigitalTwinMetricLine label="Available Capacity" value="375 kVA" valueClass="text-[#29b6f6]" /><DigitalTwinMetricLine label="Recovered Capacity" value="225 kVA" valueClass="text-[#05ff5e]" /><DigitalTwinMetricLine label="Utilization" value="75%" /><DigitalTwinMetricLine label="Temperature" value="68 °C" /><DigitalTwinMetricLine label="Health Status" value="● Healthy" valueClass="text-[#05ff5e]" /></div>;
+function DigitalTwinSelectedAsset({ data }: { data: DigitalTwinData }) {
+  const asset = primaryAsset(data);
+  const utilization = utilizationPct(data);
+  return <div className="space-y-2 text-[9px]"><div className="flex items-start gap-3"><div className="grid size-10 place-items-center rounded border border-slate-600 bg-[#061421] text-xl">⚙</div><div><div className="text-[13px] font-semibold">{asset?.name ?? "No Data"}</div><div className="text-slate-400">{asset ? formatKva(asset.kvaRating) : "No Data"}</div></div><span className="ml-auto size-3 rounded-full bg-[#05ff5e]" /></div><div className="grid grid-cols-4 border-b border-[#05ff5e]/60 text-center text-[8px]"><span className="pb-1 text-[#05ff5e]">Overview</span><span>Measurements</span><span>Health</span><span>Events</span></div><DigitalTwinMetricLine label="Load" value={formatKva(data.currentLoadKva)} /><MeterBar value={utilization} /><DigitalTwinMetricLine label="Available Capacity" value={formatKva(data.headroomKva)} valueClass="text-[#29b6f6]" /><DigitalTwinMetricLine label="Recovered Capacity" value={formatKva(data.recoveredCapacityKva)} valueClass="text-[#05ff5e]" /><DigitalTwinMetricLine label="Utilization" value={data.transformerKva > 0 ? `${utilization}%` : "No Data"} /><DigitalTwinMetricLine label="Temperature" value="No Data" /><DigitalTwinMetricLine label="Health Status" value={data.cbiScore > 0 ? `● ${Math.round(data.cbiScore)}` : "No Data"} valueClass="text-[#05ff5e]" /></div>;
 }
 
-function DigitalTwinAssetSummary() {
-  return <div className="space-y-1 text-[9px]"><DigitalTwinMetricLine label="Total Connected Load" value="1,125 kVA" /><DigitalTwinMetricLine label="Total Available Capacity" value="375 kVA" /><DigitalTwinMetricLine label="Total Recovered Capacity" value="225 kVA" /><DigitalTwinMetricLine label="Network Efficiency" value="96%" /><DigitalTwinMetricLine label="Power Factor (Avg)" value="0.981" /><DigitalTwinMetricLine label="THD (I) (Avg)" value="3.2%" /></div>;
+function DigitalTwinAssetSummary({ data }: { data: DigitalTwinData }) {
+  return <div className="space-y-1 text-[9px]"><DigitalTwinMetricLine label="Total Connected Load" value={formatKva(data.currentLoadKva)} /><DigitalTwinMetricLine label="Total Available Capacity" value={formatKva(data.headroomKva)} /><DigitalTwinMetricLine label="Total Recovered Capacity" value={formatKva(data.recoveredCapacityKva)} /><DigitalTwinMetricLine label="Network Efficiency" value="No Data" /><DigitalTwinMetricLine label="Power Factor (Avg)" value="No Data" /><DigitalTwinMetricLine label="THD (I) (Avg)" value="No Data" /><DigitalTwinMetricLine label="Active Meters" value={data.activeMeters > 0 ? String(data.activeMeters) : "No Data"} /></div>;
 }
 
 function DigitalTwinMetricLine({ label, value, valueClass = "text-slate-100" }: { label: string; value: string; valueClass?: string }) {
   return <div className="flex justify-between gap-2 border-b border-white/5 pb-[3px]"><span className="text-slate-400">{label}</span><span className={`text-right font-semibold ${valueClass}`}>{value}</span></div>;
 }
 
-function DigitalTwinCapacityByLevel() {
-  return <div className="space-y-3 text-[10px]"><div className="grid grid-cols-[88px_1fr] gap-2"><svg className="h-24 w-24" viewBox="0 0 80 80"><circle cx="40" cy="40" fill="none" r="24" stroke="#0f2533" strokeWidth="18" /><circle cx="40" cy="40" fill="none" r="24" stroke="#05ff5e" strokeDasharray="66 151" strokeWidth="18" transform="rotate(-90 40 40)" /><circle cx="40" cy="40" fill="none" r="24" stroke="#29b6f6" strokeDasharray="36 151" strokeDashoffset="-70" strokeWidth="18" transform="rotate(-90 40 40)" /><circle cx="40" cy="40" fill="none" r="24" stroke="#ffd740" strokeDasharray="30 151" strokeDashoffset="-110" strokeWidth="18" transform="rotate(-90 40 40)" /><circle cx="40" cy="40" fill="none" r="24" stroke="#ff8a00" strokeDasharray="20 151" strokeDashoffset="-138" strokeWidth="18" transform="rotate(-90 40 40)" /></svg><div className="space-y-2"><MetricLine label="Transformer" value="225 kVA (44%)" valueClass="text-slate-100" /><MetricLine label="Switchgear" value="120 kVA (24%)" /><MetricLine label="Feeders" value="95 kVA (19%)" /><MetricLine label="Panels" value="60 kVA (13%)" /></div></div><div className="flex items-center justify-between border-t border-white/10 pt-3"><span>Total Recovered Capacity</span><b className="text-xl text-[#05ff5e]">225 kVA</b></div></div>;
+function DigitalTwinCapacityByLevel({ data }: { data: DigitalTwinData }) {
+  const rows = assetCapacityRows(data);
+  return <div className="space-y-3 text-[10px]"><div className="grid grid-cols-[88px_1fr] gap-2"><svg className="h-24 w-24" viewBox="0 0 80 80"><circle cx="40" cy="40" fill="none" r="24" stroke="#0f2533" strokeWidth="18" /><circle cx="40" cy="40" fill="none" r="24" stroke="#05ff5e" strokeDasharray="66 151" strokeWidth="18" transform="rotate(-90 40 40)" /></svg><div className="space-y-2">{rows.length > 0 ? rows.map(([label, value]) => <MetricLine key={label} label={label} value={value} />) : <MetricLine label="No Data" value="No asset ratings returned" />}</div></div><div className="flex items-center justify-between border-t border-white/10 pt-3"><span>Total Recovered Capacity</span><b className="text-xl text-[#05ff5e]">{formatKva(data.recoveredCapacityKva)}</b></div></div>;
 }
 
-export function ElectricalNetworkScreen({ variant }: { variant: ElectricalNetworkVariant }) {
-  if (variant === "overview") return <ElectricalNetworkReferenceScreen />;
-  if (variant === "alertsDetail") return <AlertsDetailReferenceScreen />;
-  if (variant === "healthDetail") return <HealthDetailReferenceScreen />;
-  if (variant === "healthEvents") return <HealthEventsReferenceScreen />;
-  if (variant === "peakEvents") return <PeakEventsReferenceScreen />;
-  if (variant === "peakFullAnalysis") return <PeakFullAnalysisReferenceScreen />;
-  if (variant === "loadDetail") return <LoadDetailReferenceScreen />;
+export function ElectricalNetworkScreen({ data, variant }: { data?: DigitalTwinData; variant: ElectricalNetworkVariant }) {
+  const payload = data ?? emptyDigitalTwinScreenData();
+  if (variant === "overview") return <ElectricalNetworkReferenceScreen data={payload} />;
+  if (variant === "alertsDetail") return <AlertsDetailReferenceScreen data={payload} />;
+  if (variant === "healthDetail") return <HealthDetailReferenceScreen data={payload} />;
+  if (variant === "healthEvents") return <HealthEventsReferenceScreen data={payload} />;
+  if (variant === "peakEvents") return <PeakEventsReferenceScreen data={payload} />;
+  if (variant === "peakFullAnalysis") return <PeakFullAnalysisReferenceScreen data={payload} />;
+  if (variant === "loadDetail") return <LoadDetailReferenceScreen data={payload} />;
   if (variant === "lossesActionPlan") return <LossesActionPlanReferenceScreen />;
   if (variant === "lossesOptimization") return <LossesOptimizationReferenceScreen />;
   if (variant === "lossesDetail") return <LossesDetailReferenceScreen />;
@@ -264,15 +275,15 @@ export function ElectricalNetworkScreen({ variant }: { variant: ElectricalNetwor
   );
 }
 
-function ElectricalNetworkReferenceScreen() {
+function ElectricalNetworkReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="flex h-full min-h-0 flex-col px-3 py-2">
         <header className="flex h-[46px] items-center justify-between border-b border-cyan-300/10">
           <div className="text-[12px] font-semibold">XECO ENERGY INTELLIGENCE PORTAL</div>
           <div className="flex items-center gap-3 text-[9px]">
-            <button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; Flex Tijuana⌄</button>
-            <button className="w-[180px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; May 12 - May 18, 2025⌄</button>
+            <button className="w-[150px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">⌂ &nbsp; {siteLabel(data)}⌄</button>
+            <button className="w-[180px] rounded border border-slate-700 bg-[#061421] px-3 py-1.5 text-left">▣ &nbsp; {data.dateRange || "No Data"}⌄</button>
             <span className="text-[#05ff5e]">● Live</span>
             <span className="text-slate-400">♧</span>
             <span className="grid size-7 place-items-center rounded-full bg-slate-700">GD</span>
@@ -285,33 +296,34 @@ function ElectricalNetworkReferenceScreen() {
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Network View⌄</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">♢ Configure Alerts</button></div>
         </div>
         <section className="grid h-[94px] grid-cols-[1.05fr_1fr_1fr_1fr_1fr] gap-2">
-          <ElectricalNetworkHealthKpi />
-          <ReferenceKpi icon="∿" label="TOTAL CONNECTED LOAD ⓘ" value="5.82 MW" detail="↑ 4.3% vs Last 7 Days" tone="green" />
-          <ReferenceKpi icon="⌁" label="TOTAL APPARENT POWER ⓘ" value="6.41 MVA" detail="Power Factor 0.91" tone="purple" />
-          <ReferenceKpi icon="⚡" label="TOTAL LOSSES ⓘ" value="178 kW" detail="2.78% of Load" tone="red" />
-          <ReferenceKpi icon="%" label="CAPACITY AVAILABLE ⓘ" value="2.18 MW" detail="27% of System" tone="blue" />
+          <ElectricalNetworkHealthKpi data={data} />
+          <ReferenceKpi icon="∿" label="TOTAL CONNECTED LOAD ⓘ" value={formatMw(data.currentLoadKva)} detail="Latest capacity intelligence" tone="green" />
+          <ReferenceKpi icon="⌁" label="TOTAL APPARENT POWER ⓘ" value="No Data" detail="No approved apparent-power source" tone="purple" />
+          <ReferenceKpi icon="⚡" label="TOTAL LOSSES ⓘ" value="No Data" detail="No approved losses model" tone="red" />
+          <ReferenceKpi icon="%" label="CAPACITY AVAILABLE ⓘ" value={formatMw(data.headroomKva)} detail="Installed minus used capacity" tone="blue" />
         </section>
         <section className="mt-2 grid min-h-0 flex-1 grid-cols-[1.58fr_0.82fr] grid-rows-[1fr_178px] gap-2 overflow-hidden">
-          <DashboardPanel className="min-h-0" title="NETWORK ONE-LINE DIAGRAM ⓘ" variant="enterprise"><ElectricalOneLineReference /></DashboardPanel>
+          <DashboardPanel className="min-h-0" title="NETWORK ONE-LINE DIAGRAM ⓘ" variant="enterprise"><ElectricalOneLineReference data={data} /></DashboardPanel>
           <div className="row-span-2 grid min-h-0 grid-rows-[148px_148px_126px_1fr] gap-2 overflow-hidden">
-            <DashboardPanel action="View All Alerts ->" title="NETWORK ALERTS ⓘ" variant="enterprise"><ElectricalNetworkAlerts /></DashboardPanel>
-            <DashboardPanel action="View All Issues ->" title="TOP NETWORK ISSUES" variant="enterprise"><ElectricalTopIssues /></DashboardPanel>
-            <DashboardPanel title="NETWORK SUMMARY" variant="enterprise"><ElectricalNetworkSummary /></DashboardPanel>
-            <DashboardPanel action="View Optimization Recommendations ->" title="NETWORK OPTIMIZATION POTENTIAL ⓘ" variant="enterprise"><ElectricalOptimizationPotential /></DashboardPanel>
+            <DashboardPanel action="View All Alerts ->" title="NETWORK ALERTS ⓘ" variant="enterprise"><MetricListSmall rows={noDataRows("No approved alert/event source")} /></DashboardPanel>
+            <DashboardPanel action="View All Issues ->" title="TOP NETWORK ISSUES" variant="enterprise"><CompactNetworkTable headers={["Issue", "Location", "Impact", "Status"]} rows={noDataTableRows("No approved network issue source", 4)} /></DashboardPanel>
+            <DashboardPanel title="NETWORK SUMMARY" variant="enterprise"><ElectricalNetworkSummary data={data} /></DashboardPanel>
+            <DashboardPanel action="View Optimization Recommendations ->" title="NETWORK OPTIMIZATION POTENTIAL ⓘ" variant="enterprise"><ElectricalOptimizationPotential data={data} /></DashboardPanel>
           </div>
           <div className="grid min-h-0 grid-cols-[1.05fr_0.95fr] gap-2">
-            <DashboardPanel title="VOLTAGE PROFILE (L-L) ⓘ" variant="enterprise"><ElectricalVoltageProfile /></DashboardPanel>
-            <DashboardPanel title="FEEDER LOADING ⓘ" variant="enterprise"><ElectricalFeederLoading /></DashboardPanel>
+            <DashboardPanel title="VOLTAGE PROFILE (L-L) ⓘ" variant="enterprise"><NoDataPanel message="No approved feeder voltage source." /></DashboardPanel>
+            <DashboardPanel title="FEEDER LOADING ⓘ" variant="enterprise"><ElectricalFeederLoading data={data} /></DashboardPanel>
           </div>
         </section>
-        <footer className="mt-2 flex h-[30px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="mt-2 flex h-[30px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
 }
 
-function ElectricalNetworkHealthKpi() {
-  return <article className="grid grid-cols-[86px_1fr] items-center rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="grid size-16 place-items-center rounded-full" style={{ background: "conic-gradient(#05ff5e 0 95%, #0f2533 95% 100%)" }}><span className="grid size-12 place-items-center rounded-full bg-[#061521] text-center text-lg text-[#05ff5e]">95<br /><b className="text-[7px] font-normal text-slate-300">Excellent</b></span></div><div className="space-y-1 text-[8px]"><div className="text-slate-400">NETWORK HEALTH ⓘ</div><div className="flex justify-between"><span>Components Online</span><b className="text-[#05ff5e]">98.6%</b></div><div className="flex justify-between"><span>Issues Detected</span><b className="text-yellow-300">3</b></div><div className="flex justify-between"><span>Critical Alerts</span><b className="text-red-400">0</b></div></div></article>;
+function ElectricalNetworkHealthKpi({ data }: { data: DigitalTwinData }) {
+  const score = healthScore(data);
+  return <article className="grid grid-cols-[86px_1fr] items-center rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="grid size-16 place-items-center rounded-full" style={{ background: `conic-gradient(#05ff5e 0 ${score || 0}%, #0f2533 ${score || 0}% 100%)` }}><span className="grid size-12 place-items-center rounded-full bg-[#061521] text-center text-lg text-[#05ff5e]">{score ? String(score) : "No Data"}<br /><b className="text-[7px] font-normal text-slate-300">{score ? "CBI" : ""}</b></span></div><div className="space-y-1 text-[8px]"><div className="text-slate-400">NETWORK HEALTH ⓘ</div><div className="flex justify-between"><span>Components Online</span><b className="text-[#05ff5e]">No Data</b></div><div className="flex justify-between"><span>Issues Detected</span><b className="text-yellow-300">No Data</b></div><div className="flex justify-between"><span>Critical Alerts</span><b className="text-red-400">No Data</b></div></div></article>;
 }
 
 function ReferenceKpi({ detail, icon, label, tone, value }: { detail: string; icon: string; label: string; tone: "blue" | "green" | "purple" | "red"; value: string }) {
@@ -319,8 +331,13 @@ function ReferenceKpi({ detail, icon, label, tone, value }: { detail: string; ic
   return <article className="grid grid-cols-[58px_1fr] items-center rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><div className={`grid size-12 place-items-center rounded-full border text-xl ${color}`}>{icon}</div><div><div className="text-[7px] text-slate-400">{label}</div><div className={`mt-1 text-2xl leading-none ${color}`}>{value}</div><div className="mt-1 text-[9px] text-slate-400">{detail}</div></div></article>;
 }
 
-function ElectricalOneLineReference() {
-  return <div className="relative h-full overflow-hidden text-[8px]"><div className="absolute left-4 top-8 grid gap-2 text-center text-slate-400"><button className="grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421] text-lg">+</button><button className="grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421] text-lg">−</button><button className="grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421] text-lg">⛶</button></div><svg className="h-full w-full" viewBox="0 0 860 420" preserveAspectRatio="none"><g transform="translate(420 12)"><text fill="#cbd5e1" fontSize="10" textAnchor="middle">UTILITY</text><text fill="#94a3b8" fontSize="8" textAnchor="middle" y="16">115 kV</text><text fill="#94a3b8" fontSize="26" textAnchor="middle" x="42" y="17">⌁</text></g><line stroke="#ffd740" strokeWidth="3" x1="420" x2="420" y1="46" y2="86" /><ElectricalBox x={365} y={86} w={118} title="MAIN TRANSFORMER" value="1.5 MVA" meta="69 kV / 480 V" /><ElectricalBox x={372} y={158} w={104} title="MAIN SWITCHGEAR" value="480 V" /><line stroke="#05ff5e" strokeWidth="3" x1="420" x2="420" y1="138" y2="158" /><line stroke="#05ff5e" strokeWidth="3" x1="112" x2="742" y1="244" y2="244" /><text fill="#cbd5e1" fontSize="8" textAnchor="middle" x="334" y="214">MAIN SWITCHGEAR</text><text fill="#e2e8f0" fontSize="8" textAnchor="middle" x="446" y="214">480 V</text>{[[110,"FEEDER 1","1.24 MW","62%","96","#05ff5e"],[244,"FEEDER 2","986 kW","78%","87","#ffd740"],[384,"FEEDER 3","1.08 MW","65%","93","#05ff5e"],[528,"FEEDER 4","1.42 MW","92%","64","#ef4444"],[668,"FEEDER 5","1.10 MW","58%","94","#05ff5e"]].map(([x,title,load,pct,health,color]) => <g key={title as string}><line stroke={color as string} strokeWidth="2" x1={x as number} x2={x as number} y1="244" y2="268" /><circle cx={x as number} cy="244" fill={color as string} r="4" /><rect fill="#061521" height="74" rx="5" stroke="#1e3a5f" width="86" x={(x as number) - 43} y="268" /><text fill={color as string} fontSize="8" fontWeight="700" textAnchor="middle" x={x as number} y="284">{title as string}</text><text fill="#e2e8f0" fontSize="8" textAnchor="middle" x={x as number} y="304">{load as string}</text><text fill="#94a3b8" fontSize="7" textAnchor="middle" x={x as number} y="318">Loading <tspan fill={color as string}>{pct as string}</tspan></text><text fill="#94a3b8" fontSize="7" textAnchor="middle" x={x as number} y="333">Health <tspan fill={color as string}>{health as string}</tspan></text>{[0,1,2,3].map((i) => <g key={i} transform={`translate(${(x as number)-34+i*22} 360)`}><line stroke={color as string} strokeWidth="1.5" x1="0" x2="0" y1="-18" y2="-4" /><rect fill="#061521" height="12" rx="2" stroke="#94a3b8" width="12" x="-6" y="0" /></g>)}</g>)}</svg></div>;
+function ElectricalOneLineReference({ data }: { data: DigitalTwinData }) {
+  const assets = data.assets.slice(0, 10);
+  if (assets.length === 0) {
+    return <NoDataPanel message="No Digital Twin assets were returned from tracking." />;
+  }
+
+  return <div className="relative h-full overflow-hidden text-[8px]"><div className="absolute left-4 top-8 grid gap-2 text-center text-slate-400"><button className="grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421] text-lg">+</button><button className="grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421] text-lg">−</button><button className="grid size-8 place-items-center rounded border border-cyan-300/12 bg-[#061421] text-lg">⛶</button></div><svg className="h-full w-full" viewBox="0 0 860 420" preserveAspectRatio="none"><line stroke="#05ff5e" strokeWidth="3" x1="112" x2="742" y1="210" y2="210" /><text fill="#cbd5e1" fontSize="8" textAnchor="middle" x="428" y="186">{data.twinLabel || "Digital Twin Assets"}</text>{assets.map((asset, index) => { const x = 112 + (index % 5) * 138; const y = index < 5 ? 236 : 332; const warning = asset.status.toLowerCase().includes("warning") || asset.status.toLowerCase().includes("critical"); const color = warning ? "#ffd740" : "#05ff5e"; return <g key={asset.id}><line stroke={color} strokeWidth="2" x1={x} x2={x} y1={index < 5 ? "210" : "306"} y2={y} /><circle cx={x} cy={index < 5 ? "210" : "306"} fill={color} r="4" /><rect fill="#061521" height="66" rx="5" stroke="#1e3a5f" width="104" x={x - 52} y={y} /><text fill={color} fontSize="7" fontWeight="700" textAnchor="middle" x={x} y={y + 16}>{asset.type || "Asset"}</text><text fill="#e2e8f0" fontSize="7" textAnchor="middle" x={x} y={y + 31}>{asset.name}</text><text fill="#94a3b8" fontSize="7" textAnchor="middle" x={x} y={y + 46}>{formatKva(asset.kvaRating)}</text><text fill="#94a3b8" fontSize="7" textAnchor="middle" x={x} y={y + 59}>{asset.status || "No Data"}</text></g>; })}<text fill="#94a3b8" fontSize="8" x="26" y="404">Layout coordinates: No Data. Rendering approved tracking asset rows.</text></svg></div>;
 }
 
 function ElectricalBox({ meta, title, value, w, x, y }: { meta?: string; title: string; value: string; w: number; x: number; y: number }) {
@@ -335,23 +352,25 @@ function ElectricalTopIssues() {
   return <CompactNetworkTable headers={["Issue", "Location", "Impact", "Status"]} rows={[["High Loading", "Feeder 4", "High", "Active"], ["High Harmonics", "Feeder 2", "Medium", "Active"], ["Imbalance", "Building 3 Panel", "Medium", "Active"], ["Low Power Factor", "Feeder 2", "Low", "Monitoring"]]} />;
 }
 
-function ElectricalNetworkSummary() {
-  return <MetricListSmall compact rows={[["Total Transformers", "8"], ["Total Switchgear", "12"], ["Total Feeders", "24"], ["Total Panels", "156"], ["Total Connected Loads", "312"], ["System Voltage Levels", "115 kV / 69 kV / 480 V / 208 V"]]} />;
+function ElectricalNetworkSummary({ data }: { data: DigitalTwinData }) {
+  const counts = assetTypeCounts(data);
+  return <MetricListSmall compact rows={[["Total Assets", data.assets.length > 0 ? String(data.assets.length) : "No Data"], ["Relationships", data.relationships.length > 0 ? String(data.relationships.length) : "No Data"], ["Active Meters", data.activeMeters > 0 ? String(data.activeMeters) : "No Data"], ["Transformer Capacity", formatKva(data.transformerKva)], ["System Voltage Levels", voltageLevels(data)], ["Digital Twin Version", data.version > 0 ? String(data.version) : "No Data"], ...counts.slice(0, 2)]} />;
 }
 
-function ElectricalOptimizationPotential() {
-  return <div className="space-y-2 text-[9px]">{[["◎","Capacity That Can Be Released","1.24 MW"],["⚡","Losses That Can Be Reduced","62 kW"],["◈","Power Factor Improvement Opportunity","0.04"],["⌁","Harmonic Reduction Potential","35%"],["✣","Estimated Annual Savings","$128,000"]].map(([icon,label,value]) => <div className="grid grid-cols-[22px_1fr_auto] border-b border-white/5 pb-1.5" key={label}><span className="text-[#05ff5e]">{icon}</span><span>{label}</span><b className="text-[#05ff5e]">{value}</b></div>)}</div>;
+function ElectricalOptimizationPotential({ data }: { data: DigitalTwinData }) {
+  return <div className="space-y-2 text-[9px]">{[["◎","Capacity That Can Be Released",formatMw(data.recoveredCapacityKva)],["⚡","Losses That Can Be Reduced","No Data"],["◈","Power Factor Improvement Opportunity","No Data"],["⌁","Harmonic Reduction Potential","No Data"],["✣","Estimated Annual Savings","No Data"]].map(([icon,label,value]) => <div className="grid grid-cols-[22px_1fr_auto] border-b border-white/5 pb-1.5" key={label}><span className="text-[#05ff5e]">{icon}</span><span>{label}</span><b className="text-[#05ff5e]">{value}</b></div>)}</div>;
 }
 
 function ElectricalVoltageProfile() {
   return <div className="h-full"><div className="mb-1 flex justify-center gap-4 text-[8px]"><span className="text-[#05ff5e]">━ Avg Voltage</span><span className="text-yellow-300">● Phase A</span><span className="text-[#29b6f6]">● Phase B</span><span className="text-purple-400">● Phase C</span></div><svg className="h-[100px] w-full" viewBox="0 0 360 112"><g stroke="rgba(148,163,184,.18)">{[18,42,66,90].map((y)=><line key={y} x1="28" x2="350" y1={y} y2={y}/>)}</g><g fill="#94a3b8" fontSize="9"><text x="0" y="20">520 V</text><text x="0" y="44">500 V</text><text x="0" y="68">480 V</text><text x="0" y="92">440 V</text></g>{["#05ff5e","#ffd740","#29b6f6","#a855f7"].map((color,index)=><polyline fill="none" key={color} points={`36,${50+index*5} 74,${49+index*4} 112,${51+index*4} 150,${50+index*5} 188,${52+index*3} 226,${49+index*4} 264,${51+index*4} 302,${50+index*4} 344,${49+index*4}`} stroke={color} strokeWidth="2"/>)}</svg><div className="flex justify-around text-[8px] text-slate-500"><span>May 12</span><span>May 13</span><span>May 14</span><span>May 15</span><span>May 16</span><span>May 17</span><span>May 18</span></div></div>;
 }
 
-function ElectricalFeederLoading() {
-  return <div className="h-full"><div className="mb-2 flex justify-end gap-2 text-[8px]"><span className="rounded bg-[#063b27] px-3 py-1 text-[#05ff5e]">% of Capacity</span><span className="rounded border border-cyan-300/12 px-3 py-1">kW</span></div><Bars rows={[["Feeder 4", "92%", "red"], ["Feeder 2", "78%", "yellow"], ["Feeder 3", "65%", "green"], ["Feeder 1", "62%", "green"], ["Feeder 5", "58%", "green"]]} /><div className="mt-3 flex justify-between text-[8px] text-slate-500"><span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span></div></div>;
+function ElectricalFeederLoading({ data }: { data: DigitalTwinData }) {
+  const rows = data.assets.filter((asset) => asset.type.toLowerCase().includes("feeder")).slice(0, 5).map((asset) => [asset.name, formatKva(asset.kvaRating), "green"] as [string, string, string]);
+  return <div className="h-full"><div className="mb-2 flex justify-end gap-2 text-[8px]"><span className="rounded bg-[#063b27] px-3 py-1 text-[#05ff5e]">Asset Ratings</span><span className="rounded border border-cyan-300/12 px-3 py-1">No load trend</span></div>{rows.length > 0 ? <Bars rows={rows} /> : <NoDataPanel message="No feeder-level load source." />}<div className="mt-3 flex justify-between text-[8px] text-slate-500"><span>Load %: No Data</span><span>Trend: No Data</span></div></div>;
 }
 
-function AlertsDetailReferenceScreen() {
+function AlertsDetailReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="flex h-full min-h-0 flex-col px-3 py-2">
@@ -364,29 +383,29 @@ function AlertsDetailReferenceScreen() {
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">◎ Acknowledge</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">▣ Add Note</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Alerts</button></div>
         </div>
         <section className="grid h-[88px] grid-cols-[1fr_1fr_1fr_1fr_1fr_1.2fr] gap-2">
-          <AlertSummaryCard icon="△" label="Critical Alerts" value="1" detail="Requires Immediate Action" tone="red" />
-          <AlertSummaryCard icon="△" label="High Alerts" value="2" detail="Requires Attention" tone="orange" />
-          <AlertSummaryCard icon="△" label="Medium Alerts" value="3" detail="Monitor Closely" tone="yellow" />
-          <AlertSummaryCard icon="ⓘ" label="Low Alerts" value="1" detail="Informational" tone="blue" />
-          <AlertSummaryCard icon="♢" label="Total Active Alerts" value="7" detail="Across 5 Feeders" tone="slate" />
-          <div className="grid gap-1.5 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-2 text-[9px]"><FieldLike label="Time Filter" value="Last 7 Days⌄" /><FieldLike label="Sort By" value="Severity (High to Low)⌄" /></div>
+          <AlertSummaryCard icon="△" label="Critical Alerts" value="No Data" detail="No approved alert source" tone="red" />
+          <AlertSummaryCard icon="△" label="High Alerts" value="No Data" detail="No approved alert source" tone="orange" />
+          <AlertSummaryCard icon="△" label="Medium Alerts" value="No Data" detail="No approved alert source" tone="yellow" />
+          <AlertSummaryCard icon="ⓘ" label="Low Alerts" value="No Data" detail="No approved alert source" tone="blue" />
+          <AlertSummaryCard icon="♢" label="Total Active Alerts" value="No Data" detail="No approved alert source" tone="slate" />
+          <div className="grid gap-1.5 rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-2 text-[9px]"><FieldLike label="Time Filter" value={data.dateRange || "No Data"} /><FieldLike label="Sort By" value="No Data⌄" /></div>
         </section>
         <section className="mt-2 grid min-h-0 flex-1 grid-cols-[1.55fr_0.78fr] gap-2 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[236px_174px_1fr] gap-2 overflow-hidden">
-            <DashboardPanel action="View All Alerts ->" title="ACTIVE ALERTS (7)" variant="enterprise"><ActiveAlertsTable /></DashboardPanel>
+            <DashboardPanel action="View All Alerts ->" title="ACTIVE ALERTS (No Data)" variant="enterprise"><AlertTable headers={["Severity", "Alert", "Location", "Asset / Feeder", "Triggered", "Value", "Threshold", "Status"]} rows={noDataTableRows("No approved alert/event source", 8)} /></DashboardPanel>
             <div className="grid min-h-0 grid-cols-[1fr_1fr] gap-2">
-              <DashboardPanel title="ALERT TREND (Last 7 Days)" variant="enterprise"><AlertTrendChart /></DashboardPanel>
-              <DashboardPanel action="View Location Map ->" title="ALERTS BY LOCATION" variant="enterprise"><AlertsByLocation /></DashboardPanel>
+              <DashboardPanel title="ALERT TREND (Last 7 Days)" variant="enterprise"><NoDataPanel message="No approved alert trend source." /></DashboardPanel>
+              <DashboardPanel action="View Location Map ->" title="ALERTS BY LOCATION" variant="enterprise"><NoDataPanel message="No approved alert location source." /></DashboardPanel>
             </div>
-            <DashboardPanel action="View Full Alert History ->" title="ALERT HISTORY (Last 7 Days)" variant="enterprise"><AlertHistoryTable /></DashboardPanel>
+            <DashboardPanel action="View Full Alert History ->" title="ALERT HISTORY (Last 7 Days)" variant="enterprise"><AlertTable headers={["Cleared", "Severity", "Alert", "Location", "Asset / Feeder", "Duration", "Cleared By"]} rows={noDataTableRows("No approved alert history source", 7)} /></DashboardPanel>
           </div>
           <div className="grid min-h-0 grid-rows-[330px_88px_1fr] gap-2 overflow-hidden">
-            <DashboardPanel title="ALERT INFORMATION" variant="enterprise"><AlertInformationDetail /></DashboardPanel>
+            <DashboardPanel title="ALERT INFORMATION" variant="enterprise"><MetricListSmall rows={noDataRows("No approved alert/event source")} /></DashboardPanel>
             <DashboardPanel title="ALERT ACTIONS" variant="enterprise"><AlertActions /></DashboardPanel>
-            <DashboardPanel title="ALERT NOTES" variant="enterprise"><AlertNotes /></DashboardPanel>
+            <DashboardPanel title="ALERT NOTES" variant="enterprise"><MetricListSmall rows={noDataRows("No approved alert note source")} /></DashboardPanel>
           </div>
         </section>
-        <footer className="mt-2 flex h-[30px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="mt-2 flex h-[30px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
@@ -438,7 +457,7 @@ function AlertNotes() {
   return <div className="flex h-full flex-col gap-2 text-[8.5px]"><div className="rounded border border-cyan-300/12 bg-[#061421] p-2"><div className="flex justify-between"><b>System</b><span className="text-slate-500">May 18, 2025 10:12 AM</span></div><div className="mt-1 text-slate-300">Alert triggered automatically by capacity monitoring system.</div></div><div className="rounded border border-cyan-300/12 bg-[#061421] p-2"><div className="flex justify-between"><b>Greg Dockery</b><span className="text-slate-500">May 18, 2025 10:15 AM</span></div><div className="mt-1 text-slate-300">Investigating load composition on Feeder 4.</div></div><div className="mt-auto grid grid-cols-[1fr_auto] gap-2"><div className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-slate-500">Add a note...</div><button className="rounded bg-[#087a35] px-4 text-[#05ff5e]">Add Note</button></div></div>;
 }
 
-function HealthEventsReferenceScreen() {
+function HealthEventsReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
@@ -451,11 +470,11 @@ function HealthEventsReferenceScreen() {
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">♧ Configure Alerts</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Health Detail</button></div>
         </div>
         <section className="grid h-[94px] grid-cols-5 gap-3">
-          <HealthEventKpi icon="△" label="Critical Events" value="2" detail="Requires immediate action" tone="red" />
-          <HealthEventKpi icon="△" label="Warning Events" value="5" detail="Needs attention" tone="yellow" />
-          <HealthEventKpi icon="ⓘ" label="Info Events" value="8" detail="Informational updates" tone="blue" />
-          <HealthEventKpi icon="✓" label="Resolved Events" value="12" detail="Automatically cleared" tone="green" />
-          <HealthEventKpi icon="▦" label="Total Events" value="27" detail="This time range" tone="slate" />
+          <HealthEventKpi icon="△" label="Critical Events" value="No Data" detail="No approved event source" tone="red" />
+          <HealthEventKpi icon="△" label="Warning Events" value="No Data" detail="No approved event source" tone="yellow" />
+          <HealthEventKpi icon="ⓘ" label="Info Events" value="No Data" detail="No approved event source" tone="blue" />
+          <HealthEventKpi icon="✓" label="Resolved Events" value="No Data" detail="No approved event source" tone="green" />
+          <HealthEventKpi icon="▦" label="Total Events" value="No Data" detail="No approved event source" tone="slate" />
         </section>
         <section className="mt-3 grid h-[31px] grid-cols-[1.1fr_0.76fr_0.82fr_0.82fr_0.74fr_0.92fr_auto] gap-3 text-[9px]">
           <div className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-slate-500">⌕ &nbsp; Search events, assets, issues...</div>
@@ -463,9 +482,9 @@ function HealthEventsReferenceScreen() {
           <button className="text-left text-slate-400">× Clear Filters</button>
         </section>
         <section className="mt-2 min-h-0 flex-1 overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
-          <HealthEventsReferenceTable />
+          <HealthEventsReferenceTable rows={noDataTableRows("No approved health event source", 8)} />
         </section>
-        <footer className="mt-2 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="mt-2 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
@@ -489,9 +508,9 @@ const healthEventRows = [
   ["May 17, 2025 12:22 PM", "Info", "Load restored", "Load returned after breaker reset", "Panel A1|480 V", "System", "Resolved|11:24 PM", "2 min", "View Details"],
 ];
 
-function HealthEventsReferenceTable() {
+function HealthEventsReferenceTable({ rows = healthEventRows }: { rows?: string[][] }) {
   const headers = ["Time ↕", "Severity ↕", "Event ↕", "Asset", "Category ↕", "Status ↕", "Duration / Impact", "Actions"];
-  return <div className="flex h-full flex-col"><table className="w-full table-fixed text-left text-[9px]"><colgroup><col className="w-[13%]" /><col className="w-[8%]" /><col className="w-[22%]" /><col className="w-[14%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[9%]" /></colgroup><thead className="text-slate-400"><tr>{headers.map((header) => <th className="pb-3 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{healthEventRows.map((row) => <HealthEventRow key={row.join("-")} row={row} />)}</tbody></table><div className="mt-auto grid grid-cols-3 items-center pt-3 text-[9px] text-slate-400"><span>Showing 1 to 10 of 27 events</span><div className="flex justify-center gap-2"><button className="rounded border border-cyan-300/12 px-3 py-2">‹</button><button className="rounded bg-[#087a35] px-3 py-2 text-[#05ff5e]">1</button><button className="rounded border border-cyan-300/12 px-3 py-2">2</button><button className="rounded border border-cyan-300/12 px-3 py-2">3</button><button className="rounded border border-cyan-300/12 px-3 py-2">›</button></div><span className="justify-self-end">Rows per page: <b className="ml-2 rounded border border-cyan-300/12 px-4 py-2 text-slate-300">10⌄</b></span></div></div>;
+  return <div className="flex h-full flex-col"><table className="w-full table-fixed text-left text-[9px]"><colgroup><col className="w-[13%]" /><col className="w-[8%]" /><col className="w-[22%]" /><col className="w-[14%]" /><col className="w-[12%]" /><col className="w-[10%]" /><col className="w-[12%]" /><col className="w-[9%]" /></colgroup><thead className="text-slate-400"><tr>{headers.map((header) => <th className="pb-3 font-medium" key={header}>{header}</th>)}</tr></thead><tbody>{rows.map((row) => <HealthEventRow key={row.join("-")} row={row} />)}</tbody></table><div className="mt-auto grid grid-cols-3 items-center pt-3 text-[9px] text-slate-400"><span>Showing No Data events</span><div className="flex justify-center gap-2"><button className="rounded border border-cyan-300/12 px-3 py-2">‹</button><button className="rounded bg-[#087a35] px-3 py-2 text-[#05ff5e]">1</button><button className="rounded border border-cyan-300/12 px-3 py-2">›</button></div><span className="justify-self-end">Rows per page: <b className="ml-2 rounded border border-cyan-300/12 px-4 py-2 text-slate-300">10⌄</b></span></div></div>;
 }
 
 function HealthEventRow({ row }: { row: string[] }) {
@@ -511,7 +530,7 @@ function HealthStatus({ status }: { status: string }) {
   return <span className={`inline-block min-w-[64px] rounded border px-2 py-1 text-center text-[8px] ${active ? "border-red-400 text-red-400" : "border-[#05ff5e]/50 bg-[#063b27]/60 text-[#05ff5e]"}`}>{state}{time ? <><br />{time}</> : null}</span>;
 }
 
-function HealthDetailReferenceScreen() {
+function HealthDetailReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="flex h-full min-h-0 flex-col px-4 py-2">
@@ -525,22 +544,22 @@ function HealthDetailReferenceScreen() {
         </div>
         <section className="grid h-[720px] min-h-0 shrink-0 grid-cols-[0.74fr_2.08fr_1fr] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[180px_150px_128px_1fr] gap-3 overflow-hidden">
-            <HealthBox title="HEALTH SCORE"><HealthScoreGauge /></HealthBox>
-            <HealthBox title="HEALTH BREAKDOWN"><HealthBreakdown /></HealthBox>
-            <HealthBox title="HEALTH TREND (30 DAYS)"><HealthTrendMini /></HealthBox>
+            <HealthBox title="HEALTH SCORE"><HealthScoreGauge data={data} /></HealthBox>
+            <HealthBox title="HEALTH BREAKDOWN"><NoDataPanel message="No approved per-category health model." /></HealthBox>
+            <HealthBox title="HEALTH TREND (30 DAYS)"><NoDataPanel message="No approved health trend source." /></HealthBox>
             <HealthBox title="STATUS LEGEND"><StatusLegend /></HealthBox>
           </div>
           <div className="grid min-h-0 grid-rows-[475px_1fr] gap-3 overflow-hidden">
-            <HealthBox title="HEALTH BY ASSET HIERARCHY ⓘ  ⓘ"><HealthAssetHierarchy /></HealthBox>
-            <HealthBox title="HEALTH SCORE OVER TIME (BY CATEGORY) ⓘ  ⓘ"><HealthScoreOverTime /></HealthBox>
+            <HealthBox title="HEALTH BY ASSET HIERARCHY ⓘ  ⓘ"><HealthAssetHierarchy data={data} /></HealthBox>
+            <HealthBox title="HEALTH SCORE OVER TIME (BY CATEGORY) ⓘ  ⓘ"><NoDataPanel message="No approved category health trend source." /></HealthBox>
           </div>
           <div className="grid min-h-0 grid-rows-[184px_210px_1fr] gap-3 overflow-hidden">
-            <HealthBox title="TOP HEALTH RISK CONTRIBUTORS ⓘ"><TopRiskContributors /></HealthBox>
-            <HealthBox title="HEALTH IMPACT MATRIX ⓘ"><HealthImpactMatrix /></HealthBox>
-            <HealthBox title="RECENT HEALTH EVENTS"><RecentHealthEventsCard /></HealthBox>
+            <HealthBox title="TOP HEALTH RISK CONTRIBUTORS ⓘ"><NoDataPanel message="No approved health risk contributor source." /></HealthBox>
+            <HealthBox title="HEALTH IMPACT MATRIX ⓘ"><NoDataPanel message="No approved health impact model." /></HealthBox>
+            <HealthBox title="RECENT HEALTH EVENTS"><MetricListSmall rows={noDataRows("No approved health event source")} /></HealthBox>
           </div>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
@@ -550,8 +569,9 @@ function HealthBox({ children, title }: { children: ReactNode; title: string }) 
   return <article className="flex min-h-0 flex-col overflow-hidden rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3"><h2 className="mb-2 shrink-0 text-[10px] font-semibold text-slate-100">{title}</h2><div className="min-h-0 flex-1 overflow-hidden">{children}</div></article>;
 }
 
-function HealthScoreGauge() {
-  return <div className="grid h-full place-items-center"><div className="relative grid size-32 place-items-center rounded-full" style={{ background: "conic-gradient(#05ff5e 0 76%, #0f2533 76% 100%)" }}><div className="grid size-24 place-items-center rounded-full bg-[#061521] text-center"><b className="text-4xl font-light">95</b><span className="-mt-6 text-[10px] font-semibold">Excellent</span></div><span className="absolute bottom-2 left-5 text-[8px] text-slate-400">0</span><span className="absolute bottom-2 right-4 text-[8px] text-slate-400">100</span></div><div className="mt-1 text-center text-[10px] text-[#05ff5e]">↑ 3 pts <span className="text-slate-400">vs Last 7 Days</span></div></div>;
+function HealthScoreGauge({ data }: { data: DigitalTwinData }) {
+  const score = healthScore(data);
+  return <div className="grid h-full place-items-center"><div className="relative grid size-32 place-items-center rounded-full" style={{ background: `conic-gradient(#05ff5e 0 ${score || 0}%, #0f2533 ${score || 0}% 100%)` }}><div className="grid size-24 place-items-center rounded-full bg-[#061521] text-center"><b className="text-3xl font-light">{score ? String(score) : "No Data"}</b><span className="-mt-6 text-[10px] font-semibold">{score ? "CBI" : ""}</span></div><span className="absolute bottom-2 left-5 text-[8px] text-slate-400">0</span><span className="absolute bottom-2 right-4 text-[8px] text-slate-400">100</span></div><div className="mt-1 text-center text-[10px] text-[#05ff5e]">No Data <span className="text-slate-400">trend source</span></div></div>;
 }
 
 function HealthBreakdown() {
@@ -581,8 +601,9 @@ const healthAssets = [
   ["›", "◇", "Protection System", "95%", "Excellent", "0", "green"],
 ];
 
-function HealthAssetHierarchy() {
-  return <table className="w-full text-left text-[8.8px]"><thead className="text-slate-400"><tr>{["Asset", "Health Score", "Status", "Issues", "Trend (7 Days)", "Details"].map((h)=><th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{healthAssets.map(([arrow, icon, asset, score, status, issues, tone], index) => <tr className="border-t border-white/6" key={asset}><td className="py-[7.8px]"><span className="mr-2 text-slate-400">{arrow}</span><span className="mr-2 text-cyan-300">{icon}</span><span className={index > 2 && index < 8 ? "pl-5" : ""}>{asset}</span></td><td className={tone === "red" ? "py-[7.8px] font-semibold text-orange-400" : tone === "yellow" ? "py-[7.8px] font-semibold text-yellow-300" : "py-[7.8px] font-semibold text-[#05ff5e]"}>{score}</td><td className="py-[7.8px]"><span className={tone === "red" ? "mr-1 text-orange-400" : tone === "yellow" ? "mr-1 text-yellow-300" : "mr-1 text-[#05ff5e]"}>●</span>{status}</td><td className={Number(issues) > 0 ? "py-[7.8px] text-orange-400" : "py-[7.8px]"}>{issues}</td><td className="py-[7.8px]"><MiniSpark tone={tone} /></td><td className="py-[6.4px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-0.5 text-[8px] text-cyan-300">View</button></td></tr>)}</tbody></table>;
+function HealthAssetHierarchy({ data }: { data: DigitalTwinData }) {
+  const rows = data.assets.length > 0 ? data.assets.slice(0, 10).map((asset) => ["›", "▣", asset.name, data.cbiScore > 0 ? String(Math.round(data.cbiScore)) : "No Data", asset.status || "No Data", "No Data", "green"]) : [["›", "▣", "No Data", "No Data", "No Data", "No Data", "green"]];
+  return <table className="w-full text-left text-[8.8px]"><thead className="text-slate-400"><tr>{["Asset", "Health Score", "Status", "Issues", "Trend (7 Days)", "Details"].map((h)=><th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([arrow, icon, asset, score, status, issues, tone], index) => <tr className="border-t border-white/6" key={`${asset}-${index}`}><td className="py-[7.8px]"><span className="mr-2 text-slate-400">{arrow}</span><span className="mr-2 text-cyan-300">{icon}</span><span>{asset}</span></td><td className="py-[7.8px] font-semibold text-[#05ff5e]">{score}</td><td className="py-[7.8px]"><span className="mr-1 text-[#05ff5e]">●</span>{status}</td><td className="py-[7.8px]">{issues}</td><td className="py-[7.8px]"><MiniSpark tone={tone} /></td><td className="py-[6.4px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-0.5 text-[8px] text-cyan-300">View</button></td></tr>)}</tbody></table>;
 }
 
 function MiniSpark({ tone }: { tone: string }) {
@@ -613,7 +634,7 @@ function RecentHealthEventsCard() {
   return <div className="flex h-full flex-col text-[9px]">{rows.map(([icon, title, time, color]) => <div className="grid grid-cols-[26px_1fr_auto] items-center gap-2 border-b border-white/6 py-3" key={title}><span className={`text-xl ${color}`}>{icon}</span><span>{title}<br /><span className="text-slate-400">{time}</span></span><span className="text-slate-400">›</span></div>)}<div className="mt-auto text-right text-[10px] text-[#05ff5e]">View All Events →</div></div>;
 }
 
-function PeakEventsReferenceScreen() {
+function PeakEventsReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
@@ -626,27 +647,27 @@ function PeakEventsReferenceScreen() {
           <div className="flex flex-col items-end gap-2 text-[9px]"><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">♧ Configure Alerts</button></div><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Load Detail</button></div>
         </div>
         <section className="grid h-[86px] grid-cols-5 gap-3">
-          <PeakKpi icon="◌" label="Total Peak Events" value="12" detail="In Last 7 Days" tone="purple" />
-          <PeakKpi icon="↗" label="Highest Peak Demand ⓘ" value="6.31 MW" detail="May 16, 2025 2:18 PM" tone="purple" />
-          <PeakKpi icon="⌁" label="Average Peak Demand ⓘ" value="5.96 MW" detail="↑ 4.2% vs Last 7 Days" tone="blue" />
-          <PeakKpi icon="ϟ" label="Total Energy At Peak ⓘ" value="142.8 MWh" detail="During Peak Events" tone="green" />
-          <PeakKpi icon="◷" label="Avg Peak Duration ⓘ" value="31 min" detail="Per Event" tone="orange" />
+          <PeakKpi icon="◌" label="Total Peak Events" value="No Data" detail="No approved peak-event source" tone="purple" />
+          <PeakKpi icon="↗" label="Highest Peak Demand ⓘ" value="No Data" detail="No approved peak-event source" tone="purple" />
+          <PeakKpi icon="⌁" label="Average Peak Demand ⓘ" value="No Data" detail="No approved trend source" tone="blue" />
+          <PeakKpi icon="ϟ" label="Total Energy At Peak ⓘ" value="No Data" detail="No approved event energy source" tone="green" />
+          <PeakKpi icon="◷" label="Avg Peak Duration ⓘ" value="No Data" detail="No approved event duration source" tone="orange" />
         </section>
         <PeakEventsFilterRow />
         <section className="mt-2 grid h-[544px] min-h-0 grid-cols-[1.46fr_0.52fr] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[206px_1fr] gap-3 overflow-hidden">
             <div className="grid min-h-0 grid-cols-[1fr_1fr] gap-3">
-              <PeakBox title="PEAK DEMAND TREND (7 DAYS)"><PeakDemandTrend /></PeakBox>
-              <PeakBox title="PEAK EVENTS BY TIME OF DAY"><PeakTimeHeatmap /></PeakBox>
+              <PeakBox title="PEAK DEMAND TREND (7 DAYS)"><NoDataPanel message="No approved peak-demand trend source." /></PeakBox>
+              <PeakBox title="PEAK EVENTS BY TIME OF DAY"><NoDataPanel message="No approved peak-event time source." /></PeakBox>
             </div>
-            <PeakBox title="PEAK EVENTS LIST (27)"><PeakEventsReferenceList /></PeakBox>
+            <PeakBox title="PEAK EVENTS LIST (No Data)"><PeakEventsReferenceList rows={noDataTableRows("No approved peak-event source", 10)} /></PeakBox>
           </div>
           <div className="grid min-h-0 grid-rows-[206px_1fr] gap-3 overflow-hidden">
-            <PeakBox title="PEAK EVENT IMPACT (7 DAYS)"><PeakImpactSummary /></PeakBox>
-            <PeakBox title="EVENT DETAIL"><PeakEventDetail /></PeakBox>
+            <PeakBox title="PEAK EVENT IMPACT (7 DAYS)"><MetricListSmall rows={noDataRows("No approved peak-event impact source")} /></PeakBox>
+            <PeakBox title="EVENT DETAIL"><MetricListSmall rows={noDataRows("No approved peak-event detail source")} /></PeakBox>
           </div>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
@@ -690,9 +711,9 @@ const peakEventRowsRef = [
   ["10", "May 14, 2025 9:35 AM", "4.97 MW", "14 min", "85%", "Feeder 2", "Morning Peak", "Info", "6.3 MWh", "Low"],
 ];
 
-function PeakEventsReferenceList() {
+function PeakEventsReferenceList({ rows = peakEventRowsRef }: { rows?: string[][] }) {
   const headers = ["Rank", "Date / Time", "Peak Demand", "Duration", "% of Capacity", "Feeder", "Event Type", "Severity", "Energy at Peak", "Impact", "Actions"];
-  return <div className="flex h-full flex-col"><table className="w-full table-fixed text-left text-[8px]"><colgroup><col className="w-[5%]" /><col className="w-[14%]" /><col className="w-[10%]" /><col className="w-[8%]" /><col className="w-[10%]" /><col className="w-[8%]" /><col className="w-[11%]" /><col className="w-[9%]" /><col className="w-[10%]" /><col className="w-[7%]" /><col className="w-[8%]" /></colgroup><thead className="text-slate-400"><tr>{headers.map((h)=><th className="pb-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{peakEventRowsRef.map((row)=><PeakEventTableRow key={row.join("-")} row={row} />)}</tbody></table><div className="mt-auto grid grid-cols-3 items-center pt-2 text-[9px] text-slate-400"><span>Showing 1 to 10 of 27 events</span><div className="flex justify-center gap-2"><button className="rounded border border-cyan-300/12 px-3 py-1.5">‹</button><button className="rounded bg-[#087a35] px-3 py-1.5 text-[#05ff5e]">1</button><button className="rounded border border-cyan-300/12 px-3 py-1.5">2</button><button className="rounded border border-cyan-300/12 px-3 py-1.5">3</button><button className="rounded border border-cyan-300/12 px-3 py-1.5">›</button></div><span className="justify-self-end">Rows per page: <b className="ml-2 rounded border border-cyan-300/12 px-4 py-1.5 text-slate-300">10⌄</b></span></div></div>;
+  return <div className="flex h-full flex-col"><table className="w-full table-fixed text-left text-[8px]"><colgroup><col className="w-[5%]" /><col className="w-[14%]" /><col className="w-[10%]" /><col className="w-[8%]" /><col className="w-[10%]" /><col className="w-[8%]" /><col className="w-[11%]" /><col className="w-[9%]" /><col className="w-[10%]" /><col className="w-[7%]" /><col className="w-[8%]" /></colgroup><thead className="text-slate-400"><tr>{headers.map((h)=><th className="pb-1.5 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map((row)=><PeakEventTableRow key={row.join("-")} row={row} />)}</tbody></table><div className="mt-auto grid grid-cols-3 items-center pt-2 text-[9px] text-slate-400"><span>Showing No Data events</span><div className="flex justify-center gap-2"><button className="rounded border border-cyan-300/12 px-3 py-1.5">‹</button><button className="rounded bg-[#087a35] px-3 py-1.5 text-[#05ff5e]">1</button><button className="rounded border border-cyan-300/12 px-3 py-1.5">›</button></div><span className="justify-self-end">Rows per page: <b className="ml-2 rounded border border-cyan-300/12 px-4 py-1.5 text-slate-300">10⌄</b></span></div></div>;
 }
 
 function PeakEventTableRow({ row }: { row: string[] }) {
@@ -711,7 +732,7 @@ function PeakEventDetail() {
   return <div className="flex h-full flex-col text-[8px]"><div className="mb-1.5 flex items-center justify-between"><span className="text-purple-300">◉ May 16, 2025 2:18 PM</span><span className="rounded border border-red-400 px-2 py-0.5 text-red-400">Critical</span></div><div className="mb-1.5 grid grid-cols-2 gap-4"><div><div className="text-2xl font-light">6.31 MW</div><div className="text-slate-400">Peak Demand</div></div><div><div className="text-base font-semibold">Feeder 4</div><div className="text-slate-400">Primary Source</div></div></div>{[["Duration", "37 min"], ["% of Capacity", "107%"], ["Energy at Peak", "26.4 MWh"], ["Event Type", "Demand Spike"], ["Start Time", "May 16, 2025 1:41 PM"], ["End Time", "May 16, 2025 2:18 PM"], ["Weather", "Clear, 28°C"], ["Notes", "High production load + HVAC demand >"]].map(([label, value]) => <div className="flex justify-between gap-3 border-b border-white/6 py-[3.5px]" key={label}><span className="text-slate-400">{label}</span><b className="text-right">{value}</b></div>)}<button className="mt-auto rounded border border-[#05ff5e] py-2 text-[9px] text-[#05ff5e]">View Full Event Analysis →</button></div>;
 }
 
-function PeakFullAnalysisReferenceScreen() {
+function PeakFullAnalysisReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
@@ -725,35 +746,35 @@ function PeakFullAnalysisReferenceScreen() {
         </div>
         <section className="h-[64px] rounded-lg border border-cyan-300/12 bg-[#061521]/92 p-3">
           <div className="mb-1 text-[9px] font-semibold">EVENT OVERVIEW</div>
-          <div className="grid grid-cols-7 gap-4 text-[8.5px]"><InfoMini label="Event ID" value="EVT-2025-0516-1418" /><InfoMini label="Event Type" value="Demand Spike" /><InfoMini label="Severity" value="Critical" /><InfoMini label="Status" value="Resolved" /><InfoMini label="Start Time" value="May 16, 2025 2:18 PM" /><InfoMini label="End Time" value="May 16, 2025 2:55 PM" /><InfoMini label="Duration" value="37 min" /></div>
+          <div className="grid grid-cols-7 gap-4 text-[8.5px]"><InfoMini label="Event ID" value="No Data" /><InfoMini label="Event Type" value="No Data" /><InfoMini label="Severity" value="No Data" /><InfoMini label="Status" value="No Data" /><InfoMini label="Start Time" value="No Data" /><InfoMini label="End Time" value="No Data" /><InfoMini label="Duration" value="No Data" /></div>
         </section>
         <section className="mt-2 grid h-[78px] grid-cols-6 gap-3">
-          <PeakKpi icon="◌" label="Peak Demand" value="6.31 MW" detail="@ 2:18 PM" tone="purple" />
-          <PeakKpi icon="ϟ" label="Energy At Peak ⓘ" value="26.4 MWh" detail="Total" tone="blue" />
-          <PeakKpi icon="◷" label="% Of Capacity ⓘ" value="107%" detail="Over Capacity" tone="orange" />
-          <PeakKpi icon="ϟ" label="Load Factor Impact ⓘ" value="-12%" detail="During Event" tone="green" />
-          <PeakKpi icon="◷" label="Recovered In" value="31 min" detail="To Normal Range" tone="blue" />
-          <PeakKpi icon="$" label="Cost Impact" value="$3,842" detail="Estimated" tone="orange" />
+          <PeakKpi icon="◌" label="Peak Demand" value="No Data" detail="No approved event source" tone="purple" />
+          <PeakKpi icon="ϟ" label="Energy At Peak ⓘ" value="No Data" detail="No approved event source" tone="blue" />
+          <PeakKpi icon="◷" label="% Of Capacity ⓘ" value="No Data" detail="No approved event source" tone="orange" />
+          <PeakKpi icon="ϟ" label="Load Factor Impact ⓘ" value="No Data" detail="No approved event source" tone="green" />
+          <PeakKpi icon="◷" label="Recovered In" value="No Data" detail="No approved event source" tone="blue" />
+          <PeakKpi icon="$" label="Cost Impact" value="No Data" detail="No approved cost model" tone="orange" />
         </section>
         <section className="mt-2 grid h-[546px] min-h-0 grid-cols-[1.28fr_0.56fr_0.56fr] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[282px_1fr] gap-3 overflow-hidden">
-            <PeakBox title="DEMAND TIMELINE (5 MIN INTERVAL)"><DemandTimelineFull /></PeakBox>
+            <PeakBox title="DEMAND TIMELINE (5 MIN INTERVAL)"><NoDataPanel message="No approved 5-minute event timeline source." /></PeakBox>
             <div className="grid min-h-0 grid-cols-[0.78fr_1fr] gap-3 overflow-hidden">
-              <PeakBox title="LOAD CONTRIBUTION AT PEAK"><LoadContributionAtPeak /></PeakBox>
-              <PeakBox title="AFFECTED ASSETS"><AffectedAssetsFull /></PeakBox>
+              <PeakBox title="LOAD CONTRIBUTION AT PEAK"><MetricListSmall rows={noDataRows("No approved peak load contribution source")} /></PeakBox>
+              <PeakBox title="AFFECTED ASSETS"><NetworkTable headers={["Asset","Type","Peak Load","% Capacity","Impact"]} rows={noDataTableRows("No approved affected-assets event source", 5)} /></PeakBox>
             </div>
           </div>
           <div className="grid min-h-0 grid-rows-[282px_1fr] gap-3 overflow-hidden">
-            <PeakBox title="EVENT MARKERS"><EventMarkersFull /></PeakBox>
-            <PeakBox title="ROOT CAUSE ANALYSIS"><RootCauseFull /></PeakBox>
+            <PeakBox title="EVENT MARKERS"><MetricListSmall rows={noDataRows("No approved event marker source")} /></PeakBox>
+            <PeakBox title="ROOT CAUSE ANALYSIS"><MetricListSmall rows={noDataRows("No approved root cause model")} /></PeakBox>
           </div>
           <div className="grid min-h-0 grid-rows-[170px_156px_1fr] gap-3 overflow-hidden">
-            <PeakBox title="IMPACT SUMMARY"><ImpactSummaryFull /></PeakBox>
-            <PeakBox title="SEVERITY & THRESHOLDS"><SeverityThresholdsFull /></PeakBox>
-            <PeakBox title="EVENT ANNOTATIONS"><EventAnnotationsFull /></PeakBox>
+            <PeakBox title="IMPACT SUMMARY"><MetricListSmall rows={noDataRows("No approved event impact source")} /></PeakBox>
+            <PeakBox title="SEVERITY & THRESHOLDS"><MetricListSmall rows={noDataRows("No approved event threshold source")} /></PeakBox>
+            <PeakBox title="EVENT ANNOTATIONS"><MetricListSmall rows={noDataRows("No approved event annotation source")} /></PeakBox>
           </div>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
@@ -798,7 +819,7 @@ function EventAnnotationsFull() {
   return <div className="flex h-full flex-col text-[7.4px]"><div className="mb-0.5 flex justify-end gap-1 text-slate-300">＋ Add Note</div>{rows.map(([initials,name,time,note])=><div className="grid grid-cols-[22px_1fr_auto] gap-1.5 border-b border-white/6 py-1" key={name}><span className={initials === "SJ" ? "grid size-5 place-items-center rounded-full border border-red-500 text-red-400" : initials === "AM" ? "grid size-5 place-items-center rounded-full border border-[#05ff5e] text-[#05ff5e]" : "grid size-5 place-items-center rounded-full border border-slate-500"}>{initials}</span><span><b>{name}</b><br /><span className="text-slate-300">{note}</span></span><span className="text-slate-500">{time}</span></div>)}<div className="mt-auto text-right text-[#05ff5e]">View All Notes →</div></div>;
 }
 
-function LoadDetailReferenceScreen() {
+function LoadDetailReferenceScreen({ data }: { data: DigitalTwinData }) {
   return (
     <EcbsAppShell activeHref="/enterprise/digital-twin/electrical-network">
       <div className="relative flex h-screen min-h-0 flex-col overflow-hidden px-4 py-2">
@@ -811,39 +832,40 @@ function LoadDetailReferenceScreen() {
           <div className="flex gap-3 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">← Back to Overview</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export Report</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">♧ Configure Alerts</button></div>
         </div>
         <section className="grid h-[94px] grid-cols-[repeat(5,1fr)_1.52fr] gap-3">
-          <PeakKpi icon="⌁" label="Total Connected Load ⓘ" value="5.82 MW" detail="↑ 4.3% vs Last 7 Days" tone="green" />
-          <PeakKpi icon="⌁" label="Peak Demand (7 Days) ⓘ" value="6.31 MW" detail="May 16, 2025 2:18 PM" tone="purple" />
-          <PeakKpi icon="⌁" label="Average Load ⓘ" value="4.27 MW" detail="73% of Peak" tone="blue" />
-          <PeakKpi icon="◷" label="Load Factor ⓘ" value="67%" detail="Good" tone="orange" />
-          <PeakKpi icon="ϟ" label="Total Energy (7 Days) ⓘ" value="724.6 MWh" detail="↑ 3.8% vs Prior 7 Days" tone="green" />
-          <PeakBox title="LOAD BREAKDOWN (by Category)"><LoadBreakdownCard /></PeakBox>
+          <PeakKpi icon="⌁" label="Total Connected Load ⓘ" value={formatMw(data.currentLoadKva)} detail="Latest capacity intelligence" tone="green" />
+          <PeakKpi icon="⌁" label="Peak Demand (7 Days) ⓘ" value="No Data" detail="No approved peak-demand source" tone="purple" />
+          <PeakKpi icon="⌁" label="Average Load ⓘ" value="No Data" detail="No approved load trend source" tone="blue" />
+          <PeakKpi icon="◷" label="Load Factor ⓘ" value="No Data" detail="No approved trend source" tone="orange" />
+          <PeakKpi icon="ϟ" label="Total Energy (7 Days) ⓘ" value="No Data" detail="No approved energy trend source" tone="green" />
+          <PeakBox title="LOAD BREAKDOWN (by Category)"><LoadBreakdownCard data={data} /></PeakBox>
         </section>
         <section className="mt-2 grid h-[590px] min-h-0 grid-cols-[1.42fr_0.66fr] gap-3 overflow-hidden">
           <div className="grid min-h-0 grid-rows-[196px_1fr_162px] gap-3 overflow-hidden">
-            <PeakBox title="LOAD OVER TIME ⓘ"><LoadOverTimeChart /></PeakBox>
+            <PeakBox title="LOAD OVER TIME ⓘ"><NoDataPanel message="No approved load trend source." /></PeakBox>
             <div className="grid min-h-0 grid-cols-[1.36fr_0.88fr] gap-3 overflow-hidden">
-              <PeakBox title="LOAD BY ASSET HIERARCHY"><LoadAssetHierarchy /></PeakBox>
-              <PeakBox title="LOAD DISTRIBUTION (by Feeder)"><LoadDistributionFeeder /></PeakBox>
+              <PeakBox title="LOAD BY ASSET HIERARCHY"><LoadAssetHierarchy data={data} /></PeakBox>
+              <PeakBox title="LOAD DISTRIBUTION (by Feeder)"><LoadDistributionFeeder data={data} /></PeakBox>
             </div>
             <div className="grid min-h-0 grid-cols-[0.88fr_1fr] gap-3 overflow-hidden">
-              <PeakBox title="PEAK DEMAND EVENTS (7 DAYS)"><PeakDemandEventsMini /></PeakBox>
-              <PeakBox title="LOAD COMPARISON"><LoadComparisonBars /></PeakBox>
+              <PeakBox title="PEAK DEMAND EVENTS (7 DAYS)"><PeakDemandEventsMini rows={noDataTableRows("No approved peak-demand event source", 4)} /></PeakBox>
+              <PeakBox title="LOAD COMPARISON"><NoDataPanel message="No approved load comparison source." /></PeakBox>
             </div>
           </div>
           <div className="grid min-h-0 grid-rows-[166px_1fr_162px] gap-3 overflow-hidden">
-            <PeakBox title="DEMAND SUMMARY"><DemandSummaryCard /></PeakBox>
-            <PeakBox title="LOAD BY TIME OF DAY (Average)"><LoadTimeHeatmap /></PeakBox>
-            <PeakBox title="INSIGHTS"><LoadInsightsCard /></PeakBox>
+            <PeakBox title="DEMAND SUMMARY"><DemandSummaryCard data={data} /></PeakBox>
+            <PeakBox title="LOAD BY TIME OF DAY (Average)"><NoDataPanel message="No approved time-of-day load source." /></PeakBox>
+            <PeakBox title="INSIGHTS"><LoadInsightsCard data={data} /></PeakBox>
           </div>
         </section>
-        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: May 18, 2025 10:15 AM &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
+        <footer className="absolute bottom-2 left-4 right-4 flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span>Privacy Policy &nbsp; | &nbsp; Terms of Service &nbsp; | &nbsp; Support</span><span>Data updated: {data.updatedAt || "No Data"} &nbsp; <b className="text-[#05ff5e]">Live</b></span></footer>
       </div>
     </EcbsAppShell>
   );
 }
 
-function LoadBreakdownCard() {
-  return <div className="grid h-full grid-cols-[88px_1fr] items-center gap-3"><div className="grid size-20 place-items-center rounded-full" style={{ background: "conic-gradient(#7c3aed 0 41%, #05ff5e 41% 62%, #00bcd4 62% 77%, #ff8a00 77% 87%, #cbd5e1 87% 100%)" }}><div className="grid size-12 place-items-center rounded-full bg-[#061521] text-center text-sm">5.82<br /><span className="text-[7px]">MW</span><br /><span className="text-[7px]">Current</span></div></div><div className="space-y-1.5 text-[8px]">{[["Production","41%","2.38 MW","#05ff5e"],["HVAC","21%","1.22 MW","#a855f7"],["Utilities","15%","0.87 MW","#00bcd4"],["Lighting","10%","0.58 MW","#ff8a00"],["Other","13%","0.77 MW","#cbd5e1"]].map(([label,pct,value,color])=><div className="grid grid-cols-[1fr_32px_48px] gap-2" key={label}><span><span className="mr-1 inline-block size-2 rounded-full" style={{ backgroundColor: color }} />{label}</span><span>{pct}</span><b>{value}</b></div>)}</div></div>;
+function LoadBreakdownCard({ data }: { data: DigitalTwinData }) {
+  const rows = assetCapacityRows(data).slice(0, 5);
+  return <div className="grid h-full grid-cols-[88px_1fr] items-center gap-3"><div className="grid size-20 place-items-center rounded-full bg-slate-800"><div className="grid size-12 place-items-center rounded-full bg-[#061521] text-center text-sm">{formatMw(data.currentLoadKva)}<br /><span className="text-[7px]">Current</span></div></div><div className="space-y-1.5 text-[8px]">{rows.length > 0 ? rows.map(([label, value])=><div className="grid grid-cols-[1fr_32px_54px] gap-2" key={label}><span><span className="mr-1 inline-block size-2 rounded-full bg-[#05ff5e]" />{label}</span><span>No Data</span><b>{value}</b></div>) : <MetricListSmall rows={noDataRows("No asset rating data")} />}</div></div>;
 }
 
 function LoadOverTimeChart() {
@@ -851,8 +873,8 @@ function LoadOverTimeChart() {
   return <div className="h-full text-[8px]"><div className="mb-1 flex items-center justify-between"><span>May 12 - May 18, 2025</span><div className="flex gap-4"><span className="text-[#05ff5e]">━ Actual Load (MW)</span><span className="text-cyan-300">⋯ Average Load</span><span className="text-purple-400">⋯ Peak Demand</span></div><div className="flex gap-1 text-[8px]"><span className="rounded bg-[#063b27] px-2 py-1 text-[#05ff5e]">1 HOUR</span><span>1 DAY</span><span>7 DAYS</span><span>30 DAYS</span></div></div><svg className="h-[130px] w-full" viewBox="0 0 700 140"><defs><linearGradient id="loadDetailArea" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#05ff5e" stopOpacity=".42" /><stop offset="1" stopColor="#05ff5e" stopOpacity=".05" /></linearGradient></defs><g stroke="rgba(148,163,184,.18)">{[22,52,82,112,132].map((y)=><line key={y} x1="18" x2="690" y1={y} y2={y}/>)}</g><line stroke="#a855f7" strokeDasharray="5 5" x1="18" x2="690" y1="28" y2="28"/><line stroke="#29b6f6" strokeDasharray="5 5" x1="18" x2="690" y1="74" y2="74"/><polygon fill="url(#loadDetailArea)" points={`22,132 ${actual} 682,132`} /><polyline fill="none" points={actual} stroke="#05ff5e" strokeWidth="2"/><text fill="#a855f7" fontSize="9" x="650" y="26">6.31 MW</text><text fill="#29b6f6" fontSize="9" x="650" y="74">4.27 MW</text></svg><div className="flex justify-between px-1 text-[7px] text-slate-500"><span>May 12<br />12 AM</span><span>May 13<br />12 AM</span><span>May 14<br />12 AM</span><span>May 15<br />12 AM</span><span>May 16<br />12 AM</span><span>May 17<br />12 AM</span><span>May 18<br />12 AM</span></div></div>;
 }
 
-function LoadAssetHierarchy() {
-  const rows = [["⌄","Utility (Grid)","5.82","100%","6.31","Excellent"],["⌄","Main Transformer (T1)","5.82","100%","6.31","Excellent"],["⌄","Main Switchgear","5.82","100%","6.31","Excellent"],["›","Feeder 1","1.24","21%","1.42","Excellent"],["›","Feeder 2","0.99","17%","1.15","Good"],["›","Feeder 3","1.08","19%","1.26","Good"],["›","Feeder 4","1.42","24%","1.68","Fair"],["›","Feeder 5","1.10","19%","1.34","Good"],["","Total","5.82","100%","6.31",""]];
+function LoadAssetHierarchy({ data }: { data: DigitalTwinData }) {
+  const rows = data.assets.length > 0 ? data.assets.slice(0, 9).map((asset) => ["›", asset.name, formatMw(asset.kvaRating), "No Data", "No Data", asset.status || "No Data"]) : [["", "No Data", "No Data", "No Data", "No Data", "No Data"]];
   return <table className="w-full text-left text-[7.3px]"><thead className="text-slate-400"><tr>{["Asset","Current Load (MW)","% of Total","Peak Load (MW)","Trend (7 Days)","Health"].map((h)=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(([arrow,asset,current,pct,peak,health], index)=><tr className="border-t border-white/6" key={asset}><td className="py-[2.1px]"><span className="mr-1 text-slate-400">{arrow}</span><span className={index > 2 && index < 8 ? "pl-3" : ""}>{asset}</span></td><td>{current}</td><td>{pct}</td><td>{peak}</td><td><LoadTinySpark tone={health === "Fair" ? "red" : health === "Good" ? "yellow" : "green"} /></td><td className={health === "Fair" ? "text-orange-400" : health === "Good" ? "text-yellow-300" : "text-[#05ff5e]"}>{health ? `● ${health}` : ""}</td></tr>)}</tbody></table>;
 }
 
@@ -861,20 +883,21 @@ function LoadTinySpark({ tone }: { tone: string }) {
   return <svg className="h-3 w-24" viewBox="0 0 96 12"><polyline fill="none" points="0,7 12,6 24,7 36,4 48,6 60,3 72,7 84,5 96,4" stroke={color} strokeWidth="1.5" /></svg>;
 }
 
-function LoadDistributionFeeder() {
-  return <div className="h-full text-[8.5px]"><div className="mb-1 grid grid-cols-[70px_1fr_48px_38px] text-slate-400"><span>Feeder</span><span>Current Load (MW)</span><span></span><span>% of Total</span></div>{[["Feeder 4","1.42","24%","red"],["Feeder 1","1.24","21%","green"],["Feeder 3","1.08","19%","green"],["Feeder 5","1.10","19%","green"],["Feeder 2","0.99","17%","yellow"]].map(([label,load,pct,tone])=><div className="grid grid-cols-[70px_1fr_48px_38px] items-center gap-2 py-2" key={label}><span>{label}</span><span className="h-2 rounded bg-slate-800"><span className={tone === "red" ? "block h-2 rounded bg-red-500" : tone === "yellow" ? "block h-2 rounded bg-yellow-400" : "block h-2 rounded bg-[#05ff5e]"} style={{ width: pct }} /></span><span>{load}</span><span>{pct}</span></div>)}<div className="mt-2 flex justify-between text-[7px] text-slate-500"><span>0%</span><span>10%</span><span>20%</span><span>30%</span></div></div>;
+function LoadDistributionFeeder({ data }: { data: DigitalTwinData }) {
+  const rows = data.assets.filter((asset) => asset.type.toLowerCase().includes("feeder")).slice(0, 5);
+  return <div className="h-full text-[8.5px]"><div className="mb-1 grid grid-cols-[70px_1fr_48px_38px] text-slate-400"><span>Feeder</span><span>Rating</span><span></span><span>% Load</span></div>{rows.length > 0 ? rows.map((asset)=><div className="grid grid-cols-[70px_1fr_48px_38px] items-center gap-2 py-2" key={asset.id}><span>{asset.name}</span><span className="h-2 rounded bg-slate-800"><span className="block h-2 rounded bg-[#05ff5e]" style={{ width: "35%" }} /></span><span>{formatMw(asset.kvaRating)}</span><span>No Data</span></div>) : <NoDataPanel message="No feeder assets or load distribution source." />}<div className="mt-2 flex justify-between text-[7px] text-slate-500"><span>Current feeder load: No Data</span><span>Rating only where populated</span></div></div>;
 }
 
-function PeakDemandEventsMini() {
-  return <div className="flex h-full flex-col"><table className="w-full text-left text-[7.4px]"><thead className="text-slate-400"><tr>{["Rank","Date / Time","Load (MW)","Duration"].map((h)=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{peakEventRowsRef.slice(0,5).map((row)=><tr className="border-t border-white/6" key={row[0]}><td className="py-[3px]">{row[0]}</td><td>{row[1]}</td><td>{row[2].replace(" MW","")}</td><td>{row[3]}</td></tr>)}</tbody></table><div className="mt-auto text-right text-[9px] text-[#05ff5e]">View All Peak Events →</div></div>;
+function PeakDemandEventsMini({ rows = peakEventRowsRef.slice(0, 5) }: { rows?: string[][] }) {
+  return <div className="flex h-full flex-col"><table className="w-full text-left text-[7.4px]"><thead className="text-slate-400"><tr>{["Rank","Date / Time","Load (MW)","Duration"].map((h)=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.slice(0,5).map((row)=><tr className="border-t border-white/6" key={row.join("-")}><td className="py-[3px]">{row[0]}</td><td>{row[1]}</td><td>{row[2]?.replace(" MW","")}</td><td>{row[3]}</td></tr>)}</tbody></table><div className="mt-auto text-right text-[9px] text-[#05ff5e]">View All Peak Events →</div></div>;
 }
 
 function LoadComparisonBars() {
   return <div className="h-full text-[8px]"><div className="mb-2 flex justify-between"><span>MWh</span><span>━ This Week (May 12 - May 18) &nbsp; ⋯ Last Week (May 5 - May 11)</span><span>7 Days⌄</span></div><div className="grid h-[112px] grid-cols-7 items-end gap-4 px-5">{["Mon","Tue","Wed","Thu","Fri","Sat","Sun"].map((day,index)=><div className="grid h-full grid-cols-2 items-end gap-1 text-center" key={day}><span className="block rounded-t bg-[#05a64a]" style={{ height: `${[88,78,68,72,64,84,82][index]}%` }} /><span className="block rounded-t border border-[#05ff5e]" style={{ height: `${[82,64,62,60,58,62,60][index]}%` }} /><b className="col-span-2 mt-1 text-[7px] font-normal text-slate-400">{day}</b></div>)}</div></div>;
 }
 
-function DemandSummaryCard() {
-  return <div className="space-y-2 text-[8.5px]">{[["Peak Demand (7 Days)","6.31 MW"],["Average Demand","4.27 MW"],["Minimum Demand","2.61 MW"],["Load Factor","67%"],["Max Daily Energy","118.2 MWh (May 16)"],["Avg Daily Energy","103.5 MWh"]].map(([label,value])=><div className="flex justify-between gap-2 border-b border-white/6 pb-1" key={label}><span>{label}</span><b>{value}</b></div>)}</div>;
+function DemandSummaryCard({ data }: { data: DigitalTwinData }) {
+  return <div className="space-y-2 text-[8.5px]">{[["Current Load",formatMw(data.currentLoadKva)],["Installed Capacity",formatMw(data.transformerKva)],["Available Capacity",formatMw(data.headroomKva)],["Recovered Capacity",formatMw(data.recoveredCapacityKva)],["Peak Demand (7 Days)","No Data"],["Avg Daily Energy","No Data"]].map(([label,value])=><div className="flex justify-between gap-2 border-b border-white/6 pb-1" key={label}><span>{label}</span><b>{value}</b></div>)}</div>;
 }
 
 function LoadTimeHeatmap() {
@@ -883,8 +906,8 @@ function LoadTimeHeatmap() {
   return <div className="h-full text-[8px]"><div className="mb-1 ml-9 grid grid-cols-4 text-center text-slate-400">{cols.map((c)=><span key={c}>{c}</span>)}</div><div className="grid grid-cols-[28px_1fr] gap-2"><div className="grid grid-rows-7 gap-1 text-slate-300">{rows.map((r)=><span key={r}>{r}</span>)}</div><div className="grid grid-cols-12 gap-1">{Array.from({ length: 84 }).map((_, index) => { const col = index % 12; const color = col < 3 ? "#16a34a" : col < 6 ? "#d9dc1e" : col < 10 ? "#ef4444" : "#22c55e"; return <span className="h-[14px] rounded-sm border border-[#061521]" key={index} style={{ backgroundColor: color, opacity: 0.7 + (index % 3) * 0.1 }} />; })}</div></div><div className="mt-2 grid grid-cols-[1fr_190px_1fr] items-center text-slate-400"><span className="text-right">Low</span><span className="mx-3 h-2 rounded-full" style={{ background: "linear-gradient(90deg,#05a64a,#facc15,#ef4444)" }} /><span>High</span></div></div>;
 }
 
-function LoadInsightsCard() {
-  return <div className="flex h-full flex-col gap-3 text-[8.5px]">{[["↑","Load increased 4.3% compared to the previous 7 days.","text-[#05ff5e]"],["⌁","Peak demand occurred on May 16 at 2:18 PM.","text-purple-400"],["ϟ","Feeder 4 is the highest contributing feeder at 24% of total load.","text-orange-400"]].map(([icon,text,color])=><div className="grid grid-cols-[26px_1fr] gap-2 border-b border-white/6 pb-2" key={text}><span className={`grid size-6 place-items-center rounded-full border ${color}`}>{icon}</span><span>{text}</span></div>)}<div className="mt-auto text-right text-[#05ff5e]">View All Insights →</div></div>;
+function LoadInsightsCard({ data }: { data: DigitalTwinData }) {
+  return <div className="flex h-full flex-col gap-3 text-[8.5px]">{[["↑",`Current load is ${formatMw(data.currentLoadKva)} from latest capacity intelligence.`,"text-[#05ff5e]"],["⌁","Peak demand insight: No Data. No approved peak-event source.","text-purple-400"],["ϟ","Feeder contribution insight: No Data. No approved feeder load source.","text-orange-400"]].map(([icon,text,color])=><div className="grid grid-cols-[26px_1fr] gap-2 border-b border-white/6 pb-2" key={text}><span className={`grid size-6 place-items-center rounded-full border ${color}`}>{icon}</span><span>{text}</span></div>)}<div className="mt-auto text-right text-[#05ff5e]">View All Insights →</div></div>;
 }
 
 function NetworkTopbar() {
@@ -2030,6 +2053,119 @@ function SavingsPotentialOverTimeReference() {
 function NextStepsReference() {
   const rows = ["Review recommendations and target locations", "Approve recommended actions", "Generate detailed scope of work", "Schedule installation with XECO team", "Monitor results and verify savings"];
   return <div className="flex h-full flex-col text-[8px]"><div className="space-y-3">{rows.map((row) => <div className="grid grid-cols-[22px_1fr] gap-2" key={row}><span className="grid size-5 place-items-center rounded-full border border-[#05ff5e] text-[#05ff5e]">✓</span><span>{row}</span></div>)}</div><div className="mt-auto rounded border border-cyan-300/12 bg-[#062033] p-3 text-cyan-100">ⓘ &nbsp; These recommendations are based on real-time data and industry best practices. Actual results may vary.</div></div>;
+}
+
+function emptyDigitalTwinScreenData(): DigitalTwinData {
+  return {
+    activeMeters: 0,
+    assets: [],
+    cbiScore: 0,
+    currentLoadKva: 0,
+    dateRange: "No Data",
+    headroomKva: 0,
+    projectName: "No Data",
+    recoveredCapacityKva: 0,
+    relationships: [],
+    siteName: "No Data",
+    state: "empty",
+    status: "No Data",
+    transformerKva: 0,
+    twinId: null,
+    twinLabel: "No Data",
+    twinNotes: "No Data",
+    updatedAt: "No Data",
+    version: 0,
+  };
+}
+
+function siteLabel(data: DigitalTwinData) {
+  return data.siteName || data.projectName || "No Data";
+}
+
+function primaryAsset(data: DigitalTwinData) {
+  return data.assets.find((asset) => asset.type.toLowerCase().includes("transformer")) ?? data.assets[0];
+}
+
+function formatKva(value: number) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "No Data";
+  }
+
+  return `${Math.round(value).toLocaleString()} kVA`;
+}
+
+function formatMw(value: number) {
+  if (!Number.isFinite(value) || value <= 0) {
+    return "No Data";
+  }
+
+  return `${(value / 1000).toFixed(2)} MW`;
+}
+
+function utilizationPct(data: DigitalTwinData) {
+  if (!data.transformerKva || !data.currentLoadKva) {
+    return 0;
+  }
+
+  return Math.min(100, Math.round((data.currentLoadKva / data.transformerKva) * 100));
+}
+
+function healthScore(data: DigitalTwinData) {
+  if (!data.cbiScore) {
+    return 0;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(data.cbiScore)));
+}
+
+function noDataRows(message: string): [string, string][] {
+  return [["No Data", message]];
+}
+
+function noDataTableRows(message: string, length: number): string[][] {
+  return [Array.from({ length }, (_, index) => (index === 0 ? "No Data" : index === 1 ? message : "No Data"))];
+}
+
+function assetCapacityRows(data: DigitalTwinData): [string, string][] {
+  const totals = new Map<string, number>();
+
+  for (const asset of data.assets) {
+    const key = asset.type || "Unclassified";
+    totals.set(key, (totals.get(key) ?? 0) + asset.kvaRating);
+  }
+
+  return Array.from(totals.entries())
+    .filter(([, value]) => value > 0)
+    .slice(0, 5)
+    .map(([label, value]) => [label, formatKva(value)]);
+}
+
+function assetTypeCounts(data: DigitalTwinData): [string, string][] {
+  const totals = new Map<string, number>();
+
+  for (const asset of data.assets) {
+    const key = asset.type || "Unclassified";
+    totals.set(key, (totals.get(key) ?? 0) + 1);
+  }
+
+  return Array.from(totals.entries())
+    .slice(0, 4)
+    .map(([label, value]) => [`${label} Assets`, String(value)]);
+}
+
+function voltageLevels(data: DigitalTwinData) {
+  const values = new Set<string>();
+
+  for (const asset of data.assets) {
+    if (asset.voltagePrimary > 0) values.add(`${asset.voltagePrimary} V`);
+    if (asset.voltageSecondary > 0) values.add(`${asset.voltageSecondary} V`);
+  }
+
+  return values.size > 0 ? Array.from(values).slice(0, 4).join(" / ") : "No Data";
+}
+
+function NoDataPanel({ message }: { message: string }) {
+  return <div className="grid h-full min-h-[80px] place-items-center rounded border border-dashed border-cyan-300/20 bg-[#03111c] p-4 text-center text-[9px] text-slate-400">No Data<br />{message}</div>;
 }
 
 function FullNetworkExpandedReferenceScreen() {

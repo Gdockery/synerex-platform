@@ -1,5 +1,10 @@
 import { ElectricalNetworkScreen } from "@/components/ecbs/DigitalTwinScreen";
+import { getOchsnerDigitalTwinData } from "@/lib/trackingDashboardData";
 
-export default function ElectricalNetworkHealthEventsPage() {
-  return <ElectricalNetworkScreen variant="healthEvents" />;
+export const dynamic = "force-dynamic";
+
+export default async function ElectricalNetworkHealthEventsPage() {
+  const data = await getOchsnerDigitalTwinData();
+
+  return <ElectricalNetworkScreen data={data} variant="healthEvents" />;
 }

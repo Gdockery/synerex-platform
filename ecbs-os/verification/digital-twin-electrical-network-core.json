@@ -1,0 +1,54 @@
+{
+  "name": "Digital Twin Electrical Network Core",
+  "routes": [
+    {
+      "name": "digital twin",
+      "path": "/enterprise/digital-twin",
+      "status": 200,
+      "expectText": ["Digital Twin", "Electrical Network"]
+    },
+    {
+      "name": "electrical network",
+      "path": "/enterprise/digital-twin/electrical-network",
+      "status": 200,
+      "expectText": ["Electrical Network", "No Data"]
+    },
+    {
+      "name": "electrical network alerts detail",
+      "path": "/enterprise/digital-twin/electrical-network-alerts-detail-screen",
+      "status": 200,
+      "expectText": ["Alerts Detail", "No Data"]
+    },
+    {
+      "name": "electrical network health events",
+      "path": "/enterprise/digital-twin/electrical-network-health-detail-recent-health-events-sub-screen",
+      "status": 200,
+      "expectText": ["Recent Health Events", "No Data"]
+    },
+    {
+      "name": "electrical network health detail",
+      "path": "/enterprise/digital-twin/electrical-network-health-detail-screen",
+      "status": 200,
+      "expectText": ["Network Health", "No Data"]
+    },
+    {
+      "name": "electrical network peak events",
+      "path": "/enterprise/digital-twin/electrical-network-load-detail-view-all-peak-events-screen",
+      "status": 200,
+      "expectText": ["Peak Events", "No Data"]
+    },
+    {
+      "name": "electrical network peak full analysis",
+      "path": "/enterprise/digital-twin/electrical-network-load-detail-view-all-peak-events-screen-full-event-analysis-screen",
+      "status": 200,
+      "expectText": ["Full Event Analysis", "No Data"]
+    },
+    {
+      "name": "electrical network load detail",
+      "path": "/enterprise/digital-twin/electrical-network-load-detail-screen",
+      "status": 200,
+      "expectText": ["Load Detail", "No Data"]
+    }
+  ]
+}
+
