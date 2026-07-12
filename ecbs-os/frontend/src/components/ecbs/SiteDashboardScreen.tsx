@@ -139,6 +139,14 @@ const siteDashboardData: SiteDashboardData = {
   ],
 };
 
+function EnterpriseAdminSourceMissing({ message = "source_missing: Enterprise report/site/transformer backend source or artifact store is not wired for this cheap-mode batch." }: { message?: string }) {
+  return (
+    <div className="rounded border border-cyan-300/12 bg-[#061521]/92 px-4 py-2 text-[10px] text-slate-300">
+      <b className="text-[#05ff5e]">No Data</b> - {message}
+    </div>
+  );
+}
+
 export function SiteDashboardScreen() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#020a12] text-slate-100">
@@ -215,7 +223,7 @@ function DashboardHeader() {
     <header className="flex h-[46px] items-start justify-between">
       <div>
         <h1 className="text-[17px] font-semibold leading-none text-slate-100">Site Dashboard</h1>
-        <p className="mt-1 text-[10px] text-slate-300">Flex Tijuana <span className="ml-2 text-[#05ff5e]">● Online</span></p>
+        <p className="mt-1 text-[10px] text-slate-300">Flex Tijuana <span className="ml-2 text-[#05ff5e]">source_missing</span></p>
       </div>
       <div className="flex items-center gap-3 text-[9px] text-slate-300">
         <button className="rounded border border-slate-600/70 bg-[#061421] px-3 py-1.5 text-[9px]">▣ &nbsp; May 12 - May 18, 2025</button>
@@ -244,7 +252,7 @@ function SiteDashboardSidebar() {
           <div className="space-y-1">
             {enterprise.map((item) => (
               <div className={item === "Sites" ? "flex h-[24px] items-center rounded bg-[#063b27] px-2 text-[#05ff5e]" : "flex h-[23px] items-center rounded px-2 text-slate-300"} key={item}>
-                <span className="mr-2">⌘</span><span>{item}</span>{item === "Alarms & Events" ? <b className="ml-auto grid size-4 place-items-center rounded-full bg-orange-500 text-[8px] text-white">2</b> : null}
+                <span className="mr-2">⌘</span><span>{item}</span>{item === "Alarms & Events" ? <b className="ml-auto grid size-4 place-items-center rounded-full bg-orange-500 text-[8px] text-white">0</b> : null}
               </div>
             ))}
           </div>

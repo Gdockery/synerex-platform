@@ -50,10 +50,21 @@ const alarms = [
   ["May 13, 2025 02:45 AM", "ⓘ Info", "Load Change", "Load increased to 1,248 kW", "Cleared"],
 ];
 
+function EnterpriseAdminSourceMissing({ message = "source_missing: Enterprise report/site/transformer backend source or artifact store is not wired for this cheap-mode batch." }: { message?: string }) {
+  return (
+    <div className="rounded border border-cyan-300/12 bg-[#061521]/92 px-4 py-2 text-[10px] text-slate-300">
+      <b className="text-[#05ff5e]">No Data</b> - {message}
+    </div>
+  );
+}
+
 export function TransformerPdfReportScreen() {
   return (
     <div className="grid h-screen w-screen place-items-center overflow-hidden bg-[#111] text-slate-950">
       <main className="h-[900px] w-[600px] overflow-hidden rounded bg-white shadow-2xl">
+        <div className="bg-[#061521] px-3 py-1 text-[9px] text-slate-200">
+          <b className="text-[#05ff5e]">No Data</b> - source_missing: report artifact store and transformer report source are not wired for this cheap-mode batch.
+        </div>
         <div className="origin-top-left scale-[0.8] px-4 py-3" style={{ width: "125%" }}>
           <Header />
           <section className="mt-2 rounded border border-slate-300 p-2">

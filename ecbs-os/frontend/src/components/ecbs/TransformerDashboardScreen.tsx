@@ -1,5 +1,13 @@
 import type { TransformerDashboardData, TransformerDetailRow, TransformerPhaseSummary } from "@/lib/trackingDashboardData";
 
+function EnterpriseAdminSourceMissing({ message = "source_missing: Enterprise report/site/transformer backend source or artifact store is not wired for this cheap-mode batch." }: { message?: string }) {
+  return (
+    <div className="rounded border border-cyan-300/12 bg-[#061521]/92 px-4 py-2 text-[10px] text-slate-300">
+      <b className="text-[#05ff5e]">No Data</b> - {message}
+    </div>
+  );
+}
+
 export function TransformerDashboardScreen({ data }: { data: TransformerDashboardData }) {
   const currentLoadPct = `${formatNumber(data.utilizationPct)}%`;
 
@@ -11,6 +19,7 @@ export function TransformerDashboardScreen({ data }: { data: TransformerDashboar
         <main className="flex h-full min-w-0 flex-col bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,0.08),transparent_32%),linear-gradient(180deg,#03101a,#020910)] px-4">
           <PortalTopbar />
 
+          <EnterpriseAdminSourceMissing />
           <section className="border-b border-cyan-300/10 pb-2 pt-3">
             <div className="flex items-start justify-between">
               <div>
@@ -41,7 +50,7 @@ export function TransformerDashboardScreen({ data }: { data: TransformerDashboar
             <nav className="mt-5 flex h-[26px] gap-8 text-[10px] text-slate-400">
               {["Overview", "Performance", "Load Profile", "Power Quality", "Capacity & Savings", "Alarms & Events", "Maintenance", "Documents"].map((tab) => (
                 <span className={tab === "Overview" ? "border-b-2 border-[#05ff5e] pb-1.5 font-semibold text-[#05ff5e]" : ""} key={tab}>
-                  {tab}{tab === "Alarms & Events" ? <b className="ml-1 rounded-full bg-orange-500 px-1 text-[8px] text-white">2</b> : null}
+                  {tab}{tab === "Alarms & Events" ? <b className="ml-1 rounded-full bg-orange-500 px-1 text-[8px] text-white">0</b> : null}
                 </span>
               ))}
             </nav>
@@ -209,7 +218,7 @@ function TransformerSidebar({ cbi }: { cbi: number }) {
           <a className={`flex h-[24px] items-center gap-2 rounded px-1.5 ${item.href === "/enterprise/transformers" ? "border-l-2 border-[#05ff5e] bg-[#063b27] text-[#05ff5e]" : "text-slate-300"}`} href={item.href} key={item.href}>
             <span className="text-[11px]">{item.href === "/enterprise/transformers" ? "♜" : item.href === "/enterprise/alerts-events" ? "⚠" : "⌾"}</span>
             <span>{item.label}</span>
-            {item.href === "/enterprise/alerts-events" ? <b className="ml-auto rounded-full bg-orange-500 px-1 text-[8px] text-white">2</b> : null}
+            {item.href === "/enterprise/alerts-events" ? <b className="ml-auto rounded-full bg-orange-500 px-1 text-[8px] text-white">0</b> : null}
           </a>
         ))}
       </nav>

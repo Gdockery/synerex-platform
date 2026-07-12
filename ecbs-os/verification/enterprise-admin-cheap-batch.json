@@ -1,0 +1,65 @@
+{
+  "name": "Enterprise Admin Cheap Batch",
+  "routes": [
+    {
+      "name": "report builder",
+      "path": "/enterprise/reports/report-builder-page",
+      "status": 200,
+      "expectText": ["Report Builder", "source_missing"]
+    },
+    {
+      "name": "report detail preview",
+      "path": "/enterprise/reports/report-detail-preview-page",
+      "status": 200,
+      "expectText": ["Performance Summary Report", "source_missing"]
+    },
+    {
+      "name": "reports",
+      "path": "/enterprise/reports/reports",
+      "status": 200,
+      "expectText": ["Reports", "source_missing"]
+    },
+    {
+      "name": "transformer pdf report",
+      "path": "/enterprise/reports/transformer-pdf-report",
+      "status": 200,
+      "expectText": ["TRANSFORMER REPORT", "source_missing"]
+    },
+    {
+      "name": "generate site assessment",
+      "path": "/enterprise/sites/generate-site-assessment",
+      "status": 200,
+      "expectText": ["Site Assessment Results", "source_missing"]
+    },
+    {
+      "name": "site dashboard",
+      "path": "/enterprise/sites/site-dashboard",
+      "status": 200,
+      "expectText": ["Electrical Network Overview", "source_missing"]
+    },
+    {
+      "name": "site details",
+      "path": "/enterprise/sites/site-details",
+      "status": 200,
+      "expectText": ["Site Details", "source_missing"]
+    },
+    {
+      "name": "site photos",
+      "path": "/enterprise/sites/site-photos",
+      "status": 200,
+      "expectText": ["Site Photos", "source_missing"]
+    },
+    {
+      "name": "transformer settings",
+      "path": "/enterprise/transformers/transformer-settings",
+      "status": 200,
+      "expectText": ["Transformer Settings", "source_missing"]
+    },
+    {
+      "name": "transformers",
+      "path": "/enterprise/transformers",
+      "status": 200,
+      "expectText": ["Transformers", "source_missing"]
+    }
+  ]
+}
