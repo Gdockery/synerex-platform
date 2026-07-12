@@ -583,7 +583,7 @@ public sealed class TrackingCapacityIntelligenceDataService(
     private static IReadOnlyList<EnergySavingsBreakdownRow> BuildSavingsWaterfallRows(double annualSavings, double demandSavings, double capacityValue)
     {
         var rows = new List<EnergySavingsBreakdownRow>();
-        var remainder = Math.Max(0, annualSavings - demandSavings - capacityValue);
+        var annualRemainder = Math.Max(0, annualSavings - demandSavings);
 
         rows.Add(new EnergySavingsBreakdownRow(
             annualSavings > 0 ? "Latest savings_intelligence.annual_savings" : "No Data",
@@ -596,14 +596,14 @@ public sealed class TrackingCapacityIntelligenceDataService(
             demandSavings > 0 ? FormatCurrency(demandSavings) : "No Data"));
 
         rows.Add(new EnergySavingsBreakdownRow(
-            capacityValue > 0 ? "tracking.savings_intelligence.capacity_value" : "No Data - capacity_value is not populated.",
-            "Capacity Value",
-            capacityValue > 0 ? FormatCurrency(capacityValue) : "No Data"));
+            annualRemainder > 0 ? "Calculated: annual_savings - demand_savings" : "No Data - no remaining annual savings split.",
+            "Other / Energy Savings",
+            annualRemainder > 0 ? FormatCurrency(annualRemainder) : "No Data"));
 
         rows.Add(new EnergySavingsBreakdownRow(
-            remainder > 0 ? "Calculated: annual_savings - demand_savings - capacity_value" : "No Data - no remaining sourced split.",
-            "Other / Energy Savings",
-            remainder > 0 ? FormatCurrency(remainder) : "No Data"));
+            capacityValue > 0 ? "tracking.savings_intelligence.capacity_value; shown separately from annual savings total." : "No Data - capacity_value is not populated.",
+            "Capacity Value (Separate)",
+            capacityValue > 0 ? FormatCurrency(capacityValue) : "No Data"));
 
         return rows;
     }
