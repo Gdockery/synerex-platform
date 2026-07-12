@@ -19,6 +19,14 @@ import { EcbsAppShell } from "./EcbsAppShell";
 
 const trendPoints = "0,72 28,58 58,50 88,54 118,42 148,38 178,29 208,33 238,25 268,18 300,10 330,16 360,4";
 
+function EnterpriseSourceMissing({ message = "source_missing: Enterprise backend source contract is not available for this cheap-mode batch." }: { message?: string }) {
+  return (
+    <div className="grid h-full min-h-[72px] place-items-center rounded border border-cyan-300/10 bg-[#061421]/70 p-4 text-center text-[10px] text-slate-300">
+      <span><b className="text-[#05ff5e]">No Data</b><br />{message}</span>
+    </div>
+  );
+}
+
 export function EnterpriseDashboardScreen({ data }: { data: EnterpriseDashboardData }) {
   return (
     <EcbsAppShell>
@@ -96,7 +104,7 @@ export function EnterpriseDeviceHealthDetailScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[56px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] leading-none">Device Health <span className="text-slate-400">›</span> <span className="font-semibold text-[#05ff5e]">Device Details</span></div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[118px] items-start justify-between">
             <div>
@@ -121,21 +129,21 @@ export function EnterpriseDeviceHealthDetailScreen() {
             {["Overview","Performance","Power Quality","Events & Alerts","Configuration","Maintenance","Logs"].map((tab) => <span className={tab==="Overview" ? "rounded-t border border-cyan-300/20 border-b-0 bg-[#061521] px-4 py-2 text-white" : "rounded-t border border-cyan-300/12 border-b-0 px-4 py-2 text-slate-300"} key={tab}>{tab}</span>)}
           </div>
           <section className="mt-2 grid h-[174px] grid-cols-[0.78fr_1.05fr_0.86fr] gap-2">
-            <DashboardPanel title="HEALTH OVERVIEW" variant="enterprise"><EnterpriseHealthOverview /></DashboardPanel>
-            <DashboardPanel title="PERFORMANCE SUMMARY (30 DAYS)" variant="enterprise"><EnterprisePerformanceSummary /></DashboardPanel>
-            <DashboardPanel title="REAL-TIME STATUS" variant="enterprise"><EnterpriseRealtimeStatus /></DashboardPanel>
+            <DashboardPanel title="HEALTH OVERVIEW" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="PERFORMANCE SUMMARY (30 DAYS)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="REAL-TIME STATUS" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-2 grid h-[206px] grid-cols-[0.95fr_0.92fr_0.92fr] gap-2">
-            <DashboardPanel title="HEALTH INDEX TREND (LAST 30 DAYS) ⓘ" variant="enterprise"><EnterpriseHealthTrend /></DashboardPanel>
-            <DashboardPanel title="DATA THROUGHPUT (30 DAYS) ⓘ" variant="enterprise"><EnterpriseThroughput /></DashboardPanel>
-            <DashboardPanel title="UPTIME HISTORY (LAST 12 MONTHS) ⓘ" variant="enterprise"><EnterpriseUptimeHistory /></DashboardPanel>
+            <DashboardPanel title="HEALTH INDEX TREND (LAST 30 DAYS) ⓘ" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="DATA THROUGHPUT (30 DAYS) ⓘ" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="UPTIME HISTORY (LAST 12 MONTHS) ⓘ" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-2 grid h-[176px] grid-cols-[1.1fr_0.78fr_0.78fr] gap-2">
-            <DashboardPanel title="RECENT EVENTS" variant="enterprise"><EnterpriseRecentEvents /></DashboardPanel>
-            <DashboardPanel title="CONNECTED METERS & DEVICES" variant="enterprise"><EnterpriseConnectedDevices /></DashboardPanel>
-            <DashboardPanel title="DEVICE INFORMATION" variant="enterprise"><EnterpriseDeviceInfo /></DashboardPanel>
+            <DashboardPanel title="RECENT EVENTS" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="CONNECTED METERS & DEVICES" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="DEVICE INFORMATION" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
-          <div className="mt-2 flex h-[42px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="mr-3 text-[18px] text-[#05ff5e]">♙</b><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; GW-TIJ-01 is performing excellent with 100% health. All systems are operating within normal parameters.</span><span className="font-semibold text-[#05ff5e]">View Full Device Health Report &nbsp; ›</span></div>
+          <div className="mt-2 flex h-[42px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; No Data - source_missing: enterprise rollup/source contract is not available for this cheap-mode batch.</span></div>
           <footer className="absolute bottom-2 left-4 right-4 flex h-[24px] items-center justify-between border-t border-cyan-300/10 pt-2 text-[8px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /></footer>
         </main>
       </div>
@@ -151,28 +159,28 @@ export function EnterpriseDeviceHealthOverviewScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[56px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] leading-none">Device Health <span className="text-slate-400">›</span> <span>All Devices</span></div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[40px] items-center justify-between">
             <h1 className="text-[15px] font-semibold">DEVICE HEALTH OVERVIEW</h1>
             <div className="flex gap-2 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">▽ Filters</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-2">↗</button></div>
           </div>
           <section className="grid h-[164px] grid-cols-4 gap-3">
-            <DashboardPanel title="OVERALL DEVICE HEALTH INDEX™" variant="enterprise"><EnterpriseOverallHealthCard /></DashboardPanel>
-            <DashboardPanel title="ONLINE DEVICES" variant="enterprise"><EnterpriseOnlineDevicesCard /></DashboardPanel>
-            <DashboardPanel title="DEVICES REQUIRING ATTENTION" variant="enterprise"><EnterpriseAttentionCard /></DashboardPanel>
-            <DashboardPanel title="DEVICE FIRMWARE COMPLIANCE" variant="enterprise"><EnterpriseFirmwareCard /></DashboardPanel>
+            <DashboardPanel title="OVERALL DEVICE HEALTH INDEX™" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="ONLINE DEVICES" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="DEVICES REQUIRING ATTENTION" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="DEVICE FIRMWARE COMPLIANCE" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-3 grid h-[244px] grid-cols-[1.16fr_0.82fr_0.66fr] gap-3">
-            <DashboardPanel title="DEVICE HEALTH TREND (LAST 30 DAYS)" variant="enterprise"><EnterpriseDeviceHealthTrend /></DashboardPanel>
-            <DashboardPanel title="DEVICE HEALTH BY TYPE" variant="enterprise"><EnterpriseHealthByType /></DashboardPanel>
-            <DashboardPanel title="DEVICE STATUS SUMMARY" variant="enterprise"><EnterpriseStatusSummary /></DashboardPanel>
+            <DashboardPanel title="DEVICE HEALTH TREND (LAST 30 DAYS)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="DEVICE HEALTH BY TYPE" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="DEVICE STATUS SUMMARY" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-3 grid h-[244px] grid-cols-[1.62fr_0.62fr] gap-3">
-            <DashboardPanel title={<span className="flex items-center justify-between"><span>DEVICE INVENTORY</span><span className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-1 text-[8px] font-normal text-slate-400">Search device...</span></span>} variant="enterprise"><EnterpriseDeviceInventory /></DashboardPanel>
-            <DashboardPanel title="TOP ISSUES" variant="enterprise"><EnterpriseTopIssues /></DashboardPanel>
+            <DashboardPanel title={<span className="flex items-center justify-between"><span>DEVICE INVENTORY</span><span className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-1 text-[8px] font-normal text-slate-400">Search device...</span></span>} variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="TOP ISSUES" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
-          <div className="mt-3 flex h-[42px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="mr-3 text-[18px] text-[#05ff5e]">♙</b><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; Your network is performing excellent with a 98% device health index. 4 devices require attention to maintain optimal performance.</span><span className="font-semibold text-[#05ff5e]">View Full Device Health Report &nbsp; ›</span></div>
+          <div className="mt-3 flex h-[42px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; No Data - source_missing: enterprise rollup/source contract is not available for this cheap-mode batch.</span></div>
           <footer className="absolute bottom-2 left-4 right-4 flex h-[24px] items-center justify-between border-t border-cyan-300/10 pt-2 text-[8px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span /></footer>
         </main>
       </div>
@@ -188,33 +196,33 @@ export function EnterpriseAnnualSavingsDetailScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[12px] uppercase tracking-wide text-slate-300">KPI DRILL-DOWN</div><div className="mt-1 text-[20px] font-semibold leading-none">Annual Savings Detail</div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[38px] items-center justify-between">
             <div className="text-[10px]"><span className="text-slate-300">Dashboard</span><span className="mx-3 text-slate-500">›</span><span>Annual Savings</span><span className="mx-3 text-slate-500">›</span><span>Detail</span></div>
             <div className="flex gap-2 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">▽ Filters</button></div>
           </div>
           <section className="grid h-[106px] grid-cols-[1.04fr_1fr_1fr_1fr_1fr_0.9fr] gap-3">
-            <EnterpriseSavingsKpi active icon="$" label="ANNUAL SAVINGS" value="$1.84M" detail="▲ 12.6% vs Last Month" tone="green" />
-            <EnterpriseSavingsKpi icon="⚡" label="CAPACITY RECOVERED" value="4,850 kVA" detail="▲ 380 kVA vs Last Month" tone="blue" />
-            <EnterpriseSavingsKpi icon="⌁" label="AVG POWER FACTOR" value="98.1%" detail="▲ 13.2% vs Baseline" tone="cyan" />
-            <EnterpriseSavingsKpi icon="⌁" label="THD REDUCTION" value="3.2%" detail="▼ 72% vs Baseline" tone="green" />
-            <EnterpriseSavingsKpi icon="⚠" label="SITES REQUIRING ATTENTION" value="2" detail="View Alarms" tone="yellow" />
-            <EnterpriseSavingsKpi icon="◒" label="CO₂ REDUCTION" value="8,400" detail="Tons / Year" tone="blue" />
+            <EnterpriseSavingsKpi active icon="$" label="ANNUAL SAVINGS" value="No Data" detail="source_missing" tone="green" />
+            <EnterpriseSavingsKpi icon="⚡" label="CAPACITY RECOVERED" value="No Data" detail="source_missing" tone="blue" />
+            <EnterpriseSavingsKpi icon="⌁" label="AVG POWER FACTOR" value="No Data" detail="source_missing" tone="cyan" />
+            <EnterpriseSavingsKpi icon="⌁" label="THD REDUCTION" value="No Data" detail="source_missing" tone="green" />
+            <EnterpriseSavingsKpi icon="⚠" label="SITES REQUIRING ATTENTION" value="No Data" detail="source_missing" tone="yellow" />
+            <EnterpriseSavingsKpi icon="◒" label="CO₂ REDUCTION" value="No Data" detail="source_missing" tone="blue" />
           </section>
           <div className="flex h-[48px] items-end gap-8 border-b border-cyan-300/12 pl-2 text-[10px] font-semibold uppercase">
             {["Overview","By Site","By Region","By Utility","By Category","Trends","Insights"].map((tab) => <span className={tab==="Overview" ? "border-b-2 border-[#05ff5e] pb-3 text-[#05ff5e]" : "pb-3 text-slate-300"} key={tab}>{tab}</span>)}
           </div>
           <section className="mt-3 grid h-[270px] grid-cols-[1.28fr_0.88fr] gap-3">
-            <DashboardPanel title="ANNUAL SAVINGS OVER TIME ⓘ" variant="enterprise"><EnterpriseAnnualSavingsChart /></DashboardPanel>
-            <DashboardPanel title="SAVINGS BREAKDOWN" variant="enterprise"><EnterpriseSavingsBreakdown /></DashboardPanel>
+            <DashboardPanel title="ANNUAL SAVINGS OVER TIME ⓘ" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="SAVINGS BREAKDOWN" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-3 grid h-[232px] grid-cols-[0.88fr_0.86fr_0.84fr] gap-3">
-            <DashboardPanel title="SAVINGS BY SITE (Top 5)" variant="enterprise"><EnterpriseSavingsBySite /></DashboardPanel>
-            <DashboardPanel title="SAVINGS BY CATEGORY" variant="enterprise"><EnterpriseSavingsByCategory /></DashboardPanel>
-            <DashboardPanel title="SAVINGS IMPACT SUMMARY" variant="enterprise"><EnterpriseSavingsImpact /></DashboardPanel>
+            <DashboardPanel title="SAVINGS BY SITE (Top 5)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="SAVINGS BY CATEGORY" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="SAVINGS IMPACT SUMMARY" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
-          <div className="mt-3 flex h-[40px] items-center rounded border border-[#05ff5e]/60 bg-[#061521]/92 px-4 text-[10px]"><b className="mr-3 text-[#05bfff]">ⓘ</b><b>INSIGHT:</b><span className="ml-3">Annual savings increased 12.6% compared to last month, driven by improved power factor and demand charge optimization across 13 new sites.</span></div>
+          <div className="mt-3 flex h-[40px] items-center rounded border border-[#05ff5e]/60 bg-[#061521]/92 px-4 text-[10px]"><span><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; No Data - source_missing: enterprise rollup/source contract is not available for this cheap-mode batch.</span></div>
         </main>
       </div>
     </div>
@@ -229,32 +237,32 @@ export function EnterpriseCapacityRecoveredDetailScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] font-semibold leading-none">Capacity Recovered <span className="text-slate-400">›</span> Detail</div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[38px] items-center justify-between">
             <h1 className="text-[15px] font-semibold">CAPACITY RECOVERED OVERVIEW</h1>
             <div className="flex gap-2 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">▽ Filters</button></div>
           </div>
           <section className="grid h-[106px] grid-cols-[1.25fr_1fr_1fr_1fr_1fr] gap-3">
-            <EnterpriseCapacityKpi active icon="⚡" label="TOTAL CAPACITY RECOVERED" value="4,850 kVA" detail="▲ 380 kVA vs Last Month (+8.5%)" />
-            <EnterpriseCapacityKpi label="BEFORE ECBS (TOTAL)" value="19,650 kVA" detail="Average Available Capacity" />
-            <EnterpriseCapacityKpi label="AFTER ECBS (TOTAL)" value="24,500 kVA" detail="Average Available Capacity" />
-            <EnterpriseCapacityKpi label="HIDDEN CAPACITY UNLOCKED" value="4,850 kVA" detail="24.6% Improvement" />
+            <EnterpriseCapacityKpi active icon="⚡" label="TOTAL CAPACITY RECOVERED" value="No Data" detail="source_missing" />
+            <EnterpriseCapacityKpi label="BEFORE ECBS (TOTAL)" value="No Data" detail="source_missing" />
+            <EnterpriseCapacityKpi label="AFTER ECBS (TOTAL)" value="No Data" detail="source_missing" />
+            <EnterpriseCapacityKpi label="HIDDEN CAPACITY UNLOCKED" value="No Data" detail="source_missing" />
             <EnterpriseUtilizationDonut />
           </section>
           <div className="flex h-[48px] items-end gap-10 border-b border-cyan-300/12 pl-2 text-[10px] font-semibold uppercase">
             {["By Site","By Transformer","By Equipment Type","Trends","Analysis","Benchmarks"].map((tab) => <span className={tab==="By Site" ? "border-b-2 border-[#05ff5e] pb-3 text-[#05ff5e]" : "pb-3 text-slate-300"} key={tab}>{tab}</span>)}
           </div>
           <section className="mt-3 grid h-[276px] grid-cols-[0.88fr_1.24fr] gap-3">
-            <DashboardPanel title="CAPACITY RECOVERED BY SITE" variant="enterprise"><EnterpriseCapacityBySite /></DashboardPanel>
-            <DashboardPanel title="CAPACITY RECOVERED TREND (kVA)" variant="enterprise"><EnterpriseCapacityTrend /></DashboardPanel>
+            <DashboardPanel title="CAPACITY RECOVERED BY SITE" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="CAPACITY RECOVERED TREND (kVA)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-3 grid h-[232px] grid-cols-[0.95fr_0.86fr_0.82fr] gap-3">
-            <DashboardPanel title="CAPACITY RECOVERED BY TRANSFORMER" variant="enterprise"><EnterpriseCapacityByTransformer /></DashboardPanel>
-            <DashboardPanel title="CAPACITY RECOVERED BY SOURCE" variant="enterprise"><EnterpriseCapacityBySource /></DashboardPanel>
-            <DashboardPanel title="CAPACITY UTILIZATION COMPARISON" variant="enterprise"><EnterpriseCapacityComparison /></DashboardPanel>
+            <DashboardPanel title="CAPACITY RECOVERED BY TRANSFORMER" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="CAPACITY RECOVERED BY SOURCE" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="CAPACITY UTILIZATION COMPARISON" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
-          <div className="mt-3 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="mr-3 text-[22px]">♙</b><b className="text-[#05ff5e]">INSIGHT</b> &nbsp; ECBS has unlocked 4,850 kVA of hidden capacity across the enterprise, a 24.6% improvement in available capacity.<br/><span className="ml-10">This recovered capacity defers $2.1M in potential infrastructure upgrades.</span></span><span className="font-semibold text-[#05ff5e]">View Full Capacity Intelligence Report &nbsp; ›</span></div>
+          <div className="mt-3 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; No Data - source_missing: enterprise rollup/source contract is not available for this cheap-mode batch.</span></div>
         </main>
       </div>
     </div>
@@ -269,32 +277,32 @@ export function EnterpriseThdReductionDetailScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] font-semibold leading-none">THD Reduction <span className="text-slate-400">›</span> Detail</div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[38px] items-center justify-end">
             <div className="flex gap-2 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">▽ Filters</button></div>
           </div>
           <section className="grid h-[108px] grid-cols-[1.3fr_0.86fr_0.86fr_0.86fr_0.86fr_0.96fr] gap-2.5">
-            <EnterpriseThdKpi active label="THD REDUCTION (SYSTEM)" value="3.2%" detail="▼ 72% vs Baseline (11.4%)" />
-            <EnterpriseThdKpi label="CURRENT AVG THD" value="3.2%" detail="Excellent" />
-            <EnterpriseThdKpi label="HIGHEST SITE THD" value="5.5%" detail="Flex Juarez North" />
-            <EnterpriseThdKpi label="LOWEST SITE THD" value="1.2%" detail="Flex Tijuana" />
-            <EnterpriseThdKpi label="SITES ≤ 5% THD" value="19" detail="of 23 Sites (83%)" />
+            <EnterpriseThdKpi active label="THD REDUCTION (SYSTEM)" value="No Data" detail="source_missing" />
+            <EnterpriseThdKpi label="CURRENT AVG THD" value="No Data" detail="source_missing" />
+            <EnterpriseThdKpi label="HIGHEST SITE THD" value="No Data" detail="source_missing" />
+            <EnterpriseThdKpi label="LOWEST SITE THD" value="No Data" detail="source_missing" />
+            <EnterpriseThdKpi label="SITES ≤ 5% THD" value="No Data" detail="source_missing" />
             <EnterpriseThdComplianceKpi />
           </section>
           <div className="flex h-[48px] items-end gap-9 border-b border-cyan-300/12 pl-2 text-[10px] font-semibold uppercase">
             {["Overview","By Site","By Harmonic Order","Trends","Waveform Analysis","Source Analysis","Insights"].map((tab) => <span className={tab==="Overview" ? "border-b-2 border-[#05ff5e] pb-3 text-[#05ff5e]" : "pb-3 text-slate-300"} key={tab}>{tab}</span>)}
           </div>
           <section className="mt-3 grid h-[276px] grid-cols-[0.96fr_1fr] gap-3">
-            <DashboardPanel title="THD REDUCTION OVER TIME (%)" variant="enterprise"><EnterpriseThdReductionTrend /></DashboardPanel>
-            <DashboardPanel title="THD BY SITE (CURRENT)" variant="enterprise"><EnterpriseThdBySite /></DashboardPanel>
+            <DashboardPanel title="THD REDUCTION OVER TIME (%)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="THD BY SITE (CURRENT)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-3 grid h-[232px] grid-cols-[0.98fr_0.86fr_0.86fr] gap-3">
-            <DashboardPanel title="HARMONIC SPECTRUM (SYSTEM AVERAGE)" variant="enterprise"><EnterpriseHarmonicSpectrum /></DashboardPanel>
-            <DashboardPanel title="THD REDUCTION BY EQUIPMENT TYPE" variant="enterprise"><EnterpriseThdByEquipment /></DashboardPanel>
-            <DashboardPanel title="COMPLIANCE SUMMARY (IEEE 519)" variant="enterprise"><EnterpriseThdComplianceSummary /></DashboardPanel>
+            <DashboardPanel title="HARMONIC SPECTRUM (SYSTEM AVERAGE)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="THD REDUCTION BY EQUIPMENT TYPE" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="COMPLIANCE SUMMARY (IEEE 519)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
-          <div className="mt-3 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="mr-3 text-[22px]">♙</b><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; System average THD is 3.2%, a 72% improvement from the 11.4% baseline. 21 of 23 sites are fully compliant with IEEE 519 standards.<br/><span className="ml-10">Lower harmonics reduce equipment heating, extend equipment life, and improve overall system efficiency.</span></span><span className="font-semibold text-[#05ff5e]">View Full Power Quality Report &nbsp; ›</span></div>
+          <div className="mt-3 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; No Data - source_missing: enterprise rollup/source contract is not available for this cheap-mode batch.</span></div>
         </main>
       </div>
     </div>
@@ -309,32 +317,32 @@ export function EnterpriseAvgPowerFactorDetailScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] font-semibold leading-none">Avg Power Factor <span className="text-slate-400">›</span> Detail</div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[38px] items-center justify-end">
             <div className="flex gap-2 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">▽ Filters</button></div>
           </div>
           <section className="grid h-[108px] grid-cols-[1.3fr_0.86fr_0.86fr_0.86fr_0.86fr_0.96fr] gap-2.5">
-            <EnterprisePowerFactorKpi active label="AVG POWER FACTOR (SYSTEM)" value="98.1%" detail="▲ 13.2% vs Baseline (84.9%)" />
-            <EnterprisePowerFactorKpi label="CURRENT PERIOD AVG" value="98.1%" detail="Target ≥ 95%" />
-            <EnterprisePowerFactorKpi label="HIGHEST SITE PF" value="99.6%" detail="Flex Tijuana" />
-            <EnterprisePowerFactorKpi label="LOWEST SITE PF" value="92.7%" detail="Flex Hermosillo" />
-            <EnterprisePowerFactorKpi label="SITES ≥ 95% PF" value="18" detail="of 23 Sites (78%)" />
+            <EnterprisePowerFactorKpi active label="AVG POWER FACTOR (SYSTEM)" value="No Data" detail="source_missing" />
+            <EnterprisePowerFactorKpi label="CURRENT PERIOD AVG" value="No Data" detail="source_missing" />
+            <EnterprisePowerFactorKpi label="HIGHEST SITE PF" value="No Data" detail="source_missing" />
+            <EnterprisePowerFactorKpi label="LOWEST SITE PF" value="No Data" detail="source_missing" />
+            <EnterprisePowerFactorKpi label="SITES ≥ 95% PF" value="No Data" detail="source_missing" />
             <EnterprisePowerFactorComplianceKpi />
           </section>
           <div className="flex h-[48px] items-end gap-9 border-b border-cyan-300/12 pl-2 text-[10px] font-semibold uppercase">
             {["Overview","By Site","By Transformer","Trends","PF Improvement","Penalty Analysis","Insights"].map((tab) => <span className={tab==="Overview" ? "border-b-2 border-[#05ff5e] pb-3 text-[#05ff5e]" : "pb-3 text-slate-300"} key={tab}>{tab}</span>)}
           </div>
           <section className="mt-3 grid h-[276px] grid-cols-[1.14fr_0.98fr] gap-3">
-            <DashboardPanel title="AVERAGE POWER FACTOR TREND (%) ⓘ" variant="enterprise"><EnterprisePowerFactorTrend /></DashboardPanel>
-            <DashboardPanel title="POWER FACTOR DISTRIBUTION (BY RANGE)" variant="enterprise"><EnterprisePowerFactorDistribution /></DashboardPanel>
+            <DashboardPanel title="AVERAGE POWER FACTOR TREND (%) ⓘ" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="POWER FACTOR DISTRIBUTION (BY RANGE)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-3 grid h-[232px] grid-cols-[0.96fr_0.82fr_0.96fr] gap-3">
-            <DashboardPanel title="POWER FACTOR BY SITE" variant="enterprise"><EnterprisePowerFactorBySite /></DashboardPanel>
-            <DashboardPanel title="PF IMPROVEMENT SUMMARY" variant="enterprise"><EnterprisePowerFactorImprovement /></DashboardPanel>
-            <DashboardPanel title="POWER FACTOR BY TRANSFORMER (TOP 5)" variant="enterprise"><EnterprisePowerFactorByTransformer /></DashboardPanel>
+            <DashboardPanel title="POWER FACTOR BY SITE" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="PF IMPROVEMENT SUMMARY" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="POWER FACTOR BY TRANSFORMER (TOP 5)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
-          <div className="mt-3 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="mr-3 text-[22px]">♙</b><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; System average power factor is 98.1%, exceeding the 95% target by 3.1%. 18 of 23 sites are meeting or exceeding the target.<br/><span className="ml-10">This performance is preventing an estimated $184,500 in annual power factor penalty charges.</span></span><span className="font-semibold text-[#05ff5e]">View Full Power Quality Report &nbsp; ›</span></div>
+          <div className="mt-3 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; No Data - source_missing: enterprise rollup/source contract is not available for this cheap-mode batch.</span></div>
         </main>
       </div>
     </div>
@@ -349,32 +357,32 @@ export function EnterpriseLossAnalysisScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] font-semibold leading-none">Loss Analysis <span className="text-slate-400">›</span> <span className="text-[#05ff5e]">Overview</span></div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="absolute right-4 top-[70px] flex gap-2 text-[9px]"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">▽ Filters</button></div>
           <section className="mt-2 grid h-[92px] grid-cols-[1.15fr_1.05fr_1.08fr_0.95fr_1.05fr] gap-3 pr-[236px]">
-            <EnterpriseLossKpi icon="⚡" label="TOTAL LOSSES REDUCTION (YTD)" value="312.4 kW" detail="▲ 12.6% vs Baseline" tone="#12b80f" />
-            <EnterpriseLossKpi icon="$" label="ANNUAL LOSS SAVINGS" value="$524,180" detail="▲ 12.6% vs Last Year" tone="#12b80f" />
-            <EnterpriseLossKpi icon="▣" label="ENERGY LOSS REDUCTION (YTD)" value="1,842,350 kWh" detail="▲ 14.3% vs Baseline" tone="#147dff" />
-            <EnterpriseLossKpi icon="♨" label="AVG LOSS REDUCTION" value="40.0%" detail="Target > 30%" tone="#8b5cf6" />
-            <EnterpriseLossKpi icon="◎" label="SITES ABOVE TARGET" value="21 / 23" detail="91%" tone="#f59e0b" />
+            <EnterpriseLossKpi icon="⚡" label="TOTAL LOSSES REDUCTION (YTD)" value="No Data" detail="source_missing" tone="#12b80f" />
+            <EnterpriseLossKpi icon="$" label="ANNUAL LOSS SAVINGS" value="No Data" detail="source_missing" tone="#12b80f" />
+            <EnterpriseLossKpi icon="▣" label="ENERGY LOSS REDUCTION (YTD)" value="No Data" detail="source_missing" tone="#147dff" />
+            <EnterpriseLossKpi icon="♨" label="AVG LOSS REDUCTION" value="No Data" detail="source_missing" tone="#8b5cf6" />
+            <EnterpriseLossKpi icon="◎" label="SITES ABOVE TARGET" value="No Data" detail="source_missing" tone="#f59e0b" />
           </section>
           <section className="mt-2 grid h-[206px] grid-cols-[0.9fr_1.16fr_0.68fr] gap-3">
-            <DashboardPanel title="LOSS BREAKDOWN (YTD)" variant="enterprise"><EnterpriseLossBreakdown /></DashboardPanel>
-            <DashboardPanel title="LOSS REDUCTION WATERFALL (YTD)" variant="enterprise"><EnterpriseLossWaterfall /></DashboardPanel>
-            <DashboardPanel title="LOSS SUMMARY" variant="enterprise"><EnterpriseLossSummary /></DashboardPanel>
+            <DashboardPanel title="LOSS BREAKDOWN (YTD)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="LOSS REDUCTION WATERFALL (YTD)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="LOSS SUMMARY" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-2 grid h-[270px] grid-cols-[0.95fr_0.66fr_0.88fr] gap-3">
-            <DashboardPanel title="LOSS TREND OVER TIME" variant="enterprise"><EnterpriseLossTrend /></DashboardPanel>
-            <DashboardPanel title="LOSSES BY CATEGORY (YTD)" variant="enterprise"><EnterpriseLossCategoryTable /></DashboardPanel>
-            <DashboardPanel title="LOSS REDUCTION BY SITE (TOP 5)" variant="enterprise"><EnterpriseLossBySite /></DashboardPanel>
+            <DashboardPanel title="LOSS TREND OVER TIME" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="LOSSES BY CATEGORY (YTD)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="LOSS REDUCTION BY SITE (TOP 5)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-2 grid h-[198px] grid-cols-[1fr_250px] gap-3">
-            <DashboardPanel title="LOSS DETAIL BY SOURCE (YTD)" variant="enterprise"><EnterpriseLossSourceDetail /></DashboardPanel>
-            <DashboardPanel title="INSIGHTS" variant="enterprise"><EnterpriseLossInsights /></DashboardPanel>
+            <DashboardPanel title="LOSS DETAIL BY SOURCE (YTD)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="INSIGHTS" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <div className="mt-2 grid h-[36px] grid-cols-[1fr_260px] gap-3">
-            <div className="flex items-center rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[10px]"><b className="mr-3 text-[#05ff5e]">▣</b><b className="text-[#05ff5e]">INSIGHT:</b><span className="ml-2">ECBS is delivering significant loss reductions across all major categories. Continue optimization to target remaining I²R losses.</span></div>
+            <div className="flex items-center rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[10px]"><span><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; No Data - source_missing: enterprise rollup/source contract is not available for this cheap-mode batch.</span></div>
             <div className="flex items-center justify-end pr-5 text-[12px] font-semibold text-[#05ff5e]">View Full Loss Report &nbsp; ›</div>
           </div>
         </main>
@@ -391,7 +399,7 @@ export function EnterpriseMapExpansionScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] font-semibold leading-none">Global Site Overview <span className="text-slate-400">›</span> All Sites Map</div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <section className="mt-3 grid h-[540px] grid-cols-[1fr_184px] gap-3">
             <div className="min-h-0">
@@ -402,12 +410,12 @@ export function EnterpriseMapExpansionScreen() {
               <EnterpriseExpandedMap />
             </div>
             <div className="grid h-full grid-rows-[1fr_184px] gap-3">
-              <DashboardPanel title="GLOBAL SUMMARY" variant="enterprise"><EnterpriseMapGlobalSummary /></DashboardPanel>
-              <DashboardPanel title="SITES BY REGION" variant="enterprise"><EnterpriseMapRegionSummary /></DashboardPanel>
+              <DashboardPanel title="GLOBAL SUMMARY" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+              <DashboardPanel title="SITES BY REGION" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
             </div>
           </section>
           <section className="mt-3 grid h-[220px] grid-cols-[1fr_184px] gap-3">
-            <DashboardPanel title="ALL SITES (23)" variant="enterprise"><EnterpriseMapSitesTable /></DashboardPanel>
+            <DashboardPanel title="ALL SITES (23)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
             <div />
           </section>
         </main>
@@ -424,7 +432,7 @@ export function EnterpriseNetworkHealthBreakdownScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] font-semibold leading-none">Network Health <span className="text-slate-400">›</span> <span className="text-[#05ff5e]">Asset Health Breakdown</span></div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[42px] items-start justify-between">
             <div className="flex items-center gap-3 text-[10px]"><span>Site</span><button className="w-[190px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left">Flex Juarez South <span className="float-right">⌄</span></button><span className="size-3 rounded-full bg-[#05ff5e]" /><button className="rounded px-2 py-1">Healthy <span>⌄</span></button></div>
@@ -434,19 +442,19 @@ export function EnterpriseNetworkHealthBreakdownScreen() {
             {["Overview","Balance","Harmonics","Asset Health","Maintenance"].map((tab) => <span className={tab==="Asset Health" ? "rounded-t border border-cyan-300/20 border-b-0 bg-[#061521] px-5 py-2 text-white shadow-[inset_0_-2px_0_#05bfff]" : "rounded-t border border-cyan-300/12 border-b-0 px-5 py-2 text-slate-300"} key={tab}>{tab}</span>)}
           </div>
           <section className="mt-3 grid h-[152px] grid-cols-4 gap-3">
-            <EnterpriseAssetHealthCard icon="▥" title="TRANSFORMER HEALTH" value="98%" rows={[["Healthy","6 (100%)","#05ff5e"],["Warning","0 (0%)","#facc15"],["Critical","0 (0%)","#ef4444"]]} link="View Transformers" />
-            <EnterpriseAssetHealthCard icon="♧" title="DEVICE HEALTH" value="97%" rows={[["Healthy","126 (97%)","#05ff5e"],["Warning","3 (2%)","#facc15"],["Critical","1 (1%)","#ef4444"]]} link="View Devices" />
-            <EnterpriseAssetHealthCard icon="▤" title="INFRASTRUCTURE HEALTH" value="98%" rows={[["Healthy","49 (98%)","#05ff5e"],["Warning","1 (2%)","#facc15"],["Critical","0 (0%)","#ef4444"]]} link="View Infrastructure" />
-            <EnterpriseAssetHealthCard icon="♢" title="MAINTENANCE HEALTH" value="98%" rows={[["Healthy","54 (98%)","#05ff5e"],["Warning","1 (2%)","#facc15"],["Critical","0 (0%)","#ef4444"]]} link="View Maintenance" />
+            <EnterpriseAssetHealthCard icon="▥" title="TRANSFORMER HEALTH" value="No Data" rows={[["Healthy","6 (100%)","#05ff5e"],["Warning","0 (0%)","#facc15"],["Critical","0 (0%)","#ef4444"]]} link="View Transformers" />
+            <EnterpriseAssetHealthCard icon="♧" title="DEVICE HEALTH" value="No Data" rows={[["Healthy","126 (97%)","#05ff5e"],["Warning","3 (2%)","#facc15"],["Critical","1 (1%)","#ef4444"]]} link="View Devices" />
+            <EnterpriseAssetHealthCard icon="▤" title="INFRASTRUCTURE HEALTH" value="No Data" rows={[["Healthy","49 (98%)","#05ff5e"],["Warning","1 (2%)","#facc15"],["Critical","0 (0%)","#ef4444"]]} link="View Infrastructure" />
+            <EnterpriseAssetHealthCard icon="♢" title="MAINTENANCE HEALTH" value="No Data" rows={[["Healthy","54 (98%)","#05ff5e"],["Warning","1 (2%)","#facc15"],["Critical","0 (0%)","#ef4444"]]} link="View Maintenance" />
           </section>
           <section className="mt-3 grid h-[456px] grid-cols-[1fr_276px] gap-3">
-            <DashboardPanel title="ASSET HEALTH BY CATEGORY" variant="enterprise"><EnterpriseAssetHealthTable /></DashboardPanel>
+            <DashboardPanel title="ASSET HEALTH BY CATEGORY" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
             <div className="grid h-full grid-rows-[174px_1fr] gap-3">
-              <DashboardPanel title="STATUS SUMMARY" variant="enterprise"><EnterpriseAssetStatusSummary /></DashboardPanel>
-              <DashboardPanel title="TREND SUMMARY (ALL ASSETS)" variant="enterprise"><EnterpriseAssetTrendSummary /></DashboardPanel>
+              <DashboardPanel title="STATUS SUMMARY" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+              <DashboardPanel title="TREND SUMMARY (ALL ASSETS)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
             </div>
           </section>
-          <div className="mt-3 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="mr-3 text-[22px] text-[#05ff5e]">♙</b><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; Overall asset health in Flex Juarez South is excellent at 97%. 4 assets require attention.</span><span className="font-semibold text-[#05ff5e]">View Full Asset Health Report &nbsp; ›</span></div>
+          <div className="mt-3 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; No Data - source_missing: enterprise rollup/source contract is not available for this cheap-mode batch.</span></div>
         </main>
       </div>
     </div>
@@ -461,7 +469,7 @@ export function EnterpriseNetworkHealthOverviewScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] font-semibold leading-none">Network Health <span className="text-slate-400">›</span> <span className="text-[#05ff5e]">Breakdown</span></div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 – May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 – May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[42px] items-start justify-between">
             <div><h1 className="text-[14px] font-semibold uppercase">NETWORK HEALTH OVERVIEW</h1><p className="mt-2 text-[9px] text-slate-300">Network health is calculated using three key indices that measure balance, power quality, and asset condition.</p></div>
@@ -469,21 +477,21 @@ export function EnterpriseNetworkHealthOverviewScreen() {
           </div>
           <section className="mt-3 grid h-[204px] grid-cols-[0.92fr_0.92fr_0.92fr_1.08fr] gap-3">
             <EnterpriseNetworkOverviewScore />
-            <EnterpriseHealthIndexCard title="CURRENT BALANCE INDEX™" value="95" link="View Balance Details" rows={[["Phase Balance","96","#05ff5e"],["Voltage Balance","94","#05ff5e"],["Load Balance","95","#05ff5e"],["Neutral Balance","94","#05ff5e"]]} />
-            <EnterpriseHealthIndexCard title="HARMONIC HEALTH INDEX™" value="96" link="View Harmonics Details" rows={[["THD (Voltage)","3.2%","#05ff5e"],["THD (Current)","4.1%","#05ff5e"],["Harmonic Order","25","#05ff5e"],["Distortion Trend","↓","#05ff5e"]]} />
-            <EnterpriseHealthIndexCard title="ASSET HEALTH INDEX™" value="98" link="View Asset Details" rows={[["Transformer Health","98","#05ff5e"],["Device Health","97","#05ff5e"],["Infrastructure Health","98","#05ff5e"],["Maintenance Health","98","#05ff5e"]]} />
+            <EnterpriseHealthIndexCard title="CURRENT BALANCE INDEX™" value="No Data" link="View Balance Details" rows={[["Phase Balance","96","#05ff5e"],["Voltage Balance","94","#05ff5e"],["Load Balance","95","#05ff5e"],["Neutral Balance","94","#05ff5e"]]} />
+            <EnterpriseHealthIndexCard title="HARMONIC HEALTH INDEX™" value="No Data" link="View Harmonics Details" rows={[["THD (Voltage)","3.2%","#05ff5e"],["THD (Current)","4.1%","#05ff5e"],["Harmonic Order","25","#05ff5e"],["Distortion Trend","↓","#05ff5e"]]} />
+            <EnterpriseHealthIndexCard title="ASSET HEALTH INDEX™" value="No Data" link="View Asset Details" rows={[["Transformer Health","98","#05ff5e"],["Device Health","97","#05ff5e"],["Infrastructure Health","98","#05ff5e"],["Maintenance Health","98","#05ff5e"]]} />
           </section>
           <section className="mt-3 grid h-[196px] grid-cols-[0.9fr_0.82fr_1fr] gap-3">
-            <DashboardPanel title="CURRENT BALANCE INDEX BREAKDOWN" variant="enterprise"><EnterpriseBalanceIndexBreakdown /></DashboardPanel>
-            <DashboardPanel title="HARMONIC HEALTH INDEX BREAKDOWN" variant="enterprise"><EnterpriseHarmonicBreakdown /></DashboardPanel>
-            <DashboardPanel title="ASSET HEALTH INDEX BREAKDOWN" variant="enterprise"><EnterpriseAssetHealthBars /></DashboardPanel>
+            <DashboardPanel title="CURRENT BALANCE INDEX BREAKDOWN" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="HARMONIC HEALTH INDEX BREAKDOWN" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="ASSET HEALTH INDEX BREAKDOWN" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-3 grid h-[254px] grid-cols-[0.9fr_0.82fr_1fr] gap-3">
-            <DashboardPanel title="BALANCE TREND (LAST 30 DAYS)" variant="enterprise"><EnterpriseBalanceTrend /></DashboardPanel>
-            <DashboardPanel title="HARMONIC ORDER SPECTRUM (SYSTEM AVG)" variant="enterprise"><EnterpriseHarmonicSpectrumOverview /></DashboardPanel>
-            <DashboardPanel title="NETWORK HEALTH ISSUES" variant="enterprise"><EnterpriseNetworkHealthIssues /></DashboardPanel>
+            <DashboardPanel title="BALANCE TREND (LAST 30 DAYS)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="HARMONIC ORDER SPECTRUM (SYSTEM AVG)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="NETWORK HEALTH ISSUES" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
-          <div className="mt-3 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="mr-3 text-[22px] text-[#05ff5e]">♙</b><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; Network health is excellent at 97%, exceeding the 90% target. All three indices are performing well with improving trends.<br/><span className="ml-10">Continue monitoring harmonic levels at Flex Juarez South and voltage balance at Flex Hermosillo.</span></span><span className="font-semibold text-[#05ff5e]">View Full Network Health Report &nbsp; ›</span></div>
+          <div className="mt-3 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; No Data - source_missing: enterprise rollup/source contract is not available for this cheap-mode batch.</span></div>
         </main>
       </div>
     </div>
@@ -498,7 +506,7 @@ export function EnterpriseTransformerDetailScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] font-semibold leading-none">Transformers <span className="text-slate-400">›</span> <span className="text-[#05ff5e]">XF-TIJ-01 Details</span></div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[30px] items-center justify-between">
             <span className="text-[10px] text-[#05bfff]">‹ &nbsp; Back to Transformers Overview</span>
@@ -506,30 +514,30 @@ export function EnterpriseTransformerDetailScreen() {
           </div>
           <section className="grid h-[150px] grid-cols-[1.35fr_0.42fr_0.42fr_0.42fr_0.42fr_0.42fr_0.72fr] gap-2">
             <EnterpriseTransformerHero />
-            <EnterpriseTransformerKpi title="HEALTH INDEX" value="98" sub="/100" tone="#05b82e" detail="Excellent" />
-            <EnterpriseTransformerKpi title="LOAD" value="62" sub="of Rated" tone="#147dff" detail="1,240 kVA" />
-            <EnterpriseTransformerKpi title="EFFICIENCY" value="99.2" sub="Efficiency" tone="#00bcd4" detail="+1.8% vs Baseline" />
-            <EnterpriseTransformerKpi title="TOP OIL TEMP" value="56.3" sub="°C" tone="#f59e0b" detail="Normal" />
-            <EnterpriseTransformerKpi title="AGE" value="1.1" sub="Years" tone="#8b5cf6" detail="In Service" />
+            <EnterpriseTransformerKpi title="HEALTH INDEX" value="No Data" sub="source_missing" tone="#05b82e" detail="source_missing" />
+            <EnterpriseTransformerKpi title="LOAD" value="No Data" sub="source_missing" tone="#147dff" detail="source_missing" />
+            <EnterpriseTransformerKpi title="EFFICIENCY" value="No Data" sub="source_missing" tone="#00bcd4" detail="source_missing" />
+            <EnterpriseTransformerKpi title="TOP OIL TEMP" value="No Data" sub="source_missing" tone="#f59e0b" detail="source_missing" />
+            <EnterpriseTransformerKpi title="AGE" value="No Data" sub="source_missing" tone="#8b5cf6" detail="source_missing" />
             <EnterpriseTransformerStatus />
           </section>
           <div className="flex h-[34px] items-end gap-1 border-b border-cyan-300/12 text-[9px]">
             {["Overview","Performance","Power Quality","Events & Alerts","Configuration","Maintenance","Logs"].map((tab) => <span className={tab==="Overview" ? "border-b-2 border-[#05bfff] px-4 py-2 text-[#05bfff]" : "px-4 py-2 text-slate-300"} key={tab}>{tab}</span>)}
           </div>
           <section className="mt-2 grid h-[224px] grid-cols-[0.94fr_1fr_1.1fr] gap-2">
-            <DashboardPanel title="REAL-TIME ELECTRICAL VALUES" variant="enterprise"><EnterpriseTransformerElectricalValues /></DashboardPanel>
-            <DashboardPanel title="LOAD TREND (LAST 30 DAYS)" variant="enterprise"><EnterpriseTransformerLoadTrend /></DashboardPanel>
-            <DashboardPanel title="OIL TEMPERATURE (LAST 30 DAYS)" variant="enterprise"><EnterpriseTransformerOilTrend /></DashboardPanel>
+            <DashboardPanel title="REAL-TIME ELECTRICAL VALUES" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="LOAD TREND (LAST 30 DAYS)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="OIL TEMPERATURE (LAST 30 DAYS)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-2 grid h-[168px] grid-cols-[0.94fr_1fr_1.1fr] gap-2">
-            <DashboardPanel title="POWER QUALITY SUMMARY (30 DAYS)" variant="enterprise"><EnterpriseTransformerPowerQuality /></DashboardPanel>
-            <DashboardPanel title="ENERGY SUMMARY (30 DAYS)" variant="enterprise"><EnterpriseTransformerEnergySummary /></DashboardPanel>
-            <DashboardPanel title="MAINTENANCE & INSPECTION" variant="enterprise"><EnterpriseTransformerMaintenance /></DashboardPanel>
+            <DashboardPanel title="POWER QUALITY SUMMARY (30 DAYS)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="ENERGY SUMMARY (30 DAYS)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="MAINTENANCE & INSPECTION" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-2 grid h-[160px] grid-cols-[1.58fr_0.74fr_0.74fr] gap-2">
-            <DashboardPanel title="RECENT EVENTS & ALERTS" variant="enterprise"><EnterpriseTransformerEvents /></DashboardPanel>
-            <DashboardPanel title="TAP CHANGER STATUS" variant="enterprise"><EnterpriseTapChangerStatus /></DashboardPanel>
-            <DashboardPanel title="DOCUMENTS & DRAWINGS" variant="enterprise"><EnterpriseTransformerDocuments /></DashboardPanel>
+            <DashboardPanel title="RECENT EVENTS & ALERTS" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="TAP CHANGER STATUS" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="DOCUMENTS & DRAWINGS" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
         </main>
       </div>
@@ -545,30 +553,30 @@ export function EnterpriseTransformerOverviewScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] font-semibold leading-none">Transformers <span className="text-slate-400">›</span> <span className="text-[#05ff5e]">Overview</span></div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[34px] items-center justify-end gap-2 text-[9px]">
             <button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">▽ Filters</button><button className="px-1 text-slate-400">›</button>
           </div>
           <section className="grid h-[122px] grid-cols-[0.76fr_1.26fr_0.96fr_0.96fr_0.86fr] gap-2">
-            <EnterpriseTransformerOverviewKpi icon="▥" label="TOTAL TRANSFORMERS" value="32" detail="Online: 32 (100%)" color="#05bfff" />
+            <EnterpriseTransformerOverviewKpi icon="▥" label="TOTAL TRANSFORMERS" value="No Data" detail="source_missing" color="#05bfff" />
             <EnterpriseTransformerHealthSummary />
-            <EnterpriseTransformerOverviewKpi icon="▥" label="TOTAL CAPACITY" value="15,600 kVA" detail="Utilized: 9,842 kVA (63%)" color="#00bcd4" />
-            <EnterpriseTransformerOverviewKpi icon="▥" label="HIDDEN CAPACITY" value="5,758 kVA" detail="Recovered by ECBS" link="View Details" color="#8b5cf6" />
-            <EnterpriseTransformerOverviewKpi icon="♨" label="AVG LOADING" value="63%" detail="Target < 80%" color="#f59e0b" />
+            <EnterpriseTransformerOverviewKpi icon="▥" label="TOTAL CAPACITY" value="No Data" detail="source_missing" color="#00bcd4" />
+            <EnterpriseTransformerOverviewKpi icon="▥" label="HIDDEN CAPACITY" value="No Data" detail="source_missing" link="View Details" color="#8b5cf6" />
+            <EnterpriseTransformerOverviewKpi icon="♨" label="AVG LOADING" value="No Data" detail="source_missing" color="#f59e0b" />
           </section>
           <section className="mt-2 grid h-[270px] grid-cols-[1.02fr_1.02fr] gap-2">
-            <DashboardPanel title="LOADING TREND (AVERAGE %)" variant="enterprise"><EnterpriseTransformerLoadingTrend /></DashboardPanel>
-            <DashboardPanel title="TRANSFORMER HEALTH BY SITE" variant="enterprise"><EnterpriseTransformerHealthBySite /></DashboardPanel>
+            <DashboardPanel title="LOADING TREND (AVERAGE %)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="TRANSFORMER HEALTH BY SITE" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-2 grid h-[286px] grid-cols-[1.58fr_0.88fr] gap-2">
-            <DashboardPanel title={<span className="flex items-center justify-between"><span>TRANSFORMER INVENTORY</span><span className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-1 text-[8px] font-normal text-slate-400">Search transformer...</span></span>} variant="enterprise"><EnterpriseTransformerInventory /></DashboardPanel>
+            <DashboardPanel title={<span className="flex items-center justify-between"><span>TRANSFORMER INVENTORY</span><span className="rounded border border-cyan-300/12 bg-[#061421] px-3 py-1 text-[8px] font-normal text-slate-400">Search transformer...</span></span>} variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
             <div className="grid h-full grid-rows-[1fr_0.88fr] gap-2">
-              <DashboardPanel title="CAPACITY UTILIZATION SUMMARY" variant="enterprise"><EnterpriseTransformerCapacitySummary /></DashboardPanel>
-              <DashboardPanel title="TOP OVERLOADED TRANSFORMERS" variant="enterprise"><EnterpriseTransformerOverloaded /></DashboardPanel>
+              <DashboardPanel title="CAPACITY UTILIZATION SUMMARY" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+              <DashboardPanel title="TOP OVERLOADED TRANSFORMERS" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
             </div>
           </section>
-          <div className="mt-2 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="mr-3 text-[22px] text-[#05ff5e]">♙</b><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; Transformer loading is well within target limits. ECBS has recovered 5,758 kVA of hidden capacity across the network.</span><span className="font-semibold text-[#05ff5e]">View Full Transformer Report &nbsp; ›</span></div>
+          <div className="mt-2 flex h-[56px] items-center justify-between rounded border border-cyan-300/12 bg-[#061521]/92 px-4 text-[11px]"><span><b className="text-[#05ff5e]">INSIGHT:</b> &nbsp; No Data - source_missing: enterprise rollup/source contract is not available for this cheap-mode batch.</span></div>
         </main>
       </div>
     </div>
@@ -583,27 +591,27 @@ export function EnterpriseTrendAnalyticsScreen() {
         <main className="relative min-w-0 overflow-hidden bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.12),transparent_34%),linear-gradient(180deg,#04111c,#020910)] px-4 py-3">
           <header className="flex h-[58px] items-start justify-between border-b border-cyan-300/12">
             <div><div className="text-[15px] font-semibold leading-none">XECO ENERGY INTELLIGENCE PORTAL</div><div className="mt-2 text-[20px] font-semibold leading-none">Savings Trend Analytics <span className="text-slate-400">›</span> Monthly Trend Detail</div></div>
-            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">3</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
+            <div className="flex items-center gap-3 text-[9px]"><button className="w-[178px] rounded border border-slate-700 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp; ▣</button><span className="relative text-xl">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-[#05ff5e] text-[8px] text-[#020a12]">0</b></span><span className="text-lg">?</span><span>Greg Dockery<br /><span className="text-slate-400">Administrator</span></span><span className="grid size-7 place-items-center rounded-full border border-slate-500">○</span><span>⌄</span></div>
           </header>
           <div className="mt-2 flex h-[32px] items-center justify-between gap-2 text-[9px]"><h1 className="text-[13px] font-semibold uppercase text-slate-200">SAVINGS OVERVIEW</h1><div className="flex gap-2"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">▽ Filters</button></div></div>
           <section className="grid h-[98px] grid-cols-[1.28fr_1fr_1fr_1fr_1fr] gap-3">
-            <EnterpriseTrendKpi active icon="$" label="TOTAL ANNUAL SAVINGS" value="$1.84M" detail="▲ 12.6% vs Last 12 Months" tone="#05ff5e" />
-            <EnterpriseTrendKpi icon="▣" label="THIS MONTH (MAY 2025)" value="$175,420" detail="▲ 8.4% vs Apr 2025" tone="#147dff" />
-            <EnterpriseTrendKpi icon="▥" label="MONTHLY AVG (YTD)" value="$153,610" detail="▲ 11.8% vs Last Year" tone="#00bcd4" />
-            <EnterpriseTrendKpi icon="⌁" label="CUMULATIVE SAVINGS (YTD)" value="$768,050" detail="▲ 13.2% vs YTD Last Year" tone="#8b5cf6" />
-            <EnterpriseTrendKpi icon="★" label="BEST MONTH" value="Jun 2025" detail="$191,830" tone="#16a34a" />
+            <EnterpriseTrendKpi active icon="$" label="TOTAL ANNUAL SAVINGS" value="No Data" detail="source_missing" tone="#05ff5e" />
+            <EnterpriseTrendKpi icon="▣" label="THIS MONTH (MAY 2025)" value="No Data" detail="source_missing" tone="#147dff" />
+            <EnterpriseTrendKpi icon="▥" label="MONTHLY AVG (YTD)" value="No Data" detail="source_missing" tone="#00bcd4" />
+            <EnterpriseTrendKpi icon="⌁" label="CUMULATIVE SAVINGS (YTD)" value="No Data" detail="source_missing" tone="#8b5cf6" />
+            <EnterpriseTrendKpi icon="★" label="BEST MONTH" value="No Data" detail="source_missing" tone="#16a34a" />
           </section>
           <section className="mt-3 grid h-[306px] grid-cols-[1fr_246px] gap-3">
-            <DashboardPanel title="SAVINGS TREND OVER TIME" variant="enterprise"><EnterpriseSavingsTrendDetail /></DashboardPanel>
-            <DashboardPanel title="TREND INSIGHTS" variant="enterprise"><EnterpriseTrendInsights /></DashboardPanel>
+            <DashboardPanel title="SAVINGS TREND OVER TIME" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="TREND INSIGHTS" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-3 grid h-[210px] grid-cols-[0.88fr_0.92fr_0.88fr] gap-3">
-            <DashboardPanel title="SAVINGS BY CATEGORY (YTD)" variant="enterprise"><EnterpriseSavingsCategoryDetail /></DashboardPanel>
-            <DashboardPanel title="MONTHLY SAVINGS HEATMAP" variant="enterprise"><EnterpriseMonthlySavingsHeatmap /></DashboardPanel>
-            <DashboardPanel title="BASELINE VS ACTUAL (YTD)" variant="enterprise"><EnterpriseBaselineVsActual /></DashboardPanel>
+            <DashboardPanel title="SAVINGS BY CATEGORY (YTD)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="MONTHLY SAVINGS HEATMAP" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
+            <DashboardPanel title="BASELINE VS ACTUAL (YTD)" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
           <section className="mt-3 h-[118px]">
-            <DashboardPanel title="MONTHLY SUMMARY TABLE" variant="enterprise"><EnterpriseMonthlySummaryTable /></DashboardPanel>
+            <DashboardPanel title="MONTHLY SUMMARY TABLE" variant="enterprise"><EnterpriseSourceMissing /></DashboardPanel>
           </section>
         </main>
       </div>
@@ -613,7 +621,7 @@ export function EnterpriseTrendAnalyticsScreen() {
 
 function EnterpriseDetailSidebar({ activeItem = "Enterprise Dashboard" }: { activeItem?: string }) {
   const sections = [["ENTERPRISE", ["Energy Dashboard","Capacity Intelligence","Digital Twin","Sites","Transformers","Current Analysis","Savings & Forecast","Alerts & Events","Reports"]],["DEVICES", []],["CLIENT MANAGEMENT", []],["DATA & ANALYTICS", []],["OPERATIONS", []],["ENGINEERING", []],["ADMINISTRATION", []]];
-  return <aside className="relative h-full overflow-hidden border-r border-cyan-300/10 bg-[#030c15] px-3 py-3"><div className="mb-3"><div className="text-[30px] font-black italic leading-none tracking-[-0.12em]"><span className="text-[#03f45f]">X</span><span className="text-white">ECO</span></div><div className="mt-1 text-[8px] font-bold uppercase tracking-[0.48em] text-[#16ff5d]">Energy</div></div><div className="mb-3 flex h-[28px] items-center gap-2 rounded bg-[#063b27] px-2 text-[10px] text-white"><span className="grid size-4 place-items-center rounded border border-[#05ff5e] text-[#05ff5e]">⌂</span>Enterprise Dashboard</div><nav className="space-y-2 text-[9px]">{sections.map(([title,items])=><section key={String(title)}><h2 className="mb-1 flex justify-between text-[#05ff5e]">{title}<span>⌄</span></h2>{(items as string[]).map((item)=><div className={item===activeItem ? "flex h-[22px] items-center justify-between rounded bg-[#063b27]/75 px-1.5 text-white" : "flex h-[22px] items-center justify-between rounded px-1.5 text-slate-300"} key={item}><span>{item}</span>{item==="Alerts & Events"?<b className="grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">3</b>:null}</div>)}</section>)}</nav><div className="absolute bottom-[110px] left-3 right-3 rounded border border-[#05ff5e]/25 bg-[#061421] p-3 text-center text-[10px]"><div>XECO Current<br/>Balance Index™</div><div className="mt-2 text-[40px] leading-none text-[#65a30d]">95</div><div className="mt-1 text-lg">A <span className="text-[10px]">(Excellent)</span></div><div>Target &gt; 90</div><div className="mt-3 text-[#05ff5e]">Learn More &nbsp; ›</div></div><div className="absolute bottom-[54px] left-3 text-[9px]"><div className="text-white">♧ &nbsp; Need Help?</div><div className="text-slate-400">Contact Support</div></div><div className="absolute bottom-3 left-3 right-3 text-[8px] leading-relaxed text-slate-500">© 2025 XECO Energy Corporation.<br/>All rights reserved.</div></aside>;
+  return <aside className="relative h-full overflow-hidden border-r border-cyan-300/10 bg-[#030c15] px-3 py-3"><div className="mb-3"><div className="text-[30px] font-black italic leading-none tracking-[-0.12em]"><span className="text-[#03f45f]">X</span><span className="text-white">ECO</span></div><div className="mt-1 text-[8px] font-bold uppercase tracking-[0.48em] text-[#16ff5d]">Energy</div></div><div className="mb-3 flex h-[28px] items-center gap-2 rounded bg-[#063b27] px-2 text-[10px] text-white"><span className="grid size-4 place-items-center rounded border border-[#05ff5e] text-[#05ff5e]">⌂</span>Enterprise Dashboard</div><nav className="space-y-2 text-[9px]">{sections.map(([title,items])=><section key={String(title)}><h2 className="mb-1 flex justify-between text-[#05ff5e]">{title}<span>⌄</span></h2>{(items as string[]).map((item)=><div className={item===activeItem ? "flex h-[22px] items-center justify-between rounded bg-[#063b27]/75 px-1.5 text-white" : "flex h-[22px] items-center justify-between rounded px-1.5 text-slate-300"} key={item}><span>{item}</span>{item==="Alerts & Events"?<b className="grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">0</b>:null}</div>)}</section>)}</nav><div className="absolute bottom-[110px] left-3 right-3 rounded border border-[#05ff5e]/25 bg-[#061421] p-3 text-center text-[10px]"><div>XECO Current<br/>Balance Index™</div><div className="mt-2 text-[40px] leading-none text-[#65a30d]">No Data</div><div className="mt-1 text-lg">source_missing <span className="text-[10px]">(No Data)</span></div><div>Backend source required</div><div className="mt-3 text-[#05ff5e]">Learn More &nbsp; ›</div></div><div className="absolute bottom-[54px] left-3 text-[9px]"><div className="text-white">♧ &nbsp; Need Help?</div><div className="text-slate-400">Contact Support</div></div><div className="absolute bottom-3 left-3 right-3 text-[8px] leading-relaxed text-slate-500">© 2025 XECO Energy Corporation.<br/>All rights reserved.</div></aside>;
 }
 
 function EnterpriseSavingsKpi({ active, detail, icon, label, tone, value }: { active?: boolean; detail: string; icon: string; label: string; tone: "green" | "blue" | "cyan" | "yellow"; value: string }) {
@@ -875,7 +883,7 @@ function EnterpriseMapRegionSummary() {
 
 function EnterpriseMapSitesTable() {
   const rows = [["Flex Tijuana","Tijuana, Mexico","Healthy","850","99.6","1.2","$234,500","May 18, 2025 10:12 AM"],["Flex Juarez North","Juarez, Mexico","Healthy","720","98.9","2.1","$208,300","May 18, 2025 10:08 AM"],["Flex Juarez South","Juarez, Mexico","Healthy","680","98.2","2.6","$187,600","May 18, 2025 09:57 AM"],["Flex Guadalajara","Guadalajara, Mexico","Healthy","610","97.6","2.8","$166,200","May 18, 2025 09:45 AM"],["Flex Hermosillo","Hermosillo, Mexico","Warning","540","92.7","5.5","$149,700","May 18, 2025 08:50 AM"]];
-  return <div className="h-full text-[6.9px]"><div className="mb-1 flex justify-end"><input className="h-6 w-[210px] rounded border border-cyan-300/12 bg-[#03101b] px-3 text-[7px]" placeholder="Search site..." readOnly /></div><table className="w-full text-left"><thead className="text-slate-400"><tr>{["Site","Location","Status","Capacity Recovered (kVA)","Avg Power Factor (%)","THD (%)","Annual Savings","Last Updated"].map(h=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-white/5" key={row[0]}>{row.map((cell,i)=><td className="py-1" key={`${row[0]}-${i}`}>{i===2 ? <span><b className="mr-2 inline-block size-2.5 rounded-full" style={{background:cell==="Healthy"?"#05ff5e":"#facc15"}}/>{cell}</span> : cell}</td>)}</tr>)}</tbody></table><div className="mt-1 flex items-center justify-between text-slate-400"><span>Showing 1 to 5 of 23 sites</span><span className="space-x-2"><b className="rounded bg-[#0f7d31] px-3 py-1 text-white">1</b><b className="rounded border border-cyan-300/12 px-3 py-1">2</b><b className="rounded border border-cyan-300/12 px-3 py-1">3</b><span>...</span><b className="rounded border border-cyan-300/12 px-3 py-1">5</b><b className="rounded border border-cyan-300/12 px-3 py-1">›</b></span></div></div>;
+  return <div className="h-full text-[6.9px]"><div className="mb-1 flex justify-end"><input className="h-6 w-[210px] rounded border border-cyan-300/12 bg-[#03101b] px-3 text-[7px]" placeholder="Search site..." readOnly /></div><table className="w-full text-left"><thead className="text-slate-400"><tr>{["Site","Location","Status","Capacity Recovered (kVA)","Avg Power Factor (%)","THD (%)","Annual Savings","Last Updated"].map(h=><th className="pb-1 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-white/5" key={row[0]}>{row.map((cell,i)=><td className="py-1" key={`${row[0]}-${i}`}>{i===2 ? <span><b className="mr-2 inline-block size-2.5 rounded-full" style={{background:cell==="Healthy"?"#05ff5e":"#facc15"}}/>{cell}</span> : cell}</td>)}</tr>)}</tbody></table><div className="mt-1 flex items-center justify-between text-slate-400"><span>Showing 1 to 5 of 23 sites</span><span className="space-x-2"><b className="rounded bg-[#0f7d31] px-3 py-1 text-white">1</b><b className="rounded border border-cyan-300/12 px-3 py-1">2</b><b className="rounded border border-cyan-300/12 px-3 py-1">0</b><span>...</span><b className="rounded border border-cyan-300/12 px-3 py-1">5</b><b className="rounded border border-cyan-300/12 px-3 py-1">›</b></span></div></div>;
 }
 
 function EnterpriseNetworkOverviewScore() {
@@ -967,7 +975,7 @@ function EnterpriseTransformerEvents() {
 }
 
 function EnterpriseTapChangerStatus() {
-  return <div className="grid h-full grid-cols-[76px_1fr] items-center gap-3 text-[7.5px]"><div className="relative size-[70px]"><svg className="size-[70px]" viewBox="0 0 100 100"><circle cx="50" cy="50" fill="none" r="35" stroke="#1f2937" strokeWidth="12"/><circle cx="50" cy="50" fill="none" r="35" stroke="#eab308" strokeDasharray="144 220" strokeLinecap="round" strokeWidth="12" transform="rotate(-90 50 50)"/><circle cx="50" cy="50" fill="#061421" r="25"/></svg><div className="absolute inset-0 grid place-items-center text-center"><span><b className="text-[22px]">3</b><br/>Current Tap<br/>Position</span></div></div><div className="space-y-3"><div>Tap Range<br/><b className="text-[15px]">-5 to +5</b></div><div>Operations (30 Days)<br/><b className="text-[15px]">2</b></div></div><div className="col-span-2 text-[#05bfff]">View Tap Changer History &nbsp; ›</div></div>;
+  return <div className="grid h-full grid-cols-[76px_1fr] items-center gap-3 text-[7.5px]"><div className="relative size-[70px]"><svg className="size-[70px]" viewBox="0 0 100 100"><circle cx="50" cy="50" fill="none" r="35" stroke="#1f2937" strokeWidth="12"/><circle cx="50" cy="50" fill="none" r="35" stroke="#eab308" strokeDasharray="144 220" strokeLinecap="round" strokeWidth="12" transform="rotate(-90 50 50)"/><circle cx="50" cy="50" fill="#061421" r="25"/></svg><div className="absolute inset-0 grid place-items-center text-center"><span><b className="text-[22px]">0</b><br/>Current Tap<br/>Position</span></div></div><div className="space-y-3"><div>Tap Range<br/><b className="text-[15px]">-5 to +5</b></div><div>Operations (30 Days)<br/><b className="text-[15px]">2</b></div></div><div className="col-span-2 text-[#05bfff]">View Tap Changer History &nbsp; ›</div></div>;
 }
 
 function EnterpriseTransformerDocuments() {
@@ -995,7 +1003,7 @@ function EnterpriseTransformerHealthBySite() {
 
 function EnterpriseTransformerInventory() {
   const rows = [["XF-TIJ-01","Flex Tijuana","2,000","13.8 kV / 480 V","62%","98","Healthy","May 18, 10:12 AM","#05ff5e"],["XF-TIJ-02","Flex Tijuana","1,500","13.8 kV / 480 V","58%","97","Healthy","May 18, 10:11 AM","#05ff5e"],["XF-JN-01","Flex Juarez North","2,500","13.8 kV / 480 V","61%","96","Healthy","May 18, 10:10 AM","#05ff5e"],["XF-JS-01","Flex Juarez South","2,000","13.8 kV / 480 V","66%","95","Healthy","May 18, 10:09 AM","#05ff5e"],["XF-GDL-01","Flex Guadalajara","1,750","13.8 kV / 480 V","70%","94","Warning","May 18, 10:08 AM","#facc15"],["XF-HMO-01","Flex Hermosillo","1,250","13.8 kV / 480 V","68%","93","Warning","May 18, 10:07 AM","#facc15"]];
-  return <div className="h-full text-[7.2px]"><table className="w-full text-left"><thead className="bg-cyan-300/5 text-slate-400"><tr>{["Transformer ID","Site","kVA Rating","Voltage (Primary/Secondary)","Loading (%)","Health Index","Status","Last Updated"].map(h=><th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-white/5" key={row[0]}>{row.slice(0,8).map((cell,i)=><td className="px-2 py-1.5" key={`${row[0]}-${i}`}>{i===6 ? <span><b className="mr-2 inline-block size-2.5 rounded-full" style={{background:row[8]}}/>{cell}</span> : cell}</td>)}</tr>)}</tbody></table><div className="mt-2 flex items-center justify-between text-slate-400"><span>Showing 1 to 6 of 32 transformers</span><span className="space-x-2"><b className="rounded bg-[#0f7d31] px-3 py-1.5 text-white">1</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">2</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">3</b><span>...</span><b className="rounded border border-cyan-300/12 px-3 py-1.5">6</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">›</b></span></div></div>;
+  return <div className="h-full text-[7.2px]"><table className="w-full text-left"><thead className="bg-cyan-300/5 text-slate-400"><tr>{["Transformer ID","Site","kVA Rating","Voltage (Primary/Secondary)","Loading (%)","Health Index","Status","Last Updated"].map(h=><th className="px-2 py-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-white/5" key={row[0]}>{row.slice(0,8).map((cell,i)=><td className="px-2 py-1.5" key={`${row[0]}-${i}`}>{i===6 ? <span><b className="mr-2 inline-block size-2.5 rounded-full" style={{background:row[8]}}/>{cell}</span> : cell}</td>)}</tr>)}</tbody></table><div className="mt-2 flex items-center justify-between text-slate-400"><span>Showing 1 to 6 of 32 transformers</span><span className="space-x-2"><b className="rounded bg-[#0f7d31] px-3 py-1.5 text-white">1</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">2</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">0</b><span>...</span><b className="rounded border border-cyan-300/12 px-3 py-1.5">6</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">›</b></span></div></div>;
 }
 
 function EnterpriseTransformerCapacitySummary() {
@@ -1067,7 +1075,7 @@ function EnterpriseAssetHealthTable() {
     ["⌄","▣","METER-JS-05","MTR-00211","Meter","91","Warning","Communication delays ⓘ","#facc15","May 18, 09:57 AM"],
     ["⌄","▣","UPS-JS-03","UPS-00102","UPS System","87","Critical","Battery runtime low ⓘ","#ef4444","May 18, 09:52 AM"],
   ];
-  return <div className="h-full text-[6.7px]"><div className="mb-1.5 flex items-center justify-between"><div className="flex gap-1.5 text-[7px]">{["All (235)","Transformers (6)","Devices (130)","Infrastructure (50)","Maintenance (49)"].map((tab,i)=><span className={i===0 ? "rounded bg-[#063b27] px-2.5 py-1.5 text-[#05ff5e]" : "rounded border border-cyan-300/12 bg-[#061421] px-2.5 py-1.5"} key={tab}>{tab}</span>)}</div><div className="flex items-center gap-1.5"><input className="h-7 w-[150px] rounded border border-cyan-300/12 bg-[#03101b] px-3 text-[7px]" placeholder="Search assets..." readOnly /><span>Group By:</span><button className="rounded border border-cyan-300/12 bg-[#061421] px-2.5 py-1.5">Asset Type</button><button className="rounded bg-[#063b27] px-2.5 py-1.5 text-[#05ff5e]">☷</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-2.5 py-1.5">▦</button></div></div><table className="w-full text-left"><thead className="bg-cyan-300/5 text-slate-400"><tr>{["","","Asset Name","Asset ID","Asset Type","Health Index","Status","Key Issue (if any)","Trend (30 Days)","Last Updated",""].map((h,i)=><th className="px-2 py-1.5 font-medium" key={`${h}-${i}`}>{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-white/5" key={row[2]}>{row.map((cell,i)=><td className={i===7 && cell!=="—" ? "px-2 py-0.5 text-[#facc15]" : "px-2 py-0.5"} key={`${row[2]}-${i}`}>{i===5 ? <span className="grid size-6 place-items-center rounded-full border text-[7px] text-[#05ff5e]" style={{borderColor:row[8]}}>{cell}</span> : i===6 ? <span><b className="mr-2 inline-block size-2.5 rounded-full" style={{background:row[8]}}/>{cell}</span> : i===8 ? <EnterpriseAssetSpark color={String(row[8])} /> : cell}</td>)}</tr>)}</tbody></table><div className="mt-1.5 flex items-center justify-between text-slate-400"><span>Showing 1 to 8 of 235 assets</span><span className="space-x-2"><b className="rounded bg-[#0f7d31] px-3 py-1.5 text-white">1</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">2</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">3</b><span>...</span><b className="rounded border border-cyan-300/12 px-3 py-1.5">30</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">›</b></span></div></div>;
+  return <div className="h-full text-[6.7px]"><div className="mb-1.5 flex items-center justify-between"><div className="flex gap-1.5 text-[7px]">{["All (235)","Transformers (6)","Devices (130)","Infrastructure (50)","Maintenance (49)"].map((tab,i)=><span className={i===0 ? "rounded bg-[#063b27] px-2.5 py-1.5 text-[#05ff5e]" : "rounded border border-cyan-300/12 bg-[#061421] px-2.5 py-1.5"} key={tab}>{tab}</span>)}</div><div className="flex items-center gap-1.5"><input className="h-7 w-[150px] rounded border border-cyan-300/12 bg-[#03101b] px-3 text-[7px]" placeholder="Search assets..." readOnly /><span>Group By:</span><button className="rounded border border-cyan-300/12 bg-[#061421] px-2.5 py-1.5">Asset Type</button><button className="rounded bg-[#063b27] px-2.5 py-1.5 text-[#05ff5e]">☷</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-2.5 py-1.5">▦</button></div></div><table className="w-full text-left"><thead className="bg-cyan-300/5 text-slate-400"><tr>{["","","Asset Name","Asset ID","Asset Type","Health Index","Status","Key Issue (if any)","Trend (30 Days)","Last Updated",""].map((h,i)=><th className="px-2 py-1.5 font-medium" key={`${h}-${i}`}>{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-white/5" key={row[2]}>{row.map((cell,i)=><td className={i===7 && cell!=="—" ? "px-2 py-0.5 text-[#facc15]" : "px-2 py-0.5"} key={`${row[2]}-${i}`}>{i===5 ? <span className="grid size-6 place-items-center rounded-full border text-[7px] text-[#05ff5e]" style={{borderColor:row[8]}}>{cell}</span> : i===6 ? <span><b className="mr-2 inline-block size-2.5 rounded-full" style={{background:row[8]}}/>{cell}</span> : i===8 ? <EnterpriseAssetSpark color={String(row[8])} /> : cell}</td>)}</tr>)}</tbody></table><div className="mt-1.5 flex items-center justify-between text-slate-400"><span>Showing 1 to 8 of 235 assets</span><span className="space-x-2"><b className="rounded bg-[#0f7d31] px-3 py-1.5 text-white">1</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">2</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">0</b><span>...</span><b className="rounded border border-cyan-300/12 px-3 py-1.5">30</b><b className="rounded border border-cyan-300/12 px-3 py-1.5">›</b></span></div></div>;
 }
 
 function EnterpriseAssetSpark({ color }: { color: string }) {
@@ -1116,7 +1124,7 @@ function EnterpriseStatusSummary() {
 
 function EnterpriseDeviceInventory() {
   const rows = [["GW-TIJ-01","Flex Tijuana","ECBS Gateway","● Healthy","100%","v3.2.1","May 18, 2025 10:14 AM","99.8%","—"],["PF-TIJ-MAIN","Flex Tijuana","Power Filter","● Healthy","99%","v2.4.3","May 18, 2025 10:13 AM","99.6%","—"],["RACK-TIJ-01","Flex Tijuana","Rack System","● Healthy","98%","v2.1.0","May 18, 2025 10:12 AM","99.5%","—"],["SGB-TIJ-MAIN","Flex Tijuana","Switch Gear Booster","● Warning","92%","v1.9.7","May 18, 2025 09:58 AM","97.2%","Voltage Unbalance"],["METER-TIJ-01","Flex Tijuana","Bi-Directional Meter","● Healthy","100%","v3.0.2","May 18, 2025 10:14 AM","99.7%","—"]];
-  return <div className="h-full text-[7.4px]"><table className="w-full text-left"><thead className="text-slate-400"><tr>{["Device Name","Site","Type","Status","Health Index","Firmware","Last Check-In","Uptime","Issues",""].map(h=><th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-white/5" key={row[0]}>{row.map((cell,i)=><td className={cell.includes("Warning") ? "py-2 text-[#f59e0b]" : cell.includes("Healthy") || cell.includes("100%") || cell.includes("99%") || cell.includes("98%") ? "py-2 text-[#05ff5e]" : "py-2"} key={`${row[0]}-${i}`}>{i===4 ? <span className="inline-flex items-center gap-2">{cell}<i className="block h-1.5 w-14 rounded bg-[#05b82e]" /></span> : cell}</td>)}</tr>)}</tbody></table><div className="mt-3 flex items-center justify-between text-slate-400"><span>Showing 1 to 5 of 98 devices</span><span className="space-x-2"><b className="rounded bg-[#0f7d31] px-3 py-2 text-white">1</b><b className="rounded border border-cyan-300/12 px-3 py-2">2</b><b className="rounded border border-cyan-300/12 px-3 py-2">3</b><span>...</span><b className="rounded border border-cyan-300/12 px-3 py-2">20</b><b className="rounded border border-cyan-300/12 px-3 py-2">›</b></span></div></div>;
+  return <div className="h-full text-[7.4px]"><table className="w-full text-left"><thead className="text-slate-400"><tr>{["Device Name","Site","Type","Status","Health Index","Firmware","Last Check-In","Uptime","Issues",""].map(h=><th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-white/5" key={row[0]}>{row.map((cell,i)=><td className={cell.includes("Warning") ? "py-2 text-[#f59e0b]" : cell.includes("Healthy") || cell.includes("100%") || cell.includes("99%") || cell.includes("98%") ? "py-2 text-[#05ff5e]" : "py-2"} key={`${row[0]}-${i}`}>{i===4 ? <span className="inline-flex items-center gap-2">{cell}<i className="block h-1.5 w-14 rounded bg-[#05b82e]" /></span> : cell}</td>)}</tr>)}</tbody></table><div className="mt-3 flex items-center justify-between text-slate-400"><span>Showing 1 to 5 of 98 devices</span><span className="space-x-2"><b className="rounded bg-[#0f7d31] px-3 py-2 text-white">1</b><b className="rounded border border-cyan-300/12 px-3 py-2">2</b><b className="rounded border border-cyan-300/12 px-3 py-2">0</b><span>...</span><b className="rounded border border-cyan-300/12 px-3 py-2">20</b><b className="rounded border border-cyan-300/12 px-3 py-2">›</b></span></div></div>;
 }
 
 function EnterpriseTopIssues() {

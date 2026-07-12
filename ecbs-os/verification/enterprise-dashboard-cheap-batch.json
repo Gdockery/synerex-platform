@@ -1,0 +1,89 @@
+{
+  "name": "Enterprise Dashboard Cheap Batch",
+  "routes": [
+    {
+      "name": "enterprise dashboard",
+      "path": "/enterprise/dashboard",
+      "status": 200,
+      "expectText": ["Enterprise Dashboard", "source_missing"]
+    },
+    {
+      "name": "enterprise device health detail",
+      "path": "/enterprise/dashboard/enterprise-device-health-device-health-screen",
+      "status": 200,
+      "expectText": ["Device Details", "source_missing"]
+    },
+    {
+      "name": "enterprise device health overview",
+      "path": "/enterprise/dashboard/enterprise-device-health-screen",
+      "status": 200,
+      "expectText": ["DEVICE HEALTH OVERVIEW", "source_missing"]
+    },
+    {
+      "name": "enterprise annual savings detail",
+      "path": "/enterprise/dashboard/enterprise-kpi-drill-down-annual-savings-screen",
+      "status": 200,
+      "expectText": ["Annual Savings Detail", "source_missing"]
+    },
+    {
+      "name": "enterprise capacity recovered detail",
+      "path": "/enterprise/dashboard/enterprise-kpi-drill-down-capacity-recovered-screen",
+      "status": 200,
+      "expectText": ["Capacity Recovered", "source_missing"]
+    },
+    {
+      "name": "enterprise thd reduction detail",
+      "path": "/enterprise/dashboard/enterprise-kpi-drill-down-thd-reduction-detail-screen",
+      "status": 200,
+      "expectText": ["THD Reduction", "source_missing"]
+    },
+    {
+      "name": "enterprise avg power factor detail",
+      "path": "/enterprise/dashboard/enterprise-kpi-drill-down-avg-power-factor-detail-screen",
+      "status": 200,
+      "expectText": ["Avg Power Factor", "source_missing"]
+    },
+    {
+      "name": "enterprise loss analysis",
+      "path": "/enterprise/dashboard/enterprise-loss-analysis-screen",
+      "status": 200,
+      "expectText": ["Loss Analysis", "source_missing"]
+    },
+    {
+      "name": "enterprise map expansion",
+      "path": "/enterprise/dashboard/enterprise-map-expansion-screen",
+      "status": 200,
+      "expectText": ["Global Site Overview", "source_missing"]
+    },
+    {
+      "name": "enterprise network health breakdown detail",
+      "path": "/enterprise/dashboard/enterprise-network-health-breakdown-network-health-breakdown-screen",
+      "status": 200,
+      "expectText": ["Asset Health Breakdown", "source_missing"]
+    },
+    {
+      "name": "enterprise network health breakdown",
+      "path": "/enterprise/dashboard/enterprise-network-health-breakdown-screen",
+      "status": 200,
+      "expectText": ["Network Health", "source_missing"]
+    },
+    {
+      "name": "enterprise transformer detail",
+      "path": "/enterprise/dashboard/enterprise-transformer-transformer-screen",
+      "status": 200,
+      "expectText": ["XF-TIJ-01 Details", "source_missing"]
+    },
+    {
+      "name": "enterprise transformer overview",
+      "path": "/enterprise/dashboard/enterprise-transformer-screen",
+      "status": 200,
+      "expectText": ["Transformers", "source_missing"]
+    },
+    {
+      "name": "enterprise trend analytics",
+      "path": "/enterprise/dashboard/enterprise-trend-analytics-screen",
+      "status": 200,
+      "expectText": ["Savings Trend Analytics", "source_missing"]
+    }
+  ]
+}
