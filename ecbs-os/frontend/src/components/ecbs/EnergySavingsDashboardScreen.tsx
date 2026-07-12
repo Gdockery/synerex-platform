@@ -38,9 +38,19 @@ function annualBenefitValue(data?: CapacityIntelligenceData) {
   return data?.annualBenefit && data.annualBenefit !== "$0" ? data.annualBenefit : "No Data";
 }
 
+function cumulativeSavingsValue(data?: CapacityIntelligenceData) {
+  return data?.cumulativeSavingsSinceActivation && data.cumulativeSavingsSinceActivation !== "$0"
+    ? data.cumulativeSavingsSinceActivation
+    : "No Data";
+}
+
+function activationDateValue(data?: CapacityIntelligenceData) {
+  return data?.activationDate && data.activationDate !== "No Data" ? data.activationDate : "No Data";
+}
+
 function energyKpis(data?: CapacityIntelligenceData) {
   return [
-    ["Lifetime Savings", "No Data", "No approved lifetime rollup", "green"],
+    ["Lifetime Savings", cumulativeSavingsValue(data), "M-016 since activation", "green"],
     ["Savings This Year", annualBenefitValue(data), "Latest savings_intelligence row", "blue"],
     ["Savings This Month", "No Data", "No approved monthly rollup", "cyan"],
     ["Savings Today", "No Data", "No approved daily rollup", "yellow"],
@@ -63,6 +73,36 @@ function energyBaselineRows(data?: CapacityIntelligenceData) {
 
 function NoDataBlock({ message = "No Data" }: { message?: string }) {
   return <div className="grid h-full place-items-center px-4 text-center text-[9px] leading-snug text-slate-400">{message}</div>;
+}
+
+function CumulativeSavingsSummary({ data }: EnergySavingsScreenProps) {
+  const value = cumulativeSavingsValue(data);
+
+  if (value === "No Data") {
+    return <NoDataBlock message={data?.cumulativeSavingsModel ?? "No Data - M-016 requires annual_savings and activation date."} />;
+  }
+
+  return (
+    <div className="grid h-full grid-cols-[1fr_140px] items-center gap-4 text-[9px]">
+      <div>
+        <div className="text-slate-400">Approved Model</div>
+        <div className="mt-1 text-[11px] text-slate-200">{data?.cumulativeSavingsModel}</div>
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="rounded border border-cyan-300/10 bg-[#061421] p-3">
+            Activation<br /><b className="text-[#05ff5e]">{activationDateValue(data)}</b>
+          </div>
+          <div className="rounded border border-cyan-300/10 bg-[#061421] p-3">
+            Annual Savings<br /><b className="text-[#05ff5e]">{annualBenefitValue(data)}</b>
+          </div>
+        </div>
+      </div>
+      <div className="text-center">
+        <div className="text-[10px] uppercase text-slate-400">Total Since Activation</div>
+        <div className="mt-2 text-[32px] leading-none text-[#05ff5e]">{value}</div>
+        <div className="mt-2 text-[8px] text-slate-400">M-016 calculated accrual</div>
+      </div>
+    </div>
+  );
 }
 
 export function EnergySavingsDashboardScreen({ data }: EnergySavingsScreenProps) {
@@ -89,7 +129,7 @@ export function EnergySavingsDashboardScreen({ data }: EnergySavingsScreenProps)
             <div className="mt-3 text-[9px] text-slate-400">Every minute. Every hour. Every day. <span className="text-[#05ff5e]">Real measurable value.</span></div>
           </DashboardPanel>
           <DashboardPanel title="Cumulative Savings Since Activation" variant="enterprise">
-            <NoDataBlock message="No Data - cumulative savings trend source is not approved." />
+            <CumulativeSavingsSummary data={data} />
           </DashboardPanel>
         </section>
 
@@ -347,21 +387,21 @@ export function EnergySavingsCumulativeSavingsScreen({ data }: EnergySavingsScre
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>‹ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">Cumulative Savings Since Activation</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">More</button></div></div>
         <section className="grid h-[88px] grid-cols-6 gap-2">
-          <CumulativeKpi icon="$" label="TOTAL CUMULATIVE SAVINGS" value="No Data" detail="No approved lifetime rollup" trend="Blocked" tone="green" />
+          <CumulativeKpi icon="$" label="TOTAL CUMULATIVE SAVINGS" value={cumulativeSavingsValue(data)} detail="M-016 since activation" trend="Approved Model" tone="green" />
           <CumulativeKpi icon="▣" label="ENERGY SAVINGS (kWh)" value="No Data" detail="No approved kWh rollup" trend="Blocked" tone="cyan" />
           <CumulativeKpi icon="▤" label="DEMAND SAVINGS (kW)" value="No Data" detail="No approved demand baseline" trend="Blocked" tone="orange" />
           <CumulativeKpi icon="▥" label="PF IMPROVEMENT" value="No Data" detail="No approved PF baseline" trend="Blocked" tone="purple" />
           <CumulativeKpi icon="⌁" label="CAPACITY RECOVERED™" value={formatKva(data?.recoveredKva)} detail="Latest capacity_intelligence row" trend="Direct Data" tone="cyan" />
-          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-1 text-2xl leading-none">No Data</div><div className="mt-3 text-[9px] text-slate-300">No lifetime value rollup</div></article>
+          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-1 text-2xl leading-none">{cumulativeSavingsValue(data)}</div><div className="mt-3 text-[9px] text-slate-300">Activation: {activationDateValue(data)}</div></article>
         </section>
         <section className="mt-2 grid h-[218px] grid-cols-[1.25fr_0.95fr] gap-2">
-          <DashboardPanel title="CUMULATIVE SAVINGS OVER TIME ⓘ" variant="enterprise"><NoDataBlock message="No Data - cumulative savings trend source is not approved." /></DashboardPanel>
+          <DashboardPanel title="CUMULATIVE SAVINGS OVER TIME ⓘ" variant="enterprise"><CumulativeSavingsSummary data={data} /></DashboardPanel>
           <DashboardPanel title="CUMULATIVE SAVINGS BREAKDOWN ⓘ" variant="enterprise"><NoDataBlock message="No Data - savings category split is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[196px] grid-cols-[1fr_0.78fr_0.9fr] gap-2">
           <DashboardPanel title="CUMULATIVE SAVINGS BY CATEGORY (Stacked) ⓘ" variant="enterprise"><NoDataBlock message="No Data - category-over-time model is not approved." /></DashboardPanel>
           <DashboardPanel title="PERCENT CONTRIBUTION TO TOTAL SAVINGS ⓘ" variant="enterprise"><NoDataBlock message="No Data - contribution split is not approved." /></DashboardPanel>
-          <DashboardPanel title="CUMULATIVE SAVINGS SUMMARY ⓘ" variant="enterprise"><NoDataBlock message="No Data - cumulative summary requires an approved lifetime rollup." /></DashboardPanel>
+          <DashboardPanel title="CUMULATIVE SAVINGS SUMMARY ⓘ" variant="enterprise"><CumulativeSavingsSummary data={data} /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[174px] grid-cols-[0.86fr_0.86fr_1fr] gap-2">
           <DashboardPanel title="CUMULATIVE SAVINGS BY SITE ⓘ" variant="enterprise"><NoDataBlock message="No Data - site savings allocation is not approved." /></DashboardPanel>
@@ -602,7 +642,7 @@ export function EnergySavingsRealTimeValueDetailScreen({ data }: EnergySavingsSc
           <ValueKpi icon="⌁" label="REAL-TIME DEMAND VALUE" value="No Data" unit="" detail="No approved demand model" trend="Blocked" tone="orange" />
           <ValueKpi icon="☆" label="PF & PENALTY VALUE" value="No Data" unit="" detail="No approved PF penalty model" trend="Blocked" tone="purple" />
           <ValueKpi icon="▥" label="CAPACITY VALUE" value={formatCurrencyValue(data?.deferredCapitalValue)} unit="" detail="Latest deferred value" trend="Direct Data" tone="cyan" />
-          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-1 text-2xl leading-none">No Data</div><div className="mt-3 text-[9px] text-slate-300">No lifetime value rollup</div></article>
+          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-1 text-2xl leading-none">{cumulativeSavingsValue(data)}</div><div className="mt-3 text-[9px] text-slate-300">M-016 since {activationDateValue(data)}</div></article>
         </section>
         <section className="mt-2 grid h-[206px] grid-cols-[0.98fr_0.88fr_1fr] gap-2">
           <DashboardPanel title="LIVE VALUE STREAM (Per Minute)" variant="enterprise"><NoDataBlock message="No Data - real-time value stream model is not approved." /></DashboardPanel>
@@ -693,7 +733,7 @@ export function EnergySavingsRealTimeValueEngineScreen({ data }: EnergySavingsSc
           <ValueKpi icon="⌁" label="REAL-TIME DEMAND VALUE" value="No Data" unit="" detail="No approved demand model" trend="Blocked" tone="orange" />
           <ValueKpi icon="☆" label="PF & PENALTY VALUE" value="No Data" unit="" detail="No approved PF penalty model" trend="Blocked" tone="purple" />
           <ValueKpi icon="▥" label="CAPACITY VALUE" value={formatCurrencyValue(data?.deferredCapitalValue)} unit="" detail="Latest deferred value" trend="Direct Data" tone="cyan" />
-          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-3 text-2xl leading-none">No Data</div><div className="mt-3 text-[9px] text-slate-300">No lifetime value rollup</div></article>
+          <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3"><div className="text-[8px] text-slate-400">VALUE SINCE ACTIVATION</div><div className="mt-3 text-2xl leading-none">{cumulativeSavingsValue(data)}</div><div className="mt-3 text-[9px] text-slate-300">M-016 since {activationDateValue(data)}</div></article>
         </section>
         <section className="mt-2 grid h-[206px] grid-cols-[0.96fr_0.86fr_1.1fr] gap-2">
           <DashboardPanel title="VALUE CREATION RATE (Real-Time)" variant="enterprise"><NoDataBlock message="No Data - real-time value model is not approved." /></DashboardPanel>
@@ -1364,12 +1404,12 @@ export function SavingsFinancialsScreen({ data }: EnergySavingsScreenProps) {
           <section className="mt-2 grid h-[288px] grid-cols-[0.98fr_0.76fr_0.94fr] gap-2">
             <FinancialPanel title="BASELINE vs CURRENT PERFORMANCE"><NoDataBlock message="M-008/M-012 source_missing - baseline utility and telemetry rollups required." /></FinancialPanel>
             <FinancialPanel title="SAVINGS WATERFALL (Annual)"><NoDataBlock message="M-009 source_missing - approved savings split inputs required." /></FinancialPanel>
-            <FinancialPanel title="CUMULATIVE SAVINGS SINCE ACTIVATION"><NoDataBlock message="M-012 source_missing - cumulative savings snapshot contract required." /></FinancialPanel>
+            <FinancialPanel title="CUMULATIVE SAVINGS SINCE ACTIVATION"><SavingsFinancialCumulative data={data} /></FinancialPanel>
           </section>
           <section className="mt-2 grid h-[214px] grid-cols-[0.86fr_1.02fr_0.72fr] gap-2">
             <FinancialPanel title="CAPACITY RECOVERY VALUE™"><CapacityBlock data={data} /></FinancialPanel>
             <FinancialPanel title="CURRENT BALANCE IMPROVEMENT"><NoDataBlock message="M-005 source_missing - power quality baseline/current rollup required." /></FinancialPanel>
-            <FinancialPanel title="FINANCIAL INTELLIGENCE"><SavingsBreakdown data={data} /></FinancialPanel>
+            <FinancialPanel title="FINANCIAL INTELLIGENCE"><SavingsFinancialIntelligence data={data} /></FinancialPanel>
           </section>
           <section className="mt-2 h-[136px]">
             <FinancialPanel title="BASELINE INFORMATION (LOCKED)"><NoDataBlock message="No Data - approved baseline metadata source is missing." /></FinancialPanel>
@@ -1411,10 +1451,8 @@ function SavingsFinancialWaterfall() {
   return <div className="h-full text-[8px]"><svg className="h-[148px] w-full" viewBox="0 0 360 158"><g stroke="rgba(148,163,184,.16)">{[18,48,78,108,138].map(y=><line key={y} x1="28" x2="352" y1={y} y2={y}/>)}</g><g fill="#e2e8f0" fontSize="7">{bars.map(([label,height,color,value,offset],i)=>{const x=60+i*62; const y=144-Number(height)-Number(offset); return <g key={String(label)}><rect fill={String(color)} height={Number(height)} width="32" x={x} y={y}/><text textAnchor="middle" x={x+16} y={y-5}>{value}</text><text fill="#94a3b8" textAnchor="middle" x={x+16} y="154">{String(label).split("\\n").map((t,j)=><tspan dy={j?8:0} x={x+16} key={t}>{t}</tspan>)}</text></g>})}</g><g fill="#94a3b8" fontSize="8"><text x="0" y="20">$2.5M</text><text x="2" y="50">$2.0M</text><text x="2" y="80">$1.5M</text><text x="2" y="110">$1.0M</text><text x="10" y="140">$0</text></g></svg><div className="grid grid-cols-2 border-t border-cyan-300/10 pt-3 text-center"><span>Total Annual Savings<br /><b className="text-[22px] leading-none text-[#65a30d]">$489,320</b></span><span>Total Cost Reduction<br /><b className="text-[22px] leading-none text-[#65a30d]">20.9%</b></span></div></div>;
 }
 
-function SavingsFinancialCumulative() {
-  const labels = ["Jun 25","Jul 25","Aug 25","Sep 25","Oct 25","Nov 25","Dec 25","Jan 26","Feb 26","Mar 26","Apr 26","May 26"];
-  const values = ["$0","$18K","$39K","$85K","$112K","$145K","$183K","$223K","$289K","$324K","$487K"];
-  return <div className="h-full text-[8px]"><div className="mb-1 flex justify-end gap-2"><span className="rounded bg-[#123a63] px-3 py-1 text-white">Cumulative ($)</span><span className="rounded bg-[#061421] px-3 py-1">Cumulative (kWh)</span></div><svg className="h-[160px] w-full" viewBox="0 0 420 170"><defs><linearGradient id="sfCum" x1="0" x2="0" y1="0" y2="1"><stop stopColor="#65a30d" stopOpacity=".45"/><stop offset="1" stopColor="#65a30d" stopOpacity=".05"/></linearGradient></defs><g stroke="rgba(148,163,184,.16)">{[22,48,74,100,126,152].map(y=><line key={y} x1="34" x2="410" y1={y} y2={y}/>)}</g><path d="M42 150 L74 146 L106 140 L138 132 L170 122 L202 110 L234 96 L266 82 L298 66 L330 50 L362 36 L402 22 L402 152 L42 152 Z" fill="url(#sfCum)"/><polyline fill="none" points="42,150 74,146 106,140 138,132 170,122 202,110 234,96 266,82 298,66 330,50 362,36 402,22" stroke="#65a30d" strokeWidth="2"/><g fill="#e2e8f0" fontSize="8">{values.map((v,i)=><text key={v} textAnchor="middle" x={42+i*32} y={i<1?148:146-i*11}>{v}</text>)}</g><g fill="#94a3b8" fontSize="8"><text x="0" y="24">$600K</text><text x="0" y="50">$500K</text><text x="0" y="76">$400K</text><text x="0" y="102">$300K</text><text x="0" y="128">$100K</text><text x="14" y="154">$0</text></g></svg><div className="flex justify-between px-7 text-[7px] text-slate-400">{labels.map(d=><span key={d}>{d}</span>)}</div><div className="mt-3 text-center">TOTAL SAVINGS SINCE ACTIVATION &nbsp; <b className="text-[20px] text-[#65a30d]">$487,320</b></div></div>;
+function SavingsFinancialCumulative({ data }: EnergySavingsScreenProps) {
+  return <CumulativeSavingsSummary data={data} />;
 }
 
 function SavingsFinancialCapacityValue() {
@@ -1426,8 +1464,8 @@ function SavingsFinancialBalanceImprovement() {
   return <div className="h-full"><div className="grid grid-cols-3 gap-3">{gauges.map(([title,a,b,al,bl,trend,color])=><div className="border-r border-cyan-300/10 text-center last:border-r-0" key={title}><div className="text-[8px]">{title}</div><svg className="mx-auto mt-2 h-[72px] w-[92px]" viewBox="0 0 100 72"><path d="M18 58 A32 32 0 0 1 82 58" fill="none" stroke="#1f2937" strokeWidth="13"/><path d="M18 58 A32 32 0 0 1 38 30" fill="none" stroke="#ef4444" strokeWidth="13"/><path d="M38 30 A32 32 0 0 1 60 26" fill="none" stroke="#f59e0b" strokeWidth="13"/><path d="M60 26 A32 32 0 0 1 82 58" fill="none" stroke={color} strokeWidth="13"/><line x1="50" x2="72" y1="58" y2="38" stroke="#e2e8f0" strokeWidth="2"/></svg><div className="grid grid-cols-2 text-[8px]"><span><b className="text-base">{a}</b><br />{al}</span><span><b className="text-base">{b}</b><br />{bl}</span></div><div className="mt-2 text-[8px] text-[#05ff5e]">{trend}</div></div>)}</div><div className="mt-3 text-[8px] text-slate-300">ⓘ Improved current quality leads to lower losses, cooler equipment and longer asset life.</div></div>;
 }
 
-function SavingsFinancialIntelligence() {
-  const rows = [["▣","Savings Today","$1,876"],["▣","Savings This Month","$40,560"],["▣","Savings This Year","$487,320"],["▣","Lifetime Savings","$487,320"],["▣","Cost Avoidance (Capacity)","$460,000"]];
+function SavingsFinancialIntelligence({ data }: EnergySavingsScreenProps) {
+  const rows = [["▣","Savings Today","No Data"],["▣","Savings This Month","No Data"],["▣","Savings This Year",annualBenefitValue(data)],["▣","Lifetime Savings",cumulativeSavingsValue(data)],["▣","Cost Avoidance (Capacity)",formatCurrencyValue(data?.deferredCapitalValue)]];
   return <div className="space-y-3 text-[10px]">{rows.map(([icon,label,value],i)=><div className="grid grid-cols-[20px_1fr_76px_58px] items-center gap-1" key={label}><span className={i===0?"text-cyan-300":i===1?"text-blue-400":i===2?"text-purple-400":i===3?"text-orange-400":"text-blue-300"}>{icon}</span><span>{label}</span><b className="text-[#65a30d]">{value}</b><svg className="h-4 w-14" viewBox="0 0 58 18"><polyline fill="none" points="0,12 8,10 16,13 24,8 32,10 40,5 48,8 56,3" stroke="#65a30d" strokeWidth="1.5"/></svg></div>)}</div>;
 }
 

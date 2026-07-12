@@ -161,12 +161,15 @@ export type CapacityIntelligenceAsset = {
 
 export type CapacityIntelligenceData = {
   annualBenefit: string;
+  activationDate: string;
   assets: CapacityIntelligenceAsset[];
   availableKva: number;
   avoidedUpgrade: string;
   callouts: { icon: string; label: string; value: string }[];
   capacityHealthScore: number;
   co2Tons: string;
+  cumulativeSavingsModel: string;
+  cumulativeSavingsSinceActivation: string;
   dateRange: string;
   deferredCapitalValue: number;
   hiddenKva: number;
@@ -1572,12 +1575,15 @@ function emptySiteDashboard(message: string): SiteDashboardData {
 function emptyCapacityIntelligence(message: string): CapacityIntelligenceData {
   return {
     annualBenefit: "$0",
+    activationDate: "No Data",
     assets: [],
     availableKva: 0,
     avoidedUpgrade: message,
     callouts: [{ icon: "!", label: "Capacity Data Unavailable", value: message }],
     capacityHealthScore: 0,
     co2Tons: "0 tons",
+    cumulativeSavingsModel: "No Data - M-016 requires annual_savings and activation date.",
+    cumulativeSavingsSinceActivation: "No Data",
     dateRange: "Tracking DB",
     deferredCapitalValue: 0,
     hiddenKva: 0,

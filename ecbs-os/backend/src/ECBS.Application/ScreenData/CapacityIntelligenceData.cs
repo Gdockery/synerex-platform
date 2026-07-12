@@ -2,12 +2,15 @@ namespace ECBS.Application.ScreenData;
 
 public sealed record CapacityIntelligenceData(
     string AnnualBenefit,
+    string ActivationDate,
     IReadOnlyList<CapacityIntelligenceAsset> Assets,
     double AvailableKva,
     string AvoidedUpgrade,
     IReadOnlyList<CapacityCallout> Callouts,
     double CapacityHealthScore,
     string Co2Tons,
+    string CumulativeSavingsModel,
+    string CumulativeSavingsSinceActivation,
     string DateRange,
     double DeferredCapitalValue,
     double HiddenKva,

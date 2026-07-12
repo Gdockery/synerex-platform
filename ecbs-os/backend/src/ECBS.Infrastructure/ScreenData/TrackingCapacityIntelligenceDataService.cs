@@ -45,12 +45,15 @@ public sealed class TrackingCapacityIntelligenceDataService(
             var recoveredPct = installed > 0 ? recovered / installed * 100 : capacity.RecoverablePct;
             var annualBenefit = savings?.AnnualSavings ?? 0;
             var co2 = savings?.Co2ReductionTons ?? 0;
+            var activationDate = savings?.ActivationDate;
+            var cumulativeSavings = CalculateCumulativeSavings(annualBenefit, activationDate, DateTimeOffset.UtcNow);
             var nowAvailable = available + recovered;
             var nextUpgradeKva = Math.Ceiling(Math.Max(installed, 1) / 500) * 500;
             var trend = BuildTrend(Array.Empty<CapacityMinuteTrendRow>(), trendRows, installed, recovered);
 
             return new CapacityIntelligenceData(
                 AnnualBenefit: FormatCurrency(annualBenefit),
+                ActivationDate: activationDate.HasValue ? FormatShortDate(activationDate.Value) : "No Data",
                 Assets: BuildAssets(assets, meters, installed, used, recovered),
                 AvailableKva: available,
                 AvoidedUpgrade: $"{FormatNumber(nextUpgradeKva, 0)} kVA transformer and switchgear upgrade",
@@ -63,6 +66,10 @@ public sealed class TrackingCapacityIntelligenceDataService(
                 ],
                 CapacityHealthScore: health,
                 Co2Tons: $"{FormatNumber(co2, 0)} tons",
+                CumulativeSavingsModel: cumulativeSavings.HasValue
+                    ? "M-016: annual_savings / 365.25 * active days"
+                    : "No Data - M-016 requires annual_savings and activation date.",
+                CumulativeSavingsSinceActivation: cumulativeSavings.HasValue ? FormatCurrency(cumulativeSavings.Value) : "No Data",
                 DateRange: "1-minute main-meter telemetry",
                 DeferredCapitalValue: deferred,
                 HiddenKva: hidden,
@@ -525,7 +532,14 @@ public sealed class TrackingCapacityIntelligenceDataService(
     {
         await using var command = connection.CreateCommand();
         command.CommandText = """
-            SELECT annual_savings, co2_reduction_tons
+            SELECT
+                annual_savings,
+                co2_reduction_tons,
+                (
+                    SELECT MIN(bucket_ts)
+                    FROM savings_intelligence
+                    WHERE project_id = 13 AND annual_savings IS NOT NULL
+                ) AS activation_bucket_ts
             FROM savings_intelligence
             WHERE project_id = 13
             ORDER BY bucket_ts DESC
@@ -539,8 +553,20 @@ public sealed class TrackingCapacityIntelligenceDataService(
         }
 
         return new CapacitySavings(
+            ActivationDate: ReadUnixMilliseconds(reader, "activation_bucket_ts"),
             AnnualSavings: ReadDouble(reader, "annual_savings"),
             Co2ReductionTons: ReadDouble(reader, "co2_reduction_tons"));
+    }
+
+    private static double? CalculateCumulativeSavings(double annualSavings, DateTimeOffset? activationDate, DateTimeOffset now)
+    {
+        if (annualSavings <= 0 || !activationDate.HasValue || activationDate.Value > now)
+        {
+            return null;
+        }
+
+        var activeDays = Math.Max(0, (now - activationDate.Value).TotalDays);
+        return annualSavings / 365.25 * activeDays;
     }
 
     private static IReadOnlyList<CapacityTrendPoint> BuildTrend(
@@ -1218,6 +1244,7 @@ public sealed class TrackingCapacityIntelligenceDataService(
     {
         return new CapacityIntelligenceData(
             AnnualBenefit: "$0",
+            ActivationDate: "No Data",
             Assets: Array.Empty<CapacityIntelligenceAsset>(),
             AvailableKva: 0,
             AvoidedUpgrade: message,
@@ -1230,6 +1257,8 @@ public sealed class TrackingCapacityIntelligenceDataService(
             ],
             CapacityHealthScore: 0,
             Co2Tons: "No Data",
+            CumulativeSavingsModel: "No Data - M-016 requires annual_savings and activation date.",
+            CumulativeSavingsSinceActivation: "No Data",
             DateRange: "Tracking DB",
             DeferredCapitalValue: 0,
             HiddenKva: 0,
@@ -1570,7 +1599,7 @@ public sealed class TrackingCapacityIntelligenceDataService(
 
     private sealed record CapacityMinuteTrendRow(DateTimeOffset? BucketTs, double TotalKva);
 
-    private sealed record CapacitySavings(double AnnualSavings, double Co2ReductionTons);
+    private sealed record CapacitySavings(DateTimeOffset? ActivationDate, double AnnualSavings, double Co2ReductionTons);
 
     private sealed record CapacityAssetHealth(string AssetType, string Name, double RecoveredKva, int Score, double UtilizationPct);
 

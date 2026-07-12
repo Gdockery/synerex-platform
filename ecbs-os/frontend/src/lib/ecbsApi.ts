@@ -730,6 +730,7 @@ function noDevicesData(message: string): DevicesData {
 function noCapacityIntelligenceData(message: string): CapacityIntelligenceData {
   return {
     annualBenefit: "$0",
+    activationDate: "No Data",
     assets: [],
     availableKva: 0,
     avoidedUpgrade: message,
@@ -741,6 +742,8 @@ function noCapacityIntelligenceData(message: string): CapacityIntelligenceData {
     ],
     capacityHealthScore: 0,
     co2Tons: "No Data",
+    cumulativeSavingsModel: "No Data - M-016 requires annual_savings and activation date.",
+    cumulativeSavingsSinceActivation: "No Data",
     dateRange: "Tracking DB",
     deferredCapitalValue: 0,
     hiddenKva: 0,
