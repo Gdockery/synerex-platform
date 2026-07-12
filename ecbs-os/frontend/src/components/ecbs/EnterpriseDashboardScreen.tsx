@@ -16,6 +16,7 @@ import {
   TransformerCapacityOverviewCard,
 } from "./DashboardCards";
 import { EcbsAppShell } from "./EcbsAppShell";
+import { LeafletPortfolioMap } from "./LeafletPortfolioMap";
 
 const trendPoints = "0,72 28,58 58,50 88,54 118,42 148,38 178,29 208,33 238,25 268,18 300,10 330,16 360,4";
 
@@ -845,28 +846,10 @@ function EnterpriseLossInsights() {
 }
 
 function EnterpriseExpandedMap() {
-  const clusters = [
-    ["8","13%","40%","#05b82e"],["12","24%","43%","#05b82e"],["3","30%","36%","#05b82e"],["2","18%","50%","#facc15"],["7","45%","39%","#05b82e"],["2","64%","48%","#facc15"],["1","55%","55%","#facc15"],["1","80%","41%","#ef4444"],["4","84%","82%","#05b82e"],["3","30%","92%","#05b82e"],["2","31%","61%","#05b82e"],["1","55%","82%","#05b82e"],["1","78%","60%","#05b82e"]
-  ];
-  const dots = [["16%","32%"],["20%","58%"],["25%","63%"],["35%","58%"],["43%","37%"],["72%","66%"],["82%","88%"],["88%","83%"],["74%","57%"],["26%","53%"]];
   return <div className="relative h-[488px] overflow-hidden rounded border border-cyan-300/12 bg-[#03101b]">
-    <div className="absolute inset-0 bg-[radial-gradient(circle_at_22%_47%,rgba(5,255,94,.22),transparent_12%),radial-gradient(circle_at_47%_40%,rgba(5,255,94,.16),transparent_10%),radial-gradient(circle_at_82%_78%,rgba(5,255,94,.14),transparent_11%),linear-gradient(180deg,#06223a,#02101c)]" />
-    <svg className="absolute inset-0 h-full w-full opacity-70" viewBox="0 0 1000 520" preserveAspectRatio="none">
-      <g fill="#073453" stroke="#0b4971" strokeWidth="1.2">
-        <path d="M100 115 C150 68 250 58 330 98 C288 128 292 174 224 180 C180 188 144 168 100 115Z" />
-        <path d="M210 218 C280 205 360 230 398 306 C330 318 302 396 246 360 C210 334 184 276 210 218Z" />
-        <path d="M455 112 C538 62 670 78 735 126 C690 166 606 160 548 188 C500 210 456 176 455 112Z" />
-        <path d="M490 215 C548 210 602 242 626 312 C592 368 536 380 496 328 C472 292 470 252 490 215Z" />
-        <path d="M705 172 C802 112 902 122 942 218 C862 228 820 290 748 270 C710 250 690 212 705 172Z" />
-        <path d="M800 352 C856 342 920 366 956 418 C900 450 824 438 800 352Z" />
-      </g>
-      <g fill="none" stroke="#0f3b5b" strokeOpacity=".55">{[130,210,290,370,450].map(y=><path d={`M0 ${y} H1000`} key={`h${y}`}/>)}{[120,250,380,510,640,770,900].map(x=><path d={`M${x} 0 V520`} key={`v${x}`}/>)}</g>
-      <g fill="#94a3b8" fontSize="13" fontWeight="700" opacity=".72"><text x="190" y="150">NORTH</text><text x="190" y="168">AMERICA</text><text x="545" y="178">EUROPE</text><text x="734" y="184">ASIA</text><text x="300" y="352">SOUTH</text><text x="300" y="370">AMERICA</text><text x="560" y="340">AFRICA</text><text x="850" y="400">AUSTRALIA</text></g>
-    </svg>
+    <LeafletPortfolioMap sites={[{ annualSavings: "$12.6K", lat: 30.1979023, lng: -92.07755, location: "2810 Ambassador Caffery Pkwy, Lafayette, LA", site: "Ochsner Lafayette General Orthopedic Hospital", status: "Healthy" }]} />
     <div className="absolute left-3 top-3 flex rounded border border-cyan-300/12 bg-[#061421] p-1 text-[10px]"><span className="rounded bg-[#0f7d31] px-4 py-2 text-white">Map</span><span className="px-4 py-2 text-slate-300">Satellite</span></div>
     <div className="absolute left-3 top-[70px] grid gap-2 text-xl"><span className="grid size-8 place-items-center rounded border border-cyan-300/20 bg-[#061421]">+</span><span className="grid size-8 place-items-center rounded border border-cyan-300/20 bg-[#061421]">−</span><span className="grid size-8 place-items-center rounded border border-cyan-300/20 bg-[#061421]">⊙</span><span className="grid size-8 place-items-center rounded border border-cyan-300/20 bg-[#061421]">□</span></div>
-    {dots.map(([left,top],i)=><span className="absolute size-2 rounded-full bg-[#05ff5e] shadow-[0_0_10px_#05ff5e]" key={i} style={{left,top}} />)}
-    {clusters.map(([label,left,top,color])=><span className="absolute grid size-8 place-items-center rounded-full text-[12px] font-bold text-[#02200e] shadow-[0_0_0_10px_rgba(5,255,94,.12),0_0_18px_rgba(5,255,94,.45)]" key={`${label}-${left}`} style={{left,top,background:color}}>{label}</span>)}
     <div className="absolute bottom-5 left-4 w-[126px] rounded border border-cyan-300/12 bg-[#061421]/88 p-3 text-[10px]"><b>SITE HEALTH</b><div className="mt-3 space-y-2">{[["Healthy","#05ff5e"],["Warning","#facc15"],["Critical","#ef4444"],["Cluster (Sites)","transparent"]].map(([label,color])=><div className="flex items-center gap-2" key={label}><span className="size-3 rounded-full border border-[#05ff5e]" style={{background:color}} />{label}</div>)}</div></div>
   </div>;
 }

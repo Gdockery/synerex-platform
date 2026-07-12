@@ -561,17 +561,9 @@ export function SiteInformationCard({ rows }: { rows: SiteInfoRow[] }) {
 }
 
 export function PortfolioMapCard({ sites }: { sites: PortfolioSite[] }) {
-  const mappedSites = sites.filter((site) => site.lat != null && site.lng != null);
-
   return (
     <div className="relative h-full min-h-[200px] overflow-hidden rounded-md bg-[#03111d]">
-      {mappedSites.length > 0 ? (
-        <LeafletPortfolioMap sites={mappedSites} />
-      ) : (
-        <div className="grid h-full place-items-center px-6 text-center text-[11px] text-slate-400">
-          Map coordinates are not stored for these DB sites yet.
-        </div>
-      )}
+      <LeafletPortfolioMap sites={sites} />
       <div className="pointer-events-none absolute bottom-3 left-4 flex gap-5 text-[11px] text-slate-300">
         <span><Dot className="bg-[#05ff5e]" /> Healthy ({sites.filter((site) => site.status === "Healthy").length})</span>
         <span><Dot className="bg-yellow-300" /> Warning ({sites.filter((site) => site.status === "Warning").length})</span>

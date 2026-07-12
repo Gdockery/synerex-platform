@@ -1235,10 +1235,13 @@ function buildSites(
   const thd = toNumber(metrics?.avg_thd);
 
   if (sites.length === 0 && firstProject) {
+    const coordinates = ochsnerCoordinatesFor(firstProject.name, firstProject.location);
+
     return [
       {
         site: firstProject.name,
         annualSavings,
+        ...coordinates,
         powerFactor: powerFactor > 0 ? powerFactor.toFixed(3) : "No DB value",
         thd: thd > 0 ? `${thd.toFixed(1)}%` : "No DB value",
         location: firstProject.location ?? "",
@@ -1247,14 +1250,33 @@ function buildSites(
     ];
   }
 
-  return sites.map((site) => ({
-    site: site.name,
-    annualSavings,
-    powerFactor: powerFactor > 0 ? powerFactor.toFixed(3) : "No DB value",
-    thd: thd > 0 ? `${thd.toFixed(1)}%` : "No DB value",
-    location: [site.address, site.city, site.state].filter(Boolean).join(", "),
-    status: site.status?.toLowerCase() === "warning" ? "Warning" : "Healthy",
-  }));
+  return sites.map((site) => {
+    const location = [site.address, site.city, site.state].filter(Boolean).join(", ");
+    const coordinates = ochsnerCoordinatesFor(site.name, location);
+
+    return {
+      site: site.name,
+      annualSavings,
+      ...coordinates,
+      powerFactor: powerFactor > 0 ? powerFactor.toFixed(3) : "No DB value",
+      thd: thd > 0 ? `${thd.toFixed(1)}%` : "No DB value",
+      location,
+      status: site.status?.toLowerCase() === "warning" ? "Warning" : "Healthy",
+    };
+  });
+}
+
+function ochsnerCoordinatesFor(name: string, location?: string | null) {
+  const searchable = `${name} ${location ?? ""}`.toLowerCase();
+
+  if (searchable.includes("ochsner") || searchable.includes("2810 ambassador caffery")) {
+    return {
+      lat: 30.1979023,
+      lng: -92.07755,
+    };
+  }
+
+  return {};
 }
 
 function buildClientSiteRows(
