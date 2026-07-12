@@ -63,9 +63,9 @@ function activationDateValue(data?: CapacityIntelligenceData) {
 function energyKpis(data?: CapacityIntelligenceData) {
   return [
     ["Lifetime Savings", cumulativeSavingsValue(data), "M-016 since activation", "green"],
-    ["Savings This Year", annualBenefitValue(data), "Latest savings_intelligence row", "blue"],
-    ["Savings This Month", "No Data", "No approved monthly rollup", "cyan"],
-    ["Savings Today", "No Data", "No approved daily rollup", "yellow"],
+    ["Savings This Year", data?.savingsThisYear ?? "No Data", "YTD from synced annual savings", "blue"],
+    ["Savings This Month", data?.savingsThisMonth ?? "No Data", "MTD from synced annual savings", "cyan"],
+    ["Savings Today", data?.savingsToday ?? "No Data", "Today from synced annual savings", "yellow"],
     ["Capacity Recovered", formatKva(data?.recoveredKva), "Latest capacity_intelligence row", "cyan"],
     ["Deferred Capital Value", formatCurrencyValue(data?.deferredCapitalValue), "Latest capacity_intelligence row", "purple"],
   ];
@@ -1530,7 +1530,7 @@ function SavingsFinancialBalanceImprovement() {
 }
 
 function SavingsFinancialIntelligence({ data }: EnergySavingsScreenProps) {
-  const rows = [["▣","Savings Today","No Data"],["▣","Savings This Month","No Data"],["▣","Savings This Year",annualBenefitValue(data)],["▣","Lifetime Savings",cumulativeSavingsValue(data)],["▣","Cost Avoidance (Capacity)",formatCurrencyValue(data?.deferredCapitalValue)]];
+  const rows = [["▣","Savings Today",data?.savingsToday ?? "No Data"],["▣","Savings This Month",data?.savingsThisMonth ?? "No Data"],["▣","Savings This Year",data?.savingsThisYear ?? "No Data"],["▣","Lifetime Savings",cumulativeSavingsValue(data)],["▣","Cost Avoidance (Capacity)",formatCurrencyValue(data?.deferredCapitalValue)]];
   return <div className="space-y-3 text-[10px]">{rows.map(([icon,label,value],i)=><div className="grid grid-cols-[20px_1fr_76px_58px] items-center gap-1" key={label}><span className={i===0?"text-cyan-300":i===1?"text-blue-400":i===2?"text-purple-400":i===3?"text-orange-400":"text-blue-300"}>{icon}</span><span>{label}</span><b className="text-[#65a30d]">{value}</b><svg className="h-4 w-14" viewBox="0 0 58 18"><polyline fill="none" points="0,12 8,10 16,13 24,8 32,10 40,5 48,8 56,3" stroke="#65a30d" strokeWidth="1.5"/></svg></div>)}</div>;
 }
 

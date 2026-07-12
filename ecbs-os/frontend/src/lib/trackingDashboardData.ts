@@ -188,6 +188,9 @@ export type CapacityIntelligenceData = {
   savingsPerHour: number;
   savingsPerMinute: number;
   savingsPerMonth: number;
+  savingsThisMonth: string;
+  savingsThisYear: string;
+  savingsToday: string;
   savingsWaterfallRows: { detail: string; label: string; value: string }[];
   siteName: string;
   state: "data" | "empty" | "error";
@@ -1612,6 +1615,9 @@ function emptyCapacityIntelligence(message: string): CapacityIntelligenceData {
     savingsPerHour: 0,
     savingsPerMinute: 0,
     savingsPerMonth: 0,
+    savingsThisMonth: "No Data",
+    savingsThisYear: "No Data",
+    savingsToday: "No Data",
     savingsWaterfallRows: [],
     siteName: "Ochsner Site",
     state: "error",

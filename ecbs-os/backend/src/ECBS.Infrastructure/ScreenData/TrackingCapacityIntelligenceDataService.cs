@@ -55,6 +55,10 @@ public sealed class TrackingCapacityIntelligenceDataService(
             var savingsPerMonth = annualBenefit > 0 ? annualBenefit / 12 : 0;
             var roiPct = annualBenefit > 0 ? annualBenefit / ManualProjectCost * 100 : 0;
             var paybackYears = annualBenefit > 0 ? ManualProjectCost / annualBenefit : 0;
+            var centralNow = TimeZoneInfo.ConvertTime(DateTimeOffset.UtcNow, CentralTimeZone());
+            var yearStart = new DateTimeOffset(centralNow.Year, 1, 1, 0, 0, 0, centralNow.Offset);
+            var monthStart = new DateTimeOffset(centralNow.Year, centralNow.Month, 1, 0, 0, 0, centralNow.Offset);
+            var dayStart = new DateTimeOffset(centralNow.Year, centralNow.Month, centralNow.Day, 0, 0, 0, centralNow.Offset);
             var nowAvailable = available + recovered;
             var nextUpgradeKva = Math.Ceiling(Math.Max(installed, 1) / 500) * 500;
             var trend = BuildTrend(Array.Empty<CapacityMinuteTrendRow>(), trendRows, installed, recovered);
@@ -104,6 +108,9 @@ public sealed class TrackingCapacityIntelligenceDataService(
                 SavingsPerHour: savingsPerHour,
                 SavingsPerMinute: savingsPerMinute,
                 SavingsPerMonth: savingsPerMonth,
+                SavingsThisMonth: FormatPeriodSavings(annualBenefit, monthStart, centralNow),
+                SavingsThisYear: FormatPeriodSavings(annualBenefit, yearStart, centralNow),
+                SavingsToday: FormatPeriodSavings(annualBenefit, dayStart, centralNow),
                 SiteName: site.Name,
                 State: "data",
                 SubScores:
@@ -617,6 +624,17 @@ public sealed class TrackingCapacityIntelligenceDataService(
 
         var activeDays = Math.Max(0, (now - activationDate.Value).TotalDays);
         return annualSavings / 365.25 * activeDays;
+    }
+
+    private static string FormatPeriodSavings(double annualSavings, DateTimeOffset periodStart, DateTimeOffset now)
+    {
+        if (annualSavings <= 0 || periodStart > now)
+        {
+            return "No Data";
+        }
+
+        var activeDays = Math.Max(0, (now - periodStart).TotalDays);
+        return FormatCurrency(annualSavings / 365.25 * activeDays);
     }
 
     private static IReadOnlyList<CapacityTrendPoint> BuildTrend(
@@ -1335,6 +1353,9 @@ public sealed class TrackingCapacityIntelligenceDataService(
             SavingsPerHour: 0,
             SavingsPerMinute: 0,
             SavingsPerMonth: 0,
+            SavingsThisMonth: "No Data",
+            SavingsThisYear: "No Data",
+            SavingsToday: "No Data",
             SiteName: siteName,
             State: "empty",
             SubScores:
