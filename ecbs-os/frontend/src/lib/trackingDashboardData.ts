@@ -638,7 +638,10 @@ async function resolveSelectedClient(pool: mysql.Pool, selectedClientId?: number
       [selectedClientId],
     );
 
-    return clients[0] as ClientRow | undefined;
+    const selectedClient = clients[0] as ClientRow | undefined;
+    if (selectedClient) {
+      return selectedClient;
+    }
   }
 
   const [clients] = await pool.query<mysql.RowDataPacket[]>(
