@@ -250,6 +250,27 @@ export type SiteDashboardData = {
   updatedAt: string;
 };
 
+export type ClientSitesOverviewData = {
+  clientName: string;
+  kpis: DashboardKpi[];
+  message: string;
+  rows: ClientSitesOverviewRow[];
+  state: "data" | "empty" | "error";
+  updatedAt: string;
+};
+
+export type ClientSitesOverviewRow = {
+  annualSavings: string;
+  lastUpdated: string;
+  location: string;
+  meterCount: string;
+  powerFactor: string;
+  projectName: string;
+  siteName: string;
+  status: string;
+  thd: string;
+};
+
 export type TransformerPhaseSummary = {
   currentA: string;
   imbalance: string;
@@ -326,27 +347,15 @@ export type AlertsEventsData = {
 
 const ochsnerQuery = "ochsner";
 
-export async function getEnterpriseDashboardData(): Promise<EnterpriseDashboardData> {
+export async function getEnterpriseDashboardData(selectedClientId?: number): Promise<EnterpriseDashboardData> {
   try {
     const pool = createTrackingPool();
 
     try {
-      const [clients] = await pool.query<mysql.RowDataPacket[]>(
-        `
-          SELECT id, name
-          FROM client
-          WHERE isDeleted = 0
-            AND LOWER(CONCAT_WS(' ', name, legalName, address, city, state)) LIKE ?
-          ORDER BY id
-          LIMIT 1
-        `,
-        [`%${ochsnerQuery}%`],
-      );
-
-      const client = clients[0] as ClientRow | undefined;
+      const client = await resolveSelectedClient(pool, selectedClientId);
 
       if (!client) {
-        return emptyDashboard("No Ochsner client record was found in tracking DB.");
+        return emptyDashboard(selectedClientId ? `Selected client ${selectedClientId} was not found in tracking DB.` : "No Ochsner client record was found in tracking DB.");
       }
 
       const [projects] = await pool.query<mysql.RowDataPacket[]>(
@@ -500,6 +509,111 @@ export async function getEnterpriseDashboardData(): Promise<EnterpriseDashboardD
   }
 }
 
+export async function getClientSitesOverviewData(selectedClientId?: number): Promise<ClientSitesOverviewData> {
+  try {
+    const pool = createTrackingPool();
+
+    try {
+      const client = await resolveSelectedClient(pool, selectedClientId);
+
+      if (!client) {
+        return emptyClientSitesOverview(selectedClientId ? `Selected client ${selectedClientId} was not found in tracking DB.` : "No selected client was found in tracking DB.");
+      }
+
+      const [projects] = await pool.query<mysql.RowDataPacket[]>(
+        `
+          SELECT id, name, location
+          FROM project
+          WHERE isDeleted = 0 AND client = ?
+          ORDER BY id
+        `,
+        [client.id],
+      );
+
+      const projectRows = projects as ProjectRow[];
+      const projectIds = projectRows.map((project) => project.id);
+
+      if (projectIds.length === 0) {
+        return {
+          ...emptyClientSitesOverview(`${client.name} has no projects in tracking DB.`),
+          clientName: client.name,
+          state: "empty",
+        };
+      }
+
+      const placeholders = projectIds.map(() => "?").join(",");
+      const [siteRows] = await pool.query<mysql.RowDataPacket[]>(
+        `
+          SELECT s.id, s.name, s.address, s.city, s.state, s.status, s.project_id
+          FROM site s
+          WHERE s.is_deleted = 0 AND s.project_id IN (${placeholders})
+          ORDER BY s.name
+        `,
+        projectIds,
+      );
+
+      const [metricRows] = await pool.query<mysql.RowDataPacket[]>(
+        `
+          WITH latest AS (
+            SELECT project_id, MAX(bucket_ts) AS bucket_ts
+            FROM current_balance_metrics
+            WHERE project_id IN (${placeholders})
+            GROUP BY project_id
+          )
+          SELECT c.project_id,
+                 COUNT(*) AS meter_count,
+                 AVG(c.avg_pf) AS avg_pf,
+                 AVG(c.avg_thd) AS avg_thd,
+                 MAX(c.bucket_ts) AS bucket_ts
+          FROM current_balance_metrics c
+          JOIN latest l ON l.project_id = c.project_id AND l.bucket_ts = c.bucket_ts
+          GROUP BY c.project_id
+        `,
+        projectIds,
+      );
+
+      const [savingsRows] = await pool.query<mysql.RowDataPacket[]>(
+        `
+          WITH ranked AS (
+            SELECT project_id, annual_savings,
+                   ROW_NUMBER() OVER (PARTITION BY project_id ORDER BY bucket_ts DESC) AS rn
+            FROM savings_intelligence
+            WHERE project_id IN (${placeholders})
+          )
+          SELECT project_id, annual_savings
+          FROM ranked
+          WHERE rn = 1
+        `,
+        projectIds,
+      );
+
+      const rows = buildClientSiteRows(siteRows as SiteRow[], projectRows, metricRows, savingsRows);
+
+      const avgThd = averageMetric(metricRows, "avg_thd", 1);
+
+      return {
+        clientName: client.name,
+        kpis: [
+          { detail: "Selected client", icon: "S", label: "Sites", tone: "green", value: String(rows.length) },
+          { detail: "Selected client", icon: "P", label: "Projects", tone: "blue", value: String(projectRows.length) },
+          { detail: "Latest tracking DB rollup", icon: "M", label: "Meters", tone: "cyan", value: String(sumMetric(metricRows, "meter_count")) },
+          { detail: "Latest tracking DB rollup", icon: "PF", label: "Avg PF", tone: "green", value: averageMetric(metricRows, "avg_pf", 3) },
+          { detail: "Latest tracking DB rollup", icon: "THD", label: "Avg THD", tone: "yellow", value: avgThd === "No Data" ? avgThd : `${avgThd}%` },
+        ],
+        message: rows.length > 0 ? "" : `${client.name} has projects but no site records in tracking DB.`,
+        rows,
+        state: rows.length > 0 ? "data" : "empty",
+        updatedAt: formatTimestamp(Date.now()),
+      };
+    } finally {
+      await pool.end();
+    }
+  } catch (error) {
+    console.error("Failed to load selected client sites from tracking DB", error);
+    return emptyClientSitesOverview("Tracking DB data is unavailable for selected client sites.");
+  }
+}
+
 function createTrackingPool() {
   return mysql.createPool({
     database: process.env.TRACKING_DB_NAME ?? "tracking",
@@ -510,6 +624,36 @@ function createTrackingPool() {
     waitForConnections: true,
     connectionLimit: 4,
   });
+}
+
+async function resolveSelectedClient(pool: mysql.Pool, selectedClientId?: number): Promise<ClientRow | undefined> {
+  if (selectedClientId) {
+    const [clients] = await pool.query<mysql.RowDataPacket[]>(
+      `
+        SELECT id, name
+        FROM client
+        WHERE isDeleted = 0 AND id = ?
+        LIMIT 1
+      `,
+      [selectedClientId],
+    );
+
+    return clients[0] as ClientRow | undefined;
+  }
+
+  const [clients] = await pool.query<mysql.RowDataPacket[]>(
+    `
+      SELECT id, name
+      FROM client
+      WHERE isDeleted = 0
+        AND LOWER(CONCAT_WS(' ', name, legalName, address, city, state)) LIKE ?
+      ORDER BY id
+      LIMIT 1
+    `,
+    [`%${ochsnerQuery}%`],
+  );
+
+  return clients[0] as ClientRow | undefined;
 }
 
 export async function getOchsnerSiteDashboardData(): Promise<SiteDashboardData> {
@@ -1110,6 +1254,54 @@ function buildSites(
   }));
 }
 
+function buildClientSiteRows(
+  sites: SiteRow[],
+  projects: ProjectRow[],
+  metricRows: mysql.RowDataPacket[],
+  savingsRows: mysql.RowDataPacket[],
+): ClientSitesOverviewRow[] {
+  const metricsByProject = new Map(metricRows.map((row) => [Number(row.project_id), row]));
+  const savingsByProject = new Map(savingsRows.map((row) => [Number(row.project_id), row]));
+  const projectsById = new Map(projects.map((project) => [project.id, project]));
+
+  if (sites.length === 0) {
+    return projects.map((project) => {
+      const metrics = metricsByProject.get(project.id);
+      const savings = savingsByProject.get(project.id);
+
+      return {
+        annualSavings: formatCurrency(toNumber(savings?.annual_savings)),
+        lastUpdated: formatBucketTimestamp(metrics?.bucket_ts),
+        location: project.location ?? "No Data",
+        meterCount: formatNumber(toNumber(metrics?.meter_count), 0),
+        powerFactor: toNumber(metrics?.avg_pf) > 0 ? toNumber(metrics?.avg_pf).toFixed(3) : "No Data",
+        projectName: project.name,
+        siteName: project.name,
+        status: "Project",
+        thd: toNumber(metrics?.avg_thd) > 0 ? `${toNumber(metrics?.avg_thd).toFixed(1)}%` : "No Data",
+      };
+    });
+  }
+
+  return sites.map((site) => {
+    const project = site.project_id ? projectsById.get(site.project_id) : undefined;
+    const metrics = site.project_id ? metricsByProject.get(site.project_id) : undefined;
+    const savings = site.project_id ? savingsByProject.get(site.project_id) : undefined;
+
+    return {
+      annualSavings: formatCurrency(toNumber(savings?.annual_savings)),
+      lastUpdated: formatBucketTimestamp(metrics?.bucket_ts),
+      location: [site.address, site.city, site.state].filter(Boolean).join(", ") || project?.location || "No Data",
+      meterCount: formatNumber(toNumber(metrics?.meter_count), 0),
+      powerFactor: toNumber(metrics?.avg_pf) > 0 ? toNumber(metrics?.avg_pf).toFixed(3) : "No Data",
+      projectName: project?.name ?? "No Data",
+      siteName: site.name,
+      status: site.status ?? "Active",
+      thd: toNumber(metrics?.avg_thd) > 0 ? `${toNumber(metrics?.avg_thd).toFixed(1)}%` : "No Data",
+    };
+  });
+}
+
 function buildNetworkHealth(metrics: MetricSummaryRow | undefined, devices: DeviceCountRow[]) {
   const cbi = clampScore(toNumber(metrics?.avg_cbi));
   const harmonicHealth = clampScore(100 - toNumber(metrics?.avg_thd));
@@ -1307,6 +1499,23 @@ function emptyDashboard(message: string): EnterpriseDashboardData {
   };
 }
 
+function emptyClientSitesOverview(message: string): ClientSitesOverviewData {
+  return {
+    clientName: "No Data",
+    kpis: [
+      { detail: message, icon: "S", label: "Sites", tone: "green", value: "No Data" },
+      { detail: message, icon: "P", label: "Projects", tone: "blue", value: "No Data" },
+      { detail: message, icon: "M", label: "Meters", tone: "cyan", value: "No Data" },
+      { detail: message, icon: "PF", label: "Avg PF", tone: "green", value: "No Data" },
+      { detail: message, icon: "THD", label: "Avg THD", tone: "yellow", value: "No Data" },
+    ],
+    message,
+    rows: [],
+    state: "error",
+    updatedAt: formatTimestamp(Date.now()),
+  };
+}
+
 function emptySiteDashboard(message: string): SiteDashboardData {
   return {
     alarms: [{ title: "Site Data Unavailable", detail: message, time: "Now", tone: "yellow" }],
@@ -1493,6 +1702,26 @@ function formatTimestamp(timestamp: number) {
     timeStyle: "short",
     timeZone: "America/Chicago",
   });
+}
+
+function formatBucketTimestamp(timestamp: unknown) {
+  const numericTimestamp = toNumber(timestamp);
+
+  return numericTimestamp > 0 ? formatTimestamp(numericTimestamp) : "No Data";
+}
+
+function sumMetric(rows: mysql.RowDataPacket[], key: string) {
+  return rows.reduce((sum, row) => sum + toNumber(row[key]), 0);
+}
+
+function averageMetric(rows: mysql.RowDataPacket[], key: string, digits: number) {
+  const values = rows.map((row) => toNumber(row[key])).filter((value) => value > 0);
+
+  if (values.length === 0) {
+    return "No Data";
+  }
+
+  return (values.reduce((sum, value) => sum + value, 0) / values.length).toFixed(digits);
 }
 
 function formatShortDate(timestamp: number) {

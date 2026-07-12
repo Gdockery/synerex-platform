@@ -1,6 +1,11 @@
 import { EnterpriseDashboardScreen } from "@/components/ecbs/EnterpriseDashboardScreen";
-import { enterpriseDashboardData } from "@/data/enterpriseDashboard";
+import { getSelectedClientId } from "@/lib/selectedClient";
+import { getEnterpriseDashboardData } from "@/lib/trackingDashboardData";
 
-export default function EnterpriseDashboardPage() {
-  return <EnterpriseDashboardScreen data={enterpriseDashboardData} />;
+export const dynamic = "force-dynamic";
+
+export default async function EnterpriseDashboardPage() {
+  const data = await getEnterpriseDashboardData(await getSelectedClientId());
+
+  return <EnterpriseDashboardScreen data={data} />;
 }
