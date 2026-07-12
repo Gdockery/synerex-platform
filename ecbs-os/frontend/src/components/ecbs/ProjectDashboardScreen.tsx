@@ -9,6 +9,14 @@ const projectRows: Array<[string, string, string, string, string, number, string
   ["Flex Guadalajara Plant", "🇲🇽 Guadalajara, Mexico", "Manufacturing", "1.8 MW", "Planning", 5, "Jun 15, 2025", "Dec 15, 2025"],
 ];
 
+function ClientProjectSourceMissing({ message = "source_missing: Client project backend source/write model is not wired for this cheap-mode batch." }: { message?: string }) {
+  return (
+    <div className="rounded border border-cyan-300/12 bg-[#061521]/92 px-4 py-2 text-[10px] text-slate-300">
+      <b className="text-[#05ff5e]">No Data</b> - {message}
+    </div>
+  );
+}
+
 export function ProjectDashboardScreen() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#020a12] text-slate-100">
@@ -16,6 +24,7 @@ export function ProjectDashboardScreen() {
         <ProjectSidebar />
         <main className="flex min-w-0 flex-col bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.1),transparent_30%),linear-gradient(180deg,#04111c,#020910)] px-4">
           <ProjectTopbar />
+          <ClientProjectSourceMissing />
           <section className="flex h-[130px] items-start justify-between pt-4">
             <div>
               <div className="text-[10px] text-slate-300">Clients &nbsp; &gt; &nbsp; Flex Ltd. &nbsp; &gt; &nbsp; Projects / Facilities</div>
@@ -25,11 +34,11 @@ export function ProjectDashboardScreen() {
             <button className="mt-7 rounded bg-[#087a35] px-4 py-2.5 text-[11px] text-white">+ &nbsp; New Project</button>
           </section>
           <section className="grid h-[96px] grid-cols-5 gap-3">
-            <ProjectKpi label="Total Projects" value="18" detail="Across 12 sites" icon="▣" tone="#147dff" />
-            <ProjectKpi label="Total Capacity" value="24.8 MW" detail="Installed capacity" icon="◴" tone="#10b981" />
-            <ProjectKpi label="Active Projects" value="14" detail="In progress" icon="⌁" tone="#7c3aed" />
-            <ProjectKpi label="Completed Projects" value="3" detail="This year" icon="✓" tone="#c56a05" />
-            <ProjectKpi label="Projected Savings (Annual)" value="$1.42M" detail="Across all projects" icon="$" tone="#1d65c8" />
+            <ProjectKpi label="Total Projects" value="No Data" detail="source_missing" icon="▣" tone="#147dff" />
+            <ProjectKpi label="Total Capacity" value="No Data" detail="source_missing" icon="◴" tone="#10b981" />
+            <ProjectKpi label="Active Projects" value="No Data" detail="source_missing" icon="⌁" tone="#7c3aed" />
+            <ProjectKpi label="Completed Projects" value="No Data" detail="source_missing" icon="✓" tone="#c56a05" />
+            <ProjectKpi label="Projected Savings (Annual)" value="No Data" detail="source_missing" icon="$" tone="#1d65c8" />
           </section>
           <ProjectTabs />
           <section className="mt-3 min-h-0 flex-1 rounded border border-cyan-300/12 bg-[#061521]/92">
@@ -45,11 +54,11 @@ export function ProjectDashboardScreen() {
 
 function ProjectSidebar() {
   const groups = [["ENTERPRISE", ["Enterprise Dashboard", "Energy Dashboard", "Capacity Intelligence", "Digital Twin", "Sites", "Transformers", "Current Analysis", "Savings & Forecast", "Alarms & Events", "Reports"]], ["DEVICES", ["Gateways", "Meters", "Switches", "Repeaters"]], ["SETTINGS", ["Settings"]]];
-  return <aside className="relative h-full overflow-hidden border-r border-cyan-300/10 bg-[#030c15] px-3 py-3"><div className="mb-4"><div className="text-[29px] font-black italic leading-none tracking-[-0.12em]"><span className="text-[#05ff5e]">X</span>ECO</div><div className="mt-1 text-[8px] font-bold uppercase tracking-[0.48em] text-[#05ff5e]">Energy</div></div><nav className="space-y-3 text-[9px]">{groups.map(([title,items])=><section key={String(title)}><h2 className="mb-1 text-[#05ff5e]">{title}</h2>{(items as string[]).map(item=><div className={item==="Energy Dashboard" ? "flex h-[24px] items-center rounded bg-[#063b27] px-1.5 text-[#05ff5e]" : "flex h-[24px] items-center rounded px-1.5 text-slate-300"} key={item}>⌘ &nbsp; {item}{item==="Alarms & Events"?<b className="ml-auto grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">3</b>:null}</div>)}</section>)}</nav><div className="absolute bottom-[102px] left-3 right-3 rounded border border-cyan-300/12 bg-[#061421] p-2 text-center text-[8px]"><div className="text-slate-400">XECO Current<br/>Balance Index</div><div className="mt-1 text-[31px] font-light leading-none text-[#05ff5e]">96</div><div className="text-white">A+ Rating</div><div className="mt-3 text-[#05ff5e]">View Details →</div></div><div className="absolute bottom-[50px] left-3 right-3 rounded border border-cyan-300/12 bg-[#061421] p-2 text-[8px]"><div className="text-white">☏ &nbsp; Need Help?</div><div className="text-slate-400">Contact Support</div></div><div className="absolute bottom-2 left-3 right-3 text-[8px] text-slate-500">© 2025 XECO Energy Corporation.</div></aside>;
+  return <aside className="relative h-full overflow-hidden border-r border-cyan-300/10 bg-[#030c15] px-3 py-3"><div className="mb-4"><div className="text-[29px] font-black italic leading-none tracking-[-0.12em]"><span className="text-[#05ff5e]">X</span>ECO</div><div className="mt-1 text-[8px] font-bold uppercase tracking-[0.48em] text-[#05ff5e]">Energy</div></div><nav className="space-y-3 text-[9px]">{groups.map(([title,items])=><section key={String(title)}><h2 className="mb-1 text-[#05ff5e]">{title}</h2>{(items as string[]).map(item=><div className={item==="Energy Dashboard" ? "flex h-[24px] items-center rounded bg-[#063b27] px-1.5 text-[#05ff5e]" : "flex h-[24px] items-center rounded px-1.5 text-slate-300"} key={item}>⌘ &nbsp; {item}{item==="Alarms & Events"?<b className="ml-auto grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">0</b>:null}</div>)}</section>)}</nav><div className="absolute bottom-[102px] left-3 right-3 rounded border border-cyan-300/12 bg-[#061421] p-2 text-center text-[8px]"><div className="text-slate-400">XECO Current<br/>Balance Index</div><div className="mt-1 text-[31px] font-light leading-none text-[#05ff5e]">No Data</div><div className="text-[#05ff5e]">source_missing</div><div className="mt-3 text-[#05ff5e]">View Details →</div></div><div className="absolute bottom-[50px] left-3 right-3 rounded border border-cyan-300/12 bg-[#061421] p-2 text-[8px]"><div className="text-white">☏ &nbsp; Need Help?</div><div className="text-slate-400">Contact Support</div></div><div className="absolute bottom-2 left-3 right-3 text-[8px] text-slate-500">© 2025 XECO Energy Corporation.</div></aside>;
 }
 
 function ProjectTopbar() {
-  return <header className="flex h-[48px] items-center justify-between border-b border-cyan-300/10"><div className="text-[12px] font-semibold uppercase tracking-wide">XECO ENERGY INTELLIGENCE PORTAL</div><div className="flex items-center gap-4 text-[10px]"><button className="w-[154px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left"><span className="text-[7px] text-slate-400">Client</span><br/>Flex Ltd.</button><button className="w-[214px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp;⌄</button><span className="text-[#05ff5e]">● Online</span><span className="relative text-lg">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">3</b></span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span><span>John Smith<br/><span className="text-slate-500">OEM Admin</span></span><span>⌄</span></div></header>;
+  return <header className="flex h-[48px] items-center justify-between border-b border-cyan-300/10"><div className="text-[12px] font-semibold uppercase tracking-wide">XECO ENERGY INTELLIGENCE PORTAL</div><div className="flex items-center gap-4 text-[10px]"><button className="w-[154px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left"><span className="text-[7px] text-slate-400">Client</span><br/>Flex Ltd.</button><button className="w-[214px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left">May 12 - May 18, 2025 &nbsp;⌄</button><span className="text-[#05ff5e]">source_missing</span><span className="relative text-lg">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">0</b></span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span><span>John Smith<br/><span className="text-slate-500">OEM Admin</span></span><span>⌄</span></div></header>;
 }
 
 function ProjectKpi({ detail, icon, label, tone, value }: { detail: string; icon: string; label: string; tone: string; value: string }) {
@@ -57,7 +66,7 @@ function ProjectKpi({ detail, icon, label, tone, value }: { detail: string; icon
 }
 
 function ProjectTabs() {
-  return <div className="flex h-[46px] items-end gap-9 border-b border-cyan-300/10 text-[10px]"><span className="border-b-2 border-[#05ff5e] pb-3 text-[#05ff5e]">Projects / Facilities</span><span className="pb-3 text-slate-300">Sites</span><span className="pb-3 text-slate-300">Analytics</span><span className="pb-3 text-slate-300">Documents</span><span className="pb-3 text-slate-300">Alerts <b className="ml-1 inline-grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">6</b></span></div>;
+  return <div className="flex h-[46px] items-end gap-9 border-b border-cyan-300/10 text-[10px]"><span className="border-b-2 border-[#05ff5e] pb-3 text-[#05ff5e]">Projects / Facilities</span><span className="pb-3 text-slate-300">Sites</span><span className="pb-3 text-slate-300">Analytics</span><span className="pb-3 text-slate-300">Documents</span><span className="pb-3 text-slate-300">Alerts <b className="ml-1 inline-grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">0</b></span></div>;
 }
 
 function ProjectToolbar() {
@@ -74,5 +83,5 @@ function Status({ value }: { value: string }) {
 }
 
 function ProjectFooter() {
-  return <footer className="flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span className="space-x-9 text-[#05ff5e]"><span>Privacy Policy</span><span>Terms of Service</span><span>Support</span></span><span>Data updated: May 18, 2025 10:15 AM <b className="ml-4 text-[#05ff5e]">▥ Live</b></span></footer>;
+  return <footer className="flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span className="space-x-9 text-[#05ff5e]"><span>Privacy Policy</span><span>Terms of Service</span><span>Support</span></span><span>Data updated: source_missing <b className="ml-4 text-[#05ff5e]">▥ Live</b></span></footer>;
 }

@@ -18,6 +18,14 @@ const rows = [
   ["CM-20250513-00172", "Flex Tijuana Manufacturing\nUPS Room", "Switch", "SW-00012 (HVAC Switch)", "Miguel Alvarez", "May 13, 2025 10:18 AM", "00:45:02", "In Progress", "--"],
 ];
 
+function ClientProjectSourceMissing({ message = "source_missing: Client project backend source/write model is not wired for this cheap-mode batch." }: { message?: string }) {
+  return (
+    <div className="rounded border border-cyan-300/12 bg-[#061521]/92 px-4 py-2 text-[10px] text-slate-300">
+      <b className="text-[#05ff5e]">No Data</b> - {message}
+    </div>
+  );
+}
+
 export function CommissioningHistoryScreen() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#020a12] text-slate-100">
@@ -25,20 +33,21 @@ export function CommissioningHistoryScreen() {
         <CommissioningSidebar />
         <main className="flex min-w-0 flex-col bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.1),transparent_30%),linear-gradient(180deg,#04111c,#020910)] px-4">
           <CommissioningTopbar />
+          <ClientProjectSourceMissing />
           <section className="flex h-[102px] items-start justify-between pt-3">
             <div>
               <div className="text-[9px] text-slate-400">Home &nbsp; &gt; &nbsp; Commissioning & Testing &nbsp; &gt; &nbsp; <span className="text-slate-100 underline">Commissioning History</span></div>
               <h1 className="mt-3 text-[22px] font-semibold leading-none">Commissioning History</h1>
               <p className="mt-2 text-[10px] text-slate-400">Review historical commissioning, testing and verification results for all sites and devices.</p>
             </div>
-            <div className="mt-5 flex gap-3 text-[10px]"><ActionButton>Export Report</ActionButton><ActionButton>Download Data (CSV)</ActionButton><ActionButton>Filters <b className="ml-2 rounded-full bg-[#147dff] px-1.5 text-white">3</b></ActionButton></div>
+            <div className="mt-5 flex gap-3 text-[10px]"><ActionButton>Export Report</ActionButton><ActionButton>Download Data (CSV)</ActionButton><ActionButton>Filters <b className="ml-2 rounded-full bg-[#147dff] px-1.5 text-white">0</b></ActionButton></div>
           </section>
           <section className="grid h-[104px] grid-cols-[1fr_1fr_1fr_1fr_1fr_1.94fr] gap-2">
-            <CommissioningKpi label="Total Commissioning Records" value="186" detail="+ 22.4% vs prior 30 days" icon="▣" tone="#147dff" />
-            <CommissioningKpi label="Successful" value="158" detail="84.9%" icon="✓" tone="#05ff5e" />
-            <CommissioningKpi label="In Progress" value="16" detail="8.6%" icon="◷" tone="#147dff" />
-            <CommissioningKpi label="Requires Attention" value="7" detail="3.8%" icon="!" tone="#f59e0b" />
-            <CommissioningKpi label="Failed" value="5" detail="2.7%" icon="×" tone="#ef4444" />
+            <CommissioningKpi label="Total Commissioning Records" value="No Data" detail="source_missing" icon="▣" tone="#147dff" />
+            <CommissioningKpi label="Successful" value="No Data" detail="source_missing" icon="✓" tone="#05ff5e" />
+            <CommissioningKpi label="In Progress" value="No Data" detail="source_missing" icon="◷" tone="#147dff" />
+            <CommissioningKpi label="Requires Attention" value="No Data" detail="source_missing" icon="!" tone="#f59e0b" />
+            <CommissioningKpi label="Failed" value="No Data" detail="source_missing" icon="×" tone="#ef4444" />
             <ResultsOverview />
           </section>
           <section className="mt-4 grid h-[38px] grid-cols-[122px_1fr_122px_150px_150px_1fr_78px_96px] gap-2 text-[9px]">
@@ -69,11 +78,11 @@ function CommissioningSidebar() {
     ["ADMINISTRATION", ["Users & Roles", "Account Settings", "Integrations", "Firmware"]],
     ["COMMISSIONING & TESTING", ["Field Testing", "Commissioning & Testing", "Commissioning History", "Test Templates", "Test Procedures"]],
   ];
-  return <aside className="relative h-full overflow-hidden border-r border-cyan-300/10 bg-[#030c15] px-3 py-3"><div className="mb-3"><div className="text-[28px] font-black italic leading-none tracking-[-0.12em]"><span className="text-[#05ff5e]">X</span>ECO</div><div className="mt-1 text-[8px] font-bold uppercase tracking-[0.48em] text-[#05ff5e]">Energy</div></div><nav className="space-y-2 text-[8px]">{groups.map(([title,items])=><section key={String(title)}><h2 className="mb-1 text-[#05ff5e]">{title}</h2>{(items as string[]).map(item=><div className={item==="Commissioning History" ? "flex h-[20px] items-center rounded bg-[#063b27] px-1.5 text-[#05ff5e]" : "flex h-[20px] items-center rounded px-1.5 text-slate-300"} key={item}>⌘ &nbsp; {item}</div>)}</section>)}</nav><div className="absolute bottom-[84px] left-3 right-3 rounded border border-[#05ff5e]/25 bg-[#061421] p-2 text-center text-[8px]"><div>XECO Current<br/>Balance Index™</div><div className="text-[28px] leading-none text-[#65a30d]">96</div><div>A+ Rating</div><div className="mt-2 text-[#05ff5e]">View Details →</div></div><div className="absolute bottom-[42px] left-3 text-[8px]"><div className="text-white">☏ Need Help?</div><div className="text-slate-400">Contact Support</div></div><div className="absolute bottom-2 left-3 right-3 text-[7px] text-slate-500">© 2025 XECO Energy Corporation.</div></aside>;
+  return <aside className="relative h-full overflow-hidden border-r border-cyan-300/10 bg-[#030c15] px-3 py-3"><div className="mb-3"><div className="text-[28px] font-black italic leading-none tracking-[-0.12em]"><span className="text-[#05ff5e]">X</span>ECO</div><div className="mt-1 text-[8px] font-bold uppercase tracking-[0.48em] text-[#05ff5e]">Energy</div></div><nav className="space-y-2 text-[8px]">{groups.map(([title,items])=><section key={String(title)}><h2 className="mb-1 text-[#05ff5e]">{title}</h2>{(items as string[]).map(item=><div className={item==="Commissioning History" ? "flex h-[20px] items-center rounded bg-[#063b27] px-1.5 text-[#05ff5e]" : "flex h-[20px] items-center rounded px-1.5 text-slate-300"} key={item}>⌘ &nbsp; {item}</div>)}</section>)}</nav><div className="absolute bottom-[84px] left-3 right-3 rounded border border-[#05ff5e]/25 bg-[#061421] p-2 text-center text-[8px]"><div>XECO Current<br/>Balance Index™</div><div className="text-[28px] leading-none text-[#65a30d]">No Data</div><div className="text-[#05ff5e]">source_missing</div><div className="mt-2 text-[#05ff5e]">View Details →</div></div><div className="absolute bottom-[42px] left-3 text-[8px]"><div className="text-white">☏ Need Help?</div><div className="text-slate-400">Contact Support</div></div><div className="absolute bottom-2 left-3 right-3 text-[7px] text-slate-500">© 2025 XECO Energy Corporation.</div></aside>;
 }
 
 function CommissioningTopbar() {
-  return <header className="flex h-[48px] items-center justify-between border-b border-cyan-300/10"><div className="text-[12px] font-semibold uppercase tracking-wide">XECO ENERGY INTELLIGENCE PORTAL</div><div className="flex items-center gap-4 text-[10px]"><button className="w-[156px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left"><span className="text-[7px] text-slate-400">Client</span><br/>Flex Ltd.</button><button className="w-[198px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left">May 11 - May 18, 2025<br/><span className="text-[8px] text-slate-400">(7 Days)</span></button><span className="text-[#05ff5e]">● Live</span><span className="relative text-lg">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">3</b></span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span><span>John Smith<br/><span className="text-slate-500">OEM Admin</span></span><span>⌄</span></div></header>;
+  return <header className="flex h-[48px] items-center justify-between border-b border-cyan-300/10"><div className="text-[12px] font-semibold uppercase tracking-wide">XECO ENERGY INTELLIGENCE PORTAL</div><div className="flex items-center gap-4 text-[10px]"><button className="w-[156px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left"><span className="text-[7px] text-slate-400">Client</span><br/>Flex Ltd.</button><button className="w-[198px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left">May 11 - May 18, 2025<br/><span className="text-[8px] text-slate-400">(7 Days)</span></button><span className="text-[#05ff5e]">source_missing</span><span className="relative text-lg">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">0</b></span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span><span>John Smith<br/><span className="text-slate-500">OEM Admin</span></span><span>⌄</span></div></header>;
 }
 
 function ActionButton({ children }: { children: ReactNode }) {
@@ -94,7 +103,7 @@ function FilterField({ label, value }: { label: string; value: string }) {
 }
 
 function CommissioningTable() {
-  return <div className="min-h-0 overflow-hidden rounded border border-cyan-300/12 bg-[#061521]/92 p-3 text-[7px]"><div className="mb-2 text-[9px] text-slate-300">Showing 1 to 15 of 186 records</div><table className="w-full text-left"><thead className="text-slate-400"><tr>{["Commission ID","Site / Location","Device Type","Device / Name","Technician","Start Date & Time (CDT)","Duration","Status","Result","Actions"].map(h=><th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-white/5" key={row[0]}><td className="py-1 text-[#05bfff]">{row[0]}</td><td className="whitespace-pre-line py-1">{row[1]}</td><td className="py-1">{row[2]}</td><td className="py-1 text-[#05bfff]">{row[3]}</td><td className="py-1">{row[4]}</td><td className="py-1">{row[5]}</td><td className="py-1">{row[6]}</td><td className="py-1"><StatusPill status={row[7]} /></td><td className="py-1">{row[8]}</td><td className="py-1">◎ &nbsp; ⇩</td></tr>)}</tbody></table><div className="mt-3 flex items-center justify-between text-[9px] text-slate-400"><span>Show <b className="rounded border border-cyan-300/12 px-3 py-1 text-slate-100">15</b> per page</span><span className="space-x-2"><b className="rounded border border-cyan-300/12 px-2 py-1">‹</b><b className="rounded bg-[#147dff] px-2 py-1 text-white">1</b><b className="rounded border border-cyan-300/12 px-2 py-1">2</b><b className="rounded border border-cyan-300/12 px-2 py-1">3</b><b className="rounded border border-cyan-300/12 px-2 py-1">4</b><b className="rounded border border-cyan-300/12 px-2 py-1">5</b><span>...</span><b className="rounded border border-cyan-300/12 px-2 py-1">13</b><b className="rounded border border-cyan-300/12 px-2 py-1">›</b></span></div></div>;
+  return <div className="min-h-0 overflow-hidden rounded border border-cyan-300/12 bg-[#061521]/92 p-3 text-[7px]"><div className="mb-2 text-[9px] text-slate-300">Showing 1 to 15 of 186 records</div><table className="w-full text-left"><thead className="text-slate-400"><tr>{["Commission ID","Site / Location","Device Type","Device / Name","Technician","Start Date & Time (CDT)","Duration","Status","Result","Actions"].map(h=><th className="pb-2 font-medium" key={h}>{h}</th>)}</tr></thead><tbody>{rows.map(row=><tr className="border-t border-white/5" key={row[0]}><td className="py-1 text-[#05bfff]">{row[0]}</td><td className="whitespace-pre-line py-1">{row[1]}</td><td className="py-1">{row[2]}</td><td className="py-1 text-[#05bfff]">{row[3]}</td><td className="py-1">{row[4]}</td><td className="py-1">{row[5]}</td><td className="py-1">{row[6]}</td><td className="py-1"><StatusPill status={row[7]} /></td><td className="py-1">{row[8]}</td><td className="py-1">◎ &nbsp; ⇩</td></tr>)}</tbody></table><div className="mt-3 flex items-center justify-between text-[9px] text-slate-400"><span>Show <b className="rounded border border-cyan-300/12 px-3 py-1 text-slate-100">15</b> per page</span><span className="space-x-2"><b className="rounded border border-cyan-300/12 px-2 py-1">‹</b><b className="rounded bg-[#147dff] px-2 py-1 text-white">0</b><b className="rounded border border-cyan-300/12 px-2 py-1">0</b><b className="rounded border border-cyan-300/12 px-2 py-1">0</b><b className="rounded border border-cyan-300/12 px-2 py-1">0</b><b className="rounded border border-cyan-300/12 px-2 py-1">0</b><span>...</span><b className="rounded border border-cyan-300/12 px-2 py-1">13</b><b className="rounded border border-cyan-300/12 px-2 py-1">›</b></span></div></div>;
 }
 
 function StatusPill({ status }: { status: string }) {
@@ -116,5 +125,5 @@ function DeviceTypeBars() {
 }
 
 function CommissioningFooter() {
-  return <footer className="flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span className="space-x-9 text-[#05ff5e]"><span>Privacy Policy</span><span>Terms of Service</span><span>Support</span></span><span>Data updated: May 18, 2025 10:15 AM CDT <b className="ml-4 text-[#05ff5e]">▥ Live</b></span></footer>;
+  return <footer className="flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span className="space-x-9 text-[#05ff5e]"><span>Privacy Policy</span><span>Terms of Service</span><span>Support</span></span><span>Data updated: source_missing <b className="ml-4 text-[#05ff5e]">▥ Live</b></span></footer>;
 }

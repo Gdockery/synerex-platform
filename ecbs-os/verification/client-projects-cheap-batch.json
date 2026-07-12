@@ -1,0 +1,65 @@
+{
+  "name": "Client Projects Cheap Batch",
+  "routes": [
+    {
+      "name": "commissioning history",
+      "path": "/client-management/projects/commissioning-history-page",
+      "status": 200,
+      "expectText": ["Commissioning History", "source_missing"]
+    },
+    {
+      "name": "generate proposal",
+      "path": "/client-management/projects/generate-proposal",
+      "status": 200,
+      "expectText": ["Create New Project", "source_missing"]
+    },
+    {
+      "name": "payments invoices",
+      "path": "/client-management/projects/payments-invoices-page",
+      "status": 200,
+      "expectText": ["Payments / Invoices", "source_missing"]
+    },
+    {
+      "name": "production time custom calendar",
+      "path": "/client-management/projects/production-time-custom-calendar-page",
+      "status": 200,
+      "expectText": ["Production Time - Custom Calendar", "source_missing"]
+    },
+    {
+      "name": "production time date range",
+      "path": "/client-management/projects/production-time-date-range-page",
+      "status": 200,
+      "expectText": ["Production Time - Date Range", "source_missing"]
+    },
+    {
+      "name": "production time shift based",
+      "path": "/client-management/projects/production-time-shift-based-page",
+      "status": 200,
+      "expectText": ["Production Time - Shift Based", "source_missing"]
+    },
+    {
+      "name": "project dashboard",
+      "path": "/client-management/projects/project-dashboard",
+      "status": 200,
+      "expectText": ["Projects / Facilities", "source_missing"]
+    },
+    {
+      "name": "proposal assessment results",
+      "path": "/client-management/projects/proposal-assessment-results",
+      "status": 200,
+      "expectText": ["Proposal / Assessment Results", "source_missing"]
+    },
+    {
+      "name": "utility bill scanner",
+      "path": "/client-management/projects/utility-bill-scanner",
+      "status": 200,
+      "expectText": ["Scan Utility Bill", "source_missing"]
+    },
+    {
+      "name": "utility bill scanner page",
+      "path": "/client-management/projects/utility-bill-scanner-page",
+      "status": 200,
+      "expectText": ["Scan Utility Bill", "source_missing"]
+    }
+  ]
+}

@@ -9,6 +9,14 @@ const calendarDays = [
 const productionBars = [7.8, 5.2, 8.4, 8.7, 9.2, 9.8, 8.2, 9.1, 8.9, 7.5];
 const downtimeBars = [0.6, 1.1, 0.5, 0.7, 0.6, 0.4, 0.8, 0.6, 0.7, 0.6];
 
+function ClientProjectSourceMissing({ message = "source_missing: Client project backend source/write model is not wired for this cheap-mode batch." }: { message?: string }) {
+  return (
+    <div className="rounded border border-cyan-300/12 bg-[#061521]/92 px-4 py-2 text-[10px] text-slate-300">
+      <b className="text-[#05ff5e]">No Data</b> - {message}
+    </div>
+  );
+}
+
 export function ProductionTimeCustomCalendarScreen() {
   return (
     <div className="h-screen w-screen overflow-hidden bg-[#020a12] text-slate-100">
@@ -16,6 +24,7 @@ export function ProductionTimeCustomCalendarScreen() {
         <ProductionSidebar />
         <main className="flex min-w-0 flex-col bg-[radial-gradient(circle_at_top_right,rgba(0,220,255,.1),transparent_30%),linear-gradient(180deg,#04111c,#020910)] px-4">
           <ProductionTopbar />
+          <ClientProjectSourceMissing />
           <section className="flex h-[90px] items-start justify-between pt-3">
             <div>
               <div className="text-[9px] text-slate-400">Home &nbsp; &gt; &nbsp; Energy Dashboard &nbsp; &gt; &nbsp; Production Time &nbsp; &gt; &nbsp; <span className="text-slate-100 underline">Custom Calendar</span></div>
@@ -25,11 +34,11 @@ export function ProductionTimeCustomCalendarScreen() {
             <div className="mt-7 flex gap-3 text-[10px]"><ActionButton>⇄ &nbsp; Compare Ranges</ActionButton><ActionButton>⇩ &nbsp; Export &nbsp;⌄</ActionButton></div>
           </section>
           <section className="grid h-[86px] grid-cols-5 gap-3">
-            <ProductionKpi label="Total Production Time" value="146.2 hrs" detail="+ 12.6% vs Apr 1 - Apr 18, 2025" icon="◷" tone="#147dff" />
-            <ProductionKpi label="Average Daily Production Time" value="8.13 hrs/day" detail="+ 9.9% vs Apr 1 - Apr 18, 2025" icon="▣" tone="#05ff5e" />
-            <ProductionKpi label="Peak Day" value="9.8 hrs" detail="May 8, 2025" icon="↗" tone="#9333ea" />
-            <ProductionKpi label="Lowest Day" value="5.2 hrs" detail="May 3, 2025" icon="↘" tone="#f59e0b" />
-            <ProductionKpi label="Total Downtime" value="9.6 hrs" detail="+ 4.3% vs Apr 1 - Apr 18, 2025" icon="△" tone="#ef4444" />
+            <ProductionKpi label="Total Production Time" value="No Data" detail="source_missing" icon="◷" tone="#147dff" />
+            <ProductionKpi label="Average Daily Production Time" value="No Data" detail="source_missing" icon="▣" tone="#05ff5e" />
+            <ProductionKpi label="Peak Day" value="No Data" detail="source_missing" icon="↗" tone="#9333ea" />
+            <ProductionKpi label="Lowest Day" value="No Data" detail="source_missing" icon="↘" tone="#f59e0b" />
+            <ProductionKpi label="Total Downtime" value="No Data" detail="source_missing" icon="△" tone="#ef4444" />
           </section>
           <section className="mt-3 grid min-h-0 flex-1 grid-cols-[1fr_292px] gap-3">
             <div className="min-h-0 rounded border border-cyan-300/12 bg-[#061521]/92">
@@ -54,11 +63,11 @@ export function ProductionTimeCustomCalendarScreen() {
 
 function ProductionSidebar() {
   const groups = [["ENTERPRISE", ["Enterprise Dashboard", "Energy Dashboard", "Capacity Intelligence", "Digital Twin", "Sites", "Transformers", "Electrical Network", "Current Analysis", "Savings & Forecast", "Alarms & Events", "Reports"]], ["DEVICES", ["Gateways", "Meters", "Switches", "Repeaters", "Devices"]], ["ADMINISTRATION", ["Users & Roles", "Account Settings", "Integrations", "Firmware"]], ["COMMISSIONING & TESTING", ["Field Testing", "Commissioning & Testing", "Documents"]]];
-  return <aside className="relative h-full overflow-hidden border-r border-cyan-300/10 bg-[#030c15] px-3 py-3"><div className="mb-3"><div className="text-[29px] font-black italic leading-none tracking-[-0.12em]"><span className="text-[#05ff5e]">X</span>ECO</div><div className="mt-1 text-[8px] font-bold uppercase tracking-[0.48em] text-[#05ff5e]">Energy</div></div><nav className="space-y-2 text-[8px]">{groups.map(([title,items])=><section key={String(title)}><h2 className="mb-1 text-[#05ff5e]">{title}</h2>{(items as string[]).map(item=><div className={item==="Energy Dashboard" ? "flex h-[20px] items-center rounded bg-[#063b27] px-1.5 text-[#05ff5e]" : "flex h-[20px] items-center rounded px-1.5 text-slate-300"} key={item}>⌘ &nbsp; {item}{item==="Alarms & Events"?<b className="ml-auto grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">6</b>:null}</div>)}</section>)}</nav><div className="absolute bottom-[92px] left-3 right-3 rounded border border-cyan-300/12 bg-[#061421] p-2 text-center text-[8px]"><div className="text-slate-400">XECO Current<br/>Balance Index</div><div className="mt-1 text-[30px] font-light leading-none text-[#05ff5e]">96</div><div className="text-[#05ff5e]">At Rating</div><div className="mt-2 text-[#05ff5e]">View Details →</div></div><div className="absolute bottom-[44px] left-3 right-3 rounded border border-cyan-300/12 bg-[#061421] p-2 text-[8px]"><div className="text-white">☏ Need Help?</div><div className="text-slate-400">Contact Support</div></div><div className="absolute bottom-2 left-3 right-3 text-[7px] text-slate-500">© 2025 XECO Energy Corporation.</div></aside>;
+  return <aside className="relative h-full overflow-hidden border-r border-cyan-300/10 bg-[#030c15] px-3 py-3"><div className="mb-3"><div className="text-[29px] font-black italic leading-none tracking-[-0.12em]"><span className="text-[#05ff5e]">X</span>ECO</div><div className="mt-1 text-[8px] font-bold uppercase tracking-[0.48em] text-[#05ff5e]">Energy</div></div><nav className="space-y-2 text-[8px]">{groups.map(([title,items])=><section key={String(title)}><h2 className="mb-1 text-[#05ff5e]">{title}</h2>{(items as string[]).map(item=><div className={item==="Energy Dashboard" ? "flex h-[20px] items-center rounded bg-[#063b27] px-1.5 text-[#05ff5e]" : "flex h-[20px] items-center rounded px-1.5 text-slate-300"} key={item}>⌘ &nbsp; {item}{item==="Alarms & Events"?<b className="ml-auto grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">0</b>:null}</div>)}</section>)}</nav><div className="absolute bottom-[92px] left-3 right-3 rounded border border-cyan-300/12 bg-[#061421] p-2 text-center text-[8px]"><div className="text-slate-400">XECO Current<br/>Balance Index</div><div className="mt-1 text-[30px] font-light leading-none text-[#05ff5e]">96</div><div className="text-[#05ff5e]">At Rating</div><div className="mt-2 text-[#05ff5e]">View Details →</div></div><div className="absolute bottom-[44px] left-3 right-3 rounded border border-cyan-300/12 bg-[#061421] p-2 text-[8px]"><div className="text-white">☏ Need Help?</div><div className="text-slate-400">Contact Support</div></div><div className="absolute bottom-2 left-3 right-3 text-[7px] text-slate-500">© 2025 XECO Energy Corporation.</div></aside>;
 }
 
 function ProductionTopbar() {
-  return <header className="flex h-[48px] items-center justify-between border-b border-cyan-300/10"><div className="text-[12px] font-semibold uppercase tracking-wide">XECO ENERGY INTELLIGENCE PORTAL</div><div className="flex items-center gap-4 text-[10px]"><button className="w-[154px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left"><span className="text-[7px] text-slate-400">Client</span><br/>Flex Ltd.</button><button className="w-[188px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left">May 1 - May 18, 2025<br/><span className="text-[8px] text-slate-400">Custom</span></button><span className="text-[#05ff5e]">● Live</span><span className="relative text-lg">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">3</b></span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span><span>John Smith<br/><span className="text-slate-500">OEM Admin</span></span><span>⌄</span></div></header>;
+  return <header className="flex h-[48px] items-center justify-between border-b border-cyan-300/10"><div className="text-[12px] font-semibold uppercase tracking-wide">XECO ENERGY INTELLIGENCE PORTAL</div><div className="flex items-center gap-4 text-[10px]"><button className="w-[154px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left"><span className="text-[7px] text-slate-400">Client</span><br/>Flex Ltd.</button><button className="w-[188px] rounded border border-cyan-300/12 bg-[#061421] px-3 py-2 text-left">May 1 - May 18, 2025<br/><span className="text-[8px] text-slate-400">Custom</span></button><span className="text-[#05ff5e]">source_missing</span><span className="relative text-lg">♧<b className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-red-500 text-[8px] text-white">0</b></span><span>?</span><span className="grid size-7 place-items-center rounded-full bg-[#0b3158]">JS</span><span>John Smith<br/><span className="text-slate-500">OEM Admin</span></span><span>⌄</span></div></header>;
 }
 
 function ActionButton({ children }: { children: React.ReactNode }) {
@@ -110,5 +119,5 @@ function Select({ label, value }: { label: string; value: string }) {
 }
 
 function ProductionFooter() {
-  return <footer className="flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span className="space-x-9 text-[#05ff5e]"><span>Privacy Policy</span><span>Terms of Service</span><span>Support</span></span><span>Data updated: May 18, 2025 10:15 AM CDT <b className="ml-4 text-[#05ff5e]">▥ Live</b></span></footer>;
+  return <footer className="flex h-[34px] items-center justify-between border-t border-cyan-300/10 text-[9px] text-slate-500"><span>© 2025 XECO Energy Corporation. All rights reserved.</span><span className="space-x-9 text-[#05ff5e]"><span>Privacy Policy</span><span>Terms of Service</span><span>Support</span></span><span>Data updated: source_missing <b className="ml-4 text-[#05ff5e]">▥ Live</b></span></footer>;
 }
