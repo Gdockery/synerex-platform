@@ -161,6 +161,7 @@ export type CapacityIntelligenceAsset = {
 
 export type CapacityIntelligenceData = {
   annualBenefit: string;
+  annualSavingsValue: number;
   activationDate: string;
   assets: CapacityIntelligenceAsset[];
   availableKva: number;
@@ -172,6 +173,7 @@ export type CapacityIntelligenceData = {
   cumulativeSavingsSinceActivation: string;
   dateRange: string;
   deferredCapitalValue: number;
+  demandSavingsValue: number;
   hiddenKva: number;
   installedKva: number;
   keyInsight: string;
@@ -179,6 +181,14 @@ export type CapacityIntelligenceData = {
   loadKva: number;
   recoveredKva: number;
   recoveredPct: number;
+  paybackYears: number;
+  projectCost: number;
+  roiPct: number;
+  savingsPerDay: number;
+  savingsPerHour: number;
+  savingsPerMinute: number;
+  savingsPerMonth: number;
+  savingsWaterfallRows: { detail: string; label: string; value: string }[];
   siteName: string;
   state: "data" | "empty" | "error";
   subScores: { label: string; value: number }[];
@@ -1575,6 +1585,7 @@ function emptySiteDashboard(message: string): SiteDashboardData {
 function emptyCapacityIntelligence(message: string): CapacityIntelligenceData {
   return {
     annualBenefit: "$0",
+    annualSavingsValue: 0,
     activationDate: "No Data",
     assets: [],
     availableKva: 0,
@@ -1586,6 +1597,7 @@ function emptyCapacityIntelligence(message: string): CapacityIntelligenceData {
     cumulativeSavingsSinceActivation: "No Data",
     dateRange: "Tracking DB",
     deferredCapitalValue: 0,
+    demandSavingsValue: 0,
     hiddenKva: 0,
     installedKva: 0,
     keyInsight: message,
@@ -1593,6 +1605,14 @@ function emptyCapacityIntelligence(message: string): CapacityIntelligenceData {
     loadKva: 0,
     recoveredKva: 0,
     recoveredPct: 0,
+    paybackYears: 0,
+    projectCost: 98000,
+    roiPct: 0,
+    savingsPerDay: 0,
+    savingsPerHour: 0,
+    savingsPerMinute: 0,
+    savingsPerMonth: 0,
+    savingsWaterfallRows: [],
     siteName: "Ochsner Site",
     state: "error",
     subScores: [],

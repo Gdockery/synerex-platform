@@ -730,6 +730,7 @@ function noDevicesData(message: string): DevicesData {
 function noCapacityIntelligenceData(message: string): CapacityIntelligenceData {
   return {
     annualBenefit: "$0",
+    annualSavingsValue: 0,
     activationDate: "No Data",
     assets: [],
     availableKva: 0,
@@ -746,6 +747,7 @@ function noCapacityIntelligenceData(message: string): CapacityIntelligenceData {
     cumulativeSavingsSinceActivation: "No Data",
     dateRange: "Tracking DB",
     deferredCapitalValue: 0,
+    demandSavingsValue: 0,
     hiddenKva: 0,
     installedKva: 0,
     keyInsight: message,
@@ -759,6 +761,14 @@ function noCapacityIntelligenceData(message: string): CapacityIntelligenceData {
     loadKva: 0,
     recoveredKva: 0,
     recoveredPct: 0,
+    paybackYears: 0,
+    projectCost: 98000,
+    roiPct: 0,
+    savingsPerDay: 0,
+    savingsPerHour: 0,
+    savingsPerMinute: 0,
+    savingsPerMonth: 0,
+    savingsWaterfallRows: [],
     siteName: "Ochsner Site",
     state: "empty",
     subScores: [

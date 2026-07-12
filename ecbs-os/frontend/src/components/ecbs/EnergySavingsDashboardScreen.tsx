@@ -26,6 +26,18 @@ function formatPctValue(value?: number) {
   return `${raw.toFixed(1)}%`;
 }
 
+function formatCurrencyRate(value?: number) {
+  const raw = Number(value ?? 0);
+  if (!Number.isFinite(raw) || raw <= 0) return "No Data";
+  return raw.toLocaleString("en-US", { currency: "USD", maximumFractionDigits: raw < 1 ? 2 : 0, minimumFractionDigits: raw < 1 ? 2 : 0, style: "currency" });
+}
+
+function formatYears(value?: number) {
+  const raw = Number(value ?? 0);
+  if (!Number.isFinite(raw) || raw <= 0) return "No Data";
+  return `${raw.toFixed(1)} Years`;
+}
+
 function energyDateRange(data?: CapacityIntelligenceData) {
   return data ? `Tracking DB • ${data.updatedAt}` : "Tracking DB unavailable";
 }
@@ -105,6 +117,67 @@ function CumulativeSavingsSummary({ data }: EnergySavingsScreenProps) {
   );
 }
 
+function SavingsRatePanel({ data }: EnergySavingsScreenProps) {
+  const rates = [
+    [formatCurrencyRate(data?.savingsPerHour), "/ Hour"],
+    [formatCurrencyRate(data?.savingsPerDay), "/ Day"],
+    [formatCurrencyValue(data?.savingsPerMonth), "/ Month"],
+    [annualBenefitValue(data), "/ Year"],
+  ];
+
+  return (
+    <>
+      <div className="text-[9px] text-slate-400">Savings rate is derived from latest annual savings.</div>
+      <div className="mt-3 text-[11px] uppercase text-slate-400">Current Savings Rate</div>
+      <div className="text-[38px] leading-none text-[#05ff5e]">{formatCurrencyRate(data?.savingsPerMinute)} <span className="text-lg text-slate-400">/ Minute</span></div>
+      <div className="mt-4 grid grid-cols-4 gap-3 text-center text-[11px]">
+        {rates.map(([value, label]) => <div className="rounded border border-cyan-300/10 bg-[#061421] p-3" key={label}><b className="text-slate-200">{value}</b><br /><span className="text-slate-500">{label}</span></div>)}
+      </div>
+      <div className="mt-3 text-[9px] text-slate-400">Formula: annual savings / 365.25 / 24 / 60. <span className="text-[#05ff5e]">No screenshot placeholder values.</span></div>
+    </>
+  );
+}
+
+function SavingsWaterfallPanel({ data }: EnergySavingsScreenProps) {
+  const rows = data?.savingsWaterfallRows ?? [];
+
+  if (rows.length === 0) {
+    return <NoDataBlock message="No Data - savings waterfall rows were not returned by ECBS.Api." />;
+  }
+
+  return (
+    <div className="h-full text-[8px]">
+      <table className="w-full text-left">
+        <thead className="text-slate-400">
+          <tr><th className="pb-2 font-medium">Component</th><th className="pb-2 font-medium">Value</th><th className="pb-2 font-medium">Source</th></tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr className="border-t border-white/5" key={row.label}>
+              <td className="py-2">{row.label}</td>
+              <td className={row.value === "No Data" ? "py-2 text-slate-400" : "py-2 text-[#05ff5e]"}>{row.value}</td>
+              <td className="py-2 text-slate-400">{row.detail}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div className="mt-2 text-[#05ff5e]">M-009 split where source fields exist</div>
+    </div>
+  );
+}
+
+function RoiPaybackMini({ data }: EnergySavingsScreenProps) {
+  return (
+    <div className="grid h-full grid-cols-2 gap-3 text-center">
+      <Gauge label="Return on Investment" value={formatPctValue(data?.roiPct)} />
+      <Gauge label="Payback Period" value={formatYears(data?.paybackYears)} />
+      <div className="col-span-2 rounded border border-cyan-300/10 bg-[#061421] p-2 text-[9px] text-slate-300">
+        Project cost: <b className="text-[#05ff5e]">{formatCurrencyValue(data?.projectCost)}</b> manual approved input.
+      </div>
+    </div>
+  );
+}
+
 export function EnergySavingsDashboardScreen({ data }: EnergySavingsScreenProps) {
   return (
     <EcbsAppShell activeHref="/enterprise/energy-dashboard">
@@ -117,16 +190,7 @@ export function EnergySavingsDashboardScreen({ data }: EnergySavingsScreenProps)
 
         <section className="mt-3 grid h-[198px] shrink-0 grid-cols-[0.7fr_1.3fr] gap-3">
           <DashboardPanel title="ECBS Value Created - Real Time" variant="enterprise">
-            <div className="text-[9px] text-slate-400">Savings are calculated in real time vs. approved baseline.</div>
-            <div className="mt-3 text-[11px] uppercase text-slate-400">Current Savings Rate</div>
-            <div className="text-[38px] leading-none text-[#05ff5e]">$3.72 <span className="text-lg text-slate-400">/ Minute</span></div>
-            <div className="mt-4 grid grid-cols-4 gap-3 text-center text-[11px]">
-              {["$223|/ Hour", "$5,352|/ Day", "$160,560|/ Month", "$1,926,720|/ Year"].map((item) => {
-                const [value, label] = item.split("|");
-                return <div className="rounded border border-cyan-300/10 bg-[#061421] p-3" key={item}><b className="text-slate-200">{value}</b><br /><span className="text-slate-500">{label}</span></div>;
-              })}
-            </div>
-            <div className="mt-3 text-[9px] text-slate-400">Every minute. Every hour. Every day. <span className="text-[#05ff5e]">Real measurable value.</span></div>
+            <SavingsRatePanel data={data} />
           </DashboardPanel>
           <DashboardPanel title="Cumulative Savings Since Activation" variant="enterprise">
             <CumulativeSavingsSummary data={data} />
@@ -138,13 +202,10 @@ export function EnergySavingsDashboardScreen({ data }: EnergySavingsScreenProps)
             <CompactTable headers={["Metric", "Baseline", "Current", "Improvement"]} rows={energyBaselineRows(data)} />
           </DashboardPanel>
           <DashboardPanel title="Savings Waterfall" variant="enterprise">
-            <NoDataBlock message="No Data - savings waterfall requires an approved trend/split model." />
+            <SavingsWaterfallPanel data={data} />
           </DashboardPanel>
           <DashboardPanel title="ROI & Payback" variant="enterprise">
-            <div className="grid h-full grid-cols-2 gap-3 text-center">
-              <Gauge label="Return on Investment" value="No Data" />
-              <Gauge label="Payback Period" value="No Data" />
-            </div>
+            <RoiPaybackMini data={data} />
           </DashboardPanel>
         </section>
 
@@ -474,21 +535,21 @@ export function EnergySavingsRoiPaybackScreen({ data }: EnergySavingsScreenProps
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>‹ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">ROI & Payback Analysis</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Configure</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button></div></div>
         <section className="grid h-[112px] grid-cols-[1.05fr_1fr_1fr_1fr_1fr_1fr] gap-2">
-          <RoiGaugeCard value="No Data" />
-          <RoiTopMetric label="PAYBACK PERIOD" value="No Data" suffix="No approved investment basis" detail="Blocked" trend="No Data" />
-          <RoiTopMetric label="TOTAL INVESTMENT" value="No Data" suffix="No approved investment source" detail="Blocked" />
+          <RoiGaugeCard detail="M-008 with manual project cost" trend="Approved Model" value={formatPctValue(data?.roiPct)} />
+          <RoiTopMetric label="PAYBACK PERIOD" value={formatYears(data?.paybackYears)} suffix="Project cost / annual savings" detail="M-008" trend="Approved Model" />
+          <RoiTopMetric label="TOTAL INVESTMENT" value={formatCurrencyValue(data?.projectCost)} suffix="Manual approved input" detail="Project cost" />
           <RoiTopMetric label="TOTAL ANNUAL BENEFIT" value={annualBenefitValue(data)} suffix="Latest annual savings" detail="Direct Data" />
-          <RoiTopMetric label="NET ANNUAL BENEFIT" value="No Data" suffix="No operating cost source" detail="Blocked" trend="" />
+          <RoiTopMetric label="NET ANNUAL BENEFIT" value={annualBenefitValue(data)} suffix="No operating cost offset" detail="Calculated from annual savings" trend="Calculated" />
           <RoiTopMetric label="IRR (INTERNAL RATE OF RETURN)" value="No Data" suffix="No approved financial model" detail="Blocked" />
         </section>
         <section className="mt-2 grid h-[224px] grid-cols-[1.08fr_0.78fr_1fr] gap-2">
           <DashboardPanel title="CASH FLOW OVER TIME" variant="enterprise"><NoDataBlock message="No Data - cash flow model is not approved." /></DashboardPanel>
-          <DashboardPanel title="PAYBACK TIMELINE" variant="enterprise"><NoDataBlock message="No Data - payback model is not approved." /></DashboardPanel>
+          <DashboardPanel title="PAYBACK TIMELINE" variant="enterprise"><RoiPaybackTimeline data={data} /></DashboardPanel>
           <DashboardPanel title="ROI OVER TIME" variant="enterprise"><NoDataBlock message="No Data - ROI trend model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[186px] grid-cols-3 gap-2">
-          <DashboardPanel title="BENEFIT BREAKDOWN (Annualized)" variant="enterprise"><NoDataBlock message="No Data - benefit split is not approved." /></DashboardPanel>
-          <DashboardPanel title="COST BREAKDOWN (Total Investment)" variant="enterprise"><NoDataBlock message="No Data - cost model is not approved." /></DashboardPanel>
+          <DashboardPanel title="BENEFIT BREAKDOWN (Annualized)" variant="enterprise"><SavingsWaterfallPanel data={data} /></DashboardPanel>
+          <DashboardPanel title="COST BREAKDOWN (Total Investment)" variant="enterprise"><RoiCostBreakdown data={data} /></DashboardPanel>
           <DashboardPanel title="KEY FINANCIAL METRICS" variant="enterprise"><NoDataBlock message="No Data - financial metrics model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[172px] grid-cols-[0.9fr_1fr_1fr] gap-2">
@@ -503,8 +564,8 @@ export function EnergySavingsRoiPaybackScreen({ data }: EnergySavingsScreenProps
   );
 }
 
-function RoiGaugeCard({ value = "No Data" }: { value?: string }) {
-  return <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3 text-center"><div className="text-[8px] text-slate-300">RETURN ON INVESTMENT (ROI)</div><div className="relative mx-auto mt-1 h-[68px] w-[132px]"><svg viewBox="0 0 132 72"><path d="M20 62 A46 46 0 0 1 112 62" fill="none" stroke="#1f2937" strokeWidth="14" /><path d="M20 62 A46 46 0 0 1 42 22" fill="none" stroke="#ef4444" strokeWidth="14" /><path d="M42 22 A46 46 0 0 1 78 18" fill="none" stroke="#ff8a00" strokeWidth="14" /><path d="M78 18 A46 46 0 0 1 112 62" fill="none" stroke="#65a30d" strokeWidth="14" /><text fill="#e2e8f0" fontSize={value === "No Data" ? "16" : "24"} textAnchor="middle" x="66" y="58">{value}</text></svg></div><div className="flex justify-between text-[7px]"><span>0%</span><span>200%+</span></div><div className="text-[9px]">No approved model</div><div className="text-[8px] text-[#05ff5e]">No Data</div></article>;
+function RoiGaugeCard({ detail = "No approved model", trend = "No Data", value = "No Data" }: { detail?: string; trend?: string; value?: string }) {
+  return <article className="rounded border border-cyan-300/12 bg-[#061521]/92 p-3 text-center"><div className="text-[8px] text-slate-300">RETURN ON INVESTMENT (ROI)</div><div className="relative mx-auto mt-1 h-[68px] w-[132px]"><svg viewBox="0 0 132 72"><path d="M20 62 A46 46 0 0 1 112 62" fill="none" stroke="#1f2937" strokeWidth="14" /><path d="M20 62 A46 46 0 0 1 42 22" fill="none" stroke="#ef4444" strokeWidth="14" /><path d="M42 22 A46 46 0 0 1 78 18" fill="none" stroke="#ff8a00" strokeWidth="14" /><path d="M78 18 A46 46 0 0 1 112 62" fill="none" stroke="#65a30d" strokeWidth="14" /><text fill="#e2e8f0" fontSize={value === "No Data" ? "16" : "24"} textAnchor="middle" x="66" y="58">{value}</text></svg></div><div className="flex justify-between text-[7px]"><span>0%</span><span>200%+</span></div><div className="text-[9px]">{detail}</div><div className="text-[8px] text-[#05ff5e]">{trend}</div></article>;
 }
 
 function RoiTopMetric({ detail, label, suffix, trend, value }: { detail: string; label: string; suffix: string; trend?: string; value: string }) {
@@ -515,8 +576,12 @@ function RoiCashFlowChart() {
   return <div className="h-full text-[8px]"><div className="mb-1 flex justify-center gap-5"><span className="text-[#65a30d]">■ Net Cash Flow</span><span className="text-[#147dff]">━ Cumulative Cash Flow</span></div><svg className="h-[150px] w-full" viewBox="0 0 520 158"><g stroke="rgba(148,163,184,.16)">{[20,48,76,104,132].map(y=><line key={y} x1="34" x2="510" y1={y} y2={y}/>)}</g><line stroke="rgba(148,163,184,.4)" x1="34" x2="510" y1="88" y2="88"/>{Array.from({length:61}).map((_,i)=>{const x=36+i*7.5; const h=i<25?28-i*.4:10+(i-25)*1.8; return <rect fill={i<25?"#dc2626":"#65a30d"} height={h} key={i} width="4" x={x} y={i<25?88:88-h}/>})}<polyline fill="none" points="36,116 92,112 148,108 204,98 260,82 316,64 372,46 428,30 500,12" stroke="#147dff" strokeWidth="2"/><rect fill="#061421" height="46" rx="4" stroke="#65a30d" width="92" x="190" y="28"/><text fill="#65a30d" fontSize="8" textAnchor="middle" x="236" y="44">Break-Even Achieved</text><text fill="#e2e8f0" fontSize="8" textAnchor="middle" x="236" y="58">Month 25</text><text fill="#e2e8f0" fontSize="8" textAnchor="middle" x="236" y="70">Cumulative: $0</text></svg><div className="flex justify-between px-8 text-[7px] text-slate-400">{["0","6","12","18","24","30","36","42","48","54","60"].map(d=><span key={d}>{d}</span>)}</div><div className="mt-1 text-[#05ff5e]">View Cash Flow Details →</div></div>;
 }
 
-function RoiPaybackTimeline() {
-  return <div className="grid h-full content-center text-center text-[8px]"><div className="text-slate-300">Break-Even Point</div><div className="text-3xl leading-none text-[#9cff4d]">Month 25</div><div className="mt-1 text-xl">2.1 Years</div><div>Investment Recovered</div><div className="relative mx-auto mt-7 h-3 w-[86%] rounded-full bg-slate-700"><div className="absolute left-[43%] top-[-16px] text-3xl text-[#9cff4d]">●</div></div><div className="mx-auto mt-2 grid w-[86%] grid-cols-3 text-[7px]"><span>Activation<br/>May 12, 2024</span><span>Break-Even<br/>Jun 12, 2026</span><span>5 Year Mark<br/>May 12, 2029</span></div><div className="mt-4 text-left text-[#05ff5e]">View Timeline Details →</div></div>;
+function RoiPaybackTimeline({ data }: EnergySavingsScreenProps) {
+  const payback = data?.paybackYears ?? 0;
+  const month = payback > 0 ? Math.ceil(payback * 12) : 0;
+  const marker = Math.min(92, Math.max(8, payback > 0 ? payback / 5 * 100 : 0));
+
+  return <div className="grid h-full content-center text-center text-[8px]"><div className="text-slate-300">Break-Even Point</div><div className="text-3xl leading-none text-[#9cff4d]">{month > 0 ? `Month ${month}` : "No Data"}</div><div className="mt-1 text-xl">{formatYears(payback)}</div><div>Investment Recovered</div><div className="relative mx-auto mt-7 h-3 w-[86%] rounded-full bg-slate-700"><div className="absolute top-[-16px] text-3xl text-[#9cff4d]" style={{ left: `${marker}%` }}>●</div></div><div className="mx-auto mt-2 grid w-[86%] grid-cols-3 text-[7px]"><span>Activation<br/>{activationDateValue(data)}</span><span>Break-Even<br/>{month > 0 ? `Month ${month}` : "No Data"}</span><span>5 Year Mark<br/>60 Months</span></div><div className="mt-4 text-left text-[#05ff5e]">Project Cost: {formatCurrencyValue(data?.projectCost)} → Annual Benefit: {annualBenefitValue(data)}</div></div>;
 }
 
 function RoiOverTimeChart() {
@@ -529,8 +594,8 @@ function RoiBenefitBreakdown() {
   return <RoiTable headers={["Benefit Category","Annual Benefit ($)","% of Total","vs Prior Year"]} rows={rows} link="View Benefit Details →" />;
 }
 
-function RoiCostBreakdown() {
-  const rows = [["Equipment","$780,000","60.9%"],["Installation","$280,000","21.9%"],["Engineering & Design","$110,000","8.6%"],["Integration & Testing","$70,000","5.5%"],["Training & Commissioning","$40,000","3.1%"],["TOTAL","$1,280,000","100%"]];
+function RoiCostBreakdown({ data }: EnergySavingsScreenProps) {
+  const rows = [["Manual Approved Project Cost", formatCurrencyValue(data?.projectCost), "100%"],["Equipment / Install Split","No Data","No approved cost category source"],["TOTAL",formatCurrencyValue(data?.projectCost),"100%"]];
   return <RoiTable headers={["Cost Category","Amount ($)","% of Total"]} rows={rows} link="View Cost Details →" />;
 }
 
@@ -568,21 +633,21 @@ export function EnergySavingsRoiPaybackDetailsScreen({ data }: EnergySavingsScre
         </header>
         <div className="flex h-[34px] items-center justify-between text-[9px]"><div>‹ &nbsp; <span className="text-slate-400">Energy & Savings Dashboard</span> &nbsp; › &nbsp; <span className="text-slate-400">ROI & Payback Analysis</span> &nbsp; › &nbsp; <span className="text-[#05ff5e]">ROI & Payback Analysis - Details</span></div><div className="flex gap-3"><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">⇩ Export</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Share</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Configure</button><button className="rounded border border-cyan-300/12 bg-[#061421] px-4 py-2">Alerts</button></div></div>
         <section className="grid h-[88px] grid-cols-6 gap-2">
-          <RoiDetailKpi icon="$" label="RETURN ON INVESTMENT (ROI)" value="No Data" detail="No approved investment model" trend="Blocked" tone="green" />
-          <RoiDetailKpi icon="▣" label="PAYBACK PERIOD" value="No Data" detail="No approved cost basis" trend="Blocked" tone="cyan" />
+          <RoiDetailKpi icon="$" label="RETURN ON INVESTMENT (ROI)" value={formatPctValue(data?.roiPct)} detail="Annual savings / $98K" trend="Approved Model" tone="green" />
+          <RoiDetailKpi icon="▣" label="PAYBACK PERIOD" value={formatYears(data?.paybackYears)} detail="$98K / annual savings" trend="Approved Model" tone="cyan" />
           <RoiDetailKpi icon="⌁" label="NET PRESENT VALUE (NPV)" value="No Data" detail="No approved financial model" trend="Blocked" tone="purple" />
           <RoiDetailKpi icon="◴" label="INTERNAL RATE OF RETURN (IRR)" value="No Data" detail="No approved financial model" trend="Blocked" tone="orange" />
-          <RoiDetailKpi icon="▥" label="TOTAL INVESTMENT" value="No Data" detail="No approved investment source" trend="Blocked" tone="cyan" />
+          <RoiDetailKpi icon="▥" label="TOTAL INVESTMENT" value={formatCurrencyValue(data?.projectCost)} detail="Manual approved input" trend="Direct Manual" tone="cyan" />
           <RoiDetailKpi icon="◎" label="TOTAL ANNUAL BENEFIT" value={annualBenefitValue(data)} detail="Latest annual savings" trend="Direct Data" tone="yellow" />
         </section>
         <section className="mt-2 grid h-[214px] grid-cols-[1.08fr_0.78fr_1fr] gap-2">
           <DashboardPanel title="DETAILED CASH FLOW ANALYSIS" variant="enterprise"><NoDataBlock message="No Data - cash flow model is not approved." /></DashboardPanel>
-          <DashboardPanel title="PAYBACK ANALYSIS DETAIL" variant="enterprise"><NoDataBlock message="No Data - payback model is not approved." /></DashboardPanel>
+          <DashboardPanel title="PAYBACK ANALYSIS DETAIL" variant="enterprise"><RoiPaybackTimeline data={data} /></DashboardPanel>
           <DashboardPanel title="ROI OVER TIME (Cumulative)" variant="enterprise"><NoDataBlock message="No Data - ROI trend model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[178px] grid-cols-3 gap-2">
-          <DashboardPanel title="ANNUAL BENEFIT BREAKDOWN" variant="enterprise"><NoDataBlock message="No Data - benefit split is not approved." /></DashboardPanel>
-          <DashboardPanel title="INVESTMENT BREAKDOWN" variant="enterprise"><NoDataBlock message="No Data - investment breakdown is not approved." /></DashboardPanel>
+          <DashboardPanel title="ANNUAL BENEFIT BREAKDOWN" variant="enterprise"><SavingsWaterfallPanel data={data} /></DashboardPanel>
+          <DashboardPanel title="INVESTMENT BREAKDOWN" variant="enterprise"><RoiCostBreakdown data={data} /></DashboardPanel>
           <DashboardPanel title="COST OF DOING NOTHING (Avoided Costs)" variant="enterprise"><NoDataBlock message="No Data - avoided cost model is not approved." /></DashboardPanel>
         </section>
         <section className="mt-2 grid h-[180px] grid-cols-[1fr_0.86fr_0.94fr] gap-2">

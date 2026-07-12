@@ -2,6 +2,7 @@ namespace ECBS.Application.ScreenData;
 
 public sealed record CapacityIntelligenceData(
     string AnnualBenefit,
+    double AnnualSavingsValue,
     string ActivationDate,
     IReadOnlyList<CapacityIntelligenceAsset> Assets,
     double AvailableKva,
@@ -13,6 +14,7 @@ public sealed record CapacityIntelligenceData(
     string CumulativeSavingsSinceActivation,
     string DateRange,
     double DeferredCapitalValue,
+    double DemandSavingsValue,
     double HiddenKva,
     double InstalledKva,
     string KeyInsight,
@@ -20,6 +22,14 @@ public sealed record CapacityIntelligenceData(
     double LoadKva,
     double RecoveredKva,
     double RecoveredPct,
+    double PaybackYears,
+    double ProjectCost,
+    double RoiPct,
+    IReadOnlyList<EnergySavingsBreakdownRow> SavingsWaterfallRows,
+    double SavingsPerDay,
+    double SavingsPerHour,
+    double SavingsPerMinute,
+    double SavingsPerMonth,
     string SiteName,
     string State,
     IReadOnlyList<CapacitySubScore> SubScores,
@@ -46,6 +56,8 @@ public sealed record CapacityKpi(string Color, string Detail, string Icon, strin
 public sealed record CapacitySubScore(string Label, int Value);
 
 public sealed record CapacityTrendPoint(double Available, double Installed, string Label, double Used);
+
+public sealed record EnergySavingsBreakdownRow(string Detail, string Label, string Value);
 
 public sealed record CapacityRecoveryBreakdownData(
     string AfterOverCapacity,
